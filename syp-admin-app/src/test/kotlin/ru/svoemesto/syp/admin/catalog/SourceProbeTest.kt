@@ -197,9 +197,12 @@ class SourceProbeTest {
     fun `несуществующий файл даёт отказ с кодом SOURCE_UNREADABLE и путём в тексте`() {
         val missing = Paths.get("/srv/нет-такого-каталога/нет-такого-файла.mkv")
 
+        // Путь к программе здесь не настоящий и запускаться не будет: отказ
+        // возникает до обращения к ffprobe, потому что файла нет. Проверка
+        // поэтому проходит и на машине без видеоинструментов.
         val failure =
             assertFailsWith<DomainException> {
-                SourceProbe(ExternalProgram(), requireProgram("ffprobe")).probe(missing)
+                SourceProbe(ExternalProgram(), "ffprobe").probe(missing)
             }
 
         assertEquals(ErrorCode.SOURCE_UNREADABLE, failure.code)
@@ -213,13 +216,17 @@ class SourceProbeTest {
 
     @Test
     fun `файл без видеопотока даёт отказ, а не нулевые параметры`() {
+        // Здесь ffprobe нужен по-настоящему: «нет видеопотока» узнаёт он сам.
+        // Требование проверяется до проверки, иначе отсутствие программы
+        // выглядело бы как «опровергнутое утверждение», а не как пропуск.
+        val ffprobe = requireProgram("ffprobe")
         val notAVideo = Files.createTempDirectory("syp-probe").resolve("notes.txt")
         Files.writeString(notAVideo, "это не видеофайл\n")
 
         try {
             val failure =
                 assertFailsWith<DomainException> {
-                    SourceProbe(ExternalProgram(), requireProgram("ffprobe")).probe(notAVideo)
+                    SourceProbe(ExternalProgram(), ffprobe).probe(notAVideo)
                 }
 
             assertEquals(ErrorCode.SOURCE_UNREADABLE, failure.code)
