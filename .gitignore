@@ -15,14 +15,7 @@ logs/
 node_modules/
 dist/
 
-# артефакты сборки Gradle
-build/
-.gradle/
-.build/
-
-# дампы кучи JVM при сбоях
-*.hprof
-
-# журнал Knowledge-first pre-flight: локальный след проверки протокола,
-# в репозитории ему не место (constitution II)
-.knowledge-preflight.log
+# Рабочие каталоги проекта: изоляция субагентов и выгрузка данных.
+# Вне папки проекта ничего не создаётся (решение владельца 2026-10-02).
+.worktrees/
+.data/
