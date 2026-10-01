@@ -43,6 +43,14 @@ WORKDIR /app
 COPY --from=builder /build/app.jar /app/app.jar
 COPY deploy/syp-db/ /app/migrations/
 
+# ffmpeg ставится в образ: без него в контейнере нечем опросить файл серии
+# при регистрации и нечем определить границы при анализе. Пакет содержит и
+# ffprobe, которым снимаются параметры файла (FR-002). Ставится без
+# рекомендаций и с очисткой списков, чтобы слой не раздувался.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN useradd --system --create-home --uid 10001 syp
 USER syp
 

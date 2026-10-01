@@ -96,6 +96,9 @@ services:
       SYP_SIGNING_PUBLIC_KEY: ${SYP_SIGNING_PUBLIC_KEY:?задайте SYP_SIGNING_PUBLIC_KEY в deploy/.env}
       SYP_WORKER_CONCURRENCY: ${SYP_WORKER_CONCURRENCY:-2}
       SYP_GPU_CONCURRENCY: ${SYP_GPU_CONCURRENCY:-1}
+      # Путь к программе фиксирован настройкой развёртывания: он не приходит
+      # из данных задания и не приходит от пользователя (ADR-0010).
+      SYP_FFPROBE_PATH: ${SYP_FFPROBE_PATH:-/usr/bin/ffprobe}
     ports:
       - "${SYP_ADMIN_APP_HOST_PORT:-7911}:7911"
     volumes:
