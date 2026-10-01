@@ -1,0 +1,5 @@
+d1d0bcc5fb9d7e995c297726abe4f60426ee9d2f81b106893fe864348246af51  /home/nsa/Karaoke/tools/tracker.sh
+0a57c013e4fc47e699a37961703885c47877899eb08d989ad216b32b6773f427  /home/nsa/Karaoke/tools/tracker-lib.sh
+date: 2026-10-01T12:00:59Z
+reason: порт CLI OpenProject из Karaoke в проект SYP (правило команды п.1 — своя копия = рабочий буфер)
+PROVENANCE: .env.local-tracker скопирован из /home/nsa/Karaoke/.env.local-tracker (тот же экземпляр OpenProject, тот же пользователь ai-agent); значения не выводятся

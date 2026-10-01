@@ -1,0 +1,13 @@
+c62cb25eeaae15755070ebfe83bf64a4dbd5c9e797ac793d7d9072b1b0ba4d15  ./AGENTS.md
+e4dff2d210100d41d144647eb33c11315258cedbc1b14a99a8d49d8e6e639fd4  ./.env.local-tracker
+541ab3f427d3d3dd88d1765b6ab33befed858a6c1ae63c67c641a2071085552f  ./.env.local-tracker.example
+18181316e3a42e7c4c65dde50b2eb51809c4b060358e797dc74a1cbd42965644  ./.gitignore
+969097db97113cfafd1d73d42230f17231f90392b5b250e37f13cc41925d28ca  ./logs/tracker-agent.log
+529f5476ece3c31d2baa7f8fa23e59397f66a11215564542e56716c8a2ae3524  ./.scratch/syp/bench/bench-video.log
+1a8f6fde84db610ef5e13a5d9fda391cc87160838931e0b929db71bc7f5c3419  ./.scratch/syp/bench/bench-video.sh
+a8438195664a484fb62e4e72ffdb7568be781892b116d9f714da1c8a5453777a  ./.scratch/syp/bench/MIGRATION.sums
+a7a2a369213078c400e10a9f2fe4b5fbcbb56f2c434d67ddad91986e99f2c049  ./.scratch/syp/bench/probe-73-episodes.tsv
+863ad3c4c58c30a4c8415b4beff0119bde5d6e399cf94552b58fb43d9b232cd7  ./.scratch/syp/research/00-environment-facts.md
+6906ae8f7689bc7b58bf4688f3c7d501d5ce331b6d3fc58e504d083d000758da  ./.scratch/syp/research/PROVENANCE-tracker-cli.txt
+29e918c83f32322c7a702ed856b97ee4db31fbdfdfca96e29d6c5ee3fd7a3806  ./tools/tracker-lib.sh
+8ca5e4000e9fbeba2778736199584b1618cf3dfcfd6c0d33b573c72c4d6f946e  ./tools/tracker.sh

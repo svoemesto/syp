@@ -1,0 +1,16 @@
+# секреты — никогда не коммитить (AGENTS.md § Secrets & git hygiene)
+.env
+.env.local-tracker
+deploy/.env
+deploy/do.env
+*.key
+*.pem
+*.p12
+*.pfx
+*.p8
+# журналы работы — локальные, в репозитории им не место
+logs/
+.gradle/
+.docker/
+node_modules/
+dist/
