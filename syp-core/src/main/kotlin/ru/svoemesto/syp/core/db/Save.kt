@@ -146,8 +146,16 @@ object Save {
                 table.updateSql(primaryKeyColumns, withRecordHash = true),
             ).use { statement ->
                 bindAll(statement, table.values, currentHash)
+                // В `UPDATE` за значениями строки идёт служебный хеш, а затем —
+                // значения ключа из условия `WHERE`. Позиция ключа считается от
+                // числа значений **и хеша**: без служебного хеша в счёте ключ
+                // встаёт на его место, затирает его, а последний параметр
+                // остаётся невыставленным, и база отвечает «не указано
+                // значение для параметра». Ошибка проявляется только при
+                // обновлении строки, то есть на первом же изменении значения.
+                val keyOffset = table.values.size + 1
                 keyValues.forEachIndexed { index, value ->
-                    statement.setObject(table.values.size + index + 1, value)
+                    statement.setObject(keyOffset + index + 1, value)
                 }
                 statement.executeUpdate()
             }

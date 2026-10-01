@@ -17,6 +17,9 @@ import java.security.MessageDigest
  *
  * @property name имя таблицы в базе
  * @property columns имена столбцов в порядке значений [values]
+ * @property casts приведение типа в SQL для столбцов, значение которых
+ *   передаётся строкой, а драйвер сам привести не может: `jsonb` и `json`
+ *   отклоняют строку без явного `::jsonb`
  * @property values значения столбцов текущего состояния строки
  * @property recordHash хеш значений, прочитанный при загрузке, либо `null`,
  *   если строка не загружалась из базы
@@ -27,6 +30,7 @@ class Table(
     val columns: List<String>,
     private val valuesProvider: () -> List<Any?>,
     val recordHash: String? = null,
+    private val casts: Map<String, String> = emptyMap(),
 ) {
     /** Значения столбцов текущего состояния строки. */
     val values: List<Any?>
@@ -66,7 +70,7 @@ class Table(
      */
     fun insertSql(withRecordHash: Boolean): String {
         val all = if (withRecordHash) columns + RECORD_HASH_COLUMN else columns
-        val marks = List(all.size) { "?" }.joinToString(", ")
+        val marks = all.joinToString(", ") { placeholder(it) }
         return "INSERT INTO $name (${all.joinToString(", ")}) VALUES ($marks)"
     }
 
@@ -82,7 +86,7 @@ class Table(
         withRecordHash: Boolean,
     ): String {
         val assigned = if (withRecordHash) columns + RECORD_HASH_COLUMN else columns
-        val assignment = assigned.joinToString(", ") { "$it = ?" }
+        val assignment = assigned.joinToString(", ") { "$it = ${placeholder(it)}" }
         val condition = primaryKeyColumns.joinToString(" AND ") { "$it = ?" }
         return "UPDATE $name SET $assignment WHERE $condition"
     }
@@ -99,6 +103,19 @@ class Table(
         return "SELECT ${columns.joinToString(", ")}, $RECORD_HASH_COLUMN " +
             "FROM $name WHERE $condition"
     }
+
+    /**
+     * Значение-заглушка столбца с учётом приведения типа.
+     *
+     * Столбец `jsonb` не принимает строку без явного приведения: драйвер
+     * отправляет её как `character varying`, и база отвечает отказом. Поэтому
+     * для таких столбцов заглушка дополняется `::jsonb`; остальные остаются
+     * как есть, и приведение для них не требуется.
+     *
+     * @param column имя столбца
+     * @return текст заглушки значения
+     */
+    private fun placeholder(column: String): String = casts[column]?.let { "?::$it" } ?: "?"
 
     companion object {
         /** Имя служебного столбца с хешем значений строки. */

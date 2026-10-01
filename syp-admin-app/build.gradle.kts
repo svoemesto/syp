@@ -17,6 +17,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
 
+    // Jackson с поддержкой Kotlin: разбор и запись значений настроек сериала
+    // (столбец jsonb) и разбор тела запроса в контроллере. Зависимость и так
+    // приходит в корзине Spring Boot, но объявлена явно: без неё модуль молча
+    // опирался бы на чужую транзитивную, и её отключение сломало бы сборку
+    // не там, где об этом подумали.
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(kotlin("test"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

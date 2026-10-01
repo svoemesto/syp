@@ -4,15 +4,21 @@
 # Миграции применяются к одноразовому контейнеру `postgres:16`. Контейнеры SYP
 # при этом не создаются и не трогаются; контейнер проверки удаляется в конце.
 #
-# Проверяется ровно то, что перечислено в задаче T025:
+# Проверяется ровно то, что перечислено в задаче T025, плюс ограничения,
+# добавленные миграциями 09 и правила каскадного удаления сериала:
 #   1. все файлы deploy/syp-db/NN_*.sql применяются по порядку;
 #   2. состав схемы: 22 таблицы, среди них source_file_checksum,
 #      build_recipe, build_recipe_item;
-#   3. 36 проверок ограничений: каждая — «ожидается отказ» или «ожидается
+#   3. 42 проверки ограничений: каждая — «ожидается отказ» или «ожидается
 #      принятие», в отдельной транзакции с откатом;
 #   4. новый сериал автоматически получает 11 настроек по умолчанию;
 #   5. повторное применение 01_catalog.sql отклоняется базой;
-#   6. столбец recordhash присутствует во всех таблицах.
+#   6. столбец recordhash присутствует во всех таблицах;
+#   7. длина карты ключевых кадров обязана быть ровно ceil(кадров / 8) байт:
+#      короче значит, что часть кадров молча считается неключевой, длиннее —
+#      что границы фрагментов считаются по не тем кадрам (миграция 09);
+#   8. удаление сериала каскадом уносит серии, лица, персоны, версии моделей,
+#      сценарии сборки, справочник сумм и настройки, не оставляя сирот.
 #
 # Использование: bash tools/check-migrations.sh
 # Код возврата: 0 — все проверки прошли, 1 — есть расхождения.
@@ -181,6 +187,28 @@ check "дубль номера серии в сериале — отказ" fail
     "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
      VALUES (901, 1, 'V', '/srv/got/V.mkv', 100, now(), 10, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p');"
 
+# --- карта ключевых кадров: длина обязана соответствовать числу кадров ---
+# 88 643 кадра — это ceil(88 643 / 8) = 11 081 байт. Ровно такая карта
+# записывается опросом серии, и никакая другая быть не должна: короче —
+# часть кадров молча считается неключевой, длиннее — границы фрагментов
+# считаются по не тем кадрам. Обе ошибки проявились бы не при регистрации
+# серии, а у пользователя через час работы на своей машине (миграция 09).
+check "карта ключевых кадров без единого бита — принят" ok \
+    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+     VALUES (901, 10, 'Без карты', '/srv/got/без-карты.mkv', 100, now(), 88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p', NULL);"
+check "карта ключевых кадров точной длины — принят" ok \
+    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+     VALUES (901, 11, 'С картой', '/srv/got/с-картой.mkv', 100, now(), 88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p', decode(repeat('00', 11081), 'hex'));"
+check "карта ключевых кадров короче требуемого — отказ" fail \
+    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+     VALUES (901, 12, 'Короче', '/srv/got/короче.mkv', 100, now(), 88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p', decode(repeat('00', 11080), 'hex'));"
+check "карта ключевых кадров длиннее требуемого — отказ" fail \
+    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+     VALUES (901, 13, 'Длиннее', '/srv/got/длиннее.mkv', 100, now(), 88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p', decode(repeat('00', 11082), 'hex'));"
+check "карта ключевых кадров длиной в целый кадр при 8 кадрах — принят" ok \
+    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+     VALUES (901, 14, 'Восемь кадров', '/srv/got/восемь.mkv', 100, now(), 8, 1, 25, 1920, 1080, 8, 25, 'h264', 'yuv420p', decode(repeat('80', 1), 'hex'));"
+
 # --- очередь заданий: виды, состояния, прогресс, ошибка ---
 check "вид задания ASSEMBLE — отказ" fail \
     "INSERT INTO job (kind, params, params_hash) VALUES ('ASSEMBLE', '{}', 'h');"
@@ -339,6 +367,44 @@ check_writes "корректный фрагмент — принят" \
 
 # --- каскадное удаление ----------------------------------------------------
 printf '\n%s\n' "6. Каскадное удаление сериала"
+
+# Фикстура посложнее прошлой: сериал с серией, у которой есть лицо, персона,
+# версия модели и сценарий сборки. Именно этот случай ломается, если каскад
+# задан не на всех внешних ключах: «сирота» остаётся, и удаление сериала
+# падает вместо того, чтобы унести производные данные (задача T030).
+psql_run <<'SQL' >/dev/null 2>&1
+INSERT INTO serial (id, name, source_root) VALUES (903, 'Каскад с производными', '/srv/got3');
+INSERT INTO series (id, serial_id, ordinal, name, source_path, file_size, file_mtime,
+                    frame_count, time_base_num, time_base_den, width, height,
+                    duration_num, duration_den, video_codec, pixel_format)
+VALUES (903, 903, 1, 'S01E01', '/srv/got3/S01E01.mkv', 5598286865, now(),
+        88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p');
+INSERT INTO person (id, serial_id, name, kind, recognizer_key)
+VALUES (903, 903, 'Джейми', 'PERSON', 'jamie');
+INSERT INTO model_version (id, serial_id, algorithm_version, params_hash, example_count, classes, threshold, state)
+VALUES (903, 903, '1', 'h', 1, 'jamie', 0.5, 'DONE');
+INSERT INTO face (id, series_id, frame_number, face_index, x1, y1, x2, y2, person_id, origin)
+VALUES (903, 903, 0, 0, 100, 100, 200, 200, 903, 'AUTO');
+INSERT INTO location (id, serial_id, name) VALUES (903, 903, 'Лагерь');
+SQL
+orphan=$(psql_run <<'SQL' | tail -1
+BEGIN;
+DELETE FROM serial WHERE id = 903;
+SELECT
+    (SELECT count(*) FROM series    WHERE id = 903)
+  + (SELECT count(*) FROM person    WHERE id = 903)
+  + (SELECT count(*) FROM face      WHERE id = 903)
+  + (SELECT count(*) FROM location  WHERE id = 903)
+  + (SELECT count(*) FROM model_version WHERE id = 903)
+  + (SELECT count(*) FROM analysis_setting WHERE serial_id = 903);
+ROLLBACK;
+SQL
+)
+if [[ "${orphan}" == "0" ]]; then
+    report_ok "удаление сериала уносит серии, лица, персоны, версии моделей и настройки"
+else
+    report_fail "после удаления сериала осталось записей: ${orphan}"
+fi
 cascade=$(psql_run <<< "
 BEGIN;
 INSERT INTO serial (id, name, source_root) VALUES (902, 'Каскад', '/srv/got2');
