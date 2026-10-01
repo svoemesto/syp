@@ -1,0 +1,143 @@
+{
+  "series": {
+    "order": 1,
+    "name": "S1E1",
+    "source_path": "GOT.S01/GOT.S01E01.BDRip.1080p.mkv",
+    "size_bytes": 5598286865,
+    "frame_count": 88644,
+    "fps_num": 24000,
+    "fps_den": 1001,
+    "width": 1920,
+    "height": 1080,
+    "codec": "h264",
+    "profile": "High",
+    "pix_fmt": "yuv420p"
+  },
+  "series_legacy_says": {
+    "88643": "S1E1 Зима близко"
+  },
+  "plans_count": 1028,
+  "plans_sample": [
+    {
+      "uuid": "aa4bdeb6-a33a-4ff0-82f1-aac11fabcd2c",
+      "first_frame": 1,
+      "last_frame": 25,
+      "nearest_iframe": 1,
+      "size": "NONE",
+      "size_origin": "AUTO",
+      "boundary_origin": "AUTO"
+    },
+    {
+      "uuid": "cd9d6ca3-9bf7-407f-bb3f-ebbd39392f51",
+      "first_frame": 26,
+      "last_frame": 255,
+      "nearest_iframe": 1,
+      "size": "NONE",
+      "size_origin": "AUTO",
+      "boundary_origin": "AUTO"
+    },
+    {
+      "uuid": "91b17bd6-c3b8-4119-8a6c-9df41d2e9473",
+      "first_frame": 256,
+      "last_frame": 791,
+      "nearest_iframe": 241,
+      "size": "NONE",
+      "size_origin": "AUTO",
+      "boundary_origin": "AUTO"
+    }
+  ],
+  "plans_continuity": {
+    "gaps": 0,
+    "overlaps": 0,
+    "first_frame": 1,
+    "last_frame": 88643
+  },
+  "frames": {
+    "rows": 88643,
+    "is_iframe": 792,
+    "is_find": 1040,
+    "is_final_find": 1027,
+    "manual_add": 13,
+    "manual_cancel": 26
+  },
+  "scenes": {
+    "count": 46,
+    "with_name": 46,
+    "sample_names": [
+      "Заставка HBO",
+      "Выезд дозорных за стену",
+      "Разведка Уилла",
+      "Возвращение Уилла",
+      "Снова в разведку"
+    ],
+    "has_frame_bounds": false
+  },
+  "legacy_relations": {
+    "segment_person": 4606,
+    "scene_person": 155,
+    "event_person": 251,
+    "groups": 4
+  },
+  "plan_persons": {
+    "segments_total": 1028,
+    "segments_with_persons": 875,
+    "coverage_percent": 85.1
+  },
+  "events": {
+    "count": 66,
+    "with_persons": 65,
+    "persons_in_catalog": 126,
+    "persons_used_here": 26,
+    "sample": [
+      {
+        "name": "Уэймар, Гаред, Уилл",
+        "first_frame": 4659,
+        "last_frame": 7347,
+        "persons": [
+          "Гаред",
+          "Уилл",
+          "Уэймар Ройс"
+        ]
+      },
+      {
+        "name": "Уэймар, Гаред",
+        "first_frame": 8174,
+        "last_frame": 8399,
+        "persons": [
+          "Гаред",
+          "Уэймар Ройс"
+        ]
+      },
+      {
+        "name": "Бран, Джон",
+        "first_frame": 13936,
+        "last_frame": 14436,
+        "persons": [
+          "Бран Старк",
+          "Джон Сноу"
+        ]
+      }
+    ]
+  },
+  "persons": {
+    "in_catalog": 126,
+    "sample_names": [
+      "Алисер Торне",
+      "Арья Старк",
+      "Бард",
+      "Баристон Селми",
+      "Бейлон Грейджой",
+      "Белый Ходок",
+      "Бенжан Старк",
+      "Берик Дандарион"
+    ]
+  },
+  "missing": {
+    "shot_size": "нет ни в одном файле legacy — считаем автоматически (ADR-0003)",
+    "shot_type": "потерян, в legacy были 15 типов в .psd без привязки к сегментам",
+    "location": "отсутствует, у нас назначается только вручную",
+    "face_boxes": "нет координат лиц: 514 картинок и имена, но без привязки к кадрам",
+    "scene_bounds": "у сцен legacy есть только порядок и название, без границ кадров",
+    "plan_size": "размер плана в legacy не хранился вовсе"
+  }
+}
