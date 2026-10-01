@@ -304,7 +304,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
   - Зависит от: T030, T033, T035
   - Проверка: реализованы `GET /api/serials`, `POST /api/serials`, `GET /api/serials/{serialId}`, `DELETE /api/serials/{serialId}`, `GET /api/serials/{serialId}/series`, `POST /api/serials/{serialId}/series`, `GET /api/series/{seriesId}`, `DELETE /api/series/{seriesId}`, `GET /api/serials/{serialId}/settings`, `PUT /api/serials/{serialId}/settings`; каждый публичный метод документирован и ссылается на `contracts/admin-api.md` и `docs/features/first-vertical-slice.md` (FR-100, FR-101)
 
-- [ ] T037 [P] Сделать экран приёма в админке
+- [x] T037 [P] Сделать экран приёма в админке
   - Файлы: `syp-admin-web/src/views/SeriesIntakeView.vue`, `syp-admin-web/src/stores/catalog.ts`, `syp-admin-web/src/api/catalog.ts`
   - Зависит от: T036
   - Проверка: оператор создаёт сериал с корнем, добавляет серию указанием пути, видит определённые системой параметры и внятную ошибку при недоступном файле
@@ -353,7 +353,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
   - Зависит от: T041
   - Проверка: новая сумма не затирает прежнюю; активная запись ровно одна на серию — вторая такая запись отклоняется базой; при изменении размера или времени изменения файла прежняя сумма помечается устаревшей; прерванный подсчёт не оставляет запись `DONE`
 
-- [ ] T044 [P] Сделать экран состояния суммы в админке
+- [x] T044 [P] Сделать экран состояния суммы в админке
   - Файлы: `syp-admin-web/src/views/ChecksumStatusView.vue`, `syp-admin-web/src/api/checksum.ts`
   - Зависит от: T042, T043
   - Проверка: оператор видит значение суммы, дату подсчёта и признак устаревания, может поставить пересчёт
