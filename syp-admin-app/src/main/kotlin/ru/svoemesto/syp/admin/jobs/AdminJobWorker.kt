@@ -146,7 +146,7 @@ class AdminJobWorker(
         return try {
             queue.startWork(job.id)
             val result = handler.execute(job) { progress -> queue.reportProgress(job.id, progress) }
-            queue.reportProgress(job.id, job.progress.copy(total = result.progressTotal))
+            reportFinalTotal(job.id, result.progressTotal)
             result.artifactId?.let { artifactId ->
                 markArtifactsReady(artifactId, job.id)
             }
@@ -164,6 +164,39 @@ class AdminJobWorker(
             queue.fail(job.id, failure.message ?: failure::class.simpleName ?: "неизвестная ошибка")
             false
         }
+    }
+
+    /**
+     * Дописывает общий объём работы, о котором задание сообщило в конце.
+     *
+     * Объём известен по завершении работы, и без него задание нельзя пометить
+     * завершённым: ограничение базы `job_done_total_set` требует ненулевого
+     * `progress_total` в состоянии `DONE`.
+     *
+     * Объём дописывается к **текущему** прогрессу задания, а не к прогрессу
+     * на момент взятия. Иначе уже показанный оператору счётчик уехал бы назад
+     * — прогресс монотонен (FR-003), и задание, отработавшее полностью,
+     * упало бы в ошибку с текстом «прогресс уменьшился».
+     *
+     * @param jobId идентификатор задания
+     * @param progressTotal общий объём работы по завершении
+     * @throws ru.svoemesto.syp.core.db.DbException если задание не найдено
+     */
+    private fun reportFinalTotal(
+        jobId: Long,
+        progressTotal: Long,
+    ) {
+        if (progressTotal <= 0) {
+            return
+        }
+        val current =
+            queue.find(jobId)
+                ?: throw ru.svoemesto.syp.core.db
+                    .DbException("Задание $jobId не найдено при записи общего объёма")
+        if (current.progress.total == progressTotal) {
+            return
+        }
+        queue.reportProgress(jobId, current.progress.copy(total = progressTotal))
     }
 
     /**

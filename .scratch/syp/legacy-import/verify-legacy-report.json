@@ -1,0 +1,699 @@
+{
+  "plans_s1e1": {
+    "count": 1028,
+    "continuity": {
+      "gaps": 0,
+      "overlaps": 0,
+      "first_frame": 1,
+      "last_frame": 88643,
+      "gap_samples": [],
+      "overlap_samples": [],
+      "total_frames_covered": 88643
+    },
+    "sample": [
+      {
+        "uuid": "aa4bdeb6-a33a-4ff0-82f1-aac11fabcd2c",
+        "first_frame": 1,
+        "last_frame": 25,
+        "nearest_iframe": 1
+      },
+      {
+        "uuid": "cd9d6ca3-9bf7-407f-bb3f-ebbd39392f51",
+        "first_frame": 26,
+        "last_frame": 255,
+        "nearest_iframe": 1
+      },
+      {
+        "uuid": "91b17bd6-c3b8-4119-8a6c-9df41d2e9473",
+        "first_frame": 256,
+        "last_frame": 791,
+        "nearest_iframe": 241
+      }
+    ]
+  },
+  "plans_archive": {
+    "series_count": 73,
+    "segments_total": 71005,
+    "gaps_total": 0,
+    "overlaps_total": 0,
+    "plans_min": 642,
+    "plans_max": 1872,
+    "rows": [
+      {
+        "series": "S1E10",
+        "plans": 680,
+        "first_frame": 1,
+        "last_frame": 75697,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S1E1",
+        "plans": 1028,
+        "first_frame": 1,
+        "last_frame": 88643,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S1E2",
+        "plans": 874,
+        "first_frame": 1,
+        "last_frame": 79537,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S1E3",
+        "plans": 931,
+        "first_frame": 1,
+        "last_frame": 82336,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S1E4",
+        "plans": 919,
+        "first_frame": 1,
+        "last_frame": 80027,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S1E5",
+        "plans": 1057,
+        "first_frame": 1,
+        "last_frame": 78078,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S1E6",
+        "plans": 1219,
+        "first_frame": 1,
+        "last_frame": 75688,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S1E7",
+        "plans": 1042,
+        "first_frame": 1,
+        "last_frame": 83128,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S1E8",
+        "plans": 1288,
+        "first_frame": 1,
+        "last_frame": 83632,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S1E9",
+        "plans": 870,
+        "first_frame": 1,
+        "last_frame": 80949,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E10",
+        "plans": 840,
+        "first_frame": 1,
+        "last_frame": 91272,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E1",
+        "plans": 729,
+        "first_frame": 1,
+        "last_frame": 75797,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E2",
+        "plans": 705,
+        "first_frame": 1,
+        "last_frame": 76957,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E3",
+        "plans": 873,
+        "first_frame": 1,
+        "last_frame": 75884,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E4",
+        "plans": 820,
+        "first_frame": 1,
+        "last_frame": 72912,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E5",
+        "plans": 913,
+        "first_frame": 1,
+        "last_frame": 77928,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E6",
+        "plans": 1105,
+        "first_frame": 1,
+        "last_frame": 77672,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E7",
+        "plans": 949,
+        "first_frame": 1,
+        "last_frame": 79383,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E8",
+        "plans": 642,
+        "first_frame": 1,
+        "last_frame": 76752,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S2E9",
+        "plans": 1074,
+        "first_frame": 1,
+        "last_frame": 78354,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E10",
+        "plans": 1053,
+        "first_frame": 1,
+        "last_frame": 90241,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E1",
+        "plans": 760,
+        "first_frame": 1,
+        "last_frame": 78438,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E2",
+        "plans": 861,
+        "first_frame": 1,
+        "last_frame": 82129,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E3",
+        "plans": 985,
+        "first_frame": 1,
+        "last_frame": 75981,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E4",
+        "plans": 1115,
+        "first_frame": 1,
+        "last_frame": 76796,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E5",
+        "plans": 1243,
+        "first_frame": 1,
+        "last_frame": 82609,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E6",
+        "plans": 875,
+        "first_frame": 1,
+        "last_frame": 76773,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E7",
+        "plans": 897,
+        "first_frame": 1,
+        "last_frame": 82902,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E8",
+        "plans": 855,
+        "first_frame": 1,
+        "last_frame": 81078,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S3E9",
+        "plans": 1109,
+        "first_frame": 1,
+        "last_frame": 73086,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E10",
+        "plans": 1384,
+        "first_frame": 1,
+        "last_frame": 93980,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E1",
+        "plans": 1015,
+        "first_frame": 1,
+        "last_frame": 83751,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E2",
+        "plans": 1160,
+        "first_frame": 1,
+        "last_frame": 75624,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E3",
+        "plans": 1067,
+        "first_frame": 1,
+        "last_frame": 81850,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E4",
+        "plans": 851,
+        "first_frame": 1,
+        "last_frame": 79224,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E5",
+        "plans": 844,
+        "first_frame": 1,
+        "last_frame": 76532,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E6",
+        "plans": 797,
+        "first_frame": 1,
+        "last_frame": 72917,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E7",
+        "plans": 780,
+        "first_frame": 1,
+        "last_frame": 73493,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E8",
+        "plans": 913,
+        "first_frame": 1,
+        "last_frame": 75355,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S4E9",
+        "plans": 1144,
+        "first_frame": 1,
+        "last_frame": 72749,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E10",
+        "plans": 934,
+        "first_frame": 1,
+        "last_frame": 86675,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E1",
+        "plans": 675,
+        "first_frame": 1,
+        "last_frame": 75082,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E2",
+        "plans": 928,
+        "first_frame": 1,
+        "last_frame": 79954,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E3",
+        "plans": 888,
+        "first_frame": 1,
+        "last_frame": 86237,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E4",
+        "plans": 933,
+        "first_frame": 1,
+        "last_frame": 72543,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E5",
+        "plans": 819,
+        "first_frame": 1,
+        "last_frame": 81572,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E6",
+        "plans": 855,
+        "first_frame": 1,
+        "last_frame": 77252,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E7",
+        "plans": 981,
+        "first_frame": 1,
+        "last_frame": 84679,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E8",
+        "plans": 1036,
+        "first_frame": 1,
+        "last_frame": 86385,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S5E9",
+        "plans": 1206,
+        "first_frame": 1,
+        "last_frame": 75356,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E10",
+        "plans": 935,
+        "first_frame": 1,
+        "last_frame": 97856,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E1",
+        "plans": 798,
+        "first_frame": 1,
+        "last_frame": 72028,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E2",
+        "plans": 859,
+        "first_frame": 1,
+        "last_frame": 77262,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E3",
+        "plans": 921,
+        "first_frame": 1,
+        "last_frame": 75099,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E4",
+        "plans": 1013,
+        "first_frame": 1,
+        "last_frame": 84435,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E5",
+        "plans": 1165,
+        "first_frame": 1,
+        "last_frame": 81713,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E6",
+        "plans": 1090,
+        "first_frame": 1,
+        "last_frame": 74028,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E7",
+        "plans": 789,
+        "first_frame": 1,
+        "last_frame": 72428,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E8",
+        "plans": 952,
+        "first_frame": 1,
+        "last_frame": 83935,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S6E9",
+        "plans": 1168,
+        "first_frame": 1,
+        "last_frame": 85297,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S7E1",
+        "plans": 957,
+        "first_frame": 1,
+        "last_frame": 84399,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S7E2",
+        "plans": 1072,
+        "first_frame": 1,
+        "last_frame": 83577,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S7E3",
+        "plans": 987,
+        "first_frame": 1,
+        "last_frame": 89772,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S7E4",
+        "plans": 1051,
+        "first_frame": 1,
+        "last_frame": 71091,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S7E5",
+        "plans": 977,
+        "first_frame": 1,
+        "last_frame": 84171,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S7E6",
+        "plans": 928,
+        "first_frame": 1,
+        "last_frame": 100781,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S7E7",
+        "plans": 1275,
+        "first_frame": 1,
+        "last_frame": 114867,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S8E1",
+        "plans": 764,
+        "first_frame": 1,
+        "last_frame": 76433,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S8E2",
+        "plans": 830,
+        "first_frame": 1,
+        "last_frame": 83435,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S8E3",
+        "plans": 1872,
+        "first_frame": 1,
+        "last_frame": 117020,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S8E4",
+        "plans": 1018,
+        "first_frame": 1,
+        "last_frame": 110877,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S8E5",
+        "plans": 1283,
+        "first_frame": 1,
+        "last_frame": 112208,
+        "gaps": 0,
+        "overlaps": 0
+      },
+      {
+        "series": "S8E6",
+        "plans": 780,
+        "first_frame": 1,
+        "last_frame": 113091,
+        "gaps": 0,
+        "overlaps": 0
+      }
+    ]
+  },
+  "frames_s1e1": {
+    "rows": 88643,
+    "is_iframe": 792,
+    "is_find": 1040,
+    "is_final_find": 1027,
+    "manual_add": 13,
+    "manual_cancel": 26,
+    "first_frame_number_legacy": 1,
+    "last_frame_number_legacy": 88643,
+    "frame_numbers_contiguous": true,
+    "is_find_and_final_find": 1014,
+    "find_not_final": 26,
+    "boundary_ratio": 0.999
+  },
+  "keyframe_parity": {
+    "ours_count": 792,
+    "legacy_count": 792,
+    "identical": true,
+    "only_ours": [],
+    "only_legacy": [],
+    "first_ours": [
+      0,
+      240,
+      480,
+      720,
+      957
+    ],
+    "first_legacy": [
+      0,
+      240,
+      480,
+      720,
+      957
+    ],
+    "last_ours": [
+      88474,
+      88498,
+      88522
+    ],
+    "last_legacy": [
+      88474,
+      88498,
+      88522
+    ]
+  },
+  "series_declared_by_legacy": {
+    "GOT.S1E1": "88643"
+  },
+  "scenes_s1e1": {
+    "count": 46,
+    "with_name": 46,
+    "columns": [
+      "sceneUUID",
+      "fileUUID",
+      "order",
+      "name",
+      "description"
+    ]
+  },
+  "plan_persons": {
+    "plans_total": 1028,
+    "plans_with_persons": 875,
+    "coverage_percent": 85.1,
+    "persons_in_catalog": 126
+  },
+  "plan_lengths": {
+    "min": 5,
+    "max": 1526,
+    "median": 60,
+    "one_frame_plans": 0
+  }
+}
