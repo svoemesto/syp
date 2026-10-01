@@ -25,7 +25,12 @@ COPY syp-public-app/build.gradle.kts syp-public-app/
 
 # GRADLE_USER_HOME в образе не указывает на каталог машины администратора:
 # внутри контейнера сборка идёт в собственный кэш слоя.
-RUN ./gradlew --no-daemon ${SYP_MODULE}:bootJar
+#
+# Этот слой только прогревает кэш: скачивает обёртку Gradle и разрешает
+# зависимости модуля. Сборку jar здесь запускать нельзя — исходники ещё не
+# скопированы, и задача bootJar без них падает с «Main class name has not
+# been configured». Собирается jar следующим слоем, уже с исходниками.
+RUN ./gradlew --no-daemon ${SYP_MODULE}:dependencies --configuration runtimeClasspath
 
 COPY syp-core/ syp-core/
 COPY syp-admin-app/ syp-admin-app/
