@@ -17,12 +17,12 @@
 | Задача-источник | OpenProject, проект `syp` (id 4), задача **#219 «Проект SYP»** |
 | Трекер-CLI | `/home/nsa/syp/tools/tracker.sh` v0.1.0-syp (проверен: `healthcheck` OK) |
 | Усилие | Wayfinder-карта решений → спека на **первый сквозной вертикальный срез** |
-| Статус | **Спека написана и ушла владельцу 2026-10-02. СТОП — ждём вашего слова.** Параллельно развёрнуты git и living docs, оба ждут одобрения |
+| Статус | **Конституция ратифицирована и слита в master (PR #2). Living docs сливаются (PR #3). Спека одобрена владельцем 2026-10-02.** |
 | Задача исполнения | **#226** (claim выполнен). Инфраструктурная задача **#227** (claim выполнен) |
-| Открытые PR | **#2** — конституция v1.0.0 + правило имени ветки. **#3** — bootstrap living docs (каркас, 6 доменов, 8 ADR) |
-| Репозиторий | `https://github.com/svoemesto/syp` (публичный), `master` защищён: push запрещён, нужно PR + 1 одобрение |
+| PR | **#2 смержен** — конституция v1.0.0 (ратифицирована 2026-10-02) + Rule (VII.5) имя ветки. **#3** — bootstrap living docs, сливается |
+| Репозиторий | `https://github.com/svoemesto/syp` (публичный), `master` защищён. **Защита не применилась при слиянии:** `enforce_admins: false`, владелец — админ и может слить в обход требуемого одобрения. Для честного гейта `enforce_admins` стоит включить |
 | Правило веток | **`NNN-<slug>`**, номер резервируется `tools/reserve-branch-number.sh` (перенос из Karaoke). Резервируется push тега `seq/NNN` в origin — атомарно, без сервера. Используются 002, 003 |
-| Living docs | Каркас `docs/` развёрнут: system, domains (6), adr (8), templates, howto, features, guidelines, public, scripts + линтер |
+| Living docs | Каркас `docs/` слит в master: system, domains (6), adr (8), templates, howto, features, guidelines, public, scripts + линтер (`docs/scripts/lint-docs.py`, проходит) |
 | Спека | `specs/001-first-vertical-slice/spec.md` — 433 строки, 52 FR, 10 SC; чеклист `checklists/requirements.md` — все пункты пройдены |
 | Карта в трекере | **#221** (тело карты — в описании work package; рабочая копия `.scratch/syp/wayfinding/map-body.md`, sha256 `120d3ca60f3ef4daba3a482174277b09f41f63c641531a29222348f27246d764`) |
 | Тикеты-решения | **#222 Р-01, #223 Р-02, #224 Р-03, #225 Р-04 — все закрыты.** Открытых тикетов нет |
