@@ -1,6 +1,6 @@
 # AGENTS.md — инструкции для агентов (проект SYP)
 
-> **Версия**: 0.2.0 (bootstrap) | **Last updated**: 2026-10-01
+> **Версия**: 0.3.0 | **Last updated**: 2026-10-02
 >
 > Производный от `AGENTS.md` проекта Karaoke v3.4.1 (`/home/nsa/Karaoke/AGENTS.md`).
 > Все принципы работы сохранены; конкретика переписана под SYP.
@@ -18,9 +18,15 @@
 >
 > ## Что ещё не существует на момент bootstrap
 > (создаётся по мере закрытия карты решений, отмечено `[bootstrap]`):
-> `constitution.md`, `docs/` (кроме STATE-OF-PLAY), `tools/check-*.sh`,
-> `deploy/do.sh`, gradle-модули, фронтенды. Правила, ссылающиеся на них,
-> **уже обязательны** — создание инфраструктуры обязано их обеспечить.
+> `tools/check-*.sh`, `deploy/do.sh`, gradle-модули, фронтенды, наполнение
+> `docs/domains/` и `docs/adr/`. Правила, ссылающиеся на них, **уже
+> обязательны** — создание инфраструктуры обязано их обеспечить.
+>
+> **Уже создано (2026-10-02)**: git-репозиторий
+> `https://github.com/svoemesto/syp` (ветка `master` защищена), `constitution.md`
+> v1.0.0 (ждёт ратификации), каркас living docs в `docs/` с линтером
+> `docs/scripts/lint-docs.py`, трекер-CLI `tools/tracker.sh`, скрипт резервации
+> номера ветки `tools/reserve-branch-number.sh`.
 
 ## Tier-0: Язык общения
 
@@ -165,15 +171,26 @@ feature-ветку + PR + CI.
 
 **Protocol** (адаптация под SYP):
 ```bash
-git checkout -b <NNN>-<slug> master && <правки>
-git push -u origin <NNN>-<slug> && gh pr create --base master
+N=$(./tools/reserve-branch-number.sh my-slug)   # номер НЕ выдумывается
+git push -u origin "${N}-my-slug" && gh pr create --base master
 gh pr checks && gh pr merge --merge   # БЕЗ --delete-branch
 ```
-**Failure**: прямая правка master → merge conflict + потеря работы.
-**Precedent**: Karaoke Pass 353.
-**Enforcement**: 3 уровня (branch protection, pre-commit, CI lint).
-**Примечание**: репозиторий SYP на момент bootstrap не создан — `git init`,
-remote и branch protection — часть bootstrap-решения карты.
+**Rule**: имя feature-ветки — **`NNN-<slug>`**. Номер резервируется скриптом
+`tools/reserve-branch-number.sh` (перенесён из Karaoke 2026-10-02): он берёт
+следующий свободный номер по трём источникам — ветки на `origin`, теги
+`seq/NNN`, каталоги `specs/` — и атомарно резервирует его push уникального
+lightweight-тега `refs/tags/seq/NNN` (git отклоняет, если тег уже есть).
+Теги живут дольше веток, поэтому нумерация не сбрасывается после удаления
+смерженной ветки.
+**Failure**: прямая правка master → merge conflict + потеря работы; ветка без
+номера → нарушение конвенции.
+**Precedent**: Karaoke Pass 353 (прямая правка master).
+**Enforcement**: 3 уровня (branch protection с 2026-10-02, pre-commit, CI lint).
+**Состояние на 2026-10-02**: репозиторий создан —
+`https://github.com/svoemesto/syp` (публичный, `svoemesto`), ветка `master`
+защищена: push напрямую запрещён, требуется запрос на слияние и одно
+одобрение. Спека задачи — в `specs/<NNN>-<slug>/spec.md`, её каталог тоже
+участвует в нумерации.
 
 ## Tier-1: Hard Gate — Subagent workspace isolation
 
@@ -189,24 +206,86 @@ git worktree add ../syp-<NNN>-<slug> -b "<NNN>-<slug>" master
 
 ## Tier-1: Hard Gate — Living docs SSoT
 
+### Hard Gate: Documentation First
+
+- **Rule**: ЗАПРЕЩЕНО искать по коду и по `docs/` до чтения `docs/README.md`.
+- **Протокол**: `Прочитать docs/README.md` → `Определить домен/компонент` →
+  `Прочитать конкретный документ`.
+- **Failure**: начать задачу с `grep`, `find` или любого поиска по `docs/`
+  без чтения README — грубое нарушение протокола.
+- **Прецедент** (Karaoke spec #339): агент изобрёл форму кеша вместо
+  существующего паттерна, потому что не прочитал домен.
+
+### Living Documentation & Workflow
+
+**Mandatory Context Retrieval**:
+- **Rule**: перед любой задачей, планированием или исследованием кода ты
+  **ОБЯЗАН** сначала прочитать `docs/README.md`.
+- **Purpose**: `docs/README.md` — карта системы (C4 L1–L2); по ней определяются
+  релевантные домены, ADR и guidelines, без сканирования файловой системы.
+
+**State Mutation Lifecycle**:
+- **Rule**: документация определяет **текущее состояние** системы, а не историю
+  изменений.
+- **Протокол**:
+  1. **Ephemeral Work**: временные спеки и трекинг задач — вне `docs/`
+     (рабочие заметки — `.scratch/`, задачи — трекер OpenProject).
+  2. **Mutation**: при реализации обновить затронутые файлы `docs/` (домены,
+     компоненты, ADR, плейбуки) под новое состояние.
+  3. **Purge**: удалить временные артефакты. Merge — не «готово», пока живая
+     документация не приведена в соответствие.
+
+**Стиль правки — «текущее состояние», а не журнал изменений**:
+- ✗ неверно: «добавлено поле `last_processed_at` в таблицу»;
+- ✓ верно: в описании таблицы просто появляется поле.
+
+### Subagent Initialization Protocol
+
+- **Rule**: субагенты не наследуют инструкции проекта автоматически, поэтому
+  главный агент **ОБЯЗАН** явно внедрить в промпт каждого субагента:
+  1. **Hard Gate**: запрет искать по коду и `docs/` до чтения `docs/README.md`.
+  2. **SSoT-Verified**: ответ начинается с `[SSoT-Verified]`, если живая
+     документация была использована.
+  3. **L3 Abstraction**: описывать требования и инварианты, а не дублировать
+     код (никаких имён переменных и сигнатур классов в требованиях).
+  4. **Protocol Sequence**: `Прочитать README` → `Определить домен` →
+     `Прочитать документ` → `Реализовать/Проанализировать`.
+  5. **Linking Protocol**: при правке документации сохранять цепочку
+     L3 → L2 → L1.
+  6. **Template Mandate**: новые файлы — по шаблонам `docs/templates/`,
+     обязательные секции при правках сохраняются.
+
 **Rule**: Изменения в коде требуют синхронного обновления документации по
 карте кода (`.ssot-map.yml` `[bootstrap]`). Структурные проверки + cross-links
 + markdown style (NO EMOJI, обязательные заголовки). Новые нарушения → CI fail
 (`--baseline FILE` для допустимых).
 
-**Layout** (та же конвенция, что в Karaoke):
+**Layout** (конвенция Living Documentation; в Karaoke тот же каркас живёт в
+`knowledge/`, в SYP — в `docs/`, как предписывает этот файл):
 | Артефакт | Путь |
 |---|---|
 | **Память проекта между сессиями** | **`docs/STATE-OF-PLAY.md`** — читать первым |
 | Карта документов L1 | `docs/README.md` |
+| Контекст системы L1–L2 | `docs/system/01-context.md`, `docs/system/02-containers.md` |
 | Глоссарий домена | `docs/domains/<домен>/domain.md` § «Ubiquitous Language \| Единый язык» |
 | Компоненты домена | `docs/domains/<домен>/components/*.md` |
 | Решения (ADR, append-only) | `docs/adr/ADR-NNNN-<slug>.md` |
+| Стратегические переходы | `docs/epics/*.md` |
+| Стандартные паттерны | `docs/guidelines/*.md` |
+| Плейбуки (how-to) | `docs/howto/<slug>/playbook.md`, индекс `docs/howto/README.md` |
+| Публичные проекции | `docs/public/*.md` |
+| Шаблоны документов | `docs/templates/*.md` |
+| Линтер документации | `docs/scripts/lint-docs.py` |
 | Бэклог | `docs/BACKLOG.md` |
 | Per-feature документ (FR-009) | `docs/features/<slug>.md` |
 
-**Enforcement**: `check-ssot-impact.py`, `check-knowledge-structure.sh`,
-`lint-knowledge.py` `[bootstrap]`.
+**Enforcement**: `python3 docs/scripts/lint-docs.py` — линтер создан при
+bootstrap 2026-10-02, обязателен к запуску; `check-ssot-impact.py`,
+`check-knowledge-structure.sh`, `lint-knowledge.py` `[bootstrap]`.
+
+**Симметрия инструкций**: файлы `CLAUDE.md` и `AGENTS.md` описывают **одни и
+те же** правила. В SYP `CLAUDE.md` — тонкий указатель со ссылками на секции
+`AGENTS.md` (конвенция Karaoke); изменил один — синхронизируй другой.
 
 ## Tier-1: Hard Gate — Стек и запреты
 
@@ -326,6 +405,15 @@ cd deploy && bash do.sh build_public_app && cd ..
 
 ## Changelog
 
+- **0.3.0** (2026-10-02): развёрнут каркас Living Documentation в `docs/`
+  (system, domains, adr, epics, guidelines, templates, public, howto, scripts,
+  features) с линтером `docs/scripts/lint-docs.py`; в этот раздел внедрены
+  обязательные блоки **Hard Gate: Documentation First**, **State Mutation
+  Lifecycle**, **Subagent Initialization Protocol** и правило симметрии
+  инструкций. Git-секция дополнена правилом имени ветки `NNN-<slug>` с
+  атомарной резервацией номера скриптом `tools/reserve-branch-number.sh`
+  (перенос из Karaoke). Шапка обновлена: репозиторий создан, `constitution.md`
+  написан, `docs/` больше не в списке отсутствующего.
 - **0.2.0** (2026-10-01): проект перенесён в `/home/nsa/syp` (решение владельца
   Q2=B); добавлен раздел «Точка подхвата» и файл `docs/STATE-OF-PLAY.md` —
   память проекта между сессиями. Ответы владельца: Q1=A (спека на первый
