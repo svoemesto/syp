@@ -269,38 +269,38 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 **Independent Test**: зарегистрировать `GOT.S01E01` и увидеть её измеренные
 параметры в базе; попытка указать файл вне корня сериала отвергается.
 
-- [ ] T030 [P] Реализовать домен каталога поверх готовых миграций
+- [x] T030 [P] Реализовать домен каталога поверх готовых миграций
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/Serial.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/Series.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/Location.kt`
   - Зависит от: T019, T025
   - Проверка: корень каталога сериала — абсолютный путь без завершающего слэша; путь серии абсолютный; одна серия принадлежит ровно одному сериалу; удаление сериала каскадом уносит производные данные
 
-- [ ] T031 Реализовать опрос файла серии
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SourceProbe.kt`
+- [x] T031 Реализовать опрос файла серии
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SourceProbe.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/SourceProbeTest.kt`
   - Зависит от: T022, T030
   - Проверка: определяются число кадров, числитель и знаменатель частокадровой базы, разрешение, длительность, кодек, профиль, формат пикселей, параметры аудио; время вычисляется от номера кадра и частокадровой базы, а не хранится отдельно (ADR-0001)
 
-- [ ] T032 Реализовать карту ключевых кадров
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/KeyframeMap.kt`
+- [x] T032 Реализовать карту ключевых кадров
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/KeyframeMap.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/KeyframeMapTest.kt`
   - Зависит от: T031
   - Проверка: битовая карта из одного бита на кадр, длина `ceil(88 643 / 8)` байт, бит 1 — кадр ключевой; на `GOT.S01E01` установленных битов 792 (сверка с эталоном старого проекта); отдельной строки кадра на каждый кадр не создаётся (Р-07)
 
-- [ ] T033 Проверять, что путь серии лежит внутри корня сериала
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SeriesRegistration.kt`
+- [x] T033 Проверять, что путь серии лежит внутри корня сериала
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SeriesRegistration.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/SeriesRegistrationTest.kt`
   - Зависит от: T030, T031
   - Проверка: путь вне корня сериала отвергается с кодом `SOURCE_UNREADABLE` и внятным текстом; относительный путь, который попал бы в сценарий, не может быть выдуман (FR-089a)
 
-- [ ] T034 Отдавать внятную ошибку на недоступный файл
+- [x] T034 Отдавать внятную ошибку на недоступный файл
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SeriesRegistration.kt`
   - Зависит от: T033
   - Проверка: несуществующий или нечитаемый файл даёт `400` с кодом `SOURCE_UNREADABLE` и путём в тексте; «успех с пустым результатом» невозможен (крайний случай спецификации, FR-092)
 
-- [ ] T035 Хранить настройки анализа и выдачи сценария
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SerialSettings.kt`
+- [x] T035 Хранить настройки анализа и выдачи сценария
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SerialSettings.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/SerialSettingsTest.kt`
   - Зависит от: T030
   - Проверка: новый сериал получает 11 настроек по умолчанию; пороги границ, пороги размера плана, порог детектора, параметры кластеризации, раскладка листа превью, версия формата сценария и число аудиодорожек меняются без правки кода (ADR-0003, constitution)
 
-- [ ] T036 Реализовать эндпоинты приёма сериала и серии
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/CatalogController.kt`
+- [x] T036 Реализовать эндпоинты приёма сериала и серии
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/CatalogController.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/config/CatalogConfiguration.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/config/ApiErrors.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/CatalogControllerTest.kt`
   - Зависит от: T030, T033, T035
   - Проверка: реализованы `GET /api/serials`, `POST /api/serials`, `GET /api/serials/{serialId}`, `DELETE /api/serials/{serialId}`, `GET /api/serials/{serialId}/series`, `POST /api/serials/{serialId}/series`, `GET /api/series/{seriesId}`, `DELETE /api/series/{seriesId}`, `GET /api/serials/{serialId}/settings`, `PUT /api/serials/{serialId}/settings`; каждый публичный метод документирован и ссылается на `contracts/admin-api.md` и `docs/features/first-vertical-slice.md` (FR-100, FR-101)
 
