@@ -150,46 +150,6 @@ data class Series(
             recordHash,
         )
 
-    /**
-     * Собирает серию из определённых опросом параметров файла.
-     *
-     * @param serialId сериал-владелец
-     * @param ordinal порядковый номер в сериале
-     * @param name название серии
-     * @param sourcePath абсолютный путь к файлу
-     * @param parameters параметры, снятые с файла опросом
-     * @return готовая к записи серия
-     */
-    fun of(
-        serialId: Long,
-        ordinal: Int,
-        name: String,
-        sourcePath: String,
-        parameters: SourceParameters,
-    ): Series =
-        Series(
-            serialId = serialId,
-            ordinal = ordinal,
-            name = name,
-            sourcePath = sourcePath,
-            byteSize = parameters.byteSize,
-            fileMtime = parameters.fileMtime.atOffset(java.time.ZoneOffset.UTC),
-            frameCount = parameters.frameCount,
-            timeBaseNum = parameters.timeBaseNum,
-            timeBaseDen = parameters.timeBaseDen,
-            width = parameters.width,
-            height = parameters.height,
-            durationNum = parameters.durationNum,
-            durationDen = parameters.durationDen,
-            videoCodec = parameters.videoCodec,
-            videoProfile = parameters.videoProfile,
-            pixelFormat = parameters.pixelFormat,
-            audioCodec = parameters.audioCodec,
-            audioChannels = parameters.audioChannels,
-            audioSampleRate = parameters.audioSampleRate,
-            keyframeMap = parameters.keyframes,
-        )
-
     companion object {
         /** Имя таблицы серий. */
         const val NAME: String = "series"
@@ -228,6 +188,46 @@ data class Series(
                     "duration_num, duration_den, video_codec, video_profile, pixel_format, " +
                     "audio_codec, audio_channels, audio_sample_rate, keyframe_bitmap, " +
                     "preview_sheet_count, recordhash"
+            )
+
+        /**
+         * Собирает серию из определённых опросом параметров файла.
+         *
+         * @param serialId сериал-владелец
+         * @param ordinal порядковый номер в сериале
+         * @param name название серии
+         * @param sourcePath абсолютный путь к файлу
+         * @param parameters параметры, снятые с файла опросом
+         * @return готовая к записи серия
+         */
+        fun of(
+            serialId: Long,
+            ordinal: Int,
+            name: String,
+            sourcePath: String,
+            parameters: SourceParameters,
+        ): Series =
+            Series(
+                serialId = serialId,
+                ordinal = ordinal,
+                name = name,
+                sourcePath = sourcePath,
+                byteSize = parameters.byteSize,
+                fileMtime = parameters.fileMtime.atOffset(java.time.ZoneOffset.UTC),
+                frameCount = parameters.frameCount,
+                timeBaseNum = parameters.timeBaseNum,
+                timeBaseDen = parameters.timeBaseDen,
+                width = parameters.width,
+                height = parameters.height,
+                durationNum = parameters.durationNum,
+                durationDen = parameters.durationDen,
+                videoCodec = parameters.videoCodec,
+                videoProfile = parameters.videoProfile,
+                pixelFormat = parameters.pixelFormat,
+                audioCodec = parameters.audioCodec,
+                audioChannels = parameters.audioChannels,
+                audioSampleRate = parameters.audioSampleRate,
+                keyframeMap = parameters.keyframes,
             )
     }
 }
