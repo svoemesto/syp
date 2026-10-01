@@ -1,5 +1,6 @@
 package ru.svoemesto.syp.core.db
 
+import ru.svoemesto.syp.core.contract.DomainException
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.PreparedStatement
@@ -57,6 +58,9 @@ class Db(
      * @param T тип значения, возвращаемого блоком
      * @param block работа с соединением
      * @return значение, вычисленное блоком
+     * @throws DomainException если блок отклонил запрос по правилам предметной
+     *   области: такой отказ пробрасывается без обёртки, у него свой код
+     *   ответа клиенту
      * @throws DbException если транзакция не удалась
      */
     fun <T> useTransaction(block: (Connection) -> T): T {
@@ -69,6 +73,12 @@ class Db(
                 return result
             } catch (failure: Throwable) {
                 runCatching { connection.rollback() }
+                // Отказ бизнес-правила пробрасывается как есть: у него есть
+                // собственный код ответа клиенту (SOURCE_UNREADABLE,
+                // CONFLICT), и завернуть его в DbException означало бы
+                // превратить внятный отказ в «внутреннюю ошибку сервера»
+                // (FR-092). Транзакция при этом откатывается как обычно.
+                if (failure is DomainException) throw failure
                 throw DbException("Транзакция не выполнена: ${failure.message}", failure)
             } finally {
                 runCatching { connection.autoCommit = previousAutoCommit }
