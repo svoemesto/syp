@@ -1,0 +1,146 @@
+# SYP — непрерывная проверка.
+#
+# Проверяется ровно то, что перечислено в `AGENTS.md` § Tier-2 «Обязательная
+# проверка после любого изменения», плюс guards из § Tier-2 «Каталог guards».
+# Ветка master защищена (constitution VII), поэтому проверки обязаны
+# воспроизводиться локально: то, что здесь падает, не должно пройти при слиянии.
+
+name: ci
+
+on:
+  push:
+    branches: ["master", "*-*"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  # --- Документация и guards: быстрые, без сборки ----------------------------
+  docs-and-guards:
+    name: Документация и guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Установить PyYAML для линтера документации
+        run: pip install pyyaml
+
+      - name: Линтер живой документации
+        run: python3 docs/scripts/lint-docs.py
+
+      - name: Guards предметной области и окружения
+        run: |
+          bash tools/check-no-jpa-imports.sh
+          bash tools/check-no-mp4-mentions.sh
+          bash tools/check-feature-doc.sh
+          bash tools/check-frontend-build.sh
+          bash tools/check-no-job-worker.sh
+          bash tools/check-container-restart.sh
+
+      - name: Guards процесса
+        run: |
+          python3 tools/check-spec-issue-link.py
+          python3 tools/check-ssot-impact.py
+
+      - name: Покрытие задач требованиями
+        run: python3 tools/check-tasks-coverage.py
+
+      - name: Отсутствие секретов
+        run: |
+          leaked="$(git ls-files | grep -iE '\.env$|do\.env$|\.key$|\.pem$|\.p12$|\.pfx$' || true)"
+          if [ -n "$leaked" ]; then
+            echo "НАРУШЕНИЕ constitution VIII.3: отслеживаются файлы с секретами:"
+            echo "$leaked"
+            exit 1
+          fi
+          echo "OK: файлов с секретами нет"
+
+  # --- Бэкенд: сборка и линтер ----------------------------------------------
+  backend:
+    name: Бэкенд
+    runs-on: ubuntu-latest
+    env:
+      # В CI кэш свой, путь машины администратора не используется: правило
+      # GRADLE_USER_HOME проверяется guard-ом отдельно.
+      GRADLE_USER_HOME: /home/runner/.gradle
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Компиляция всех модулей
+        run: ./gradlew compileKotlin --parallel
+
+      - name: Линтер Kotlin
+        run: ./gradlew ktlintCheck
+
+      - name: Исполняемые файлы бэкендов
+        run: ./gradlew bootJar --parallel
+
+      - name: Тесты
+        run: ./gradlew test --parallel
+
+  # --- Фронтенды: сборка и линтер -------------------------------------------
+  frontends:
+    name: Фронтенды
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: syp-admin-web
+          - name: syp-public-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Hard Gate R-375: сборка идёт из каталога фронтенда, а не из корня.
+      - name: Установить зависимости
+        working-directory: ${{ matrix.name }}
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: Линтер
+        working-directory: ${{ matrix.name }}
+        run: npm run lint
+
+      - name: Сборка
+        working-directory: ${{ matrix.name }}
+        run: npm run build
+
+      - name: Проверка форматирования
+        working-directory: ${{ matrix.name }}
+        run: npm run format:check
+
+  # --- Воркер на машине пользователя ----------------------------------------
+  worker:
+    name: Воркер пользователя
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Проверка синтаксиса воркера и примера настроек
+        run: |
+          # Сам воркер появляется позже среза (фаза 12). Пока файла нет,
+          # проверяется только пример настроек; как только файл появится,
+          # проверка заработает без правки этого сценария.
+          if [ -f syp-worker/syp_worker.py ]; then
+            python3 -m py_compile syp-worker/syp_worker.py
+          else
+            echo "файла syp-worker/syp_worker.py ещё нет: фаза 12 не начата"
+          fi
+          python3 -c "import json; json.load(open('syp-worker/config.example.json'))"

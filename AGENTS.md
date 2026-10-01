@@ -1,6 +1,6 @@
 # AGENTS.md — инструкции для агентов (проект SYP)
 
-> **Версия**: 0.3.0 | **Last updated**: 2026-10-02
+> **Версия**: 0.4.0 | **Last updated**: 2026-10-03
 >
 > Производный от `AGENTS.md` проекта Karaoke v3.4.1 (`/home/nsa/Karaoke/AGENTS.md`).
 > Все принципы работы сохранены; конкретика переписана под SYP.
@@ -18,15 +18,16 @@
 >
 > ## Что ещё не существует на момент bootstrap
 > (создаётся по мере закрытия карты решений, отмечено `[bootstrap]`):
-> `tools/check-*.sh`, `deploy/do.sh`, gradle-модули, фронтенды, наполнение
-> `docs/domains/` и `docs/adr/`. Правила, ссылающиеся на них, **уже
-> обязательны** — создание инфраструктуры обязано их обеспечить.
+> наполнение `docs/domains/` и `docs/adr/`.
+> Правила, ссылающиеся на отсутствующее, **уже обязательны** — создание
+> инфраструктуры обязано их обеспечить.
 >
-> **Уже создано (2026-10-02)**: git-репозиторий
-> `https://github.com/svoemesto/syp` (ветка `master` защищена), `constitution.md`
-> v1.0.0 (ждёт ратификации), каркас living docs в `docs/` с линтером
-> `docs/scripts/lint-docs.py`, трекер-CLI `tools/tracker.sh`, скрипт резервации
-> номера ветки `tools/reserve-branch-number.sh`.
+> **Уже создано (2026-10-03)**: каркас проекта — Gradle multi-module
+> (`syp-core`, `syp-admin-app`, `syp-public-app`) с обёрткой `gradlew`,
+> фронтенды `syp-admin-web` и `syp-public-web`, `deploy/do.sh`,
+> `deploy/docker-compose.yml` с шестью сервисами, `deploy/.env.example`,
+> каталог guards `tools/check-*`, pre-commit hook и CI
+> (`.github/workflows/ci.yml`).
 
 ## Tier-0: Язык общения
 
@@ -57,7 +58,7 @@
 игнорирование → спека на `/speckit.clarify`.
 **Precedent**: spec #339 в Karaoke (2026-09-09) — агент изобрёл форму кеша вместо
 паттерна из `knowledge/domains/caching/`.
-**Enforcement**: `tools/spec-knowledge-preflight.sh` `[bootstrap]` + секция
+**Enforcement**: `tools/check-spec-knowledge-preflight.sh` + секция
 «Knowledge References» MANDATORY в `spec.md`.
 
 ## Tier-1: Hard Gate — Machine-Specific Exceptions
@@ -116,9 +117,30 @@
 5. **После перезапуска** очередь сама не поднимается — её надо включить кнопкой
    «Старт», если она была включена до перезапуска.
 
-**Precise paths**: эндпоинты и порты SYP фиксируются на bootstrap и
-записываются сюда при semver-bump этого файла (в Karaoke Pass 381 пришлось
-исправлять неверный `/api/process/stop` → 404).
+**Precise paths** (зафиксировано 2026-10-03 при bootstrap развёртывания,
+задачи фазы 0 спеки первого среза):
+
+| Что | Значение |
+|---|---|
+| Порты веба | из диапазона **7910–7999** |
+| Порты хранилища | из диапазона **9020–9099** |
+| `syp-db` (PostgreSQL 16, хост) | **7910** |
+| `syp-admin-app` (бэкенд, хост) | **7911** |
+| `syp-admin-web` (nginx, хост) | **7912** |
+| `syp-public-app` (бэкенд, хост) | **7913** |
+| `syp-public-web` (nginx, хост) | **7914** |
+| `syp-storage` (MinIO API, хост) | **9020** |
+| `syp-storage` (консоль MinIO, хост) | **9021** |
+| Префикс HTTP API обоих бэкендов | `/api`, версионирования префиксом нет |
+| Эндпоинт ключа подписи | `GET /api/recipes/verification-key` (публичный бэкенд) |
+| Путь каталога миграций в контейнере | `/app/migrations` |
+| Корневой каталог исходников | `/disks/HDD_16Tb_Clouds/GOT`, монтируется **только для чтения** |
+
+Значения по умолчанию заданы в `deploy/.env.example`; настоящие значения —
+в `deploy/.env`, который вне системы контроля версий. Значения из таблицы
+заняты на машине: 7906, 7907, 7980, 7981, 9001, 9088, 8080, 8897, 8898, 80,
+3080 — они не используются. Список эндпоинтов домена появится вместе с
+контрактами `specs/001-first-vertical-slice/contracts/`.
 
 **Failure**: перезапуск при непустом списке активных заданий → потерянное или
 «зависшее» задание.
@@ -132,22 +154,23 @@
 
 | Под-правило | Rule | Failure | Enforcement |
 |---|---|---|---|
-| **Gradle (R-372)** | `./gradlew ...` с `GRADLE_USER_HOME=/home/nsa/syp/.gradle` | read-only FS в DSH-sandbox | `check-gradle-user-home.sh` `[bootstrap]` |
-| **Docker (R-373)** | `docker build` / `do.sh build_*` с `DOCKER_CONFIG=/home/nsa/syp/.docker` | read-only `~/.docker/buildx/activity/` | `check-docker-config.sh` `[bootstrap]` |
-| **Containers (R-374)** | Только через `deploy/do.sh start_<c>` / `restart_<c>`. **Запрещено** `docker restart <c>`. | потеря зависимостей + обход согласия | `check-container-restart.sh` `[bootstrap]` |
-| **Frontend (R-375)** | `cd <frontend-dir> && npm run`. В корне `package.json` **нет**. | `npm run` из корня → node_modules не найден | `check-frontend-build.sh` `[bootstrap]` |
+| **Gradle (R-372)** | `./gradlew ...` с `GRADLE_USER_HOME=/home/nsa/syp/.gradle` | read-only FS в DSH-sandbox | `tools/check-gradle-user-home.sh` |
+| **Docker (R-373)** | `docker build` / `do.sh build_*` с `DOCKER_CONFIG=/home/nsa/syp/.docker` | read-only `~/.docker/buildx/activity/` | `tools/check-docker-config.sh` |
+| **Containers (R-374)** | Только через `deploy/do.sh start_<c>` / `restart_<c>`. **Запрещено** `docker restart <c>`. | потеря зависимостей + обход согласия | `tools/check-container-restart.sh` |
+| **Frontend (R-375)** | `cd <frontend-dir> && npm run`. В корне `package.json` **нет**. | `npm run` из корня → node_modules не найден | `tools/check-frontend-build.sh` |
 
 **Примечание SYP**: `nginx:stable` (не `nginx:alpine` — compose использует
-`/bin/bash -c`), `node:22-alpine` (не `node:latest`). База образов бэкенда —
-`eclipse-temurin` (JRE, не JDK), как в Karaoke. `[bootstrap]` — точные теги
-фиксируются решением карты.
+`/bin/bash -c`), `node:22-alpine` (не `node:latest`), `postgres:16`,
+`minio/minio:RELEASE.2024-12-18T13-15-44Z`. База образов бэкенда —
+`eclipse-temurin:21-jre-noble` (JRE, не JDK), как в Karaoke. Файлы образов:
+`deploy/Dockerfile.backend`, `deploy/Dockerfile.frontend`.
 
 ## Tier-1: Hard Gate — Трекер: OpenProject
 
 **Rule**: Слой задач и слой решений — **только OpenProject**, проект `syp`
 (id 4), агент `ai-agent`. Локальные `issues_NNNN.md` в проекте **не ведутся**.
 
-**Трекер-CLI**: `tools/tracker.sh` SYP `[bootstrap]` (адаптация
+**Трекер-CLI**: `tools/tracker.sh` SYP (адаптация
 `/home/nsa/Karaoke/tools/tracker.sh`; настройка — `docs/tracker-setup.md`
 Karaoke, паттерн тот же). Прямой доступ к API OpenProject — только через CLI
 своего проекта.
@@ -162,7 +185,7 @@ Karaoke, паттерн тот же). Прямой доступ к API OpenProje
 | 4. **Close** | `tracker.sh close-issue <NNN>` | После ревью владельца |
 
 **Failure**: OpenProject #69 в Karaoke — без workflow отчёт писался задним числом.
-**Enforcement**: `tools/check-spec-issue-link.py` `[bootstrap]`.
+**Enforcement**: `tools/check-spec-issue-link.py`.
 
 ## Tier-1: Hard Gate — Git — CI-gate для master ⛔
 
@@ -202,7 +225,7 @@ git worktree add ../syp-<NNN>-<slug> -b "<NNN>-<slug>" master
 ```
 **Failure**: два+ субагента в одном workspace → часы на rebase чужих PRов
 (Karaoke Pass 379: 30 минут из-за race на `git checkout`).
-**Enforcement**: `tools/check-subagent-isolation.sh` `[bootstrap]`.
+**Enforcement**: `tools/check-subagent-isolation.sh`.
 
 ## Tier-1: Hard Gate — Living docs SSoT
 
@@ -256,7 +279,8 @@ git worktree add ../syp-<NNN>-<slug> -b "<NNN>-<slug>" master
      обязательные секции при правках сохраняются.
 
 **Rule**: Изменения в коде требуют синхронного обновления документации по
-карте кода (`.ssot-map.yml` `[bootstrap]`). Структурные проверки + cross-links
+карте кода (`.ssot-map.yml`, guard `tools/check-ssot-impact.py`).
+Структурные проверки + cross-links
 + markdown style (NO EMOJI, обязательные заголовки). Новые нарушения → CI fail
 (`--baseline FILE` для допустимых).
 
@@ -280,8 +304,8 @@ git worktree add ../syp-<NNN>-<slug> -b "<NNN>-<slug>" master
 | Per-feature документ (FR-009) | `docs/features/<slug>.md` |
 
 **Enforcement**: `python3 docs/scripts/lint-docs.py` — линтер создан при
-bootstrap 2026-10-02, обязателен к запуску; `check-ssot-impact.py`,
-`check-knowledge-structure.sh`, `lint-knowledge.py` `[bootstrap]`.
+bootstrap 2026-10-02, обязателен к запуску; `tools/check-ssot-impact.py`
+подключён в pre-commit и CI.
 
 **Симметрия инструкций**: файлы `CLAUDE.md` и `AGENTS.md` описывают **одни и
 те же** правила. В SYP `CLAUDE.md` — тонкий указатель со ссылками на секции
@@ -371,7 +395,7 @@ OpenProject; правка `agents-team-srv`; спека как черновик.
 GRADLE_USER_HOME=/home/nsa/syp/.gradle ./gradlew compileKotlin --parallel
 # 2. Линтеры
 GRADLE_USER_HOME=/home/nsa/syp/.gradle ./gradlew ktlintCheck
-cd syp-admin-web  && npm run lint && cd ..     # каталоги фронтендов = имена контейнеров [bootstrap]
+cd syp-admin-web  && npm run lint && cd ..     # каталоги фронтендов = имена контейнеров
 cd syp-public-web && npm run lint && cd ..
 # 3. Backend bootJar
 GRADLE_USER_HOME=/home/nsa/syp/.gradle ./gradlew bootJar --parallel
@@ -388,23 +412,42 @@ cd deploy && bash do.sh build_public_app && cd ..
 
 ## Tier-2: Каталог guards
 
-| Rule | Source | Tool |
-|---|---|---|
-| R-07 JPA запрет | constitution § II / этот файл | `check-no-jpa-imports.sh` |
-| R-11 MP4/скачивание | architecture-conventions | `check-no-mp4-mentions.sh` |
-| R-32 FR-009 per-feature | constitution § VI | `check-feature-doc.sh` |
-| R-43 redirectErrorStream | constitution § IV | code review |
-| R-44 ffmpeg vs melt | architecture-conventions | code review |
-| Gradle / Docker / Containers / Frontend | этот файл (Tier-1) | соответствующие check-*.sh |
-| Очередь перед рестартом | этот файл (Tier-1) | ручная проверка владельцем |
-| Процесс wayfinder → исполнение | этот файл (Tier-1) | manual review |
+| Rule | Source | Tool | Состояние |
+|---|---|---|---|
+| R-07 JPA запрет | constitution § III / этот файл | `tools/check-no-jpa-imports.sh` | готов |
+| R-11 видеофайлы на сервере | ADR-0009 | `tools/check-no-mp4-mentions.sh` | готов |
+| R-32 FR-006 / FR-009 документированность | constitution § VI | `tools/check-feature-doc.sh` | готов |
+| FR-085 нет исполнителя у публичной части | research.md Т-20 | `tools/check-no-job-worker.sh` | готов |
+| R-43 redirectErrorStream | constitution § IV | code review | ручная проверка |
+| R-44 ffmpeg против melt | architecture-conventions | code review | ручная проверка |
+| R-372 Gradle | этот файл (Tier-1) | `tools/check-gradle-user-home.sh` | готов |
+| R-373 Docker | этот файл (Tier-1) | `tools/check-docker-config.sh` | готов |
+| R-374 Containers | этот файл (Tier-1) | `tools/check-container-restart.sh` | готов |
+| R-375 Frontend | этот файл (Tier-1) | `tools/check-frontend-build.sh` | готов |
+| Изоляция рабочих копий | constitution § VII.3 | `tools/check-subagent-isolation.sh` | готов |
+| Номер задачи трекера | constitution § IX.1 | `tools/check-spec-issue-link.py` | готов |
+| Карта кода и living docs | Hard Gate «Living docs SSoT» | `tools/check-ssot-impact.py` | готов |
+| Knowledge-first pre-flight | constitution § II | `tools/check-spec-knowledge-preflight.sh` | готов |
+| Покрытие задач требованиями | Hard Gate «Трекер» | `tools/check-tasks-coverage.py` | готов |
+| Линтер документации | Hard Gate «Living docs SSoT» | `docs/scripts/lint-docs.py` | готов |
+| Отсутствие секретов | constitution § VIII.3 | `tools/check-no-secrets.sh` | готов |
 
-Все перечисленные скрипты — `[bootstrap]`: создаются при bootstrap и
-подключаются к pre-commit/CI. Отсутствие скрипта **не отменяет** правило —
-правило проверяется вручную до его появления.
+Все перечисленные скрипты подключены к pre-commit
+(`tools/pre-commit.sh`) и к CI (`.github/workflows/ci.yml`). Правила,
+проверяемые code review, автоматикой не ловятся: их проверяет человек.
+Отсутствие проверки **не отменяет** правило.
 
 ## Changelog
 
+- **0.4.0** (2026-10-03): зафиксированы точные пути и порты развёртывания
+  (раздел «Precise paths»): веб 7910–7999, хранилище 9020–9099, контейнеры
+  7910/7911/7912/7913/7914, MinIO 9020 и 9021; сняты отметки `[bootstrap]`
+  с созданной инфраструктуры — каркаса Gradle, обоих фронтендов, `deploy/do.sh`,
+  `deploy/docker-compose.yml`, `deploy/.env.example`, каталога guards `tools/check-*`,
+  pre-commit hook и CI. Каталог guards переведён на таблицу с указанием
+  состояния («готов» против «ручная проверка»). Создано 13 guard-скриптов,
+  из них R-43 и R-44 остаются на code review: автоматикой они не ловятся.
+  Semver: MINOR — раздел инструкций дополнен, ни одно правило не отменено.
 - **0.3.0** (2026-10-02): развёрнут каркас Living Documentation в `docs/`
   (system, domains, adr, epics, guidelines, templates, public, howto, scripts,
   features) с линтером `docs/scripts/lint-docs.py`; в этот раздел внедрены

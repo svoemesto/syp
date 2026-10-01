@@ -1,0 +1,16 @@
+{
+  "_пояснение": "Пример настроек воркера SYP. Значения пустые намеренно: пример не должен содержать ни одного рабочего секрета (constitution VIII.5). Скопируйте в config.json и заполните.",
+
+  "serial_root": "",
+  "inbox": "",
+  "output": "",
+  "log": "",
+
+  "trusted_public_key": "",
+  "trusted_key_id": "",
+
+  "ffmpeg_path": "",
+  "ffprobe_path": "",
+
+  "verify_source_checksums": true
+}

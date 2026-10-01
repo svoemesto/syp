@@ -14,3 +14,14 @@ logs/
 .docker/
 node_modules/
 dist/
+
+# артефакты сборки Gradle
+build/
+.gradle/
+
+# дампы кучи JVM при сбоях
+*.hprof
+
+# журнал Knowledge-first pre-flight: локальный след проверки протокола,
+# в репозитории ему не место (constitution II)
+.knowledge-preflight.log

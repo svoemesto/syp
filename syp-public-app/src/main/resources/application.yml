@@ -1,0 +1,22 @@
+# SYP — публичный бэкенд.
+#
+# Значения читаются из окружения: секретов в файле нет и быть не должно
+# (constitution VIII.5). Файл `deploy/.env` вне системы контроля версий.
+server:
+  port: ${SYP_PUBLIC_WEB_PORT:7911}
+
+spring:
+  application:
+    name: syp-public-app
+  datasource:
+    url: ${SYP_DB_URL}
+    username: ${SYP_DB_USER}
+    password: ${SYP_DB_PASSWORD}
+  # Автогенерация схемы запрещена (constitution III).
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    root: INFO
