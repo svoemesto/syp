@@ -11,6 +11,9 @@ code_to_docs:
   - docs/features/first-vertical-slice.md
   syp-core/src/main/kotlin/ru/svoemesto/syp/core/storage:
   - docs/features/first-vertical-slice.md
+  syp-core/src/main/kotlin/ru/svoemesto/syp/core/images:
+  - docs/domains/analysis/components/frame-preview.md
+  - docs/features/first-vertical-slice.md
   syp-core/src/main/kotlin/ru/svoemesto/syp/core/signing:
   - docs/features/first-vertical-slice.md
   syp-core/src/main/kotlin/ru/svoemesto/syp/core/contract:
@@ -19,6 +22,10 @@ code_to_docs:
   - docs/domains/catalog/domain.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/analysis:
   - docs/domains/analysis/domain.md
+  - docs/domains/analysis/components/analysis-run.md
+  syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/integrity:
+  - docs/domains/selection/components/checksum-registry.md
+  - docs/features/first-vertical-slice.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/characters:
   - docs/domains/characters/domain.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation:
