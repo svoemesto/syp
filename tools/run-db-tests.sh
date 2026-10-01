@@ -54,10 +54,24 @@ if ! docker run -d --rm --name "${NAME}" -p 127.0.0.1::5432 \
     exit 1
 fi
 
-for _ in $(seq 1 60); do
-    docker exec "${NAME}" pg_isready -U postgres -d syp >/dev/null 2>&1 && break
+# Ожидание готовности: `pg_isready` отвечает и на той стадии, когда сервер ещё
+# только запускается и уже сворачивает предыдущую инициализацию. Поэтому
+# готовым считается не «порт отвечает», а «запрос проходит» — и подряд два
+# раза: первый успех может прийти на середине старта.
+ready=0
+for _ in $(seq 1 90); do
+    if docker exec "${NAME}" psql -U postgres -d syp -tA -c 'SELECT 1' >/dev/null 2>&1; then
+        if docker exec "${NAME}" psql -U postgres -d syp -tA -c 'SELECT 1' >/dev/null 2>&1; then
+            ready=1
+            break
+        fi
+    fi
     sleep 1
 done
+if [[ ${ready} -ne 1 ]]; then
+    printf '%s\n' "БАЗА НЕ ПОДНЯЛАСЬ за 90 секунд" >&2
+    exit 1
+fi
 
 PORT_NUMBER="$(docker port "${NAME}" 5432/tcp 2>/dev/null | head -1)"
 PORT_NUMBER="${PORT_NUMBER##*:}"
@@ -67,8 +81,20 @@ if [[ -z "${PORT_NUMBER}" ]]; then
 fi
 
 printf '%s\n' "применяю миграции"
+# Ошибка применения повторяется один раз: на холодном старте одноразовый
+# контейнер может оборвать соединение, и без повтора прогон падал бы на
+# собственном окружении, а не на коде.
 for file in deploy/syp-db/[0-9][0-9]_*.sql; do
-    if ! docker exec -i "${NAME}" psql -U postgres -d syp -v ON_ERROR_STOP=1 -q -f - < "${file}"; then
+    applied=0
+    for attempt in 1 2; do
+        if docker exec -i "${NAME}" psql -U postgres -d syp -v ON_ERROR_STOP=1 -q -f - < "${file}"; then
+            applied=1
+            break
+        fi
+        printf '  попытка %s не удалась, жду и повторяю\n' "${attempt}" >&2
+        sleep 3
+    done
+    if [[ ${applied} -ne 1 ]]; then
         printf '%s\n' "ОШИБКА применения $(basename "${file}")" >&2
         exit 1
     fi
