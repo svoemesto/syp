@@ -1,7 +1,7 @@
 # SYP Project Guidelines (Claude Code)
 
-> **Версия**: 0.3.0 | **2026-10-02**
-> Только ссылки. **Single source of truth**: `AGENTS.md` v0.3.0.
+> **Версия**: 0.5.0 | **2026-10-03**
+> Только ссылки. **Single source of truth**: `AGENTS.md` v0.5.0.
 
 ## Все правила — в `AGENTS.md`
 
@@ -23,6 +23,7 @@
 | Процесс wayfinder → исполнение | § Tier-1 «Процесс: wayfinder → исполнение» |
 | Обязательная проверка после изменения | § Tier-2 |
 | Каталог guards | § Tier-2 |
+| Точные пути, порты и эндпоинты развёртывания | § Tier-1 Hard Gate «Build / Deploy / Containers», подраздел «Precise paths» |
 | Непреложные принципы | `constitution.md` |
 
 ## Рекомендации (не дублируют `AGENTS.md`)
@@ -32,8 +33,9 @@
 2. **Перед поиском по коду**: прочитать `docs/README.md` — карта L1, из неё
    понять домен. Это жёсткий гейт, не рекомендация.
 3. **Перед правкой кода фичи**: обновить `docs/features/<slug>.md`.
-4. **Перед коммитом**: `git ls-files | grep -iE '\.env$|\.key$|\.pem$'` должен
-   быть пуст; номер ветки берётся скриптом, а не вручную.
+4. **Перед коммитом**: `bash tools/check-no-secrets.sh` должен пройти, а
+   `git ls-files | grep -iE '\.env$|\.key$|\.pem$|\.p12$|\.pfx$'` — быть пуст;
+   номер ветки берётся скриптом, а не вручную.
 5. **При отладке**: сначала `docker logs`, потом гипотезы.
 6. **Если поиск по `docs/` ничего не нашёл**: зафиксировать в `spec.md` явно
    «Searched: … → no relevant docs».
@@ -53,6 +55,9 @@
 | Знания о старом проекте (читать, код не тащить) | `/home/nsa/ivfx4/legacy-analysis/` |
 | Задачи и тикеты | OpenProject, проект `syp` (id 4), через `tools/tracker.sh` |
 | Исходное видео | `/disks/HDD_16Tb_Clouds/GOT` |
+| Guards проекта (13 скриптов) | `tools/check-*`; полный список — § Tier-2 «Каталог guards» в `AGENTS.md` |
+| Единственная точка сборки и запуска | `deploy/do.sh` |
+| Порты развёртывания | `deploy/.env.example` и § Tier-1 «Precise paths» в `AGENTS.md` |
 
 ## Ловушки среды (проверены на практике)
 

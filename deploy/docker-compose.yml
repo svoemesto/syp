@@ -1,0 +1,176 @@
+# SYP — шесть контейнеров стека.
+#
+# Контейнеров ровно шесть, седьмого быть не должно (constitution V, research.md
+# Т-01, Т-20). Воркер на машине пользователя контейнером SYP НЕ является: это
+# программа пользователя, у неё нет доступа к базе и хранилищу сервера.
+#
+# Значения подставляются из файла `deploy/.env`, который вне системы контроля
+# версий. Секретов в этом файле нет и быть не должно (constitution VIII.5).
+#
+# Порты: веб — из диапазона 7910–7999, хранилище — из 9020–9099
+# (research.md Т-22). Занятые на машине порты 7906, 7907, 7980, 7981, 9001,
+# 9088, 8080, 8897, 8898, 80, 3080 обходятся.
+
+name: syp
+
+services:
+  # 1. База проекта: PostgreSQL 16. Схема создаётся только нумерованными
+  #    добавочными миграциями deploy/syp-db/NN_*.sql; автогенерации схемы нет
+  #    (constitution III).
+  syp-db:
+    image: postgres:16
+    container_name: syp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SYP_DB_NAME:-syp}
+      POSTGRES_USER: ${SYP_DB_USER:-syp}
+      POSTGRES_PASSWORD: ${SYP_DB_PASSWORD:?задайте SYP_DB_PASSWORD в deploy/.env}
+      # Русская сортировка не нужна: домен оперирует номерами кадров и
+      # идентификаторами, текстовые поиски выполняются по имени сериала.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    command:
+      - postgres
+      - "-c"
+      - "max_connections=200"
+    ports:
+      - "${SYP_DB_HOST_PORT:-7910}:5432"
+    volumes:
+      - syp-db-data:/var/lib/postgresql/data
+      # Миграции монтируются только для чтения и применяются вручную через
+      # deploy/do.sh db_migrate: автозапуск миграций при старте запрещён.
+      - ./syp-db:/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SYP_DB_USER:-syp} -d ${SYP_DB_NAME:-syp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # 2. Объектное хранилище на SSD: листы превью, обученные модели,
+  #    канонические байты сценариев. Готовые видеофайлы здесь не хранятся:
+  #    они остаются на машине пользователя (ADR-0009).
+  syp-storage:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: syp-storage
+    restart: unless-stopped
+    command: server /data --console-address ":9021"
+    environment:
+      MINIO_ROOT_USER: ${SYP_STORAGE_USER:?задайте SYP_STORAGE_USER в deploy/.env}
+      MINIO_ROOT_PASSWORD: ${SYP_STORAGE_PASSWORD:?задайте SYP_STORAGE_PASSWORD в deploy/.env}
+    ports:
+      - "${SYP_STORAGE_HOST_PORT:-9020}:9000"
+      - "${SYP_STORAGE_CONSOLE_HOST_PORT:-9021}:9021"
+    volumes:
+      - syp-storage-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # 3. Бэкенд админки: разметка, анализ, очередь заданий, исполнитель
+  #    заданий ANALYZE, FACES, TRAIN, HASH. Вида ASSEMBLE не существует.
+  syp-admin-app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+      args:
+        SYP_MODULE: syp-admin-app
+    image: svoemesto/syp-admin-app:local
+    container_name: syp-admin-app
+    restart: unless-stopped
+    environment:
+      # Порты и параметры развёртывания — только через окружение
+      # (constitution VIII.5).
+      SYP_ADMIN_WEB_PORT: "7911"
+      SYP_DB_URL: jdbc:postgresql://syp-db:5432/${SYP_DB_NAME:-syp}
+      SYP_DB_USER: ${SYP_DB_USER:-syp}
+      SYP_DB_PASSWORD: ${SYP_DB_PASSWORD:?задайте SYP_DB_PASSWORD в deploy/.env}
+      SYP_STORAGE_ENDPOINT: http://syp-storage:9000
+      SYP_STORAGE_ACCESS_KEY: ${SYP_STORAGE_USER:?задайте SYP_STORAGE_USER в deploy/.env}
+      SYP_STORAGE_SECRET_KEY: ${SYP_STORAGE_PASSWORD:?задайте SYP_STORAGE_PASSWORD в deploy/.env}
+      SYP_STORAGE_BUCKET: ${SYP_STORAGE_BUCKET:-syp-artifacts}
+      # Закрытый ключ подписи сценария живёт только здесь и только через
+      # окружение: в репозитории его нет (constitution VIII, ADR-0011).
+      SYP_SIGNING_KEY_ID: ${SYP_SIGNING_KEY_ID:?задайте SYP_SIGNING_KEY_ID в deploy/.env}
+      SYP_SIGNING_PRIVATE_KEY: ${SYP_SIGNING_PRIVATE_KEY:?задайте SYP_SIGNING_PRIVATE_KEY в deploy/.env}
+      SYP_SIGNING_PUBLIC_KEY: ${SYP_SIGNING_PUBLIC_KEY:?задайте SYP_SIGNING_PUBLIC_KEY в deploy/.env}
+      SYP_WORKER_CONCURRENCY: ${SYP_WORKER_CONCURRENCY:-2}
+      SYP_GPU_CONCURRENCY: ${SYP_GPU_CONCURRENCY:-1}
+    ports:
+      - "${SYP_ADMIN_APP_HOST_PORT:-7911}:7911"
+    volumes:
+      # Исходное видео монтируется только для чтения: файлы архива никогда
+      # не изменяются.
+      - ${SYP_SOURCE_ROOT:-/disks/HDD_16Tb_Clouds/GOT}:/sources:ro
+    depends_on:
+      syp-db:
+        condition: service_healthy
+      syp-storage:
+        condition: service_healthy
+
+  # 4. Фронтенд админки: статическая раздача собранного билда, nginx.
+  syp-admin-web:
+    build:
+      context: ../syp-admin-web
+      dockerfile: ../deploy/Dockerfile.frontend
+    image: svoemesto/syp-admin-web:local
+    container_name: syp-admin-web
+    restart: unless-stopped
+    environment:
+      # Подстановка в шаблон nginx: имя контейнера бэкенда админки.
+      SYP_API_UPSTREAM: "syp-admin-app:7911"
+    ports:
+      - "${SYP_ADMIN_WEB_HOST_PORT:-7912}:80"
+    depends_on:
+      - syp-admin-app
+
+  # 5. Бэкенд публичной части: только выдача сценария сборки.
+  #    Исполнителя заданий у него нет вовсе (FR-085, research.md Т-20).
+  #    Закрытого ключа подписи у него тоже нет (ADR-0011).
+  syp-public-app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+      args:
+        SYP_MODULE: syp-public-app
+    image: svoemesto/syp-public-app:local
+    container_name: syp-public-app
+    restart: unless-stopped
+    environment:
+      SYP_PUBLIC_WEB_PORT: "7913"
+      SYP_DB_URL: jdbc:postgresql://syp-db:5432/${SYP_DB_NAME:-syp}
+      SYP_DB_USER: ${SYP_DB_USER:-syp}
+      SYP_DB_PASSWORD: ${SYP_DB_PASSWORD:?задайте SYP_DB_PASSWORD в deploy/.env}
+      SYP_STORAGE_ENDPOINT: http://syp-storage:9000
+      SYP_STORAGE_ACCESS_KEY: ${SYP_STORAGE_USER:?задайте SYP_STORAGE_USER в deploy/.env}
+      SYP_STORAGE_SECRET_KEY: ${SYP_STORAGE_PASSWORD:?задайте SYP_STORAGE_PASSWORD в deploy/.env}
+      SYP_STORAGE_BUCKET: ${SYP_STORAGE_BUCKET:-syp-artifacts}
+      SYP_SIGNING_KEY_ID: ${SYP_SIGNING_KEY_ID:?задайте SYP_SIGNING_KEY_ID в deploy/.env}
+      SYP_SIGNING_PUBLIC_KEY: ${SYP_SIGNING_PUBLIC_KEY:?задайте SYP_SIGNING_PUBLIC_KEY в deploy/.env}
+    ports:
+      - "${SYP_PUBLIC_APP_HOST_PORT:-7913}:7913"
+    depends_on:
+      syp-db:
+        condition: service_healthy
+      syp-storage:
+        condition: service_healthy
+
+  # 6. Фронтенд публичной части: статическая раздача, nginx.
+  syp-public-web:
+    build:
+      context: ../syp-public-web
+      dockerfile: ../deploy/Dockerfile.frontend
+    image: svoemesto/syp-public-web:local
+    container_name: syp-public-web
+    restart: unless-stopped
+    environment:
+      # Подстановка в шаблон nginx: имя контейнера публичного бэкенда.
+      SYP_API_UPSTREAM: "syp-public-app:7913"
+    ports:
+      - "${SYP_PUBLIC_WEB_HOST_PORT:-7914}:80"
+    depends_on:
+      - syp-public-app
+
+volumes:
+  syp-db-data:
+  syp-storage-data:

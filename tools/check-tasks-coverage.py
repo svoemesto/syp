@@ -11,7 +11,9 @@ lines = text.splitlines()
 errors, warnings = [], []
 
 # ---------- 1. Разбор задач ----------
-task_re = re.compile(r"^- \[ \] (T\d{3})(?: \[P\])?(?: \[US\d\])? (.+)$")
+# Разбираются и невыполненные, и выполненные задачи: покрытие считается
+# по всему списку, а не только по тому, что ещё не сделано. Раньше
+task_re = re.compile(r"^- \[[ x]\] (T\d{3})(?: \[P\])?(?: \[US\d\])? (.+)$")
 tasks = []          # (id, raw_desc, block_lines)
 cur = None
 for i, ln in enumerate(lines):

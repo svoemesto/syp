@@ -1,0 +1,23 @@
+# SYP — админский бэкенд.
+#
+# Значения читаются из окружения: секретов в файле нет и быть не должно
+# (constitution VIII.5). Файл `deploy/.env` вне системы контроля версий.
+server:
+  port: ${SYP_ADMIN_WEB_PORT:7910}
+
+spring:
+  application:
+    name: syp-admin-app
+  datasource:
+    url: ${SYP_DB_URL}
+    username: ${SYP_DB_USER}
+    password: ${SYP_DB_PASSWORD}
+  # Автогенерация схемы запрещена (constitution III): схема создаётся только
+  # нумерованными миграциями deploy/syp-db/NN_*.sql.
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    root: INFO

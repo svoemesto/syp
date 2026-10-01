@@ -1,0 +1,40 @@
+version: 1
+description: Карта кода на живую документацию проекта SYP. Для каждого каталога исходников
+  указаны документы, которые обязаны меняться вместе с ним (Hard Gate «Living docs
+  SSoT», FR-009).
+code_to_docs:
+  syp-core/src/main/kotlin/ru/svoemesto/syp/core/db:
+  - docs/features/first-vertical-slice.md
+  syp-core/src/main/kotlin/ru/svoemesto/syp/core/jobs:
+  - docs/features/first-vertical-slice.md
+  syp-core/src/main/kotlin/ru/svoemesto/syp/core/media:
+  - docs/features/first-vertical-slice.md
+  syp-core/src/main/kotlin/ru/svoemesto/syp/core/storage:
+  - docs/features/first-vertical-slice.md
+  syp-core/src/main/kotlin/ru/svoemesto/syp/core/signing:
+  - docs/features/first-vertical-slice.md
+  syp-core/src/main/kotlin/ru/svoemesto/syp/core/contract:
+  - docs/features/first-vertical-slice.md
+  syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog:
+  - docs/domains/catalog/domain.md
+  syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/analysis:
+  - docs/domains/analysis/domain.md
+  syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/characters:
+  - docs/domains/characters/domain.md
+  syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation:
+  - docs/domains/annotation/domain.md
+  syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/selection:
+  - docs/domains/selection/domain.md
+  syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/jobs:
+  - docs/features/first-vertical-slice.md
+  syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/config:
+  - docs/features/first-vertical-slice.md
+  syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/config:
+  - docs/features/first-vertical-slice.md
+  syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/showcase:
+  - docs/domains/showcase/domain.md
+  syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/recipe:
+  - docs/domains/selection/domain.md
+  - docs/features/first-vertical-slice.md
+  deploy/syp-db:
+  - docs/features/first-vertical-slice.md

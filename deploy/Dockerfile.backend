@@ -1,0 +1,49 @@
+# SYP — образ бэкенда.
+#
+# Один файл на оба бэкенда: различаются они только содержимым модуля,
+# который собирается в gradle-сборке. Базовый образ — `eclipse-temurin`
+# (JRE, не JDK), как в образце проекта Karaoke (AGENTS.md § Tier-1
+# Hard Gate Build/Deploy/Containers).
+#
+# Аргумент сборки SYP_MODULE задаёт имя модуля Gradle: syp-admin-app или
+# syp-public-app.
+
+FROM eclipse-temurin:21-jre-noble AS builder
+
+ARG SYP_MODULE
+
+WORKDIR /build
+
+# Обёртка Gradle и сборочные файлы копируются отдельно от исходников:
+# слой с зависимостями переиспользуется, пока исходники меняются.
+COPY gradlew ./
+COPY gradle/ gradle/
+COPY settings.gradle.kts build.gradle.kts gradle.properties ./
+COPY syp-core/build.gradle.kts syp-core/
+COPY syp-admin-app/build.gradle.kts syp-admin-app/
+COPY syp-public-app/build.gradle.kts syp-public-app/
+
+# GRADLE_USER_HOME в образе не указывает на каталог машины администратора:
+# внутри контейнера сборка идёт в собственный кэш слоя.
+RUN ./gradlew --no-daemon ${SYP_MODULE}:bootJar
+
+COPY syp-core/ syp-core/
+COPY syp-admin-app/ syp-admin-app/
+COPY syp-public-app/ syp-public-app/
+
+RUN ./gradlew --no-daemon ${SYP_MODULE}:bootJar && \
+    cp ${SYP_MODULE}/build/libs/${SYP_MODULE}.jar /build/app.jar
+
+FROM eclipse-temurin:21-jre-noble
+
+# Миграции копируются в образ: их читает команда db_migrate из deploy/do.sh.
+# Применяются они вручную, автозапуск при старте контейнера запрещён
+# (constitution III: схемой управляют только нумерованные миграции).
+WORKDIR /app
+COPY --from=builder /build/app.jar /app/app.jar
+COPY deploy/syp-db/ /app/migrations/
+
+RUN useradd --system --create-home --uid 10001 syp
+USER syp
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
