@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
+import ru.svoemesto.syp.admin.integrity.ChecksumEnqueuer
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import java.time.Instant
@@ -197,6 +198,9 @@ data class SettingsUpdateView(
  * @property seriesStore хранилище серий
  * @property settingsStore хранилище настроек
  * @property registration регистрация серии с проверкой пути
+ * @property checksums постановщик подсчёта суммы: при регистрации серии
+ *   подсчёт ставится автоматически, без актуальной суммы сценарий отдать
+ *   нельзя (FR-089)
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 @RestController
@@ -205,6 +209,7 @@ class CatalogController(
     private val seriesStore: SeriesStore,
     private val settingsStore: SerialSettingsStore,
     private val registration: SeriesRegistration,
+    private val checksums: ChecksumEnqueuer? = null,
 ) {
     /**
      * Перечисляет сериалы с числом серий каждого.
@@ -311,6 +316,11 @@ class CatalogController(
     ): ResponseEntity<SeriesView> {
         val serial = requireSerial(serialId)
         val registered = registration.register(serialId, request.sourcePath, request.name)
+        // Подсчёт суммы ставится сразу: он считается заданием и идёт в фоне,
+        // а ждать его в этом запросе нельзя — это нарушало бы constitution
+        // IV.1 (FR-003). Отказ постановки не отменяет регистрацию: серия уже
+        // заведена, а пересчёт можно поставить кнопкой.
+        runCatching { checksums?.enqueueAutomatic(registered) }
         return ResponseEntity.status(HttpStatus.CREATED).body(registered.toView(serial))
     }
 
