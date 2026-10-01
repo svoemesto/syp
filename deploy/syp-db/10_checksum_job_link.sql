@@ -49,5 +49,14 @@ COMMENT ON COLUMN source_file_checksum.job_id IS
 ALTER TABLE source_file_checksum
     ALTER COLUMN digest DROP NOT NULL;
 
+-- Готовая сумма обязана быть. Само ограничение формата при отсутствии
+-- значения пропускает запись: результат сравнения с NULL есть NULL, а
+-- ограничение отклоняет только явный FALSE. Поэтому требование «у DONE
+-- сумма есть» выражено отдельным ограничением — иначе запись в состоянии
+-- DONE без значения прошла бы, а сценарий получил бы ссылку на пустоту.
+ALTER TABLE source_file_checksum
+    ADD CONSTRAINT source_file_checksum_done_has_digest
+    CHECK (state <> 'DONE' OR digest IS NOT NULL);
+
 COMMENT ON COLUMN source_file_checksum.digest IS
     'Сумма sha256: 64 шестнадцатеричных символа в нижнем регистре. При незавершённом подсчёте значения нет: запись создаётся при постановке задания, а сумма появляется после чтения файла (FR-003).';
