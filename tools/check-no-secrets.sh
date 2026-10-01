@@ -28,7 +28,15 @@ errors=0
 NAME_PATTERN='\.env$|do\.env$|\.key$|\.pem$|\.p12$|\.pfx$|\.p8$'
 
 # Признаки закрытого ключа в тексте.
-CONTENT_PATTERN='BEGIN [A-Z ]*PRIVATE KEY'
+#
+# Шаблон собирается по частям намеренно: если написать его одной строкой, то
+# сам guard попал бы под grep по заголовку блока приватного ключа, которым
+# проверяют репозиторий (задача T028). Guard, который ловит сам себя,
+# бесполезен.
+KEY_HEADER="BEGIN "
+KEY_HEADER="${KEY_HEADER}[A-Z ]*"
+KEY_HEADER="${KEY_HEADER}PRIVATE KEY"
+CONTENT_PATTERN="${KEY_HEADER}"
 
 # Присваивание пароля литералом: password = "..." и тому подобное.
 ASSIGNMENT_PATTERN='(?i)(password|secret|private_?key|token)[[:space:]]*[:=][[:space:]]*"[^"]{6,}"'

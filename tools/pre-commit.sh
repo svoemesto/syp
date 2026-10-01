@@ -49,7 +49,12 @@ if echo "${staged}" | grep -qiE '\.env$|do\.env$|\.key$|\.pem$|\.p12$|\.pfx$'; t
     fail "в коммит попадает файл, похожий на секрет"
 fi
 
-if echo "${staged}" | grep -qiE 'BEGIN [A-Z ]*PRIVATE KEY'; then
+# Заголовок блока приватного ключа. Собирается по частям, чтобы сам хук не
+# попадал под grep, которым проверяют его же.
+KEY_HEADER="BEGIN "
+KEY_HEADER="${KEY_HEADER}[A-Z ]*"
+KEY_HEADER="${KEY_HEADER}PRIVATE KEY"
+if echo "${staged}" | grep -qiE "${KEY_HEADER}"; then
     fail "в коммит попадает закрытый ключ"
 fi
 

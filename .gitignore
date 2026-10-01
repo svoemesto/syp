@@ -18,6 +18,7 @@ dist/
 # артефакты сборки Gradle
 build/
 .gradle/
+.build/
 
 # дампы кучи JVM при сбоях
 *.hprof

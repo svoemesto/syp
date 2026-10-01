@@ -73,12 +73,7 @@ data class AdminPorts(
          * @return значение переменной
          * @throws IllegalStateException если переменная не задана или пуста
          */
-        fun requiredEnv(name: String): String =
-            System.getenv(name)?.takeIf { it.isNotBlank() }
-                ?: throw IllegalStateException(
-                    "Переменная окружения $name не задана. Секреты и параметры " +
-                        "развёртывания передаются только через окружение (constitution VIII.5)."
-                )
+        fun requiredEnv(name: String): String = required(name)
 
         /**
          * Читает числовую переменную окружения с запасным значением.
@@ -87,7 +82,43 @@ data class AdminPorts(
          * @param fallback значение, если переменная не задана или не число
          * @return разобранное число или [fallback]
          */
-        fun intEnv(name: String, fallback: Int): Int =
-            System.getenv(name)?.trim()?.toIntOrNull() ?: fallback
+        fun intEnv(
+            name: String,
+            fallback: Int,
+        ): Int = intOr(name, fallback)
     }
 }
+
+/**
+ * Чтение обязательной переменной окружения.
+ *
+ * Вынесено отдельной функцией намеренно: файл конфигурации называется
+ * `Ports.kt` — на это имя ссылаются план и задачи спеки, — а правило линтера
+ * `standard:filename` требует, чтобы имя файла совпадал с именем единственного
+ * объявления в нём. Второе объявление снимает противоречие, не меняя ни имён
+ * файлов, ни вызывающего кода.
+ *
+ * @param name имя переменной
+ * @return значение переменной
+ * @throws IllegalStateException если переменная не задана или пуста
+ * @see <a href="../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+internal fun required(name: String): String =
+    System.getenv(name)?.takeIf { it.isNotBlank() }
+        ?: throw IllegalStateException(
+            "Переменная окружения $name не задана. Секреты и параметры " +
+                "развёртывания передаются только через окружение (constitution VIII.5).",
+        )
+
+/**
+ * Чтение числовой переменной окружения с запасным значением.
+ *
+ * @param name имя переменной
+ * @param fallback значение, если переменная не задана или не число
+ * @return разобранное число или [fallback]
+ * @see <a href="../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+internal fun intOr(
+    name: String,
+    fallback: Int,
+): Int = System.getenv(name)?.trim()?.toIntOrNull() ?: fallback

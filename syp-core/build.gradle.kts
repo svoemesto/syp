@@ -19,8 +19,13 @@ dependencies {
     // сценариев лежат в MinIO (`docs/system/02-containers.md`).
     api("io.minio:minio:${rootProject.property("minioClientVersion")}")
 
+    // Контрактные тесты очереди требуют живой базы (задача T029).
+    // Параметры подключения приходят через окружение; без них тесты
+    // помечаются пропущенными, а не падают. Поднимает базу
+    // tools/run-db-tests.sh.
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

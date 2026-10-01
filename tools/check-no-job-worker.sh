@@ -33,16 +33,22 @@ check_public_module() {
         errors=$((errors + 1))
     fi
 
-    # Никакой зависимости от очереди заданий.
+    # Никакой зависимости от очереди заданий. Проверяются строки объявления
+    # зависимостей, а не весь файл сборки: иначе guard ловил бы собственный
+    # список запрещённых имён.
     local build_file="${dir}/build.gradle.kts"
     if [[ -f "${build_file}" ]] && \
-       grep -nE 'starter-(amqp|activemq)|quartz|spring-batch' "${build_file}"; then
+       grep -nE '^[[:space:]]*(api|implementation|compileOnly|runtimeOnly)\(' "${build_file}" \
+       | grep -E 'starter-(amqp|activemq|quartz|batch)|quartz|spring-batch'; then
         printf 'НАРУШЕНИЕ FR-085: в %s подключена зависимость исполнителя заданий\n' "${dir}" >&2
         errors=$((errors + 1))
     fi
 
-    # Никаких видов заданий в коде публичной части.
-    if grep -rnE '"(ANALYZE|FACES|TRAIN|HASH)"' "${dir}" --include='*.kt' 2>/dev/null; then
+    # Никаких видов заданий в коде публичной части. Комментарии не читаются:
+    # они объясняют, чего быть не должно.
+    if find "${dir}/src/main" -name '*.kt' -not -path '*/build/*' -print0 2>/dev/null \
+       | xargs -0 -r perl -0pe 's{/\*(?:[^*]|\*(?!/))\*/}{}gs; s{//[^\n]*}{}g' \
+       | grep -nE '"(ANALYZE|FACES|TRAIN|HASH)"'; then
         printf 'НАРУШЕНИЕ FR-085: в %s упомянуты виды заданий\n' "${dir}" >&2
         errors=$((errors + 1))
     fi

@@ -75,6 +75,12 @@ DEFAULT_MAP = {
         "syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/jobs": [
             "docs/features/first-vertical-slice.md",
         ],
+        "syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/config": [
+            "docs/features/first-vertical-slice.md",
+        ],
+        "syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/config": [
+            "docs/features/first-vertical-slice.md",
+        ],
         "syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/showcase": [
             "docs/domains/showcase/domain.md",
         ],

@@ -95,92 +95,92 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 `GRADLE_USER_HOME=.gradle ./gradlew projects` перечисляет три модуля;
 `python3 docs/scripts/lint-docs.py` проходит.
 
-- [ ] T001 Создать каркас Gradle multi-module и обёртку gradlew
+- [x] T001 Создать каркас Gradle multi-module и обёртку gradlew
   - Файлы: `settings.gradle.kts`, `build.gradle.kts`, `gradle.properties`, `gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.properties`
   - Зависит от: —
   - Проверка: `GRADLE_USER_HOME=/home/nsa/syp/.gradle ./gradlew projects` перечисляет `syp-core`, `syp-admin-app`, `syp-public-app`; версия Kotlin и Spring Boot зафиксирована в `gradle.properties`
 
-- [ ] T002 [P] Создать общий модуль `syp-core`
+- [x] T002 [P] Создать общий модуль `syp-core`
   - Файлы: `syp-core/build.gradle.kts`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/.gitkeep`
   - Зависит от: T001
   - Проверка: `./gradlew :syp-core:compileKotlin` проходит; в зависимостях нет ни одной библиотеки отображения объектов (constitution III)
 
-- [ ] T003 [P] Создать бэкенд админки `syp-admin-app`
+- [x] T003 [P] Создать бэкенд админки `syp-admin-app`
   - Файлы: `syp-admin-app/build.gradle.kts`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/config/Ports.kt`
   - Зависит от: T001
   - Проверка: `./gradlew :syp-admin-app:bootJar` собирает исполняемый файл; порты читаются из окружения, а не из кода
 
-- [ ] T004 Создать бэкенд публичной части `syp-public-app`
+- [x] T004 Создать бэкенд публичной части `syp-public-app`
   - Файлы: `syp-public-app/build.gradle.kts`, `syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/config/Ports.kt`
   - Зависит от: T001
   - Проверка: `./gradlew :syp-public-app:bootJar` собирается; в `build.gradle.kts` этого модуля нет ни одного исполнителя заданий (research.md Т-20)
 
-- [ ] T005 [P] Создать фронтенд админки `syp-admin-web`
+- [x] T005 [P] Создать фронтенд админки `syp-admin-web`
   - Файлы: `syp-admin-web/package.json`, `syp-admin-web/vite.config.ts`, `syp-admin-web/src/main.ts`
   - Зависит от: —
   - Проверка: `cd syp-admin-web && npm run build` собирает; `npm run lint` проходит; в корне репозитория файла `package.json` нет (Hard Gate R-375)
 
-- [ ] T006 [P] Создать фронтенд публичной части `syp-public-web`
+- [x] T006 [P] Создать фронтенд публичной части `syp-public-web`
   - Файлы: `syp-public-web/package.json`, `syp-public-web/vite.config.ts`, `syp-public-web/src/main.ts`
   - Зависит от: —
   - Проверка: `cd syp-public-web && npm run build` и `npm run format:check` проходят
 
-- [ ] T007 [P] Описать шесть контейнеров в `deploy/docker-compose.yml`
+- [x] T007 [P] Описать шесть контейнеров в `deploy/docker-compose.yml`
   - Файлы: `deploy/docker-compose.yml`
   - Зависит от: —
   - Проверка: в файле ровно шесть сервисов: `syp-db`, `syp-storage`, `syp-admin-app`, `syp-admin-web`, `syp-public-app`, `syp-public-web`; седьмого нет (Hard Gate «Контейнеры»)
 
-- [ ] T008 [P] Создать `deploy/do.sh` — единственную точку сборки и запуска
+- [x] T008 [P] Создать `deploy/do.sh` — единственную точку сборки и запуска
   - Файлы: `deploy/do.sh`
   - Зависит от: T007
   - Проверка: в скрипте есть `build_admin_app`, `build_public_app`, `start_*`, `restart_*`, `status`; прямого `docker restart` в скрипте нет (Hard Gate R-374)
 
-- [ ] T009 Завести файл окружения с портами из диапазонов 7910–7999 и 9020–9099
+- [x] T009 Завести файл окружения с портами из диапазонов 7910–7999 и 9020–9099
   - Файлы: `deploy/.env.example`
   - Зависит от: T007
   - Проверка: пример перечисляет порта веба и хранилища из указанных диапазонов; `git ls-files | grep -E '\.env$|do\.env$'` пуст — настоящий `deploy/.env` не отслеживается (constitution VIII)
 
-- [ ] T010 Завести каталог воркера на машине пользователя
+- [x] T010 Завести каталог воркера на машине пользователя
   - Файлы: `syp-worker/README.md`, `syp-worker/config.example.json`
   - Зависит от: —
   - Проверка: README описывает установку воркера без сборки и формат файла настроек; `config.example.json` содержит корни каталогов и доверенный открытый ключ
 
-- [ ] T011 Создать guards предметной области
+- [x] T011 Создать guards предметной области
   - Файлы: `tools/check-no-jpa-imports.sh`, `tools/check-no-mp4-mentions.sh`, `tools/check-feature-doc.sh`
   - Зависит от: —
   - Проверка: каждый скрипт находит нарушение в пробном файле и молчит на чистом дереве; все три перечислены в `AGENTS.md` § Tier-2 «Каталог guards»
 
-- [ ] T012 [P] Создать guards окружения
+- [x] T012 [P] Создать guards окружения
   - Файлы: `tools/check-gradle-user-home.sh`, `tools/check-docker-config.sh`, `tools/check-container-restart.sh`, `tools/check-frontend-build.sh`
   - Зависит от: —
   - Проверка: `check-container-restart.sh` падает на строке с `docker restart`; `check-gradle-user-home.sh` требует `GRADLE_USER_HOME=/home/nsa/syp/.gradle`
 
-- [ ] T013 [P] Создать guards процесса
+- [x] T013 [P] Создать guards процесса
   - Файлы: `tools/check-subagent-isolation.sh`, `tools/check-spec-issue-link.py`, `tools/check-ssot-impact.py`, `tools/check-spec-knowledge-preflight.sh`
   - Зависит от: —
   - Проверка: `check-spec-issue-link.py` находит номер задачи в `spec.md`; `check-ssot-impact.py` находит изменение вне карты кода
 
-- [ ] T014 Подключить проверки в pre-commit и CI
+- [x] T014 Подключить проверки в pre-commit и CI
   - Файлы: `.github/workflows/ci.yml`, `.git/hooks/pre-commit`
   - Зависит от: T011, T012, T013
   - Проверка: CI запускает `./gradlew compileKotlin ktlintCheck bootJar`, `ktlintCheck`, оба фронтенда (`npm run lint`, `npm run build`), все guards, `python3 docs/scripts/lint-docs.py` и проверку отсутствия секретов; `master` защищён (constitution VII)
 
-- [ ] T015 Проверить гигиену секретов в истории и в дереве
+- [x] T015 Проверить гигиену секретов в истории и в дереве
   - Файлы: `AGENTS.md`, `.gitignore`
   - Зависит от: T014
   - Проверка: `git ls-files | grep -iE '\.env$|do\.env$|\.key$|\.pem$|\.p12$|\.pfx$'` возвращает пустую строку
 
-- [ ] T016 Зафиксировать в `AGENTS.md` точные пути и порты развёртывания
+- [x] T016 Зафиксировать в `AGENTS.md` точные пути и порты развёртывания
   - Файлы: `AGENTS.md`, `CLAUDE.md`
   - Зависит от: T008, T009
   - Проверка: раздел «Precise paths» заполнен реальными значениями; `CLAUDE.md` продолжает ссылаться на те же секции (правило симметрии инструкций); версия `AGENTS.md` поднята semver
 
-- [ ] T017 Завести каталог отчётов по замерам и сверкам
+- [x] T017 Завести каталог отчётов по замерам и сверкам
   - Файлы: `specs/001-first-vertical-slice/measurements/README.md`
   - Зависит от: —
   - Проверка: README задаёт форму отчёта: что мерили, на чём, какое число получили, каким критерием проверяется; в нём перечислены М-01…М-13 с ожидаемым результатом
 
-- [ ] T018 Привести per-feature документ в соответствие с планом
+- [x] T018 Привести per-feature документ в соответствие с планом
   - Файлы: `docs/features/first-vertical-slice.md`
   - Зависит от: T001
   - Проверка: документ описывает все 15 фаз плана и ссылается на `contracts/`; правило FR-009 требует обновления в том же изменении, что и код (constitution VI)
@@ -202,57 +202,57 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 текстом; прерванный артефакт не имеет состояния `READY`; пара ключей создана,
 закрытый ключ отсутствует в репозитории.
 
-- [ ] T019 [P] Реализовать доступ к базе сырым JDBC
+- [x] T019 [P] Реализовать доступ к базе сырым JDBC
   - Файлы: `syp-core/src/main/kotlin/ru/svoemesto/syp/core/db/Db.kt`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/db/Table.kt`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/db/Save.kt`
   - Зависит от: T002
   - Проверка: сохранение считает разницу по значениям и пишет `recordhash`; в исходниках нет ни `jakarta.persistence`, ни `javax.persistence`, ни `spring-boot-starter-data-jpa` (constitution III); `ddl-auto` отсутствует
 
-- [ ] T020 [P] Завести общие коды ошибок и формы ответа
+- [x] T020 [P] Завести общие коды ошибок и формы ответа
   - Файлы: `syp-core/src/main/kotlin/ru/svoemesto/syp/core/contract/ErrorCode.kt`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/contract/ErrorBody.kt`
   - Зависит от: T002
   - Проверка: тело ошибки всегда содержит машинный код, сообщение на русском и, где уместно, перечень проблемных объектов (контракт админки, раздел 1)
 
-- [ ] T021 Реализовать очередь заданий с пятью состояниями
+- [x] T021 Реализовать очередь заданий с пятью состояниями
   - Файлы: `syp-core/src/main/kotlin/ru/svoemesto/syp/core/jobs/JobQueue.kt`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/jobs/JobState.kt`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/jobs/JobProgress.kt`
   - Зависит от: T019, T020
   - Проверка: переходы ровно `WAITING → CREATING → WORKING → DONE` и переход в `ERROR` из любого состояния; прогресс переживает перезапуск воркера (research.md Т-15); отмена задания возвращает его в `WAITING` с сохранённым прогрессом
 
-- [ ] T022 Реализовать исполнитель внешних программ
+- [x] T022 Реализовать исполнитель внешних программ
   - Файлы: `syp-core/src/main/kotlin/ru/svoemesto/syp/core/media/ExternalProgram.kt`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/media/ProcessResult.kt`
   - Зависит от: T019
   - Проверка: вывод и ошибка объединены в один поток; **ненулевой код завершения всегда приводит к ошибке**, а не к успеху (FR-004, FR-092, SC-005); прогресс читается из потока внешней программы; в коде нет ни одного вызова внешней программы в обход этого класса
 
-- [ ] T023 [P] Реализовать доступ к хранилищу и регистрацию артефактов
+- [x] T023 [P] Реализовать доступ к хранилищу и регистрацию артефактов
   - Файлы: `syp-core/src/main/kotlin/ru/svoemesto/syp/core/storage/ObjectStorage.kt`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/storage/ArtifactRegistry.kt`
   - Зависит от: T019
   - Проверка: артефакт пишется по временному ключу и переносится на окончательный только после нулевого кода завершения; состояния `WRITING`, `READY`, `FAILED`; размещение только `SSD` — значения `HDD` нет (FR-021, FR-088)
 
-- [ ] T024 Реализовать канонизацию и подпись Ed25519
+- [x] T024 Реализовать канонизацию и подпись Ed25519
   - Файлы: `syp-core/src/main/kotlin/ru/svoemesto/syp/core/signing/Canonicalizer.kt`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/signing/Signer.kt`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/signing/VerificationKey.kt`
   - Зависит от: T019
   - Проверка: одни и те же данные, сериализованные дважды, дают побайтово одинаковые байты; подпись ставится над каноническими байтами целиком; подпись хранится отдельно от подписываемых байтов (контракт рецепта, раздел 3)
 
-- [ ] T025 Применить миграции `01…07` к живой базе и проверить ограничения
+- [x] T025 Применить миграции `01…07` к живой базе и проверить ограничения
   - Файлы: `deploy/syp-db/01_catalog.sql`, `deploy/syp-db/02_analysis.sql`, `deploy/syp-db/03_characters.sql`, `deploy/syp-db/04_selection.sql`, `deploy/syp-db/05_jobs.sql`, `deploy/syp-db/06_recipe.sql`, `deploy/syp-db/07_settings.sql`
   - Зависит от: T019
   - Проверка: **требует контейнер** — одноразовый `postgres:16`, контейнеры SYP не создаются и не трогаются; все семь файлов применяются по порядку; 36 проверок ограничений дают ожидаемый результат; новый сериал получает 11 настроек по умолчанию; повторное применение `01_catalog.sql` отклоняется базой; в схеме есть `source_file_checksum`, `build_recipe`, `build_recipe_item` (команда повторена в `plan.md` § «Проверка миграций на живой базе»)
 
-- [ ] T026 Реализовать воркер заданий бэкенда админки
+- [x] T026 Реализовать воркер заданий бэкенда админки
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/jobs/AdminJobWorker.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/jobs/JobKinds.kt`
   - Зависит от: T021, T022, T023
   - Проверка: воркер берёт виды `ANALYZE`, `FACES`, `TRAIN`, `HASH`; задание с тем же хешем параметров, что и успешно завершённое, отбрасывается как уже выполненное — **только** если результат зарегистрирован как `READY` (Р-10)
 
-- [ ] T027 Закрыть правилом отсутствие исполнителя заданий у публичного бэкенда
+- [x] T027 Закрыть правилом отсутствие исполнителя заданий у публичного бэкенда
   - Файлы: `syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/config/Ports.kt`, `syp-public-app/build.gradle.kts`
   - Зависит от: T004
   - Проверка: в модуле публичной части нет ни класса воркера, ни зависимости очереди заданий; попытка собрать подборку на сервере структурно невозможна (FR-085, research.md Т-20)
 
-- [ ] T028 Создать пару ключей подписи и отдачу открытого ключа
+- [x] T028 Создать пару ключей подписи и отдачу открытого ключа
   - Файлы: `deploy/.env.example`, `syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/recipe/VerificationKeyEndpoint.kt`
   - Зависит от: T024, T027
   - Проверка: закрытый ключ читается только из переменной окружения; `git grep -i 'BEGIN.*PRIVATE KEY'` не находит его в репозитории; `GET /api/recipes/verification-key` отдаёт открытый ключ с идентификатором; смена ключа даёт новый идентификатор, прежние сценарии остаются проверяемыми по старому ключу
 
-- [ ] T029 Написать контрактные тесты очереди
+- [x] T029 Написать контрактные тесты очереди
   - Файлы: `syp-core/src/test/kotlin/ru/svoemesto/syp/core/jobs/JobQueueContractTest.kt`
   - Зависит от: T021, T022, T023, T025
   - Проверка: **требует поднятой базы**; закрыты свойства 1, 2, 3, 5, 6 и 8 контракта `job-queue.md`: ненулевой код возврата ведёт в `ERROR`; прерванный процесс не оставляет `READY`; повторный хеш параметров пропускается, изменённый — выполняется; смена порога помечает результат устаревшим, не удаляя; прерванное задание возвращается в очередь с сохранённым прогрессом; прерванный подсчёт суммы не оставляет запись `DONE`. Свойство 4 (ручная правка не теряется при повторном анализе) закрывается T096 и T097, свойства 7 и 9 — T168 и T158

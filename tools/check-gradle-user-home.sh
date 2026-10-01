@@ -33,7 +33,9 @@ if [[ "${1:-}" == "--scan" ]]; then
                 continue
                 ;;
         esac
-        if ! grep -q 'GRADLE_USER_HOME=' "${file}"; then
+        # Принимаются обе формы: присваивание в shell и переменная окружения
+        # в YAML-файле CI, где у каталога кэша другой путь.
+        if ! grep -qE 'GRADLE_USER_HOME[=:]' "${file}"; then
             printf 'НАРУШЕНИЕ R-372: %s вызывает gradle, но не задаёт GRADLE_USER_HOME=%s\n' \
                 "${file}" "${EXPECTED}" >&2
             errors=1
