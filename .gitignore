@@ -11,6 +11,9 @@ deploy/do.env
 # журналы работы — локальные, в репозитории им не место
 logs/
 .gradle/
+.kotlin/
+out/
+*.hprof
 .docker/
 node_modules/
 dist/

@@ -142,8 +142,7 @@ class KeyframeMap private constructor(
 
     override fun hashCode(): Int = 31 * frameCount + bits.contentHashCode()
 
-    override fun toString(): String =
-        "KeyframeMap(frameCount=$frameCount, bytes=$byteLength, keyframes=${keyframeCount()})"
+    override fun toString(): String = "KeyframeMap(frameCount=$frameCount, bytes=$byteLength, keyframes=${keyframeCount()})"
 
     companion object {
         /** Сколько кадров помещается в один байт карты. */
