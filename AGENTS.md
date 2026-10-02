@@ -444,6 +444,7 @@ cd deploy && bash do.sh build_public_app && cd ..
 | Линтер документации | Hard Gate «Living docs SSoT» | `docs/scripts/lint-docs.py` | готов |
 | Отсутствие секретов | constitution § VIII.3 | `tools/check-no-secrets.sh` | готов |
 | Имена таблиц в SQL соответствуют схеме | миграция 16 | `tools/check-old-table-names.sh` | готов |
+| Пути эндпоинтов не дублируют общий префикс | Spring `@RequestMapping` | `tools/check-no-duplicate-api-prefix.sh` | готов |
 
 Все перечисленные скрипты подключены к pre-commit
 (`tools/pre-commit.sh`) и к CI (`.github/workflows/ci.yml`). Правила,
@@ -456,6 +457,12 @@ cd deploy && bash do.sh build_public_app && cd ..
   перенесённое из Karaoke, требовало изоляции, но не указывало место, и
   пример `../syp-…` выполнялся буквально — четыре worktree и 1,4 ГБ данных
   оказались в домашней папке. Синхронизирован `CLAUDE.md`.
+- **0.6.0** (2026-10-03): guard `tools/check-no-duplicate-api-prefix.sh`
+  на пути эндпоинтов. Причина: у контроллера общий префикс `/api`, и путь
+  метода с `/api` уезжал на `/api/api/…` — эндпоинт был, а по объявленному
+  адресу отвечал 405, и запустить детекцию лиц было нечем. Semver: MINOR —
+  раздел guards дополнен, ни одно правило не отменено.
+
 ## Changelog
 
 - **0.4.0** (2026-10-03): зафиксированы точные пути и порты развёртывания
