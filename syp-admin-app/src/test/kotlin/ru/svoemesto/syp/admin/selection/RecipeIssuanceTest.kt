@@ -261,7 +261,7 @@ class RecipeIssuanceTest {
                 // Путь уникален во всей базе: одна серия на один файл, поэтому
                 // повторный прогон набора проверок не должен натыкаться на
                 // прежний ряд.
-                sourcePath = "$SOURCE_ROOT/${name}-${System.nanoTime()}.mkv",
+                sourcePath = SOURCE_ROOT + "/" + name + "-" + System.nanoTime() + ".mkv",
                 byteSize = 4096,
                 fileMtime = OffsetDateTime.parse("2024-11-05T10:00:00Z"),
                 frameCount = FRAME_COUNT,
