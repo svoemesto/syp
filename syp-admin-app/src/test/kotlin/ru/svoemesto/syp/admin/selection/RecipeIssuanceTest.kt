@@ -14,6 +14,7 @@ import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.recipe.RecipeCatalog
+import ru.svoemesto.syp.core.recipe.RecipeFormat
 import ru.svoemesto.syp.core.recipe.RecipeStore
 import ru.svoemesto.syp.core.signing.Canonicalizer
 import ru.svoemesto.syp.core.signing.Signer
@@ -182,6 +183,22 @@ class RecipeIssuanceTest {
         assertEquals(400, failure.code.httpStatus)
         val after = db.selectOne("SELECT count(*) AS total FROM tbl_build_recipes", { it.int("total") }) ?: 0
         assertEquals(before, after, "пустой выбор не должен оставлять записи")
+    }
+
+    @Test
+    fun `выданный сценарий несёт текущую версию формата`() {
+        val fixture = fixture(profile = "High")
+        val issued = builder().issue("Текущая версия", fixture.sceneIds)
+
+        assertEquals(
+            RecipeFormat.SCHEMA_VERSION,
+            issued.schemaVersion,
+            "сценарий должен собираться с той версией формата, которую объявляет код",
+        )
+        assertFalse(
+            recipes.find(issued.id!!)!!.isStale,
+            "сценарий текущей версии не помечается устаревшим сразу после выдачи",
+        )
     }
 
     @Test

@@ -47,7 +47,7 @@ JSON в **канонической форме**. Канонизация — не
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "movieId": 4,
   "movieName": "Игры Престолов",
   "recipeId": 55,
@@ -196,7 +196,7 @@ JSON в **канонической форме**. Канонизация — не
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "recipeId": 55,
   "recipeContentSha256": "9f2c…",
   "finishedAt": "2026-10-02T13:02:44Z",

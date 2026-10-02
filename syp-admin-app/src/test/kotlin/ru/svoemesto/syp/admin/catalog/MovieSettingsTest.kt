@@ -11,6 +11,7 @@ import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.db.Row
+import ru.svoemesto.syp.core.recipe.RecipeFormat
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -78,7 +79,12 @@ class MovieSettingsTest {
         assertEquals(0.65, read.number(MovieSetting.CLUSTER_MERGE_THRESHOLD))
         assertEquals(16, read.integer(MovieSetting.PREVIEW_SHEET_COLS))
         assertEquals(16, read.integer(MovieSetting.PREVIEW_SHEET_ROWS))
-        assertEquals(1, read.integer(MovieSetting.RECIPE_SCHEMA_VERSION))
+        assertEquals(
+            RecipeFormat.SCHEMA_VERSION,
+            read.integer(MovieSetting.RECIPE_SCHEMA_VERSION),
+            "настройка версии формата обязана совпадать с константой кода: " +
+                "иначе сценарий соберётся с одной версией, а код объявит другую",
+        )
         assertEquals(1, read.integer(MovieSetting.RECIPE_AUDIO_TRACK_COUNT))
         assertEquals(8, read.numbers(MovieSetting.SHOT_SIZE_THRESHOLDS).size)
         assertTrue(read.numbers(MovieSetting.SHOT_SIZE_THRESHOLDS).first() > read.numbers(MovieSetting.SHOT_SIZE_THRESHOLDS).last())

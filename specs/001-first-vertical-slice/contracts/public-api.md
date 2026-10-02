@@ -171,7 +171,7 @@
 {
   "recipeId": 55,
   "state": "DONE",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "isStale": false,
   "itemCount": 2,
   "expectedDurationMs": 412000,
