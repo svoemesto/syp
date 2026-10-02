@@ -177,7 +177,7 @@ Your Picture» на машине пользователя.
 | Подпись | Канонизация, подпись Ed25519 над каноническими байтами, открытый ключ с идентификатором | `syp-core/…/signing/` |
 | Коды ошибок | Общие коды, тело ответа на русском, перечень проблемных объектов | `syp-core/…/contract/` |
 | Воркер заданий | Взятие видов `ANALYZE`, `FACES`, `TRAIN`, `HASH`; отсутствие исполнителя у публичного бэкенда закреплено **сборкой** | `syp-admin-app/…/jobs/`, `syp-public-app/build.gradle.kts` |
-| Миграции | Служебный столбец `recordhash`, длина карты ключевых кадров, связь записи справочника сумм с заданием и необязательность суммы у незавершённого подсчёта; ограничения проверены на одноразовом `postgres:16` | `deploy/syp-db/08_recordhash.sql`, `deploy/syp-db/09_series_keyframe_bitmap.sql`, `deploy/syp-db/10_checksum_job_link.sql`, `tools/check-migrations.sh` |
+| Миграции | Служебный столбец `recordhash`, длина карты ключевых кадров, связь записи справочника сумм с заданием и необязательность суммы у незавершённого подсчёта; ограничения проверены на одноразовом `postgres:16`. Новых миграций в этой порции нет: все нужные таблицы и столбцы описаны моделью данных и созданы ранее | `deploy/syp-db/08_recordhash.sql`, `deploy/syp-db/09_series_keyframe_bitmap.sql`, `deploy/syp-db/10_checksum_job_link.sql`, `tools/check-migrations.sh` |
 | Каталог | Сериал с корнем каталога, серия с измеренными параметрами, карта ключевых кадров, справочник мест действия | `syp-admin-app/…/catalog/`, `docs/domains/catalog/` |
 | Настройки | Одиннадцать настроек по умолчанию у нового сериала, проверка по смыслу, запись по различию значений | `syp-admin-app/…/catalog/SerialSettings.kt` |
 | Эндпоинты приёма | Десять эндпоинтов: сериалы, серии, настройки | `syp-admin-app/…/catalog/CatalogController.kt`, `syp-admin-app/…/config/ApiErrors.kt` |
@@ -193,6 +193,7 @@ Your Picture» на машине пользователя.
 | Эндпоинты структуры | Постановка анализа, чтение структуры, сырых границ, значимых кадров, листов превью и адреса листа | `syp-admin-app/…/analysis/StructureController.kt` |
 | Экран структуры | Список сцен с планами, сырой результат автоматики отдельно, показ листа превью; оба фронтенда внесены в карту кода, чтобы правка экрана тоже требовала правки документации | `syp-admin-web/src/views/StructureView.vue`, `syp-admin-web/src/components/PreviewSheetView.vue`, `.ssot-map.yml` |
 | Сборка домена | Путь к `ffmpeg` и каталог промежуточных файлов из окружения, исполнители заданий собираются списком | `syp-admin-app/…/config/AnalysisConfiguration.kt`, `syp-admin-app/…/config/IntegrityConfiguration.kt` |
+| Замеры фазы | М-03 (частично), М-06, М-07 выполнены на реальной серии; сверка границ с эталоном старого проекта; SC-003 не измерен — критерий оценивает решение человека | `specs/001-first-vertical-slice/measurements/`, `.scratch/syp/legacy-import/scene-parity.py` |
 
 ### Решения, принятые при реализации
 
