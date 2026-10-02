@@ -6,7 +6,7 @@
 -- Столбцы-ссылки следуют тому же правилу: `serial_id` → `id_movie`,
 -- `series_id` → `id_episode`.
 --
--- Карта переименования — `.scratch/syp/wayfinding/RENAME-MAP.md`; таблиц 23,
+-- Решение владельца зафиксировано в `docs/STATE-OF-PLAY.md`; таблиц 23,
 -- столбцов-ссылок 15 (восемь `serial_id` и семь `series_id`).
 --
 -- Миграция добавочная, применяется один раз после 15_scene_title.sql.
