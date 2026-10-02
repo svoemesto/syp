@@ -91,6 +91,9 @@ data class FaceView(
  * (`admin-api.md` § 1.5).
  *
  * @property seriesId серия
+ * @property serialId сериал-владелец: по нему клиент читает справочник персон
+ * @property frameWidth ширина кадра серии: по ней клиент кладёт рамку на миниатюру
+ * @property frameHeight высота кадра серии
  * @property facesTotal сколько лиц у серии всего
  * @property offset смещение выборки
  * @property limit размер выборки
@@ -98,6 +101,9 @@ data class FaceView(
  */
 data class FacesView(
     val seriesId: Long,
+    val serialId: Long,
+    val frameWidth: Int,
+    val frameHeight: Int,
     val facesTotal: Int,
     val offset: Int,
     val limit: Int,
@@ -126,12 +132,16 @@ data class FaceClusterView(
  * и в списке кластеров безымянных не показывается (FR-031).
  *
  * @property seriesId серия
+ * @property frameWidth ширина кадра серии: по ней клиент кладёт рамку на миниатюру
+ * @property frameHeight высота кадра серии
  * @property embeddingModelKey ключ модели эмбеддингов, которой получены векторы
  * @property clustersTotal сколько кластеров без имени у серии
  * @property clusters кластеры по убыванию числа лиц
  */
 data class FaceClustersView(
     val seriesId: Long,
+    val frameWidth: Int,
+    val frameHeight: Int,
     val embeddingModelKey: String,
     val clustersTotal: Int,
     val clusters: List<FaceClusterView>,
@@ -222,13 +232,16 @@ class CharactersController(
         @RequestParam(defaultValue = "0") offset: Int,
         @RequestParam(defaultValue = "200") limit: Int,
     ): FacesView {
-        requireSeries(seriesId)
+        val series = requireSeries(seriesId)
         val start = offset.coerceAtLeast(0)
         val size = limit.coerceIn(1, MAX_PAGE)
         val page = faces.listBySeries(seriesId, start, size)
         val byId = namedPersons(page.map { it.personId }.distinct())
         return FacesView(
             seriesId = seriesId,
+            serialId = series.serialId,
+            frameWidth = series.width,
+            frameHeight = series.height,
             facesTotal = faces.countBySeries(seriesId),
             offset = start,
             limit = size,
@@ -261,6 +274,8 @@ class CharactersController(
         val unnamed = clustersOf(seriesId).filter { it.id !in namedKeys }
         return FaceClustersView(
             seriesId = seriesId,
+            frameWidth = series.width,
+            frameHeight = series.height,
             embeddingModelKey = embeddingModelKey,
             clustersTotal = unnamed.size,
             clusters =
