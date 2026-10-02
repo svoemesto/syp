@@ -126,43 +126,62 @@ class StructureJob(
                 )
         runStore.startWork(runId)
 
-        // Фаза 1. Детекция границ.
-        val detection =
-            detector.detect(
-                series = series,
-                sceneThreshold = sceneThreshold,
-                shotThreshold = shotThreshold,
-                progress = { streamed ->
-                    report.report(
-                        streamed.done,
-                        "детекция границ: кадр ${streamed.done} из ${series.frameCount}",
-                    )
-                },
+        return try {
+            // Фаза 1. Детекция границ.
+            val detection =
+                detector.detect(
+                    series = series,
+                    sceneThreshold = sceneThreshold,
+                    shotThreshold = shotThreshold,
+                    progress = { streamed ->
+                        report.report(
+                            streamed.done,
+                            "детекция границ: кадр ${streamed.done} из ${series.frameCount}",
+                        )
+                    },
+                )
+            report.report(
+                series.frameCount.toLong(),
+                "детекция границ: найдено ${detection.sceneBoundaries.size} сцен и " +
+                    "${detection.shotBoundaries.size} планов, разбор структуры",
             )
-        report.report(
-            series.frameCount.toLong(),
-            "детекция границ: найдено ${detection.sceneBoundaries.size} сцен и " +
-                "${detection.shotBoundaries.size} планов, разбор структуры",
-        )
-        val (sceneCount, shotCount) = structure.applyDetection(runId, series.id, detection)
-        frames.markSceneBoundaries(series.id, detection.sceneBoundaries)
-        frames.markShotBoundaries(series.id, detection.shotBoundaries)
+            val seriesId = series.id!!
+            val (sceneCount, shotCount) = structure.applyDetection(runId, seriesId, detection)
+            frames.markSceneBoundaries(seriesId, detection.sceneBoundaries)
+            frames.markShotBoundaries(seriesId, detection.shotBoundaries)
 
-        // Фаза 2. Листы превью.
-        val sheets = buildPreviewSheets(job.id, series, layout, report)
+            // Фаза 2. Листы превью.
+            val sheets = buildPreviewSheets(job.id, series, layout, report)
 
-        runStore.complete(runId)
-        // Прогоны, сделанные при других входах, помечаются устаревшими —
-        // после того, как новый результат записан, а не вместо него.
-        staleness.markStaleExcept(series.id, AnalysisKind.STRUCTURE, paramsHash)
+            runStore.complete(runId)
+            // Прогоны, сделанные при других входах, помечаются устаревшими —
+            // после того, как новый результат записан, а не вместо него.
+            staleness.markStaleExcept(seriesId, AnalysisKind.STRUCTURE, paramsHash)
 
-        return JobResult(
-            note =
-                "структура серии «${series.name}»: сцен $sceneCount, планов $shotCount, " +
-                    "листов превью ${sheets.built} из ${sheets.expected}" +
-                    if (sheets.skipped > 0) ", готовых ранее ${sheets.skipped}" else "",
-            progressTotal = total,
-        )
+            JobResult(
+                note =
+                    "структура серии «${series.name}»: сцен $sceneCount, планов $shotCount, " +
+                        "листов превью ${sheets.built} из ${sheets.expected}" +
+                        if (sheets.skipped > 0) ", готовых ранее ${sheets.skipped}" else "",
+                progressTotal = total,
+            )
+        } catch (interrupted: InterruptedException) {
+            // Прерывание не является неудачей: задание вернётся в очередь и
+            // будет досчитано. Но прогон обязан это показать — иначе он
+            // остался бы в состоянии работы навсегда, без следа о том, что
+            // произошло.
+            Thread.currentThread().interrupt()
+            runStore.fail(runId, "анализ прерван, задание вернётся в очередь и продолжит работу")
+            throw interrupted
+        } catch (failure: Throwable) {
+            // Текст ошибки обязателен: прогон в состоянии ERROR без него
+            // означал бы «работа не удалась» без объяснения, почему.
+            runStore.fail(
+                runId,
+                failure.message?.takeIf { it.isNotBlank() } ?: "анализ структуры не удался",
+            )
+            throw failure
+        }
     }
 
     /**
