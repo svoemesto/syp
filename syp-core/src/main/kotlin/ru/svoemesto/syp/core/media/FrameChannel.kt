@@ -215,6 +215,14 @@ class FrameChannel(
         } catch (failure: FrameChannelFailed) {
             process.destroyForcibly()
             throw failure
+        } catch (refused: FrameConsumerFailed) {
+            // Отказ потребителя — не отказ канала. «Рамка вне кадра» и «детектор
+            // не поднялся» говорят о потребителе, а не о потоке, и заворачивать
+            // их в «поток оборвался» значило бы потерять текст виновника.
+            // Процесс при этом всё равно уничтожается: дочитывать серию после
+            // отказа незачем.
+            process.destroyForcibly()
+            throw refused
         } catch (failure: IllegalArgumentException) {
             // Отказ потребителя — не отказ канала. Рамка вне кадра или
             // перевёрнутая рамка говорят о детекторе, а не о потоке, и
@@ -337,6 +345,21 @@ class FrameChannel(
         val DEFAULT_TIMEOUT: Duration = Duration.ofHours(6)
     }
 }
+
+/**
+ * Потребитель кадра отказался принимать кадр.
+ *
+ * Отдельный тип нужен, чтобы отказ потребителя не выглядел отказом канала:
+ * «детектор не поднялся» и «поток кадров оборвался» — разные причины с
+ * разными действиями оператора, и заворачивать первую во вторую значило бы
+ * потерять виновника. Канал такой отказ пробрасывает как есть.
+ *
+ * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+open class FrameConsumerFailed(
+    message: String,
+    cause: Throwable? = null,
+) : RuntimeException(message, cause)
 
 /**
  * Поток кадров не дал результата.

@@ -76,6 +76,10 @@ class FaceScan(
     /**
      * Проводит серию через детектор.
      *
+     * Детектор, который умеет закрываться, закрывается здесь же — в том числе
+     * при отказе: оставленный процесс детекции держал бы видеокарту и помешал
+     * бы следующему заданию.
+     *
      * @param series серия: берутся путь к файлу, разрешение и число кадров
      * @param maxFrames ограничение числа кадров; `0` — вся серия
      * @param progress приёмник числа обработанных кадров
@@ -84,11 +88,53 @@ class FaceScan(
      *   оборвался, декодер вернул ненулевой код либо число обработанных
      *   кадров не совпало с числом кадров серии
      * @throws IllegalArgumentException если детектор вернул рамку вне кадра
+     * @throws FaceDetectorFailed если программа детектора не поднялась, не
+     *   ответила на кадр, оборвала ответ или завершилась с ненулевым кодом
      */
     fun scan(
         series: Series,
         maxFrames: Int = 0,
         progress: (Int) -> Unit = {},
+    ): FaceScanResult {
+        require(maxFrames >= 0) { "Ограничение числа кадров отрицательно: $maxFrames" }
+        var failure: Throwable? = null
+        try {
+            return scanSeries(series, maxFrames, progress)
+        } catch (refused: Throwable) {
+            failure = refused
+            throw refused
+        } finally {
+            // Детектор на видеокарте — это процесс, и оставленный процесс
+            // держал бы карту и не отдал её следующему заданию. Заглушка не
+            // закрывается: закрывать нечего.
+            //
+            // Отказ при закрытии не подменяет собой исходный: сначала был
+            // отказ детектора, и именно он — виновник. Текст закрытия
+            // добавляется к нему, а не затирает.
+            try {
+                (detector as? AutoCloseable)?.close()
+            } catch (onClose: Throwable) {
+                if (failure != null) {
+                    failure.addSuppressed(onClose)
+                } else {
+                    throw onClose
+                }
+            }
+        }
+    }
+
+    /**
+     * Проводит серию через детектор без управления его жизненным циклом.
+     *
+     * @param series серия: берутся путь к файлу, разрешение и число кадров
+     * @param maxFrames ограничение числа кадров; `0` — вся серия
+     * @param progress приёмник числа обработанных кадров
+     * @return итог прохода
+     */
+    private fun scanSeries(
+        series: Series,
+        maxFrames: Int,
+        progress: (Int) -> Unit,
     ): FaceScanResult {
         require(maxFrames >= 0) { "Ограничение числа кадров отрицательно: $maxFrames" }
         val format = FrameFormat(series.width, series.height)
