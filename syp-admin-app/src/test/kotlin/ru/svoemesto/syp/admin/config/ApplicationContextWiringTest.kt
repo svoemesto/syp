@@ -55,8 +55,10 @@ class ApplicationContextWiringTest {
     private fun controllers(): List<Class<*>> =
         allClassNames()
             .mapNotNull { loadClass(it) }
-            .filter { it.isAnnotationPresent(RestController::class.java) || it.isAnnotationPresent(Controller::class.java) }
-            .filter { it.simpleName.endsWith("Controller") }
+            .filter {
+                it.isAnnotationPresent(RestController::class.java) ||
+                    it.isAnnotationPresent(Controller::class.java)
+            }.filter { it.simpleName.endsWith("Controller") }
 
     /** Все типы, которые объявляют бин-методы. */
     private fun declaredBeanTypes(): List<Class<*>> =
