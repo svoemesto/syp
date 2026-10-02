@@ -14,7 +14,7 @@ import ru.svoemesto.syp.core.db.Table
 import java.time.OffsetDateTime
 
 /**
- * Настройки сериала: что можно менять без правки кода.
+ * Настройки фильма: что можно менять без правки кода.
  *
  * Перечисление закрывает весь список настроек первого среза. Смысл его не в
  * том, чтобы перечислить ключи, а в том, чтобы **значение неизвестного ключа
@@ -87,13 +87,13 @@ enum class MovieSetting(
          */
         fun byKey(key: String): MovieSetting? = entries.firstOrNull { it.key == key }
 
-        /** Сколько настроек получает новый сериал. */
+        /** Сколько настроек получает новый фильм. */
         const val DEFAULT_COUNT: Int = 11
     }
 }
 
 /**
- * Настройки сериала, прочитанные из базы.
+ * Настройки фильма, прочитанные из базы.
  *
  * Значения хранятся в базе, а не в коде: пороги подбираются замером, и смена
  * порога после замера не должна требовать правки кода и пересборки (ADR-0003).
@@ -112,14 +112,14 @@ class MovieSettings(
      *
      * @param setting настройка
      * @return значение
-     * @throws DomainException если настройка отсутствует: у сериала обязаны
+     * @throws DomainException если настройка отсутствует: у фильма обязаны
      *   быть все настройки, и отсутствие — это дефект данных, а не «дефолт»
      */
     fun node(setting: MovieSetting): JsonNode =
         values[setting.key]
             ?: throw DomainException(
                 ErrorCode.INTERNAL_ERROR,
-                "у сериала нет настройки «${setting.key}»: значения по умолчанию создаёт " +
+                "у фильма нет настройки «${setting.key}»: значения по умолчанию создаёт " +
                     "триггер базы, и их отсутствие означает расхождение данных",
             )
 
@@ -150,7 +150,7 @@ class MovieSettings(
     /**
      * Проверяет, что присутствуют все настройки перечисления.
      *
-     * @param movieId сериал, у которого проверяются настройки
+     * @param movieId фильм, у которого проверяются настройки
      * @throws DomainException если какой-то настройки нет
      */
     fun requireComplete(movieId: Long) {
@@ -158,15 +158,15 @@ class MovieSettings(
         if (missing.isNotEmpty()) {
             throw DomainException(
                 ErrorCode.INTERNAL_ERROR,
-                "у сериала $movieId нет настроек: ${missing.joinToString(", ")}. " +
-                    "Значения по умолчанию создаёт триггер базы при заведении сериала",
+                "у фильма $movieId нет настроек: ${missing.joinToString(", ")}. " +
+                    "Значения по умолчанию создаёт триггер базы при заведении фильма",
             )
         }
     }
 }
 
 /**
- * Хранилище настроек сериала.
+ * Хранилище настроек фильма.
  *
  * Настройки лежат в столбце `jsonb` по одной строке на ключ. Запись идёт по
  * различию значений с `recordhash` (constitution III): переписывается только
@@ -188,12 +188,12 @@ class MovieSettingsStore(
     private val mapper: ObjectMapper = ObjectMapper().registerModule(JavaTimeModule()),
 ) {
     /**
-     * Читает настройки сериала.
+     * Читает настройки фильма.
      *
-     * @param movieId сериал
+     * @param movieId фильм
      * @param requireComplete требовать ли наличия всех настроек
-     * @return настройки сериала
-     * @throws DomainException если сериала нет либо настройки неполны
+     * @return настройки фильма
+     * @throws DomainException если фильма нет либо настройки неполны
      */
     fun read(
         movieId: Long,
@@ -215,14 +215,14 @@ class MovieSettingsStore(
     }
 
     /**
-     * Изменяет настройки сериала.
+     * Изменяет настройки фильма.
      *
      * Значения проверяются по смыслу, а не только по типу: порог
      * распознавания вне интервала (0; 1] или пороги размера плана, идущие не
      * по убыванию, сделали бы последующий анализ бессмысленным, а заметить
      * это можно было бы только через сорванные границы сцен.
      *
-     * @param movieId сериал
+     * @param movieId фильм
      * @param changes новые значения по именам настроек
      * @return имена настроек, значение которых действительно изменилось
      * @throws DomainException с кодом `BAD_REQUEST`, если ключ неизвестен или
@@ -251,7 +251,7 @@ class MovieSettingsStore(
      * означало бы хранить её в jsonb вместе с числом, и тогда подпись значения
      * зависела бы от того, когда его переписали.
      *
-     * @param movieId сериал
+     * @param movieId фильм
      * @param setting настройка
      * @return дата записи или `null`, если настройки нет
      */
@@ -277,7 +277,7 @@ class MovieSettingsStore(
      * канонизирует числа без дробной части и ведущих нулей, и приводить их к
      * типу заранее значит потерять исходную запись.
      *
-     * @param movieId сериал
+     * @param movieId фильм
      * @param setting настройка
      * @return значение как оно лежит в базе
      * @throws DomainException если настройки нет
@@ -293,14 +293,14 @@ class MovieSettingsStore(
             setting.key,
         ) ?: throw DomainException(
             ErrorCode.INTERNAL_ERROR,
-            "у сериала $movieId нет настройки «${setting.key}»",
+            "у фильма $movieId нет настройки «${setting.key}»",
         )
 
     /**
      * Записывает значение настройки, если оно изменилось.
      *
      * @param connection открытое соединение, транзакцией управляет вызывающий
-     * @param movieId сериал
+     * @param movieId фильм
      * @param key имя настройки
      * @param value новое значение
      * @return `true`, если строка переписана
@@ -551,7 +551,7 @@ class MovieSettingsStore(
             else -> null
         }
 
-    /** Проверяет, что сериал заведён. */
+    /** Проверяет, что фильм заведён. */
     private fun requireMovie(movieId: Long) {
         val exists =
             db.selectOne(
@@ -562,7 +562,7 @@ class MovieSettingsStore(
         if (exists == 0) {
             throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "сериал $movieId не заведён: настройки задаются только заведённому сериалу",
+                "фильм $movieId не заведён: настройки задаются только заведённому фильму",
             )
         }
     }

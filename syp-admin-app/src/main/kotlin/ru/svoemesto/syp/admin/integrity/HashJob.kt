@@ -13,7 +13,7 @@ import java.nio.file.Path
 import java.security.MessageDigest
 
 /**
- * Задание `HASH`: подсчёт суммы `sha256` исходного файла серии.
+ * Задание `HASH`: подсчёт суммы `sha256` исходного файла эпизода.
  *
  * **Почему сумма считается здесь, а не внешней программой.** У задания есть
  * два требования, и внешняя программа выполняет только одно из них. Требуется
@@ -38,7 +38,7 @@ import java.security.MessageDigest
  * которых она считалась. Если файл подменён, прежняя сумма станет устаревшей
  * при следующей сверке (FR-090).
  *
- * @property episodeStore хранилище серий: из него берётся путь к файлу
+ * @property episodeStore хранилище эпизодов: из него берётся путь к файлу
  * @property registry справочник сумм
  * @property blockSize размер блока чтения, байт
  * @property progressStep как часто сообщается прогресс, байт
@@ -54,14 +54,14 @@ class HashJob(
     override val kind: JobKind = JobKind.HASH
 
     /**
-     * Считает сумму файла серии.
+     * Считает сумму файла эпизода.
      *
-     * @param job задание с предметом «серия»
+     * @param job задание с предметом «эпизод»
      * @param progress приёмник прогресса по прочитанным байтам
      * @return результат выполнения без артефакта: сумма пишется в справочник,
      *   а не в объектное хранилище
      * @throws ru.svoemesto.syp.core.contract.DomainException если у задания нет
-     *   предмета «серия» либо серия не зарегистрирована
+     *   предмета «эпизод» либо эпизод не зарегистрирована
      * @throws ru.svoemesto.syp.core.media.ExternalProgramFailed если файл
      *   прочитать не удалось: задание уходит в `ERROR` с текстом (FR-092)
      */
@@ -103,7 +103,7 @@ class HashJob(
             throw interrupted
         } catch (failure: IOException) {
             val text =
-                "не удалось прочитать файл серии «${episode.sourcePath}» для подсчёта суммы: " +
+                "не удалось прочитать файл эпизода «${episode.sourcePath}» для подсчёта суммы: " +
                     "${failure.message ?: failure::class.simpleName}. " +
                     "Проверьте, что архив смонтирован и файл доступен на чтение"
             registry.fail(entryId, text)
@@ -114,8 +114,8 @@ class HashJob(
     /**
      * Читает файл и считает по нему сумму, сообщая прогресс.
      *
-     * @param file путь к исходному файлу серии
-     * @param expectedSize размер файла по данным серии: он же объём работы
+     * @param file путь к исходному файлу эпизода
+     * @param expectedSize размер файла по данным эпизода: он же объём работы
      * @param progress приёмник прогресса
      * @return сумма 64 шестнадцатеричных символами в нижнем регистре
      * @throws IOException если файл не читается
@@ -160,33 +160,33 @@ class HashJob(
     ): String = "прочитано ${read / 1_048_576} из ${total / 1_048_576} МБ"
 
     /**
-     * Читает серию по предмету задания.
+     * Читает эпизод по предмету задания.
      *
      * @param job задание
-     * @return серия
+     * @return эпизод
      * @throws ru.svoemesto.syp.core.contract.DomainException если предмет задания
-     *   не серия либо серия не зарегистрирована
+     *   не эпизод либо эпизод не зарегистрирована
      */
     private fun requireEpisode(job: Job): Episode {
         val subject = job.subject
         require(subject.type == SUBJECT_EPISODE && subject.identifier != null) {
-            "Задание HASH без предмета «серия»: считать нечего. Предмет задания — ${subject.type}"
+            "Задание HASH без предмета «эпизод»: считать нечего. Предмет задания — ${subject.type}"
         }
         return episodeStore.find(subject.identifier!!)
             ?: throw ru.svoemesto.syp.core.contract.DomainException(
                 ru.svoemesto.syp.core.contract.ErrorCode.NOT_FOUND,
-                "серия ${subject.identifier} не зарегистрирована: подсчёт суммы невозможен",
+                "эпизод ${subject.identifier} не зарегистрирована: подсчёт суммы невозможен",
             )
     }
 
     companion object {
-        /** Размер блока чтения, байт: 4 МиБ. */
+        /** Размер блока чтения, байт: 4 Миб. */
         const val DEFAULT_BLOCK_SIZE: Int = 4 * 1024 * 1024
 
-        /** Как часто сообщается прогресс, байт: каждые 64 МиБ. */
+        /** Как часто сообщается прогресс, байт: каждые 64 Миб. */
         const val DEFAULT_PROGRESS_STEP: Long = 64L * 1024 * 1024
 
-        /** Тип предмета задания для серии. */
+        /** Тип предмета задания для эпизода. */
         const val SUBJECT_EPISODE: String = "EPISODE"
 
         /** Имя программы в тексте ошибки: у задания нет внешней программы. */
@@ -196,7 +196,7 @@ class HashJob(
          * Параметры открытия файла на чтение.
          *
          * Последовательное чтение запрашивается подсказкой системе, а не
-         * отдельным флагом: файла серии 5,6 ГБ, и предсказуемый доступ по
+         * отдельным флагом: файла эпизода 5,6 ГБ, и предсказуемый доступ по
          * порядку на диске заметно быстрее произвольного.
          */
         private val DEFAULT_READ_OPTIONS: Array<java.nio.file.OpenOption> =

@@ -17,7 +17,7 @@ import ru.svoemesto.syp.core.jobs.ParamsHash
 import ru.svoemesto.syp.core.media.FrameChannelFailed
 
 /**
- * Задание `FACES`: проход по кадрам серии с передачей их детектору лиц.
+ * Задание `FACES`: проход по кадрам эпизода с передачей их детектору лиц.
  *
  * **Граница задания, а не сама детекция.** Проход, проверки и учёт сделаны;
  * сама детекция — задача T063, которой нужна среда исполнения видеокарты
@@ -34,7 +34,7 @@ import ru.svoemesto.syp.core.media.FrameChannelFailed
  * 2. **обрабатывается каждый кадр** — адаптивного шага нет, порядок кадров
  *    совпадает с порядком в файле (ADR-0002);
  * 3. **частичный результат невозможен** — число обработанных кадров обязано
- *    совпасть с числом кадров серии, оборванный кадр и ненулевой код декодера
+ *    совпасть с числом кадров эпизода, оборванный кадр и ненулевой код декодера
  *    ведут в `ERROR` с текстом (SC-005, constitution IV.2);
  * 4. **прогон виден в базе** — вид прогона `FACES`, ключ детектора и хеш
  *    входов записываются, поэтому результат заглушки никогда не будет выдан
@@ -43,12 +43,12 @@ import ru.svoemesto.syp.core.media.FrameChannelFailed
  * Прогресс монотонен и переживает перезапуск воркера — тем же счётчиком, что
  * и в задании `ANALYZE` (FR-003).
  *
- * @property episodeStore хранилище серий: из него берётся предмет задания
+ * @property episodeStore хранилище эпизодов: из него берётся предмет задания
  * @property runStore хранилище прогонов анализа
  * @property scan проход по кадрам с детектором
  * @property detectorKey идентификатор детектора для прогона
  * @property faceSinks сборка приёмника рамок; `null` — рамки не сохраняются
- * @property settingsStore настройки сериала: из них берётся порог пропорции
+ * @property settingsStore настройки фильма: из них берётся порог пропорции
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class FacesJob(
@@ -63,12 +63,12 @@ class FacesJob(
     override val kind: JobKind = JobKind.FACES
 
     /**
-     * Проводит серию через детектор лиц.
+     * Проводит эпизод через детектор лиц.
      *
-     * @param job задание с предметом «серия»
+     * @param job задание с предметом «эпизод»
      * @param progress приёмник прогресса
      * @return результат выполнения
-     * @throws DomainException с кодом `NOT_FOUND`, если серия не зарегистрирована
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизод не зарегистрирована
      * @throws FrameChannelFailed если поток кадров оборвался или декодер
      *   завершился с ненулевым кодом: воркер переведёт задание в `ERROR`
      */
@@ -96,7 +96,7 @@ class FacesJob(
         runStore.startWork(runId)
 
         // Приёмник рамок собирается до прохода и один раз: служебные персоны
-        // сериала читаются здесь, а не на каждом из 88 643 кадров.
+        // фильма читаются здесь, а не на каждом из 88 643 кадров.
         val sink =
             if (faceSinks != null && settingsStore != null) {
                 faceSinks.forEpisode(episode, settingsStore.read(episode.movieId))
@@ -141,12 +141,12 @@ class FacesJob(
     }
 
     /**
-     * Читает серию по предмету задания.
+     * Читает эпизод по предмету задания.
      *
      * @param job задание
-     * @return серия
+     * @return эпизод
      * @throws DomainException с кодом `NOT_FOUND`, если предмет задания не
-     *   серия либо серия не зарегистрирована
+     *   эпизод либо эпизод не зарегистрирована
      */
     private fun requireEpisode(job: Job): Episode {
         val subject = job.subject
@@ -154,18 +154,18 @@ class FacesJob(
         if (subject.type != SUBJECT_EPISODE || episodeId == null) {
             throw DomainException(
                 ErrorCode.BAD_REQUEST,
-                "заданию FACES нужен предмет «серия», а у него «${subject.type}»: искать лица не в чем",
+                "заданию FACES нужен предмет «эпизод», а у него «${subject.type}»: искать лица не в чем",
             )
         }
         return episodeStore.find(episodeId)
             ?: throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "серия $episodeId не зарегистрирована: искать лица не в чем",
+                "эпизод $episodeId не зарегистрирована: искать лица не в чем",
             )
     }
 
     companion object {
-        /** Тип предмета задания для серии. */
+        /** Тип предмета задания для эпизода. */
         const val SUBJECT_EPISODE: String = "EPISODE"
 
         /** Через сколько кадров задание отчитывается о прогрессе. */
@@ -178,7 +178,7 @@ class FacesJob(
          * детектором или в другом разрешении, нельзя выдавать за этот
          * (FR-090, Р-10).
          *
-         * @param episode серия
+         * @param episode эпизод
          * @param detectorKey идентификатор детектора
          * @return 64 шестнадцатеричных символа в нижнем регистре
          */

@@ -27,6 +27,13 @@ code_to_docs:
   - docs/features/first-vertical-slice.md
   - specs/001-first-vertical-slice/contracts/admin-api.md
   - specs/001-first-vertical-slice/contracts/public-api.md
+  syp-core/src/test:
+  - docs/features/first-vertical-slice.md
+  syp-public-app/src/test:
+  - specs/001-first-vertical-slice/contracts/public-api.md
+  - docs/features/first-vertical-slice.md
+  syp-admin-web/src:
+  - docs/features/first-vertical-slice.md
   syp-admin-app/src/test:
   - docs/features/first-vertical-slice.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog:

@@ -9,9 +9,9 @@ import ru.svoemesto.syp.core.db.Table
 import java.time.OffsetDateTime
 
 /**
- * Серия — один видеофайл сериала.
+ * Эпизод — один видеофайл фильма.
  *
- * Параметры серии — **единственный** источник сведений о совместимости при
+ * Параметры эпизода — **единственный** источник сведений о совместимости при
  * сборке (FR-087): сравниваются разрешение, кодек, профиль, формат пикселей,
  * частокадровая база и параметры звука. Ни одна из этих величин не вводится
  * оператором: они сняты с файла опросом.
@@ -21,27 +21,27 @@ import java.time.OffsetDateTime
  * Номер кадра остаётся единственным источником правды для всех границ
  * (ADR-0001).
  *
- * @property id идентификатор; `null`, пока серия не записана
- * @property movieId сериал-владелец: одна серия принадлежит ровно одному
- * @property ordinal порядковый номер серии в сериале, уникален в его пределах
- * @property name название серии
+ * @property id идентификатор; `null`, пока эпизод не записана
+ * @property movieId фильм-владелец: один эпизод принадлежит ровно одному
+ * @property ordinal порядковый номер эпизода в фильме, уникален в его пределах
+ * @property name название эпизода
  * @property sourcePath абсолютный путь к исходному видеофайлу, уникален
  * @property byteSize размер файла в байтах
  * @property fileMtime время изменения файла: по нему устаревает посчитанная
  *   сумма и обнаруживается подмена источника (FR-090)
- * @property frameCount число кадров серии
+ * @property frameCount число кадров эпизода
  * @property timeBaseNum числитель длительности кадра в секундах
  * @property timeBaseDen знаменатель длительности кадра в секундах
  * @property width ширина кадра в пикселях
  * @property height высота кадра в пикселях
- * @property durationNum числитель длительности серии в секундах
- * @property durationDen знаменатель длительности серии в секундах
+ * @property durationNum числитель длительности эпизода в секундах
+ * @property durationDen знаменатель длительности эпизода в секундах
  * @property videoCodec кодек видео
  * @property videoProfile профиль видео; может быть пустым
  * @property pixelFormat формат пикселей
- * @property audioCodec кодек аудио; `null` у серии без звука
- * @property audioChannels число аудиоканалов; `null` у серии без звука
- * @property audioSampleRate частота дискретизации; `null` у серии без звука
+ * @property audioCodec кодек аудио; `null` у эпизода без звука
+ * @property audioChannels число аудиоканалов; `null` у эпизода без звука
+ * @property audioSampleRate частота дискретизации; `null` у эпизода без звука
  * @property keyframeMap карта ключевых кадров; `null`, пока карта не посчитана
  * @property previewSheetCount сколько листов превью уже создано
  * @property recordHash хеш значений строки, прочитанный при загрузке
@@ -75,38 +75,38 @@ data class Episode(
     val recordHash: String? = null,
 ) {
     init {
-        require(name.isNotBlank()) { "Название серии обязательно" }
+        require(name.isNotBlank()) { "Название эпизода обязательно" }
         require(sourcePath.startsWith("/")) {
-            "Путь к файлу серии обязан быть абсолютным, задано «$sourcePath»: " +
+            "Путь к файлу эпизода обязан быть абсолютным, задано «$sourcePath»: " +
                 "иначе относительный путь в сценарии был бы выдуман (FR-089a)"
         }
-        require(frameCount > 0) { "Число кадров серии должно быть положительным, задано $frameCount" }
+        require(frameCount > 0) { "Число кадров эпизода должно быть положительным, задано $frameCount" }
         require(timeBaseNum > 0 && timeBaseDen > 0) {
-            "Частокадровая база серии должна быть положительной, задано $timeBaseNum/$timeBaseDen"
+            "Частокадрового база эпизода должна быть положительной, задано $timeBaseNum/$timeBaseDen"
         }
         require(durationNum > 0 && durationDen > 0) {
-            "Длительность серии должна быть положительной, задано $durationNum/$durationDen"
+            "Длительность эпизода должна быть положительной, задано $durationNum/$durationDen"
         }
-        require(width > 0 && height > 0) { "Разрешение серии должно быть положительным, задано $width на $height" }
-        require(ordinal >= 0) { "Порядковый номер серии не может быть отрицательным, задано $ordinal" }
-        require(byteSize > 0) { "Размер файла серии должен быть положительным, задано $byteSize" }
+        require(width > 0 && height > 0) { "Разрешение эпизода должно быть положительным, задано $width на $height" }
+        require(ordinal >= 0) { "Порядковый номер эпизода не может быть отрицательным, задано $ordinal" }
+        require(byteSize > 0) { "Размер файла эпизода должен быть положительным, задано $byteSize" }
     }
 
     /** Длительность кадра в секундах. */
     fun frameDurationSeconds(): Double = timeBaseNum.toDouble() / timeBaseDen
 
-    /** Длительность серии в секундах, вычисленная по кадрам. */
+    /** Длительность эпизода в секундах, вычисленная по кадрам. */
     fun durationSeconds(): Double = durationNum.toDouble() / durationDen
 
     /**
-     * Относительный путь к файлу серии от корня сериала.
+     * Относительный путь к файлу эпизода от корня фильма.
      *
      * Именно этот путь попадает в сценарий сборки: у пользователя своя копия
      * дерева под своим корнем, и путь должен быть одинаков при любом корне
      * (FR-089a). Относительный путь не выдумывается: он вычисляется из
-     * проверенного соотношения путей при регистрации серии.
+     * проверенного соотношения путей при регистрации эпизода.
      *
-     * @param sourceRoot корень каталога сериала
+     * @param sourceRoot корень каталога фильма
      * @return путь без ведущего слэша либо `null`, если файл лежит вне корня
      */
     fun relativePath(sourceRoot: String): String? {
@@ -118,7 +118,7 @@ data class Episode(
     /**
      * Описание строки для сохранения по различию значений.
      *
-     * @return таблица с записываемыми столбцами серии
+     * @return таблица с записываемыми столбцами эпизода
      */
     fun toTable(): Table =
         Table(
@@ -155,10 +155,10 @@ data class Episode(
         )
 
     companion object {
-        /** Имя таблицы серий. */
+        /** Имя таблицы эпизодов. */
         const val NAME: String = "tbl_episodes"
 
-        /** Записываемые столбцы серии в порядке значений. */
+        /** Записываемые столбцы эпизода в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
                 "id_movie",
@@ -186,7 +186,7 @@ data class Episode(
                 "preview_sheet_count",
             )
 
-        /** Столбцы серии в порядке чтения из базы. */
+        /** Столбцы эпизода в порядке чтения из базы. */
         val READ_COLUMNS: String =
             (
                 "id, id_movie, ordinal, name, season_id, episode_ordinal, source_path, file_size, file_mtime, " +
@@ -197,16 +197,16 @@ data class Episode(
             )
 
         /**
-         * Собирает серию из определённых опросом параметров файла.
+         * Собирает эпизод из определённых опросом параметров файла.
          *
-         * @param movieId сериал-владелец
-         * @param ordinal порядковый номер в сериале
-         * @param name название серии
+         * @param movieId фильм-владелец
+         * @param ordinal порядковый номер в фильме
+         * @param name название эпизода
          * @param seasonId сезон-владелец; не задан — у фильма
          * @param episodeOrdinal номер эпизода внутри сезона; 0 — у фильма
          * @param sourcePath абсолютный путь к файлу
          * @param parameters параметры, снятые с файла опросом
-         * @return готовая к записи серия
+         * @return готовая к записи эпизод
          */
         fun of(
             movieId: Long,
@@ -245,7 +245,7 @@ data class Episode(
 }
 
 /**
- * Хранилище серий.
+ * Хранилище эпизодов.
  *
  * @property db доступ к базе сырым JDBC
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -254,10 +254,10 @@ class EpisodeStore(
     private val db: Db,
 ) {
     /**
-     * Записывает серию и возвращает её с идентификатором и хешем.
+     * Записывает эпизод и возвращает её с идентификатором и хешем.
      *
-     * @param episode серия для записи
-     * @return записанная серия
+     * @param episode эпизод для записи
+     * @return записанный эпизод
      * @throws DomainException с кодом `CONFLICT`, если такой путь уже занят
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
@@ -266,8 +266,8 @@ class EpisodeStore(
         if (duplicate != null) {
             throw DomainException(
                 ErrorCode.CONFLICT,
-                "файл «${episode.sourcePath}» уже зарегистрирован как серия «${duplicate.name}»: " +
-                    "одна серия на один файл, второй раз завести его нельзя",
+                "файл «${episode.sourcePath}» уже зарегистрирован как эпизод «${duplicate.name}»: " +
+                    "один эпизод на один файл, второй раз завести его нельзя",
             )
         }
         return db.useTransaction { connection ->
@@ -276,25 +276,25 @@ class EpisodeStore(
             readOne(connection, identifier)
                 ?: throw DomainException(
                     ErrorCode.INTERNAL_ERROR,
-                    "серия записана, но сразу после записи не прочитана: это дефект, а не результат",
+                    "эпизод записана, но сразу после записи не прочитана: это дефект, а не результат",
                 )
         }
     }
 
     /**
-     * Читает серию по идентификатору.
+     * Читает эпизод по идентификатору.
      *
-     * @param episodeId идентификатор серии
-     * @return серия или `null`, если её нет
+     * @param episodeId идентификатор эпизода
+     * @return эпизод или `null`, если её нет
      */
     fun find(episodeId: Long): Episode? =
         db.selectOne("SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE id = ?", ::readRow, episodeId)
 
     /**
-     * Перечисляет серии сериала.
+     * Перечисляет эпизоды фильма.
      *
-     * @param movieId идентификатор сериала
-     * @return серии в порядке порядковых номеров
+     * @param movieId идентификатор фильма
+     * @return эпизода в порядке порядковых номеров
      */
     fun listByMovie(movieId: Long): List<Episode> =
         db.select(
@@ -304,27 +304,27 @@ class EpisodeStore(
         )
 
     /**
-     * Ищет серию по пути к файлу.
+     * Ищет эпизод по пути к файлу.
      *
      * @param sourcePath абсолютный путь к файлу
-     * @return серия или `null`, если такой путь не заведён
+     * @return эпизод или `null`, если такой путь не заведён
      */
     fun findBySourcePath(sourcePath: String): Episode? =
         db.selectOne("SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE source_path = ?", ::readRow, sourcePath)
 
     /**
-     * Сохраняет изменения серии, если значения изменились.
+     * Сохраняет изменения эпизода, если значения изменились.
      *
-     * @param episode серия с заполненным [Episode.id]
+     * @param episode эпизод с заполненным [Episode.id]
      * @return `true`, если строка переписана
-     * @throws DomainException если у серии нет идентификатора
+     * @throws DomainException если у эпизода нет идентификатора
      */
     fun save(episode: Episode): Boolean {
         val episodeId =
             episode.id
                 ?: throw DomainException(
                     ErrorCode.BAD_REQUEST,
-                    "у серии «${episode.name}» нет идентификатора: сохранять нечего",
+                    "у эпизода «${episode.name}» нет идентификатора: сохранять нечего",
                 )
         return db.useTransaction { connection ->
             Save.saveIfChanged(connection, episode.toTable(), listOf("id"), listOf(episodeId))
@@ -332,21 +332,21 @@ class EpisodeStore(
     }
 
     /**
-     * Снимает серию с учёта.
+     * Снимает эпизод с учёта.
      *
      * Файл источника при этом **не трогается**: он лежит в архиве и принадлежит
      * не системе. Удаляются только записи о нём и производные от них данные.
      *
-     * @param episodeId идентификатор серии
-     * @return `true`, если серия была удалена
+     * @param episodeId идентификатор эпизода
+     * @return `true`, если эпизод была удалена
      */
     fun delete(episodeId: Long): Boolean = db.update("DELETE FROM tbl_episodes WHERE id = ?", episodeId) > 0
 
     /**
-     * Считает серии сериала.
+     * Считает эпизоды фильма.
      *
-     * @param movieId идентификатор сериала
-     * @return число серий
+     * @param movieId идентификатор фильма
+     * @return число эпизодов
      */
     fun countByMovie(movieId: Long): Int =
         db.selectOne(
@@ -355,7 +355,7 @@ class EpisodeStore(
             movieId,
         ) ?: 0
 
-    /** Читает идентификатор только что записанной серии. */
+    /** Читает идентификатор только что записанного эпизода. */
     private fun readIdentifier(
         connection: java.sql.Connection,
         episode: Episode,
@@ -370,13 +370,13 @@ class EpisodeStore(
                     } else {
                         throw DomainException(
                             ErrorCode.INTERNAL_ERROR,
-                            "серия «${episode.name}» записана, но идентификатор не прочитан",
+                            "эпизод «${episode.name}» записана, но идентификатор не прочитан",
                         )
                     }
                 }
             }
 
-    /** Читает серию по идентификатору в пределах открытого соединения. */
+    /** Читает эпизод по идентификатору в пределах открытого соединения. */
     private fun readOne(
         connection: java.sql.Connection,
         episodeId: Long,
@@ -390,7 +390,7 @@ class EpisodeStore(
                 }
             }
 
-    /** Строит серию из готовой строки результата. */
+    /** Строит эпизод из готовый строки результата. */
     private fun read(resultSet: java.sql.ResultSet): Episode =
         Episode(
             id = resultSet.getLong("id"),
@@ -421,7 +421,7 @@ class EpisodeStore(
             recordHash = resultSet.getString("recordhash"),
         )
 
-    /** Строит серию из типизированной строки выборки. */
+    /** Строит эпизод из типизированной строки выборки. */
     private fun readRow(row: Row): Episode =
         Episode(
             id = row.long("id"),
@@ -438,7 +438,7 @@ class EpisodeStore(
                     ?.atOffset(java.time.ZoneOffset.UTC)
                     ?: throw DomainException(
                         ErrorCode.INTERNAL_ERROR,
-                        "у серии не прочитано время изменения файла: в базе оно обязательно",
+                        "у эпизода не прочитано время изменения файла: в базе оно обязательно",
                     ),
             frameCount = row.int("frame_count"),
             timeBaseNum = row.int("time_base_num"),

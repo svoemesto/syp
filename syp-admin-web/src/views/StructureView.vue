@@ -1,4 +1,4 @@
-// Экран структуры серии (задача T054). // // Экран показывает результат автоматики в двух слоях:
+// Экран структуры эпизода (задача T054). // // Экран показывает результат автоматики в двух слоях:
 рабочую структуру — // сцены и планы с их происхождением — и, по кнопке, сырой результат //
 автоматики последнего прогона. Второй слой нужен для сравнения: без него // нельзя увидеть, что
 машина предложила и что человек с этим сделал // (FR-093). // // Цвет происхождения задан один раз в
@@ -22,7 +22,7 @@ const sheet = ref<PreviewUrlView | null>(null)
 /** Кадр, выбранный для показа превью. */
 const selectedFrame = ref<number | null>(null)
 
-/** Идентификатор серии из адреса. */
+/** Идентификатор эпизода из адреса. */
 const episodeId = computed(() => Number(route.params.episodeId))
 
 /** Сцены текущей страницы. */
@@ -83,7 +83,7 @@ function originTitle(origin: string): string {
 
 <template>
   <section class="structure">
-    <h2>Структура серии</h2>
+    <h2>Структура эпизода</h2>
 
     <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
 
@@ -109,7 +109,7 @@ function originTitle(origin: string): string {
 
     <p class="actions">
       <button type="button" :disabled="store.loading.value" @click="store.analyse(episodeId)">
-        Разобрать серию заново
+        Разобрать эпизод заново
       </button>
       <button type="button" @click="store.toggleRaw()">
         {{ store.rawVisible.value ? 'Скрыть сырой результат' : 'Показать сырой результат' }}
@@ -166,7 +166,7 @@ function originTitle(origin: string): string {
     </table>
 
     <p v-else-if="!store.loading.value" class="note">
-      Сцен нет: анализ серии ещё не выполнялся или не завершён.
+      Сцен нет: анализ эпизода ещё не выполнялся или не завершён.
     </p>
 
     <section v-if="store.rawVisible.value" class="raw">

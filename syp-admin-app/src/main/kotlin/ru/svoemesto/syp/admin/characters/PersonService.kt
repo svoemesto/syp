@@ -48,15 +48,15 @@ enum class PersonKind {
 }
 
 /**
- * Персона сериала.
+ * Персона фильма.
  *
  * Идентичность персоны не зависит от отображаемого имени: переименование не
  * ломает обученную модель, потому что модель знает ключ распознавателя, а не
  * имя (`docs/domains/characters/domain.md`, инвариант 5).
  *
  * @property id идентификатор персоны; `null`, пока не записана
- * @property movieId сериал-владелец
- * @property name отображаемое имя; уникально в пределах сериала
+ * @property movieId фильм-владелец
+ * @property name отображаемое имя; уникально в пределах фильма
  * @property recognizerKey ключ класса в модели; пуст у служебных персон
  * @property kind вид персоны
  * @property recordHash хеш значений строки, прочитанный при загрузке
@@ -106,14 +106,14 @@ data class Person(
 }
 
 /**
- * Персоны сериала и их служебные заглушки.
+ * Персоны фильма и их служебные заглушки.
  *
  * Сервис держит три правила, каждое из которых иначе выполнялось бы «по
  * памяти» call-сайтов:
  *
- * 1. **у каждого сериала есть обе заглушки.** Их заводит триггер базы
+ * 1. **у каждого фильма есть обе заглушки.** Их заводит триггер базы
  *    (миграция `11_service_persons.sql`), а [ensureServicePersons] доводит
- *    дело до конца для сериала, заведённого раньше этой миграции;
+ *    дело до конца для фильма, заведённого раньше этой миграции;
  * 2. **«нет персоны» — это заглушка, а не пустая ссылка.** [servicePerson]
  *    отдаёт конкретную персону вместо `null`, и ссылка у лица непустая всегда
  *    (Р-12, FR-033);
@@ -129,16 +129,16 @@ class PersonService(
     private val db: Db,
 ) {
     /**
-     * Заводит обе служебные персоны сериала, если их ещё нет.
+     * Заводит обе служебные персоны фильма, если их ещё нет.
      *
      * Метод идемпотентен и безопасен для повторного вызова: уникальный
      * индекс `person_service_kind_unique_idx` не даёт завести вторую
      * заглушку того же вида, а `ON CONFLICT` не даёт упасть гонке двух
      * одновременных вызовов.
      *
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @return обе служебные персоны в порядке видов: неопознанная, «не лицо»
-     * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
+     * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
     fun ensureServicePersons(movieId: Long): List<Person> {
         requireMovie(movieId)
@@ -148,16 +148,16 @@ class PersonService(
     }
 
     /**
-     * Читает служебную персону сериала, заводя её при отсутствии.
+     * Читает служебную персону фильма, заводя её при отсутствии.
      *
      * Метод — точка, которой пользуется всё остальное: «нет персоны»
      * выражается заглушкой, поэтому метод, возвращающий `null`, в домене
      * отсутствует (Р-12).
      *
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @param kind вид служебной персоны
-     * @return служебная персона сериала
-     * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
+     * @return служебная персона фильма
+     * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      * @throws IllegalArgumentException если запрошен не служебный вид
      */
     fun servicePerson(
@@ -178,11 +178,11 @@ class PersonService(
     fun find(personId: Long): Person? = db.selectOne(SELECT_BY_ID, ::readRow, personId)
 
     /**
-     * Читает всех персон сериала: сначала служебные, затем именованные по
+     * Читает всех персон фильма: сначала служебные, затем именованные по
      * имени.
      *
-     * @param movieId идентификатор сериала
-     * @return персоны сериала
+     * @param movieId идентификатор фильма
+     * @return персоны фильма
      */
     fun listByMovie(movieId: Long): List<Person> =
         db.select(
@@ -194,14 +194,14 @@ class PersonService(
     /**
      * Создаёт именованную персону.
      *
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @param name отображаемое имя
      * @param recognizerKey ключ класса в модели
      * @return созданная персона
      * @throws DomainException с кодом `CONFLICT`, если имя занято или совпадает
      *   с именем служебной персоны: под именем «Не лицо» нельзя завести
      *   живого человека, иначе оператор перепутает заглушку и персону
-     * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
+     * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
     fun create(
         movieId: Long,
@@ -228,7 +228,7 @@ class PersonService(
             if (duplicate) {
                 throw DomainException(
                     ErrorCode.CONFLICT,
-                    "Персона «${person.name}» уже есть в сериале $movieId: имена уникальны",
+                    "Персона «${person.name}» уже есть в фильме $movieId: имена уникальны",
                 )
             }
             Save.insertIfAbsent(connection, person.toTable())
@@ -278,7 +278,7 @@ class PersonService(
             if (nameTaken(connection, current.movieId, trimmed)) {
                 throw DomainException(
                     ErrorCode.CONFLICT,
-                    "Персона «$trimmed» уже есть в сериале ${current.movieId}: имена уникальны",
+                    "Персона «$trimmed» уже есть в фильме ${current.movieId}: имена уникальны",
                 )
             }
             Save.saveIfChanged(
@@ -322,7 +322,7 @@ class PersonService(
             val unrecognized =
                 findInConnection(connection, person.movieId, UNRECOGNIZED_NAME)
                     ?: throw ru.svoemesto.syp.core.db.DbException(
-                        "В сериале ${person.movieId} нет служебной персоны «$UNRECOGNIZED_NAME»: " +
+                        "В фильме ${person.movieId} нет служебной персоны «$UNRECOGNIZED_NAME»: " +
                             "переводить лица некуда. Проверьте миграцию 11_service_persons.sql",
                     )
             connection
@@ -345,7 +345,7 @@ class PersonService(
     /**
      * Заводит одну служебную персону, если её ещё нет.
      *
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @param kind вид служебной персоны
      * @param name отображаемое имя заглушки
      * @return служебная персона
@@ -365,7 +365,7 @@ class PersonService(
                 readRequired(
                     connection,
                     findKindInConnection(connection, movieId, kind),
-                    "служебная персона вида $kind сериала $movieId записана, но не читается",
+                    "служебная персона вида $kind фильма $movieId записана, но не читается",
                 )
             }
         }
@@ -384,15 +384,15 @@ class PersonService(
         }
 
     /**
-     * Проверяет, что сериал заведён.
+     * Проверяет, что фильм заведён.
      *
-     * @param movieId идентификатор сериала
-     * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
+     * @param movieId идентификатор фильма
+     * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
     private fun requireMovie(movieId: Long) {
         val exists = db.selectOne("SELECT 1 AS present FROM tbl_movies WHERE id = ?", { it.int("present") }, movieId)
         if (exists == null) {
-            throw DomainException(ErrorCode.NOT_FOUND, "Сериал $movieId не заведён: персон у него нет")
+            throw DomainException(ErrorCode.NOT_FOUND, "Фильм $movieId не заведён: персон у него нет")
         }
     }
 
@@ -411,10 +411,10 @@ class PersonService(
             )
 
     /**
-     * Читает персону по сериалу и имени.
+     * Читает персону по фильму и имени.
      *
      * @param connection открытое соединение
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @param name имя персоны
      * @return персона или `null`
      */
@@ -432,7 +432,7 @@ class PersonService(
      * снова можно было бы выразить двумя способами.
      *
      * @param connection открытое соединение
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @param kind вид персоны
      * @return персона или `null`
      */
@@ -463,10 +463,10 @@ class PersonService(
         }
 
     /**
-     * Проверяет, занято ли имя в сериале.
+     * Проверяет, занято ли имя в фильме.
      *
      * @param connection открытое соединение
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @param name имя персоны
      * @return `true`, если имя уже занято
      */
@@ -515,7 +515,7 @@ class PersonService(
     ): Person =
         person
             ?: throw ru.svoemesto.syp.core.db.DbException(
-                "$what: у сериала не оказалось ни одной строки",
+                "$what: у фильма не оказалось ни одной строки",
             )
 
     companion object {

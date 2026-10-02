@@ -8,18 +8,18 @@ import ru.svoemesto.syp.core.db.Save
 import ru.svoemesto.syp.core.db.Table
 
 /**
- * Место действия — элемент справочника сериала.
+ * Место действия — элемент справочника фильма.
  *
  * Справочник ведётся вручную и назначается сцене только из него:
  * автоматического определения места действия в проекте нет и не будет
  * (FR-050, FR-052, constitution). Поэтому здесь нет ни вычисления, ни
  * сопоставления — только заведённые человеком названия.
  *
- * Название уникально в пределах сериала: две одинаковые локации в одном
- * сериале означали бы две правды об одном месте действия.
+ * Название уникально в пределах фильма: две одинаковые локации в одном
+ * фильме означали бы две правды об одном месте действия.
  *
  * @property id идентификатор; `null`, пока локация не записана
- * @property movieId сериал-владелец
+ * @property movieId фильм-владелец
  * @property name название места действия
  * @property recordHash хеш значений строки, прочитанный при загрузке
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -65,9 +65,9 @@ class LocationStore(
     private val db: Db,
 ) {
     /**
-     * Добавляет место действия в справочник сериала.
+     * Добавляет место действия в справочник фильма.
      *
-     * @param movieId сериал-владелец
+     * @param movieId фильм-владелец
      * @param name название места действия
      * @return записанная локация с идентификатором
      * @throws DomainException с кодом `CONFLICT`, если название уже занято
@@ -81,7 +81,7 @@ class LocationStore(
         if (existing != null) {
             throw DomainException(
                 ErrorCode.CONFLICT,
-                "место действия «${location.name}» уже есть в справочнике сериала",
+                "место действия «${location.name}» уже есть в справочнике фильма",
             )
         }
         return db.useTransaction { connection ->
@@ -91,9 +91,9 @@ class LocationStore(
     }
 
     /**
-     * Перечисляет места действия сериала.
+     * Перечисляет места действия фильма.
      *
-     * @param movieId сериал-владелец
+     * @param movieId фильм-владелец
      * @return локации по алфавиту
      */
     fun listByMovie(movieId: Long): List<Location> =

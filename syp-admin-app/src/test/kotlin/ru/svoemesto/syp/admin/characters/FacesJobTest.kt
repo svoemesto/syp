@@ -37,7 +37,7 @@ import kotlin.test.assertTrue
  * Проверяется то, что видно со стороны очереди и базы:
  *
  * 1. успешный проход даёт задание в `DONE` с прогрессом, равным числу кадров
- *    серии, и записывает прогон вида `FACES`;
+ *    эпизода, и записывает прогон вида `FACES`;
  * 2. **прогон называет заглушку детектора** — результат заглушки никогда не
  *    должен быть выдан за результат настоящего детектора;
  * 3. ненулевой код декодера даёт `ERROR` с текстом, а не `DONE` (SC-005,
@@ -94,9 +94,9 @@ class FacesJobTest {
         assertEquals(
             6L,
             stored.progress.total,
-            "общий объём работы равен числу кадров серии: адаптивного шага нет (ADR-0002)",
+            "общий объём работы равен числу кадров эпизода: адаптивного шага нет (ADR-0002)",
         )
-        assertEquals(6L, stored.progress.done, "прогресс обязан дойти до конца серии")
+        assertEquals(6L, stored.progress.done, "прогресс обязан дойти до конца эпизода")
 
         val run =
             assertNotNull(
@@ -184,10 +184,10 @@ class FacesJobTest {
     }
 
     /**
-     * Заводит серию с указанным числом кадров.
+     * Заводит эпизод с указанным числом кадров.
      *
-     * @param frames число кадров серии
-     * @return записанная серия
+     * @param frames число кадров эпизода
+     * @return записанный эпизод
      */
     private fun newEpisode(frames: Int): Episode {
         val movie = MovieStore(db).create("Лица ${System.nanoTime()}", "/srv/got")
@@ -217,7 +217,7 @@ class FacesJobTest {
     /**
      * Ставит задание в очередь и берёт его в работу.
      *
-     * @param episode серия
+     * @param episode эпизод
      * @return взятое задание
      */
     private fun enqueueAndClaim(episode: Episode): Job {

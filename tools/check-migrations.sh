@@ -5,7 +5,7 @@
 # при этом не создаются и не трогаются; контейнер проверки удаляется в конце.
 #
 # Проверяется ровно то, что перечислено в задаче T025, плюс ограничения,
-# добавленные миграциями 09 и правила каскадного удаления сериала:
+# добавленные миграциями 09 и правила каскадного удаления фильма:
 #   1. все файлы deploy/syp-db/NN_*.sql применяются по порядку;
 #   2. состав схемы: 23 таблицы, все с префиксом tbl_, среди них
 #      tbl_source_file_checksums, tbl_build_recipes, tbl_build_recipe_items;
@@ -13,7 +13,7 @@
 #      месте, а имена ссылок прежних нет (миграция 16);
 #   3. проверки ограничений: каждая — «ожидается отказ» или «ожидается
 #      принятие», в отдельной транзакции с откатом;
-#   4. новый сериал автоматически получает 11 настроек по умолчанию;
+#   4. новый фильм автоматически получает 11 настроек по умолчанию;
 #   5. повторное применение 01_catalog.sql отклоняется базой;
 #   6. столбец recordhash присутствует во всех таблицах;
 #   7. длина карты ключевых кадров обязана быть ровно ceil(кадров / 8) байт:
@@ -21,10 +21,10 @@
 #      что границы фрагментов считаются по не тем кадрам (миграция 09);
 #   7a. у незавершённого подсчёта суммы нет, а готовая сумма обязана быть, и
 #      запись справочника ссылается на существующее задание (миграция 10);
-#   7b. у каждого сериала ровно две служебные персоны, вторая того же вида не
-#      заводится, удаление заглушки при живом сериале отвергается базой, а
-#      удаление сериала уносит заглушки каскадом (миграция 11);
-#   8. удаление сериала каскадом уносит серии, лица, персоны, версии моделей,
+#   7b. у каждого фильма ровно две служебные персоны, вторая того же вида не
+#      заводится, удаление заглушки при живом фильме отвергается базой, а
+#      удаление фильма уносит заглушки каскадом (миграция 11);
+#   8. удаление фильма каскадом уносит эпизоды, лица, персоны, версии моделей,
 #      сценарии сборки, справочник сумм и настройки, не оставляя сирот.
 #
 # Использование: bash tools/check-migrations.sh
@@ -248,18 +248,18 @@ check_writes() {
 }
 
 # --- каталог: ограничения путей и уникальности ---
-check "корень сериала не абсолютный — отказ" fail \
+check "корень фильма не абсолютный — отказ" fail \
     "INSERT INTO tbl_movies (name, source_root) VALUES ('p1', 'got');"
-check "корень сериала со слэшем в конце — отказ" fail \
+check "корень фильма со слэшем в конце — отказ" fail \
     "INSERT INTO tbl_movies (name, source_root) VALUES ('p2', '/srv/got/');"
-check "пустое имя сериала — отказ" fail \
+check "пустое имя фильма — отказ" fail \
     "INSERT INTO tbl_movies (name, source_root) VALUES ('   ', '/srv/got');"
-check "дубль названия сериала — отказ" fail \
+check "дубль названия фильма — отказ" fail \
     "INSERT INTO tbl_movies (name, source_root) VALUES ('Проверка ограничений', '/srv/got2');"
-check "корень сериала без слэша в конце — принят" ok \
+check "корень фильма без слэша в конце — принят" ok \
     "INSERT INTO tbl_movies (name, source_root) VALUES ('p3', '/srv/got3');"
 
-check "путь серии не абсолютный — отказ" fail \
+check "путь эпизода не абсолютный — отказ" fail \
     "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
      VALUES (901, 2, 'X', 'relative/path.mkv', 100, now(), 10, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p');"
 check "нулевое число кадров — отказ" fail \
@@ -271,16 +271,16 @@ check "нулевая ширина — отказ" fail \
 check "дубль пути к источнику — отказ" fail \
     "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
      VALUES (901, 5, 'W', '/srv/got/S01E01.mkv', 100, now(), 10, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p');"
-check "дубль номера серии в сериале — отказ" fail \
+check "дубль номера эпизода в фильме — отказ" fail \
     "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
      VALUES (901, 1, 'V', '/srv/got/V.mkv', 100, now(), 10, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p');"
 
 # --- карта ключевых кадров: длина обязана соответствовать числу кадров ---
 # 88 643 кадра — это ceil(88 643 / 8) = 11 081 байт. Ровно такая карта
-# записывается опросом серии, и никакая другая быть не должна: короче —
+# записывается опросом эпизода, и никакая другая быть не должна: короче —
 # часть кадров молча считается неключевой, длиннее — границы фрагментов
 # считаются по не тем кадрам. Обе ошибки проявились бы не при регистрации
-# серии, а у пользователя через час работы на своей машине (миграция 09).
+# эпизода, а у пользователя через час работы на своей машине (миграция 09).
 check "карта ключевых кадров без единого бита — принят" ok \
     "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
      VALUES (901, 10, 'Без карты', '/srv/got/без-карты.mkv', 100, now(), 88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p', NULL);"
@@ -372,12 +372,12 @@ check "сумма не из 64 hex — отказ" fail \
 check "состояние суммы DONE без текста ошибки — принят" ok \
     "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
      VALUES (901, 'SHA-256', repeat('b', 64), 10, now(), 'DONE', now());"
-check "вторая актуальная сумма той же серии — отказ" fail \
+check "вторая актуальная сумма того же эпизода — отказ" fail \
     "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
      VALUES (901, 'SHA-256', repeat('c', 64), 10, now(), 'DONE', now());
      INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
      VALUES (901, 'SHA-256', repeat('g', 64), 10, now(), 'DONE', now());"
-check "вторая устаревшая сумма той же серии — принят" ok \
+check "вторая устаревшая сумма того же эпизода — принят" ok \
     "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at, is_stale)
      VALUES (901, 'SHA-256', repeat('d', 64), 10, now(), 'DONE', now(), true);"
 
@@ -417,23 +417,23 @@ fi
 # --- настройки по умолчанию ---
 settings=$(psql_run <<< "SELECT count(*) FROM tbl_analysis_settings WHERE id_movie = 901;")
 if [[ "${settings}" == "11" ]]; then
-    report_ok "новый сериал получил 11 настроек по умолчанию"
+    report_ok "новый фильм получил 11 настроек по умолчанию"
 else
-    report_fail "новый сериал получил ${settings} настроек, ожидалось 11"
+    report_fail "новый фильм получил ${settings} настроек, ожидалось 11"
 fi
 
-# --- служебные персоны сериала -------------------------------------------
+# --- служебные персоны фильма -------------------------------------------
 # Правила живут в базе, а не в коде контроллера (миграция 11): заглушки
-# заводит триггер на вставку сериала, уникальный индекс не даёт завести
+# заводит триггер на вставку фильма, уникальный индекс не даёт завести
 # вторую заглушку того же вида, триггер на удаление запрещает убирать
-# заглушку, пока жив сериал. Код сервиса персон эти правила повторяет, но
+# заглушку, пока жив фильм. Код сервиса персон эти правила повторяет, но
 # проверяется именно база.
-printf '\n%s\n' "3a. Служебные персоны сериала"
+printf '\n%s\n' "3a. Служебные персоны фильма"
 service_persons=$(psql_run <<< "SELECT count(*) FROM tbl_persons WHERE id_movie = 901 AND kind <> 'PERSON';")
 if [[ "${service_persons}" == "2" ]]; then
-    report_ok "у сериала две служебные персоны: неопознанное лицо и «не лицо»"
+    report_ok "у фильма две служебные персоны: неопознанное лицо и «не лицо»"
 else
-    report_fail "служебных персон у сериала ${service_persons}, ожидалось 2"
+    report_fail "служебных персон у фильма ${service_persons}, ожидалось 2"
 fi
 
 service_names=$(psql_run <<< "SELECT count(*) FROM tbl_persons WHERE id_movie = 901 AND kind <> 'PERSON' AND recognizer_key IS NULL;")
@@ -447,7 +447,7 @@ check "вторая заглушка того же вида — отказ" fail
     "INSERT INTO tbl_persons (id_movie, name, kind) VALUES (901, 'Вторая заглушка', 'UNRECOGNIZED');"
 check "вторая заглушка вида «не лицо» — отказ" fail \
     "INSERT INTO tbl_persons (id_movie, name, kind) VALUES (901, 'Вторая заглушка', 'NONPERSON');"
-check_writes "вторая именованная персона того же сериала — принята" \
+check_writes "вторая именованная персона того же фильма — принята" \
     "INSERT INTO tbl_persons (id_movie, name, recognizer_key, kind) VALUES (901, 'Джейми', 'jamie', 'PERSON');"
 check "у именованной персоны без ключа распознавателя — отказ" fail \
     "INSERT INTO tbl_persons (id_movie, name, kind) VALUES (901, 'Джейми', 'PERSON');"
@@ -455,13 +455,13 @@ check "у служебной персоны с ключом распознава
     "INSERT INTO tbl_persons (id_movie, name, recognizer_key, kind) VALUES (901, 'С ключом', 'x', 'NONPERSON');"
 check "неизвестный вид персоны — отказ" fail \
     "INSERT INTO tbl_persons (id_movie, name, kind) VALUES (901, 'Непонятная', 'SOMEBODY');"
-check "удаление служебной персоны при живом сериале — отказ" fail \
+check "удаление служебной персоны при живом фильме — отказ" fail \
     "DELETE FROM tbl_persons WHERE id_movie = 901 AND kind = 'UNRECOGNIZED';"
 check "удаление именованной персоны — принят" ok \
     "INSERT INTO tbl_persons (id_movie, name, recognizer_key, kind) VALUES (901, 'Джейми', 'jamie', 'PERSON');
      DELETE FROM tbl_persons WHERE id_movie = 901 AND name = 'Джейми';"
-# Сериал удаляется каскадом вместе с заглушками: запрет удаления не должен
-# делать удаление сериала невозможным.
+# Фильм удаляется каскадом вместе с заглушками: запрет удаления не должен
+# делать удаление фильма невозможным.
 cascade_persons=$(psql_run <<'SQL' | tail -1
 BEGIN;
 DELETE FROM tbl_movies WHERE id = 901;
@@ -470,9 +470,9 @@ ROLLBACK;
 SQL
 )
 if [[ "${cascade_persons}" == "0" ]]; then
-    report_ok "удаление сериала уносит служебные персоны каскадом"
+    report_ok "удаление фильма уносит служебные персоны каскадом"
 else
-    report_fail "после удаления сериала осталось служебных персон: ${cascade_persons}"
+    report_fail "после удаления фильма осталось служебных персон: ${cascade_persons}"
 fi
 
 # --- повторное применение применённой миграции -----------------------------
@@ -564,11 +564,11 @@ check_writes "корректный фрагмент — принят" \
      SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), 10, 47, 0, 47, '[]'::jsonb FROM tbl_build_recipes WHERE name = 'Фикстура';"
 
 # --- каскадное удаление ----------------------------------------------------
-printf '\n%s\n' "6. Каскадное удаление сериала"
+printf '\n%s\n' "6. Каскадное удаление фильма"
 
-# Фикстура посложнее прошлой: сериал с серией, у которой есть лицо, персона,
+# Фикстура посложнее прошлой: фильм с эпизодом, у которой есть лицо, персона,
 # версия модели и сценарий сборки. Именно этот случай ломается, если каскад
-# задан не на всех внешних ключах: «сирота» остаётся, и удаление сериала
+# задан не на всех внешних ключах: «сирота» остаётся, и удаление фильма
 # падает вместо того, чтобы унести производные данные (задача T030).
 psql_run <<'SQL' >/dev/null 2>&1
 INSERT INTO tbl_movies (id, name, source_root) VALUES (903, 'Каскад с производными', '/srv/got3');
@@ -599,9 +599,9 @@ ROLLBACK;
 SQL
 )
 if [[ "${orphan}" == "0" ]]; then
-    report_ok "удаление сериала уносит серии, лица, персоны, версии моделей и настройки"
+    report_ok "удаление фильма уносит эпизоды, лица, персоны, версии моделей и настройки"
 else
-    report_fail "после удаления сериала осталось записей: ${orphan}"
+    report_fail "после удаления фильма осталось записей: ${orphan}"
 fi
 cascade=$(psql_run <<< "
 BEGIN;
@@ -611,9 +611,9 @@ DELETE FROM tbl_movies WHERE id = 902;
 SELECT count(*) FROM tbl_build_recipes WHERE id_movie = 902;
 ROLLBACK;" | tail -1)
 if [[ "${cascade}" == "0" ]]; then
-    report_ok "удаление сериала уносит сценарии каскадом"
+    report_ok "удаление фильма уносит сценарии каскадом"
 else
-    report_fail "после удаления сериала осталось сценариев: ${cascade}"
+    report_fail "после удаления фильма осталось сценариев: ${cascade}"
 fi
 
 # --- Итог -------------------------------------------------------------------

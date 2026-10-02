@@ -8,9 +8,9 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 const route = useRoute()
 
 /**
- * Серия, для которой показывается ссылка на структуру.
+ * Эпизод, для которой показывается ссылка на структуру.
  *
- * Ссылка появляется только на экране серии: с приёма структуру открывать
+ * Ссылка появляется только на экране эпизода: с приёма структуру открывать
  * нечего, а пустая ссылка вела бы на пустую страницу.
  */
 const structureEpisodeId = computed(() => {
@@ -27,12 +27,12 @@ const structureEpisodeId = computed(() => {
     <header>
       <h1>SYP — админка</h1>
       <nav>
-        <RouterLink :to="{ name: 'intake' }"> Приём сериалов и серий </RouterLink>
+        <RouterLink :to="{ name: 'intake' }"> Приём фильмов и эпизодов </RouterLink>
         <RouterLink
           v-if="structureEpisodeId"
           :to="{ name: 'structure', params: { episodeId: structureEpisodeId } }"
         >
-          Структура серии
+          Структура эпизода
         </RouterLink>
       </nav>
     </header>

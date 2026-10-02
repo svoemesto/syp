@@ -59,7 +59,7 @@ class CharactersControllerTest {
 
     /**
      * Собирает контроллер заново: он без состояния, но ключ модели эмбеддингов
-     * в тестах один и тот же, а серии меняются от прогона к прогону.
+     * в тестах один и тот же, а эпизода меняются от прогона к прогону.
      */
     @BeforeEach
     fun buildController() {
@@ -77,14 +77,14 @@ class CharactersControllerTest {
     }
 
     @Test
-    fun `лица серии отдаются с рамкой, планом и персоной`() {
+    fun `лица эпизода отдаются с рамкой, планом и персоной`() {
         val episode = newEpisode()
         val episodeId = requireNotNull(episode.id)
         seedFaces(episodeId, episode.movieId, 3)
 
         val view = controller.readFaces(episodeId, 0, 100)
 
-        assertEquals(3, view.facesTotal, "у серии три лица")
+        assertEquals(3, view.facesTotal, "у эпизода три лица")
         assertEquals(3, view.faces.size)
         val first = view.faces.first()
         assertEquals(10, first.x1)
@@ -145,7 +145,7 @@ class CharactersControllerTest {
     }
 
     @Test
-    fun `кластеры серии строятся до появления обученной модели`() {
+    fun `кластеры эпизода строятся до появления обученной модели`() {
         val episode = newEpisode()
         val episodeId = requireNotNull(episode.id)
         val seeded = seedFaces(episodeId, episode.movieId, 4)
@@ -229,16 +229,16 @@ class CharactersControllerTest {
     }
 
     @Test
-    fun `несуществующая серия отвергается`() {
+    fun `несуществующий эпизод отвергается`() {
         assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> {
             controller.readFaces(9_999_999_999, 0, 10)
         }
     }
 
     /**
-     * Заводит серию в сериале.
+     * Заводит эпизод в фильме.
      *
-     * @return записанная серия
+     * @return записанный эпизод
      */
     private fun newEpisode(): Episode {
         val movie = movies.create("Персоны ${System.nanoTime()}", "/srv/got")
@@ -266,10 +266,10 @@ class CharactersControllerTest {
     }
 
     /**
-     * Заводит лица серии у служебной персоны «распознано, имя не подтверждено».
+     * Заводит лица эпизода у служебный персоны «распознано, имя не подтверждено».
      *
-     * @param episodeId серия
-     * @param movieId сериал-владелец
+     * @param episodeId эпизод
+     * @param movieId фильм-владелец
      * @param count сколько лиц завести
      * @return идентификаторы заведённых лиц по возрастанию
      */

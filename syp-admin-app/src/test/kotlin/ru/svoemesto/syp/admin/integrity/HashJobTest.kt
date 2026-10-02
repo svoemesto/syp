@@ -59,7 +59,7 @@ class HashJobTest {
         registry = ChecksumRegistry(db)
     }
 
-    /** Размер проверочного файла, байт: два блока по 4 МиБ с запасом. */
+    /** Размер проверочного файла, байт: два блока по 4 Миб с запасом. */
     private val fileSize = 9L * 1024 * 1024
 
     /**
@@ -81,10 +81,10 @@ class HashJobTest {
     }
 
     /**
-     * Заводит серию на проверочный файл.
+     * Заводит эпизод на проверочный файл.
      *
      * @param file путь к файлу
-     * @return записанная серия
+     * @return записанный эпизод
      */
     private fun newEpisode(file: Path): Episode {
         val movies = MovieStore(db)
@@ -132,13 +132,13 @@ class HashJobTest {
     }
 
     /**
-     * Ставит задание вида `HASH` над серией и отдаёт его.
+     * Ставит задание вида `HASH` над эпизодом и отдаёт его.
      *
      * Задание записывается по-настоящему: запись справочника ссылается на
      * задание, и ссылка проверяется базой. Задание с выдуманным
      * идентификатором было бы проверкой несуществующего.
      *
-     * @param episode серия
+     * @param episode эпизод
      * @return задание в состоянии `WORKING`
      */
     private fun newJob(episode: Episode): Job {
@@ -214,6 +214,6 @@ class HashJobTest {
         val entry = registry.latest(episode.id!!)
         assertEquals(ChecksumState.ERROR, entry?.state, "подсчёт должен остаться в ошибке, а не в готовом состоянии")
         assertNotNull(entry?.errorText)
-        assertFalse(registry.isUsable(episode.id!!), "у серии без прочитанного файла актуальной суммы быть не может")
+        assertFalse(registry.isUsable(episode.id!!), "у эпизода без прочитанного файла актуальной суммы быть не может")
     }
 }

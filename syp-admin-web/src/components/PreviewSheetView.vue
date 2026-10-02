@@ -9,7 +9,7 @@ import { computed } from 'vue'
 import { type PreviewUrlView, previewSheetUrl } from '../api/structure'
 
 const props = defineProps<{
-  /** Серия-владелец листа. */
+  /** Эпизод-владелец листа. */
   episodeId: number
   /** Описание листа с адресом и раскладкой. */
   sheet: PreviewUrlView
@@ -47,7 +47,7 @@ const highlight = computed(() => {
 
     <p v-if="!sheet.isReady" class="note">
       Лист не готов: анализ не завершён или оборвался. Незавершённый лист не выдаётся — иначе
-      оператор увидел бы половину серии и решил, что второй половины нет.
+      оператор увидел бы половину эпизода и решил, что второй половины нет.
     </p>
 
     <div v-else class="canvas">

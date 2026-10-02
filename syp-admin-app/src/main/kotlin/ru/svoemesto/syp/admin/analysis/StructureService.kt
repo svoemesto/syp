@@ -126,9 +126,9 @@ enum class SizeOrigin {
 }
 
 /**
- * Рабочая сцена серии.
+ * Рабочего сцена эпизода.
  *
- * Рабочая сцена — текущее состояние разметки, а сырая граница прогона
+ * Рабочий сцена — текущее состояние разметки, а сырая граница прогона
  * остаётся в своей таблице и ручными правками не меняется (FR-093).
  *
  * Связь сцена ↔ план **не хранится**: она вычисляется по диапазонам кадров,
@@ -137,7 +137,7 @@ enum class SizeOrigin {
  * расхождение этих мест ловилось бы только при чтении.
  *
  * @property id идентификатор сцены; `null`, пока не записана
- * @property episodeId серия-владелец
+ * @property episodeId эпизод-владелец
  * @property firstFrame первый кадр сцены, нумерация с нуля
  * @property lastFrame последний кадр сцены
  * @property locationId место действия, если назначено вручную; `null`, если
@@ -200,10 +200,10 @@ data class Scene(
 }
 
 /**
- * Рабочий план серии.
+ * Рабочий план эпизода.
  *
  * План лежит в сцене целиком: `first >= scene.first AND last <= scene.last`
- * при равной серии (ADR-0007). Частичное пересечение не допускается: план,
+ * при равном эпизоде (ADR-0007). Частичное пересечение не допускается: план,
  * наполовину лежащий в сцене, не имеет смысла ни в интерфейсе, ни в
  * сценарии сборки.
  *
@@ -211,7 +211,7 @@ data class Scene(
  * исправить размер, не трогая границу, и наоборот.
  *
  * @property id идентификатор плана; `null`, пока не записан
- * @property episodeId серия-владелец
+ * @property episodeId эпизод-владелец
  * @property firstFrame первый кадр плана, нумерация с нуля
  * @property lastFrame последний кадр плана
  * @property size размер плана; `NONE` у плана без лиц
@@ -274,7 +274,7 @@ data class Shot(
 }
 
 /**
- * Участок серии по номерам кадров.
+ * Участок эпизода по номерам кадров.
  *
  * @property firstFrame первый кадр участка
  * @property lastFrame последний кадр участка
@@ -291,15 +291,15 @@ data class FrameRange(
  * Сырые границы прогона — это **точки**, а не участки: детектор отдаёт номера
  * кадров, в которых он увидел смену. Рабочая структура — это участки: от
  * одной границы до следующей. Перевод делается здесь, единственный раз, и
- * он проверяет главное свойство структуры: **сцены покрывают серию без
+ * он проверяет главное свойство структуры: **сцены покрывают эпизод без
  * разрывов и перекрытий**.
  *
  * Проверка выполняется до записи. Структура с дырой выглядит на экране
- * нормально — просто часть серии не показана, — и заметить её можно только
+ * нормально — просто часть эпизода не показана, — и заметить её можно только
  * сравнением с числом кадров (FR-011).
  *
  * @property detection результат детекции
- * @property frameCount число кадров серии
+ * @property frameCount число кадров эпизода
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class StructureBuilder(
@@ -307,27 +307,27 @@ class StructureBuilder(
     private val frameCount: Int,
 ) {
     init {
-        require(frameCount > 0) { "Число кадров серии должно быть положительным, задано $frameCount" }
+        require(frameCount > 0) { "Число кадров эпизода должно быть положительным, задано $frameCount" }
     }
 
     /**
      * Разбирает детекцию на участки сцен.
      *
-     * @return участки в порядке следования, покрывающие серию целиком
+     * @return участки в порядке следования, покрывающие эпизод целиком
      */
     fun sceneSections(): List<FrameRange> = sections(detection.sceneBoundaries)
 
     /**
      * Разбирает детекцию на участки планов.
      *
-     * @return участки в порядке следования, покрывающие серию целиком
+     * @return участки в порядке следования, покрывающие эпизод целиком
      */
     fun shotSections(): List<FrameRange> = sections(detection.shotBoundaries)
 
     /**
      * Разбирает точки границ в участки.
      *
-     * Первый участок начинается с кадра 0: серия покрыта целиком, и первая
+     * Первый участок начинается с кадра 0: эпизод покрыта целиком, и первая
      * граница — это начало второй сцены, а не первая сцена.
      *
      * @param boundaries номера кадров-границ по возрастанию
@@ -345,8 +345,8 @@ class StructureBuilder(
             "Границы разобрались в пустой участок: $ranges"
         }
         require(ranges.first().firstFrame == 0 && ranges.last().lastFrame == frameCount - 1) {
-            "Участки не покрывают серию целиком: с ${ranges.first().firstFrame} по " +
-                "${ranges.last().lastFrame} при ${frameCount - 1} кадрах серии"
+            "Участки не покрывают эпизод целиком: с ${ranges.first().firstFrame} по " +
+                "${ranges.last().lastFrame} при ${frameCount - 1} кадрах эпизода"
         }
         ranges.forEachIndexed { index, range ->
             val next = ranges.getOrNull(index + 1)
@@ -359,7 +359,7 @@ class StructureBuilder(
 }
 
 /**
- * Создание рабочей структуры серии по результату прогона.
+ * Создание рабочего структуры эпизода по результату прогона.
  *
  * Рабочие сцены и планы — **текущее состояние разметки**, а сырые границы
  * остаются в своей таблице: разделение нужно, чтобы ручная правка не
@@ -381,10 +381,10 @@ class StructureService(
     private val boundaryStore: RawBoundaryStore,
 ) {
     /**
-     * Записывает результат прогона как рабочую структуру серии.
+     * Записывает результат прогона как рабочего структуру эпизода.
      *
      * @param runId идентификатор прогона
-     * @param episodeId серия-владелец
+     * @param episodeId эпизод-владелец
      * @param detection результат детекции
      * @return число записанных сцен и планов
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
@@ -466,10 +466,10 @@ class StructureService(
     }
 
     /**
-     * Читает рабочие сцены серии по возрастанию первого кадра.
+     * Читает рабочие сцены эпизода по возрастанию первого кадра.
      *
-     * @param episodeId идентификатор серии
-     * @return сцены серии
+     * @param episodeId идентификатор эпизода
+     * @return сцены эпизода
      */
     fun listScenes(episodeId: Long): List<Scene> =
         db.select(
@@ -479,10 +479,10 @@ class StructureService(
         )
 
     /**
-     * Читает рабочие планы серии по возрастанию первого кадра.
+     * Читает рабочие планы эпизода по возрастанию первого кадра.
      *
-     * @param episodeId идентификатор серии
-     * @return планы серии
+     * @param episodeId идентификатор эпизода
+     * @return планы эпизода
      */
     fun listShots(episodeId: Long): List<Shot> =
         db.select(
@@ -500,7 +500,7 @@ class StructureService(
      * запрета хранить связь.
      *
      * @param scene сцена
-     * @param shots планы серии
+     * @param shots планы эпизода
      * @return планы, лежащие в сцене целиком
      */
     fun shotsInside(
@@ -508,14 +508,14 @@ class StructureService(
         shots: List<Shot>,
     ): List<Shot> = shots.filter { it.firstFrame >= scene.firstFrame && it.lastFrame <= scene.lastFrame }
 
-    /** Число кадров серии: без него границы не в чем разобрать. */
+    /** Число кадров эпизода: без него границы не в чем разобрать. */
     private fun frameCountOf(episodeId: Long): Int =
         db.selectOne(
             "SELECT frame_count FROM tbl_episodes WHERE id = ?",
             { it.int("frame_count") },
             episodeId,
         ) ?: throw ru.svoemesto.syp.core.db
-            .DbException("Серия $episodeId не найдена: не из чего собрать структуру")
+            .DbException("Эпизод $episodeId не найдена: не из чего собрать структуру")
 
     /** Строит сцену из типизированной строки выборки. */
     private fun readScene(row: Row): Scene =

@@ -13,7 +13,7 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.time.Instant
 
 /**
- * Параметры файла серии, определённые опросом.
+ * Параметры файла эпизода, определённые опросом.
  *
  * Все величины получены из самого файла: оператор их не вводит, иначе они
  * расходились бы с содержимым (FR-002).
@@ -27,15 +27,15 @@ import java.time.Instant
  * @property byteSize размер файла в байтах
  * @property fileMtime время изменения файла: по нему обнаруживается подмена
  *   источника и устаревает посчитанная сумма (FR-090)
- * @property frameCount число кадров серии
+ * @property frameCount число кадров эпизода
  * @property timeBaseNum числитель длительности кадра в секундах: для
  *   `24000/1001` кадра в секунду это 1001
  * @property timeBaseDen знаменатель длительности кадра в секундах: для
  *   `24000/1001` кадра в секунду это 24 000
  * @property width ширина кадра в пикселях
  * @property height высота кадра в пикселях
- * @property durationNum числитель длительности серии в секундах
- * @property durationDen знаменатель длительности серии в секундах
+ * @property durationNum числитель длительности эпизода в секундах
+ * @property durationDen знаменатель длительности эпизода в секундах
  * @property videoCodec кодек видео
  * @property videoProfile профиль видео: признак совместимости при сборке
  * @property pixelFormat формат пикселей: признак совместимости при сборке
@@ -46,7 +46,7 @@ import java.time.Instant
  *   Сохраняется как диагностическая величина: она **не** является вторым
  *   источником правды о времени, потому что считается контейнером по
  *   последнему пакету и с величиной, вычисленной по кадрам, не совпадает
- * @property keyframes карта ключевых кадров серии
+ * @property keyframes карта ключевых кадров эпизода
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class SourceParameters(
@@ -71,21 +71,21 @@ data class SourceParameters(
     /** Длительность одного кадра в секундах. */
     fun frameDurationSeconds(): Double = timeBaseNum.toDouble() / timeBaseDen
 
-    /** Длительность серии в секундах, вычисленная по кадрам. */
+    /** Длительность эпизода в секундах, вычисленная по кадрам. */
     fun durationSeconds(): Double = durationNum.toDouble() / durationDen
 
     /**
      * Время кадра в секундах.
      *
      * @param frame номер кадра с нуля
-     * @return время от начала серии в секундах
+     * @return время от начала эпизода в секундах
      */
     fun timeOfFrame(frame: Long): Double = frame * frameDurationSeconds()
 
     /**
      * Номер кадра по времени.
      *
-     * @param seconds время от начала серии в секундах
+     * @param seconds время от начала эпизода в секундах
      * @return ближайший номер кадра
      */
     fun frameOfTime(seconds: Double): Long = Math.round(seconds / frameDurationSeconds())
@@ -179,7 +179,7 @@ class ProbeDescription(
 }
 
 /**
- * Опрос файла серии.
+ * Опрос файла эпизода.
  *
  * Опрос идёт в три прохода, и каждый нужен по своей причине:
  *
@@ -189,7 +189,7 @@ class ProbeDescription(
  * 2. **счётчик видеопакетов** — `ffprobe -count_packets`. В Matroska число
  *    кадров у потока **не записано**: `nb_frames` возвращает `N/A`, поэтому
  *    кадры приходится считать. Счётчик обходит файл, ничего не декодируя:
- *    серия `GOT.S01E01` на 5,6 ГБ считается за 20 секунд.
+ *    эпизод `GOT.S01E01` на 5,6 ГБ считается за 20 секунд.
  * 3. **ключевые кадры** — `ffprobe -skip_frame nokey`. Показывает только
  *    ключевые кадры, поэтому проход короче полного перебора и не декодирует
  *    изображение. Из отметок времени получаются номера кадров.
@@ -200,7 +200,7 @@ class ProbeDescription(
  *
  * Каждый отказ — [DomainException] с кодом `SOURCE_UNREADABLE` и текстом на
  * русском. «Успех с пустым результатом» невозможен: без числа кадров и карты
- * ключевых кадров серия не определяется вовсе (FR-092).
+ * ключевых кадров эпизод не определяется вовсе (FR-092).
  *
  * @property program единая точка запуска внешних программ
  * @property ffprobePath путь к программе `ffprobe`; приходит из конфигурации
@@ -212,7 +212,7 @@ class SourceProbe(
     private val ffprobePath: String,
 ) {
     /**
-     * Определяет параметры файла серии.
+     * Определяет параметры файла эпизода.
      *
      * @param sourcePath путь к исходному видеофайлу
      * @return параметры файла вместе с картой ключевых кадров
@@ -302,16 +302,16 @@ class SourceProbe(
      *
      * Перевод выполняется точной арифметикой на дробных числах: время кадра
      * отличается от его номера ровно на `timeBaseNum / timeBaseDen` секунд, и
-     * ошибка в доли кадра накапливалась бы на длинной серии до нескольких
+     * ошибка в доли кадра накапливалась бы на длинном эпизоде до нескольких
      * кадров.
      *
      * @param sourcePath путь к файлу
      * @param video описание видеопотока
      * @param timeBase длительность кадра в секундах: числитель и знаменатель
-     * @param frameCount число кадров серии
+     * @param frameCount число кадров эпизода
      * @return карта ключевых кадров
      * @throws DomainException если ключевых кадров нет или отметка вышла за
-     *   пределы серии
+     *   пределы эпизода
      */
     private fun readKeyframes(
         sourcePath: Path,
@@ -347,7 +347,7 @@ class SourceProbe(
             if (frame < 0 || frame >= frameCount) {
                 throw unreadableFile(
                     sourcePath,
-                    "отметка ключевого кадра $timestamp сходится на кадр $frame, а серия содержит " +
+                    "отметка ключевого кадра $timestamp сходится на кадр $frame, а эпизод содержит " +
                         "$frameCount кадров: число кадров и частокадровая база не согласуются",
                 )
             }
@@ -367,7 +367,7 @@ class SourceProbe(
      * Запускает `ffprobe` и отдаёт его вывод.
      *
      * Код возврата проверяется **всегда**: успех с неполным выводом здесь
-     * означал бы серию с выдуманными параметрами (FR-092, SC-005).
+     * означал бы эпизод с выдуманными параметрами (FR-092, SC-005).
      *
      * @param sourcePath путь к файлу: `ffprobe` требует его последним аргументом
      * @param action что делает проход: попадает в текст ошибки
@@ -486,5 +486,5 @@ internal fun unreadableFile(
 ): DomainException =
     DomainException(
         ErrorCode.SOURCE_UNREADABLE,
-        "исходный файл серии «$sourcePath» недоступен: $reason",
+        "исходный файл эпизода «$sourcePath» недоступен: $reason",
     )

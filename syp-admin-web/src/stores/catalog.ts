@@ -17,10 +17,10 @@ import {
 } from '../api/catalog'
 import { ApiError } from '../api/http'
 
-/** Список сериалов. */
+/** Список фильмов. */
 const movies = ref<MovieView[]>([])
 
-/** Раскрытый сериал с его сериями и настройками. */
+/** Раскрытый фильм с его эпизодами и настройками. */
 const current = ref<MovieDetailView | null>(null)
 
 /** Идёт ли обращение к бэкенду: показывается работа, а не пустой экран. */
@@ -50,10 +50,10 @@ function remember(failure: unknown): void {
   error.value = failure instanceof Error ? failure.message : String(failure)
 }
 
-/** Серии раскрытого сериала; пустой список, если сериал не выбран. */
+/** Эпизода раскрытого фильма; пустой список, если фильм не выбран. */
 const episode = computed<EpisodeView[]>(() => current.value?.episode ?? [])
 
-/** Можно ли ставить новую серию: сериал должен быть выбран. */
+/** Можно ли ставить новый эпизод: фильм должен быть выбран. */
 const canRegisterEpisode = computed(() => current.value !== null)
 
 /**
@@ -63,7 +63,7 @@ const canRegisterEpisode = computed(() => current.value !== null)
  */
 export function useCatalogStore() {
   /**
-   * Перечитывает список сериалов.
+   * Перечитывает список фильмов.
    *
    * @returns `true`, если список прочитан
    */
@@ -83,11 +83,11 @@ export function useCatalogStore() {
   }
 
   /**
-   * Создаёт сериал с корнем каталога и раскрывает его.
+   * Создаёт фильм с корнем каталога и раскрывает его.
    *
-   * @param name название сериала
-   * @param sourceRoot корневой каталог сериала на машине администратора
-   * @returns `true`, если сериал создан и показан
+   * @param name название фильма
+   * @param sourceRoot корневой каталог фильма на машине администратора
+   * @returns `true`, если фильм создан и показан
    */
   async function addMovie(name: string, sourceRoot: string): Promise<boolean> {
     loading.value = true
@@ -105,10 +105,10 @@ export function useCatalogStore() {
   }
 
   /**
-   * Открывает сериал: серии и настройки.
+   * Открывает фильм: эпизода и настройки.
    *
-   * @param movieId идентификатор сериала
-   * @returns `true`, если сериал прочитан
+   * @param movieId идентификатор фильма
+   * @returns `true`, если фильм прочитан
    */
   async function openMovie(movieId: number): Promise<boolean> {
     loading.value = true
@@ -126,16 +126,16 @@ export function useCatalogStore() {
   }
 
   /**
-   * Регистрирует серию по пути к файлу.
+   * Регистрирует эпизод по пути к файлу.
    *
-   * @param sourcePath абсолютный путь к файлу внутри корня сериала
-   * @param name название серии; если не задано, берётся имя файла
-   * @returns `true`, если серия зарегистрирована
+   * @param sourcePath абсолютный путь к файлу внутри корня фильма
+   * @param name название эпизода; если не задано, берётся имя файла
+   * @returns `true`, если эпизод зарегистрирована
    */
   async function addEpisode(sourcePath: string, name?: string): Promise<boolean> {
     if (current.value === null) {
       errorCode.value = 'BAD_REQUEST'
-      error.value = 'Сначала откройте сериал: серия заводится только в нём'
+      error.value = 'Сначала откройте фильм: эпизод заводится только в нём'
       return false
     }
     loading.value = true

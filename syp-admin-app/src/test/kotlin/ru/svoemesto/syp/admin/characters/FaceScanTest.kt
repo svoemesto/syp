@@ -53,8 +53,8 @@ class FaceScanTest {
 
         val result = scan.scan(episode(frames = 7))
 
-        assertEquals((0 until 7).toList(), seen, "детектор обязан получить каждый кадр серии по порядку")
-        assertEquals(7, result.frames, "обработано должно быть ровно столько кадров, сколько в серии")
+        assertEquals((0 until 7).toList(), seen, "детектор обязан получить каждый кадр эпизода по порядку")
+        assertEquals(7, result.frames, "обработано должно быть ровно столько кадров, сколько в эпизоде")
     }
 
     @Test
@@ -141,7 +141,7 @@ class FaceScanTest {
     }
 
     @Test
-    fun `кадров меньше, чем в серии, — отказ`() {
+    fun `кадров меньше, чем в эпизоде, — отказ`() {
         val directory = Files.createTempDirectory("syp-faces-scan-short")
         val decoder = FakeDecoder.write(directory, frames = 2)
         val scan = scanOver(decoder, StubFaceDetector())
@@ -153,7 +153,7 @@ class FaceScanTest {
 
         assertTrue(
             failure.message.orEmpty().contains("Обработано кадров 2"),
-            "неполный охват серии обязан быть отказом, а не результатом: кадры не пропускаются (FR-030). " +
+            "неполный охват эпизода обязан быть отказом, а не результатом: кадры не пропускаются (FR-030). " +
                 "Получено: ${failure.message}",
         )
     }
@@ -193,10 +193,10 @@ class FaceScanTest {
     }
 
     /**
-     * Собирает серию нужного размера.
+     * Собирает эпизод нужного размера.
      *
-     * @param frames сколько кадров в серии
-     * @return серия на вымышленном пути: подставной декодер файл не читает
+     * @param frames сколько кадров в эпизоде
+     * @return эпизод на вымышленном пути: подставной декодер файл не читает
      */
     private fun episode(frames: Int): Episode =
         Episode(

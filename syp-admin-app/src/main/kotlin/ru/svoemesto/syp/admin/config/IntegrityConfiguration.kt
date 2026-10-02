@@ -53,7 +53,7 @@ class IntegrityConfiguration {
     /**
      * Собирает исполнитель подсчёта суммы.
      *
-     * @param episodeStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @param registry справочник сумм
      * @return исполнитель задания `HASH`
      */
@@ -67,7 +67,7 @@ class IntegrityConfiguration {
      * Собирает постановщик пересчёта.
      *
      * @param queue очередь заданий
-     * @param episodeStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @param registry справочник сумм
      * @return постановщик подсчёта
      */
@@ -83,7 +83,7 @@ class IntegrityConfiguration {
      *
      * @param enqueuer постановщик пересчёта
      * @param registry справочник сумм
-     * @param episodeStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @return контроллер суммы
      */
     @Bean

@@ -51,13 +51,13 @@ import java.time.ZoneOffset
  * Порядок проверок задан контрактом
  * [`admin-api.md`](../../../../../../../../../specs/001-first-vertical-slice/contracts/admin-api.md)
  * § 10.1 и идёт в порядке возрастания стоимости отказа: пустой список, разбор
- * серий, совместимость, наличие эталонных сумм. Ни одна проверка не требует
+ * эпизодов, совместимость, наличие эталонных сумм. Ни одна проверка не требует
  * прохода по видео.
  *
  * @property db доступ к базе сырым JDBC
- * @property episodeStore хранилище серий
+ * @property episodeStore хранилище эпизодов
  * @property checksums справочник эталонных сумм исходников
- * @property settingsStore настройки сериала
+ * @property settingsStore настройки фильма
  * @property recipes хранилище сценариев
  * @property catalog каталог сценариев: помечает устаревшими
  * @property artifacts реестр артефактов с каноническими байтами
@@ -82,8 +82,8 @@ class RecipeBuilder(
      * @param recipeName название сценария
      * @param sceneIds идентификаторы выбранных сцен в порядке следования
      * @return записанный и подписанный сценарий в состоянии `DONE`
-     * @throws DomainException если выбор пуст, сцена нет, серия не разобрана,
-     *   серии несовместимы или у серии нет актуальной суммы
+     * @throws DomainException если выбор пуст, сцена нет, эпизод не разобрана,
+     *   эпизода несовместимы или у эпизода нет актуальный суммы
      * @throws ru.svoemesto.syp.core.db.DbException если запись не состоялась
      */
     fun issue(
@@ -241,35 +241,35 @@ class RecipeBuilder(
         return sceneIds.distinct().associateWith { found.getValue(it) }
     }
 
-    /** Требует, чтобы все выбранные серии принадлежали одному сериалу. */
+    /** Требует, чтобы все выбранные эпизоды принадлежали одному фильму. */
     private fun requireSingleMovie(episode: Map<Long, Episode>): Long {
         val movieIds = episode.values.map { it.movieId }.distinct()
         return movieIds.firstOrNull()
             ?: throw DomainException(
                 ErrorCode.BAD_REQUEST,
-                "сценарий не выдан: сцены принадлежат разным сериалам. Подборка собирается " +
+                "сценарий не выдан: сцены принадлежат разным фильмам. Подборка собирается " +
                     "внутри одного дерева каталогов (FR-089a)",
             )
     }
 
-    /** Читает сериал вместе с корнем каталога. */
+    /** Читает фильм вместе с корнем каталога. */
     private fun readMovie(movieId: Long): MovieInfo =
         db.selectOne(
             "SELECT name, source_root FROM $MOVIE_TABLE WHERE id = ?",
             { row: Row -> MovieInfo(row.string("name"), row.string("source_root")) },
             movieId,
-        ) ?: throw DomainException(ErrorCode.NOT_FOUND, "сериал $movieId не найден")
+        ) ?: throw DomainException(ErrorCode.NOT_FOUND, "фильм $movieId не найден")
 
-    /** Читает серию подборки. */
+    /** Читает эпизод подборки. */
     private fun readEpisode(episodeId: Long): Episode =
         episodeStore.find(episodeId)
             ?: throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "серия $episodeId не найдена",
-                listOf(ErrorItem("tbl_episodes", episodeId.toString(), "нет такой серии")),
+                "эпизод $episodeId не найдена",
+                listOf(ErrorItem("tbl_episodes", episodeId.toString(), "нет такого эпизода")),
             )
 
-    /** Требует, чтобы у каждой серии были сцены с размеченными границами. */
+    /** Требует, чтобы у каждого эпизода были сцены с размеченными границами. */
     private fun requireAnalyzed(episodeIds: List<Long>) {
         val unanalyzed =
             episodeIds.filter {
@@ -284,13 +284,13 @@ class RecipeBuilder(
         }
         throw DomainException(
             ErrorCode.EPISODE_NOT_ANALYZED,
-            "сценарий не выдан: у серий ${unanalyzed.joinToString(", ")} нет сцен с размеченными " +
-                "границами. Поставьте анализ серии и дождитесь его окончания",
+            "сценарий не выдан: у эпизодов ${unanalyzed.joinToString(", ")} нет сцен с размеченными " +
+                "границами. Поставьте анализ эпизода и дождитесь его окончания",
             unanalyzed.map { ErrorItem("tbl_episodes", it.toString(), "нет размеченных сцен") },
         )
     }
 
-    /** Требует, чтобы серии подборки совпадали по параметрам склейки. */
+    /** Требует, чтобы эпизода подборки совпадали по параметрам склейки. */
     private fun requireCompatible(episode: Map<Long, Episode>) {
         val report = RecipeCompatibility.check(episode.values.map { it.toParameters() })
         if (report.isCompatible) {
@@ -298,13 +298,13 @@ class RecipeBuilder(
         }
         throw DomainException(
             ErrorCode.INCOMPATIBLE_EPISODE,
-            "сценарий не выдан: серии несовместимы для склейки без перекодирования. " +
+            "сценарий не выдан: эпизода несовместимы для склейки без перекодирования. " +
                 "Различаются признаки ${report.differingAttributes.joinToString(", ")}",
             report.incompatible.map { incompatible ->
                 ErrorItem(
                     "tbl_episodes",
                     incompatible.parameters.episodeId.toString(),
-                    "серия «${incompatible.parameters.name}» отличается: " +
+                    "эпизод «${incompatible.parameters.name}» отличается: " +
                         incompatible.differingAttributes.joinToString(", "),
                 )
             },
@@ -312,9 +312,9 @@ class RecipeBuilder(
     }
 
     /**
-     * Требует актуальной эталонной суммы у каждой серии подборки.
+     * Требует актуальной эталонной суммы у каждого эпизода подборки.
      *
-     * Молча выдать сценарий серии без суммы нельзя: пользователь узнал бы об
+     * Молча выдать сценарий эпизода без суммы нельзя: пользователь узнал бы об
      * этом через час работы на своей машине, а не до неё (ADR-0009,
      * последствие 4).
      */
@@ -332,7 +332,7 @@ class RecipeBuilder(
         if (missing.isNotEmpty()) {
             throw DomainException(
                 ErrorCode.CHECKSUM_NOT_READY,
-                "сценарий не выдан: у серий ${missing.joinToString(", ")} нет актуальной суммы " +
+                "сценарий не выдан: у эпизодов ${missing.joinToString(", ")} нет актуальный суммы " +
                     "исходника. Сумма считается один раз; поставьте пересчёт и дождитесь его " +
                     "окончания (FR-089)",
                 missing.map { ErrorItem("tbl_episodes", it.toString(), "актуальной суммы нет") },
@@ -361,9 +361,9 @@ class RecipeBuilder(
                     entry.relativePath(sourceRoot)
                         ?: throw DomainException(
                             ErrorCode.SOURCE_UNREADABLE,
-                            "сценарий не выдан: файл серии «${entry.name}» лежит вне корня каталога " +
-                                "сериала. Относительный путь выдумывать нельзя (FR-089a)",
-                            listOf(ErrorItem("tbl_episodes", scene.episodeId.toString(), "путь вне корня сериала")),
+                            "сценарий не выдан: файл эпизода «${entry.name}» лежит вне корня каталога " +
+                                "фильма. Относительный путь выдумывать нельзя (FR-089a)",
+                            listOf(ErrorItem("tbl_episodes", scene.episodeId.toString(), "путь вне корня фильма")),
                         )
                 val cut =
                     RecipeFragmentPlan.cutBoundaries(
@@ -464,7 +464,7 @@ class RecipeBuilder(
         /** Имя таблицы мест действия. */
         const val LOCATION_TABLE: String = "tbl_locations"
 
-        /** Имя таблицы сериалов. */
+        /** Имя таблицы фильмов. */
         const val MOVIE_TABLE: String = "tbl_movies"
 
         /** Имя таблицы лиц. */
@@ -483,7 +483,7 @@ class RecipeBuilder(
  * проверяются до выборки, а не после.
  *
  * @property id идентификатор сцены
- * @property episodeId серия-владелец
+ * @property episodeId эпизод-владелец
  * @property firstFrame первый кадр сцены
  * @property lastFrame последний кадр сцены
  * @property locationId место действия либо `null`
@@ -499,7 +499,7 @@ data class SelectedScene(
     val isStale: Boolean,
 )
 
-/** Сериал, как он нужен генератору сценария: имя и корень каталога. */
+/** Фильм, как он нужен генератору сценария: имя и корень каталога. */
 private data class MovieInfo(
     val name: String,
     val sourceRoot: String,
@@ -516,7 +516,7 @@ private fun readSelectedScene(row: Row): SelectedScene =
         isStale = row.booleanOrNull("is_stale") == true,
     )
 
-/** Параметры серии для проверки совместимости: снимок, снятый при регистрации. */
+/** Параметры эпизода для проверки совместимости: снимок, снятый при регистрации. */
 private fun Episode.toParameters(): EpisodeParameters =
     EpisodeParameters(
         episodeId = id!!,

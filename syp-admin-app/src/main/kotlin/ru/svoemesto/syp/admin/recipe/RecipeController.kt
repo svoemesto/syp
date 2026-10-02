@@ -89,10 +89,10 @@ class RecipeController(
     }
 
     /**
-     * Перечисляет сценарии сериала, свежие сверху.
+     * Перечисляет сценарии фильма, свежие сверху.
      *
-     * @param movieId сериал
-     * @return сценарии сериала
+     * @param movieId фильм
+     * @return сценарии фильма
      */
     @GetMapping("/api/recipes")
     fun list(
@@ -267,10 +267,10 @@ data class RecipeCompositionResponse(
  *
  * @property ordinal порядковый номер фрагмента
  * @property sceneId сцена-источник
- * @property episodeId серия-источник
- * @property episodeName название серии-снимок
- * @property relativePath путь к файлу серии от корня сериала
- * @property sourceSha256 эталонная сумма файла серии
+ * @property episodeId эпизод-источник
+ * @property episodeName название эпизода-снимок
+ * @property relativePath путь к файлу эпизода от корня фильма
+ * @property sourceSha256 эталонная сумма файла эпизода
  * @property firstFrame расчётная граница начала
  * @property lastFrame расчётная граница конца
  * @property cutFirstFrame фактическая граница начала

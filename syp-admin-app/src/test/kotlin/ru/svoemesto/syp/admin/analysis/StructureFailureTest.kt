@@ -93,10 +93,10 @@ class StructureFailureTest {
     }
 
     /**
-     * Заводит серию с указанным числом кадров.
+     * Заводит эпизод с указанным числом кадров.
      *
-     * @param frameCount число кадров серии
-     * @return записанная серия
+     * @param frameCount число кадров эпизода
+     * @return записанный эпизод
      */
     private fun newEpisode(frameCount: Int): Episode {
         val movie = MovieStore(db).create("Сбой ${System.nanoTime()}", "/srv/got")
@@ -159,7 +159,7 @@ class StructureFailureTest {
     /**
      * Ставит задание анализа в очередь и берёт его в работу.
      *
-     * @param episode серия
+     * @param episode эпизод
      * @return взятое задание
      */
     private fun enqueueAndClaim(episode: Episode): Job {
@@ -252,7 +252,7 @@ class StructureFailureTest {
     fun `повторный запуск не собирает заново готовые листы`() {
         val episode = newEpisode(600)
         // 600 кадров по 256 на лист — это три листа: два полных и неполный
-        // последний, без него конец серии не был бы виден.
+        // последний, без него конец эпизода не был бы виден.
         val script = FakeFfmpeg.write(workRoot.resolve("resume"), sheetCount = 3)
         val worker = workerFor(script)
 
@@ -263,7 +263,7 @@ class StructureFailureTest {
             "первый запуск обязан закончиться успешно. Текст задания: " +
                 "${assertNotNull(queue.find(firstJob.id)).errorText}",
         )
-        assertEquals(3, countReadySheets(episode.id!!), "серия из 600 кадров даёт три листа превью")
+        assertEquals(3, countReadySheets(episode.id!!), "эпизод из 600 кадров даёт три листа превью")
 
         val secondJob = enqueueAndClaim(episode)
         assertTrue(worker.runJob(secondJob), "повторный запуск обязан закончиться успешно")
@@ -303,9 +303,9 @@ class StructureFailureTest {
     }
 
     /**
-     * Считает готовые листы превью серии.
+     * Считает готовые листы превью эпизода.
      *
-     * @param episodeId серия
+     * @param episodeId эпизод
      * @return число листов в состоянии `READY`
      */
     private fun countReadySheets(episodeId: Long): Int =

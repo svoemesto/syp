@@ -55,7 +55,7 @@ class GpuFaceDetectorTest {
 
         val result = scan.scan(episode(frames = 3))
 
-        assertEquals(3, result.frames, "обработано должно быть ровно столько кадров, сколько в серии")
+        assertEquals(3, result.frames, "обработано должно быть ровно столько кадров, сколько в эпизоде")
         assertEquals(3, result.faces, "программа выдаёт по одной рамке на кадр")
         assertEquals(3, result.framesWithFaces, "кадров с лицами: все три")
         assertFalse(result.detectorIsStub, "настоящий детектор заглушкой не является")
@@ -283,10 +283,10 @@ class GpuFaceDetectorTest {
         )
 
     /**
-     * Собирает серию нужного размера.
+     * Собирает эпизод нужного размера.
      *
-     * @param frames сколько кадров в серии
-     * @return серия на вымышленном пути: подставной декодер файл не читает
+     * @param frames сколько кадров в эпизоде
+     * @return эпизод на вымышленном пути: подставной декодер файл не читает
      */
     private fun episode(frames: Int): Episode =
         Episode(

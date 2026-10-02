@@ -146,7 +146,11 @@ def main(argv: list[str]) -> int:
 
     for path in files:
         relative = path.lstrip("./")
-        if relative.startswith("docs/"):
+        # Контракты из `specs/` — живая документация наравне с `docs/`:
+        # карта кода указывает на них как на документы, которые обязаны
+        # меняться вместе с кодом. Раньше засчитывался только каталог
+        # `docs/`, и требование карты оказывалось невыполнимым.
+        if relative.startswith("docs/") or relative.startswith("specs/"):
             touched_docs.append(relative)
         if relative.endswith((".kt", ".sql", ".ts", ".vue")):
             touched_code.append(relative)

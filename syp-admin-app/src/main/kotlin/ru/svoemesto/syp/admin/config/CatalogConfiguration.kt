@@ -57,35 +57,35 @@ class CatalogConfiguration {
     fun externalProgram(): ExternalProgram = ExternalProgram()
 
     /**
-     * Собирает опрос файла серии.
+     * Собирает опрос файла эпизода.
      *
      * @param externalProgram исполнитель внешних программ
-     * @return опрос файла серии
+     * @return опрос файла эпизода
      */
     @Bean
     fun sourceProbe(externalProgram: ExternalProgram): SourceProbe =
         SourceProbe(externalProgram, optional(ENV_FFPROBE_PATH) ?: DEFAULT_FFPROBE_PATH)
 
     /**
-     * Собирает хранилище сериалов.
+     * Собирает хранилище фильмов.
      *
      * @param database доступ к базе
-     * @return хранилище сериалов
+     * @return хранилище фильмов
      */
     @Bean
     fun movieStore(database: Db): MovieStore = MovieStore(database)
 
     /**
-     * Собирает хранилище серий.
+     * Собирает хранилище эпизодов.
      *
      * @param database доступ к базе
-     * @return хранилище серий
+     * @return хранилище эпизодов
      */
     @Bean
     fun episodeStore(database: Db): EpisodeStore = EpisodeStore(database)
 
     /**
-     * Собирает хранилище настроек сериала.
+     * Собирает хранилище настроек фильма.
      *
      * @param database доступ к базе
      * @return хранилище настроек
@@ -94,12 +94,12 @@ class CatalogConfiguration {
     fun movieSettingsStore(database: Db): MovieSettingsStore = MovieSettingsStore(database)
 
     /**
-     * Собирает регистрацию серии.
+     * Собирает регистрацию эпизода.
      *
-     * @param movieStore хранилище сериалов
-     * @param episodeStore хранилище серий
-     * @param sourceProbe опрос файла серии
-     * @return регистрация серии
+     * @param movieStore хранилище фильмов
+     * @param episodeStore хранилище эпизодов
+     * @param sourceProbe опрос файла эпизода
+     * @return регистрация эпизода
      */
     @Bean
     fun episodeRegistration(
@@ -109,12 +109,12 @@ class CatalogConfiguration {
     ): EpisodeRegistration = EpisodeRegistration(movieStore, episodeStore, sourceProbe)
 
     /**
-     * Собирает эндпоинты приёма сериала и серии.
+     * Собирает эндпоинты приёма фильма и эпизода.
      *
-     * @param movieStore хранилище сериалов
-     * @param episodeStore хранилище серий
+     * @param movieStore хранилище фильмов
+     * @param episodeStore хранилище эпизодов
      * @param settingsStore хранилище настроек
-     * @param episodeRegistration регистрация серии
+     * @param episodeRegistration регистрация эпизода
      * @param staleness пометка результатов устаревшими при смене настройки
      * @return контроллер приёма
      */
@@ -128,7 +128,7 @@ class CatalogConfiguration {
     ): CatalogController = CatalogController(movieStore, episodeStore, settingsStore, episodeRegistration, staleness = staleness)
 
     /**
-     * Собирает справочник мест действия сериала.
+     * Собирает справочник мест действия фильма.
      *
      * Место действия назначается сцене вручную и только из этого справочника
      * (FR-050, FR-051): пустой ссылкой сцену оставлять нельзя, а искать

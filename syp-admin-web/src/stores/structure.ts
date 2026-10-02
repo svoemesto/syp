@@ -1,4 +1,4 @@
-// Состояние экрана структуры серии.
+// Состояние экрана структуры эпизода.
 //
 // Экран отвечает на два вопроса оператора: «что система нашла» и «что из
 // этого человек принял». Поэтому в состоянии лежат **два** слоя: рабочая
@@ -16,7 +16,7 @@ import {
 } from '../api/structure'
 import { ApiError } from '../api/http'
 
-/** Рабочая структура серии. */
+/** Рабочего структура эпизода. */
 const structure = ref<StructureView | null>(null)
 
 /** Сырой результат автоматики последнего прогона. */
@@ -64,9 +64,9 @@ const staleCode = computed(() => structure.value?.staleResultCode ?? '')
  */
 export function useStructureStore() {
   /**
-   * Перечитывает оба слоя структуры серии.
+   * Перечитывает оба слоя структуры эпизода.
    *
-   * @param episodeId идентификатор серии
+   * @param episodeId идентификатор эпизода
    * @returns `true`, если структура прочитана
    */
   async function reload(episodeId: number): Promise<boolean> {
@@ -88,7 +88,7 @@ export function useStructureStore() {
   /**
    * Переходит на следующую страницу сцен.
    *
-   * @param episodeId идентификатор серии
+   * @param episodeId идентификатор эпизода
    */
   async function nextPage(episodeId: number): Promise<void> {
     const total = structure.value?.scenesTotal ?? 0
@@ -102,7 +102,7 @@ export function useStructureStore() {
   /**
    * Возвращается на предыдущую страницу сцен.
    *
-   * @param episodeId идентификатор серии
+   * @param episodeId идентификатор эпизода
    */
   async function previousPage(episodeId: number): Promise<void> {
     if (offset.value === 0) {
@@ -115,7 +115,7 @@ export function useStructureStore() {
   /**
    * Ставит анализ структуры заново.
    *
-   * @param episodeId идентификатор серии
+   * @param episodeId идентификатор эпизода
    * @returns `true`, если задание поставлено
    */
   async function analyse(episodeId: number): Promise<boolean> {

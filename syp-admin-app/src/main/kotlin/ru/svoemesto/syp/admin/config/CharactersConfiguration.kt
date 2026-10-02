@@ -97,7 +97,7 @@ class CharactersConfiguration {
     /**
      * Собирает исполнителя задания `FACES`.
      *
-     * @param episodeStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @param runStore хранилище прогонов анализа
      * @param scan проход по кадрам с детектором
      * @param detector детектор лиц: его ключ попадает в прогон анализа
@@ -122,7 +122,7 @@ class CharactersConfiguration {
         )
 
     /**
-     * Собирает сервис персон сериала.
+     * Собирает сервис персон фильма.
      *
      * @param database доступ к базе
      * @return сервис персон со служебными заглушками
@@ -134,7 +134,7 @@ class CharactersConfiguration {
      * Собирает хранилище лиц.
      *
      * @param database доступ к базе
-     * @return хранилище лиц серии
+     * @return хранилище лиц эпизода
      */
     @Bean
     fun faceStore(database: Db): FaceStore = FaceStore(database)
@@ -158,7 +158,7 @@ class CharactersConfiguration {
      * @param faceStore хранилище лиц
      * @param personService сервис персон
      * @param nonPersonFilter отбрасывание рамок, которые лицом не являются
-     * @return сборка приёмника рамок для серии
+     * @return сборка приёмника рамок для эпизода
      */
     @Bean
     fun faceSinkFactory(
@@ -188,7 +188,7 @@ class CharactersConfiguration {
     /**
      * Собирает кластеризацию лиц на холодном старте.
      *
-     * Кластеризация — чистая функция от векторов и настроек сериала, поэтому
+     * Кластеризация — чистая функция от векторов и настроек фильма, поэтому
      * бином является без состояния: настройки приходят аргументом, и смена
      * порога замером М-08 не требует ни правки кода, ни перезапуска.
      *
@@ -204,9 +204,9 @@ class CharactersConfiguration {
      * @param embeddingStore хранилище эмбеддингов
      * @param clustering кластеризация лиц
      * @param personService сервис персон
-     * @param episodeStore хранилище серий
-     * @param movieStore хранилище сериалов
-     * @param settingsStore настройки сериала
+     * @param episodeStore хранилище эпизодов
+     * @param movieStore хранилище фильмов
+     * @param settingsStore настройки фильма
      * @return контроллер домена персонажей
      */
     @Bean

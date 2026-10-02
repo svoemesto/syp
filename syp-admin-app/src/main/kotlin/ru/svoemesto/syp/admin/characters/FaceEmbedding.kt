@@ -122,9 +122,9 @@ class FaceEmbeddingStore(
     ): Int = embeddings.count { saveInConnection(connection, it) }
 
     /**
-     * Читает векторы лиц серии **одной модели**.
+     * Читает векторы лиц эпизода **один модели**.
      *
-     * @param episodeId серия
+     * @param episodeId эпизод
      * @param modelKey ключ модели эмбеддингов
      * @return векторы в порядке идентификаторов лиц
      * @throws IllegalArgumentException если ключ модели пуст
@@ -167,9 +167,9 @@ class FaceEmbeddingStore(
         )
 
     /**
-     * Считает векторы серии заданной модели.
+     * Считает векторы эпизода заданный модели.
      *
-     * @param episodeId серия
+     * @param episodeId эпизод
      * @param modelKey ключ модели эмбеддингов
      * @return число векторов
      */

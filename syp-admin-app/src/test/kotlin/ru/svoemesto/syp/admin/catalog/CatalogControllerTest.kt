@@ -21,7 +21,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Проверки эндпоинтов приёма сериала и серии.
+ * Проверки эндпоинтов приёма фильма и эпизода.
  *
  * Закрываются требованиями задачи T036: реализованы `GET /api/movies`,
  * `POST /api/movies`, `GET /api/movies/{movieId}`,
@@ -49,7 +49,7 @@ class CatalogControllerTest {
     private lateinit var root: Path
 
     /**
-     * Готовит хранилища, контроллер и каталог сериала.
+     * Готовит хранилища, контроллер и каталог фильма.
      *
      * @throws org.opentest4j.TestAbortedException если база или видеоинструменты
      *   недоступны
@@ -120,7 +120,7 @@ class CatalogControllerTest {
     }
 
     @Test
-    fun `список сериалов пуст, пока сериал не заведён`() {
+    fun `список фильмов пуст, пока фильм не заведён`() {
         val created = controller.createMovie(CreateMovieRequest("Пустой список ${System.nanoTime()}", "/srv/нет"))
 
         assertEquals("/srv/нет", created.body?.movie?.sourceRoot)
@@ -128,7 +128,7 @@ class CatalogControllerTest {
     }
 
     @Test
-    fun `создание сериала отдаёт его вместе с настройками по умолчанию`() {
+    fun `создание фильма отдаёт его вместе с настройками по умолчанию`() {
         val created = controller.createMovie(CreateMovieRequest("С настройками ${System.nanoTime()}", "/srv/got"))
 
         val body = created.body!!
@@ -139,7 +139,7 @@ class CatalogControllerTest {
     }
 
     @Test
-    fun `чтение сериала отдаёт сериал, серии и настройки`() {
+    fun `чтение фильма отдаёт фильм, эпизода и настройки`() {
         val created = controller.createMovie(CreateMovieRequest("Чтение ${System.nanoTime()}", "/srv/got"))
         val movieId = created.body!!.movie.id
 
@@ -151,7 +151,7 @@ class CatalogControllerTest {
     }
 
     @Test
-    fun `удаление сериала снимает его со счёта`() {
+    fun `удаление фильма снимает его со счёта`() {
         val created = controller.createMovie(CreateMovieRequest("Удаление ${System.nanoTime()}", "/srv/got"))
         val movieId = created.body!!.movie.id
 
@@ -162,7 +162,7 @@ class CatalogControllerTest {
     }
 
     @Test
-    fun `чтение несуществующего сериала даёт 404 с кодом и текстом`() {
+    fun `чтение несуществующего фильма даёт 404 с кодом и текстом`() {
         val failure = assertFailsWith<DomainException> { controller.readMovie(-1) }
 
         val response = errors.onDomainFailure(failure)
@@ -172,7 +172,7 @@ class CatalogControllerTest {
     }
 
     @Test
-    fun `чтение несуществующей серии даёт 404, а не пустой ответ`() {
+    fun `чтение несуществующего эпизода даёт 404, а не пустой ответ`() {
         val failure = assertFailsWith<DomainException> { controller.readEpisode(-1) }
 
         val response = errors.onDomainFailure(failure)
@@ -181,8 +181,8 @@ class CatalogControllerTest {
     }
 
     @Test
-    fun `регистрация серии отдаёт снятые с файла параметры`() {
-        val movie = controller.createMovie(CreateMovieRequest("Серия ${System.nanoTime()}", root.toString())).body!!.movie
+    fun `регистрация эпизода отдаёт снятые с файла параметры`() {
+        val movie = controller.createMovie(CreateMovieRequest("Эпизод ${System.nanoTime()}", root.toString())).body!!.movie
         val file = video("S01E01.mkv")
 
         val response = controller.registerEpisode(movie.id, RegisterEpisodeRequest(file.toString()))
@@ -206,14 +206,14 @@ class CatalogControllerTest {
     }
 
     @Test
-    fun `регистрация файла вне корня сериала даёт 400 с кодом SOURCE_UNREADABLE`() {
+    fun `регистрация файла вне корня фильма даёт 400 с кодом SOURCE_UNREADABLE`() {
         val movie = controller.createMovie(CreateMovieRequest("Вне корня ${System.nanoTime()}", root.toString())).body!!.movie
         val other = Files.createTempDirectory("syp-api").resolve("снаружи")
         Files.createDirectories(other)
 
         val failure =
             assertFailsWith<DomainException> {
-                controller.registerEpisode(movie.id, RegisterEpisodeRequest(other.resolve("серия.mkv").toString()))
+                controller.registerEpisode(movie.id, RegisterEpisodeRequest(other.resolve("эпизод.mkv").toString()))
             }
 
         val response = errors.onDomainFailure(failure)
@@ -222,8 +222,8 @@ class CatalogControllerTest {
     }
 
     @Test
-    fun `чтение серии и её удаление работают по идентификатору`() {
-        val movie = controller.createMovie(CreateMovieRequest("Удаление серии ${System.nanoTime()}", root.toString())).body!!.movie
+    fun `чтение эпизода и её удаление работают по идентификатору`() {
+        val movie = controller.createMovie(CreateMovieRequest("Удаление эпизода ${System.nanoTime()}", root.toString())).body!!.movie
         val registered =
             controller.registerEpisode(movie.id, RegisterEpisodeRequest(video("S01E02.mkv").toString())).body!!
 

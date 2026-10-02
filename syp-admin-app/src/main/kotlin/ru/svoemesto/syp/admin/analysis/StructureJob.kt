@@ -25,7 +25,7 @@ import java.nio.file.Path
 import java.security.MessageDigest
 
 /**
- * Задание `ANALYZE`: структура серии и листы превью.
+ * Задание `ANALYZE`: структура эпизода и листы превью.
  *
  * **Прогресс задаётся потоком внешней программы, а не индексом цикла**
  * (FR-003, research.md Т-15). Здесь это значит три вещи:
@@ -37,7 +37,7 @@ import java.security.MessageDigest
  *    возврате задания в очередь сохранённое значение остаётся, а новый
  *    прогон не может откатить его назад — иначе интерфейс увидел бы, как
  *    работа идёт назад;
- * 3. общий объём известен заранее — это удвоенное число кадров серии, по
+ * 3. общий объём известен заранее — это удвоенное число кадров эпизода, по
  *    одному проходу на фазу, — поэтому прогресс сразу настоящий, а не
  *    «неизвестно, сколько всего».
  *
@@ -56,14 +56,14 @@ import java.security.MessageDigest
  * при этом проходит заново: поток `scdet` нельзя продолжить с середины, и
  * честнее сказать об этом в отчёте, чем показать нулевой прогресс.
  *
- * @property episodeStore хранилище серий: из него берётся путь и число кадров
+ * @property episodeStore хранилище эпизодов: из него берётся путь и число кадров
  * @property runStore хранилище прогонов
  * @property structure запись рабочей структуры по результату детекции
  * @property frames хранилище значимых кадров
  * @property detector детектор границ сцен и планов
  * @property program единая точка запуска внешних программ
  * @property ffmpegPath путь к программе; приходит из конфигурации (ADR-0010)
- * @property settingsStore настройки сериала: пороги и раскладка листа
+ * @property settingsStore настройки фильма: пороги и раскладка листа
  * @property artifactRegistry реестр артефактов листов превью
  * @property staleness пометка результатов, полученных при других входах
  * @property storage объектное хранилище артефактов
@@ -88,12 +88,12 @@ class StructureJob(
     override val kind: JobKind = JobKind.ANALYZE
 
     /**
-     * Находит границы, пишет структуру серии и собирает листы превью.
+     * Находит границы, пишет структуру эпизода и собирает листы превью.
      *
-     * @param job задание с предметом «серия»
+     * @param job задание с предметом «эпизод»
      * @param progress приёмник прогресса из потока внешней программы
      * @return результат выполнения
-     * @throws DomainException с кодом `NOT_FOUND`, если серия не зарегистрирована
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизод не зарегистрирована
      * @throws ExternalProgramFailed если `ffmpeg` завершился с ненулевым кодом:
      *   воркер переведёт задание в `ERROR` с текстом (FR-092, SC-005)
      */
@@ -160,7 +160,7 @@ class StructureJob(
 
             JobResult(
                 note =
-                    "структура серии «${episode.name}»: сцен $sceneCount, планов $shotCount, " +
+                    "структура эпизода «${episode.name}»: сцен $sceneCount, планов $shotCount, " +
                         "листов превью ${sheets.built} из ${sheets.expected}" +
                         if (sheets.skipped > 0) ", готовых ранее ${sheets.skipped}" else "",
                 progressTotal = total,
@@ -185,14 +185,14 @@ class StructureJob(
     }
 
     /**
-     * Собирает листы превью серии одним проходом внешней программы.
+     * Собирает листы превью эпизода одним проходом внешней программы.
      *
      * Листы, уже зарегистрированные в состоянии `READY`, не собираются
      * заново: перезапуск задания продолжает работу, а не начинает её с
      * начала (FR-003, T056).
      *
      * @param jobId задание-владелец артефактов
-     * @param episode серия
+     * @param episode эпизод
      * @param layout раскладка листа
      * @param report счётчик прогресса
      * @return число собранных, пропущенных и ожидаемых листов
@@ -254,7 +254,7 @@ class StructureJob(
                 val produced = directory.resolve(SHEET_NAME_TEMPLATE.format(sheet.index))
                 if (!Files.isRegularFile(produced)) {
                     throw IOException(
-                        "внешняя программа не выдала лист ${sheet.index} серии ${episode.id}: " +
+                        "внешняя программа не выдала лист ${sheet.index} эпизода ${episode.id}: " +
                             "ожидался файл ${produced.fileName}. Листов ожидалось $sheetCount",
                     )
                 }
@@ -312,7 +312,7 @@ class StructureJob(
     }
 
     /**
-     * Раскладка листа из настроек сериала.
+     * Раскладка листа из настроек фильма.
      *
      * @param columns число столбцов
      * @param rows число строк
@@ -330,12 +330,12 @@ class StructureJob(
         )
 
     /**
-     * Читает серию по предмету задания.
+     * Читает эпизод по предмету задания.
      *
      * @param job задание
-     * @return серия
+     * @return эпизод
      * @throws DomainException с кодом `NOT_FOUND`, если предмет задания не
-     *   серия либо серия не зарегистрирована
+     *   эпизод либо эпизод не зарегистрирована
      */
     private fun requireEpisode(job: Job): Episode {
         val subject = job.subject
@@ -343,14 +343,14 @@ class StructureJob(
         if (subject.type != SUBJECT_EPISODE || episodeId == null) {
             throw DomainException(
                 ErrorCode.BAD_REQUEST,
-                "заданию ANALYZE нужен предмет «серия», а у него «${subject.type}»: " +
+                "заданию ANALYZE нужен предмет «эпизод», а у него «${subject.type}»: " +
                     "анализировать нечего",
             )
         }
         return episodeStore.find(episodeId)
             ?: throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "серия $episodeId не зарегистрирована: структуру разбирать нечего",
+                "эпизод $episodeId не зарегистрирована: структуру разбирать нечего",
             )
     }
 
@@ -359,7 +359,7 @@ class StructureJob(
      *
      * @property built сколько листов собрано этим запуском
      * @property skipped сколько листов было готово ранее
-     * @property expected сколько листов у серии всего
+     * @property expected сколько листов у эпизода всего
      */
     private data class SheetOutcome(
         val built: Int,
@@ -368,7 +368,7 @@ class StructureJob(
     )
 
     companion object {
-        /** Тип предмета задания для серии. */
+        /** Тип предмета задания для эпизода. */
         const val SUBJECT_EPISODE: String = "EPISODE"
 
         /** Имя программы в тексте ошибки. */

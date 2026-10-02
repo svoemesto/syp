@@ -63,9 +63,9 @@ object TestDatabase {
 /**
  * Проверки домена каталога поверх готовых миграций.
  *
- * Закрываются требования задачи T030: корень каталога сериала — абсолютный путь
- * без завершающего слэша; путь серии абсолютный; одна серия принадлежит ровно
- * одному сериалу; удаление сериала каскадом уносит производные данные.
+ * Закрываются требования задачи T030: корень каталога фильма — абсолютный путь
+ * без завершающего слэша; путь эпизода абсолютный; один эпизод принадлежит ровно
+ * одному фильму; удаление фильма каскадом уносит производные данные.
  *
  * Заодно проверяется то, ради чего домен и написан: запись идёт **только** при
  * реальном изменении значений, а карта ключевых кадров возвращается из базы
@@ -95,20 +95,20 @@ class CatalogStoreTest {
     }
 
     /**
-     * Создаёт сериал с уникальным именем.
+     * Создаёт фильм с уникальным именем.
      *
-     * @param root корень каталога сериала
-     * @return созданный сериал
+     * @param root корень каталога фильма
+     * @return созданный фильм
      */
     private fun newMovie(root: String): Movie = movies.create("Проверка ${System.nanoTime()}", root)
 
     /**
-     * Создаёт серию с заданной картой ключевых кадров.
+     * Создаёт эпизод с заданный картой ключевых кадров.
      *
-     * @param movie сериал-владелец
-     * @param path путь к файлу серии
+     * @param movie фильм-владелец
+     * @param path путь к файлу эпизода
      * @param keyframes карта ключевых кадров
-     * @return записанная серия
+     * @return записанный эпизод
      */
     private fun newEpisode(
         movie: Movie,
@@ -141,7 +141,7 @@ class CatalogStoreTest {
         )
 
     @Test
-    fun `сериал записывается и читается со своим хешем`() {
+    fun `фильм записывается и читается со своим хешем`() {
         val created = newMovie("/srv/got")
 
         assertNotNull(created.id)
@@ -155,14 +155,14 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `корень каталога сериала проверяется до записи`() {
+    fun `корень каталога фильма проверяется до записи`() {
         assertFailsWith<IllegalArgumentException> { movies.create("Без корня", "got") }
         assertFailsWith<IllegalArgumentException> { movies.create("Со слэшем", "/srv/got/") }
         assertFailsWith<IllegalArgumentException> { movies.create("   ", "/srv/got") }
     }
 
     @Test
-    fun `дубль названия сериала даёт внятный отказ`() {
+    fun `дубль названия фильма даёт внятный отказ`() {
         val name = "Повтор ${System.nanoTime()}"
         movies.create(name, "/srv/got")
 
@@ -182,7 +182,7 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `серия хранит карту ключевых кадров байт в байт`() {
+    fun `эпизод хранит карту ключевых кадров байт в байт`() {
         val movie = newMovie("/srv/got")
         val keyframes = KeyframeMap.build(frameCount = 88_643, keyframes = listOf(0, 240, 88_642))
         val path = "/srv/got/проверка-${System.nanoTime()}.mkv"
@@ -200,7 +200,7 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `параметры серии возвращаются из базы без изменений`() {
+    fun `параметры эпизода возвращаются из базы без изменений`() {
         val movie = newMovie("/srv/got")
         val saved =
             newEpisode(
@@ -227,7 +227,7 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `одна серия принадлежит ровно одному сериалу, повторный путь отвергается`() {
+    fun `один эпизод принадлежит ровно одному фильму, повторный путь отвергается`() {
         val movie = newMovie("/srv/got")
         val path = "/srv/got/единственный-${System.nanoTime()}.mkv"
         val saved = newEpisode(movie, path, KeyframeMap.build(frameCount = 100, keyframes = listOf(0)))
@@ -244,13 +244,13 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `незарегистрированная серия читается пустой, а не выдуманной`() {
+    fun `незарегистрированный эпизод читается пустой, а не выдуманной`() {
         assertNull(movies.find(-1))
         assertNull(episodeStore.find(-1))
     }
 
     @Test
-    fun `удаление сериала каскадом уносит производные данные`() {
+    fun `удаление фильма каскадом уносит производные данные`() {
         val movie = newMovie("/srv/got")
         val saved =
             newEpisode(
@@ -291,7 +291,7 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `справочник мест действия уникален в пределах сериала`() {
+    fun `справочник мест действия уникален в пределах фильма`() {
         val movie = newMovie("/srv/got")
         val name = "Весёлая Роджеровка ${System.nanoTime()}"
         val added = locations.add(movie.id!!, name)
@@ -308,7 +308,7 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `список сериалов показывает число серий`() {
+    fun `список фильмов показывает число эпизодов`() {
         val movie = newMovie("/srv/got")
         newEpisode(movie, "/srv/got/список-${System.nanoTime()}.mkv", KeyframeMap.build(frameCount = 50, keyframes = listOf(0)))
 
@@ -319,7 +319,7 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `следующий порядковый номер серии продолжает нумерацию`() {
+    fun `следующий порядковый номер эпизода продолжает нумерацию`() {
         val movie = newMovie("/srv/got")
 
         assertEquals(0, movies.nextEpisodeOrdinal(movie.id!!))
@@ -328,7 +328,7 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `относительный путь вычисляется от корня сериала`() {
+    fun `относительный путь вычисляется от корня фильма`() {
         val saved =
             newEpisode(
                 newMovie("/disks/HDD_16Tb_Clouds/GOT"),
@@ -341,7 +341,7 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `серия без ключевых кадров записывается с пустой картой`() {
+    fun `эпизод без ключевых кадров записывается с пустой картой`() {
         val movie = newMovie("/srv/got")
         val saved =
             episodeStore.insert(

@@ -18,11 +18,11 @@ import ru.svoemesto.syp.core.contract.ErrorCode
 import java.time.Instant
 
 /**
- * Тело запроса создания сериала.
+ * Тело запроса создания фильма.
  *
- * @property name название сериала
- * @property sourceRoot корень каталога сериала на машине администратора.
- *   Обязателен: без него не вычислить относительный путь к файлу серии,
+ * @property name название фильма
+ * @property sourceRoot корень каталога фильма на машине администратора.
+ *   Обязателен: без него не вычислить относительный путь к файлу эпизода,
  *   который попадёт в сценарий сборки (FR-089a)
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
@@ -32,10 +32,10 @@ data class CreateMovieRequest(
 )
 
 /**
- * Тело запроса регистрации серии.
+ * Тело запроса регистрации эпизода.
  *
- * @property sourcePath путь к исходному видеофайлу внутри корня сериала
- * @property name название серии; если не задано, берётся имя файла
+ * @property sourcePath путь к исходному видеофайлу внутри корня фильма
+ * @property name название эпизода; если не задано, берётся имя файла
  * @property seasonId сезон-владелец; не задан — у фильма, у которого
  *   сезонов нет
  * @property episodeOrdinal номер эпизода внутри сезона; 0 — у фильма
@@ -49,18 +49,18 @@ data class RegisterEpisodeRequest(
 )
 
 /**
- * Описание сериала в ответе.
+ * Описание фильма в ответе.
  *
  * Время отдаётся производной величиной — `durationSeconds` и `timeBase` — и
  * ни одним полем ответа не является вторым источником правды: все они
  * вычислены от номера кадра и частокадровой базы (ADR-0001).
  *
- * @property id идентификатор серии
- * @property movieId сериал-владелец
- * @property ordinal порядковый номер в сериале
- * @property name название серии
+ * @property id идентификатор эпизода
+ * @property movieId фильм-владелец
+ * @property ordinal порядковый номер в фильме
+ * @property name название эпизода
  * @property sourcePath абсолютный путь к файлу
- * @property relativePath путь относительно корня сериала: он и попадёт в
+ * @property relativePath путь относительно корня фильма: он и попадёт в
  *   сценарий сборки
  * @property byteSize размер файла в байтах
  * @property fileMtime время изменения файла
@@ -70,16 +70,16 @@ data class RegisterEpisodeRequest(
  * @property frameRate частокадровая база в виде `кадров/секунду`
  * @property width ширина кадра
  * @property height высота кадра
- * @property durationSeconds длительность серии, вычисленная по кадрам
+ * @property durationSeconds длительность эпизода, вычисленная по кадрам
  * @property videoCodec кодек видео
  * @property videoProfile профиль видео
  * @property pixelFormat формат пикселей
  * @property audioCodec кодек аудио
  * @property audioChannels число аудиоканалов
  * @property audioSampleRate частота дискретизации аудио
- * @property keyframeCount сколько ключевых кадров в серии
+ * @property keyframeCount сколько ключевых кадров в эпизоде
  * @property keyframeMapBytes длина карты ключевых кадров в байтах
- * @property ready готова ли серия к работе: карта ключевых кадров посчитана
+ * @property ready готова ли эпизод к работе: карта ключевых кадров посчитана
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class EpisodeView(
@@ -114,13 +114,13 @@ data class EpisodeView(
 )
 
 /**
- * Описание сериала в ответе.
+ * Описание фильма в ответе.
  *
- * @property id идентификатор сериала
- * @property name название сериала
- * @property sourceRoot корень каталога сериала
+ * @property id идентификатор фильма
+ * @property name название фильма
+ * @property sourceRoot корень каталога фильма
  * @property createdAt дата создания
- * @property episodeCount сколько серий заведено
+ * @property episodeCount сколько эпизодов заведено
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class MovieView(
@@ -132,13 +132,13 @@ data class MovieView(
 )
 
 /**
- * Ответ на создание сериала.
+ * Ответ на создание фильма.
  *
- * Настройки идут вместе с сериалом: они создаются автоматически, и оператор
+ * Настройки идут вместе с фильмом: они создаются автоматически, и оператор
  * правит их сразу же. Отдельный запрос за ними был бы лишним обращением: у
- * только что созданного сериала настроек не может не быть.
+ * только что созданного фильма настроек не может не быть.
  *
- * @property movie созданный сериал
+ * @property movie созданный фильм
  * @property settings значения настроек по умолчанию
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
@@ -148,11 +148,11 @@ data class CreatedMovieView(
 )
 
 /**
- * Ответ на чтение сериала.
+ * Ответ на чтение фильма.
  *
- * @property movie сериал
- * @property episode серии сериала
- * @property settings настройки сериала
+ * @property movie фильм
+ * @property episode эпизода фильма
+ * @property settings настройки фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class MovieDetailView(
@@ -193,23 +193,23 @@ data class SettingsUpdateView(
 )
 
 /**
- * Эндпоинты приёма сериала и серии.
+ * Эндпоинты приёма фильма и эпизода.
  *
- * Здесь только приём: создать сериал, завести серию, прочитать параметры,
+ * Здесь только приём: создать фильм, завести эпизод, прочитать параметры,
  * снять с учёта и настроить пороги. Всё, что требует чтения всего файла
- * целиком, живёт в заданиях очереди, а не в HTTP-запросе: иначе одна
- * регистрация серии занимала бы соединение интерфейса на минуты.
+ * целиком, живёт в заданиях очереди, а не в HTTP-запросе: иначе одного
+ * регистрация эпизода занимала бы соединение интерфейса на минуты.
  *
  * Ответы содержат те же поля, что и контракт
  * [`admin-api.md`](../../../../../specs/001-first-vertical-slice/contracts/admin-api.md),
  * раздел 3. Коды ошибок общие с публичной частью и приходят из
  * `ErrorCode`: интерфейс принимает решение по коду, человек читает текст.
  *
- * @property movies хранилище сериалов
- * @property episodeStore хранилище серий
+ * @property movies хранилище фильмов
+ * @property episodeStore хранилище эпизодов
  * @property settingsStore хранилище настроек
- * @property registration регистрация серии с проверкой пути
- * @property checksums постановщик подсчёта суммы: при регистрации серии
+ * @property registration регистрация эпизода с проверкой пути
+ * @property checksums постановщик подсчёта суммы: при регистрации эпизода
  *   подсчёт ставится автоматически, без актуальной суммы сценарий отдать
  *   нельзя (FR-089)
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -224,21 +224,21 @@ class CatalogController(
     private val staleness: Staleness? = null,
 ) {
     /**
-     * Перечисляет сериалы с числом серий каждого.
+     * Перечисляет фильмы с числом эпизодов каждого.
      *
-     * @return список сериалов
+     * @return список фильмов
      */
     @GetMapping("/api/movies")
     fun listMovies(): List<MovieView> = movies.listWithEpisodeCount().map { it.movie.toView(it.episodeCount) }
 
     /**
-     * Создаёт сериал.
+     * Создаёт фильм.
      *
      * Ответ содержит значения настроек по умолчанию: они создаются триггером
      * базы, и оператор правит их сразу (ADR-0003).
      *
      * @param request название и корень каталога
-     * @return созданный сериал с настройками, код `201`
+     * @return созданный фильм с настройками, код `201`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `CONFLICT`, если название занято
      */
@@ -252,12 +252,12 @@ class CatalogController(
     }
 
     /**
-     * Читает сериал, его серии и настройки.
+     * Читает фильм, его эпизодов и настройки.
      *
-     * @param movieId идентификатор сериала
-     * @return сериал с сериями и настройками
+     * @param movieId идентификатор фильма
+     * @return фильм с эпизодами и настройками
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если сериала нет
+     *   `NOT_FOUND`, если фильма нет
      */
     @GetMapping("/api/movies/{movieId}")
     fun readMovie(
@@ -272,15 +272,15 @@ class CatalogController(
     }
 
     /**
-     * Удаляет сериал вместе со всеми производными данными.
+     * Удаляет фильм вместе со всеми производными данными.
      *
      * Файлы архива при этом не трогаются: они принадлежат не системе.
      * Операция необратима и подтверждается оператором.
      *
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @return пустой ответ, код `204`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если сериала нет
+     *   `NOT_FOUND`, если фильма нет
      */
     @DeleteMapping("/api/movies/{movieId}")
     fun deleteMovie(
@@ -292,12 +292,12 @@ class CatalogController(
     }
 
     /**
-     * Перечисляет серии сериала.
+     * Перечисляет эпизоды фильма.
      *
-     * @param movieId идентификатор сериала
-     * @return серии в порядке порядковых номеров
+     * @param movieId идентификатор фильма
+     * @return эпизода в порядке порядковых номеров
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если сериала нет
+     *   `NOT_FOUND`, если фильма нет
      */
     @GetMapping("/api/movies/{movieId}/episodes")
     fun listEpisode(
@@ -308,16 +308,16 @@ class CatalogController(
     }
 
     /**
-     * Регистрирует серию в сериале.
+     * Регистрирует эпизод в фильме.
      *
-     * Путь обязан лежать внутри корня каталога сериала, а файл обязан
+     * Путь обязан лежать внутри корня каталога фильма, а файл обязан
      * существовать и читаться: иначе ответ — ошибка `SOURCE_UNREADABLE`, а не
      * «успех с пустым результатом» (FR-092). Параметры снимаются с самого
      * файла, оператором не вводятся (FR-002).
      *
-     * @param movieId идентификатор сериала
-     * @param request путь к файлу и, по желанию, название серии
-     * @return зарегистрированная серия с определёнными параметрами, код `201`
+     * @param movieId идентификатор фильма
+     * @param request путь к файлу и, по желанию, название эпизода
+     * @return зарегистрированный эпизод с определёнными параметрами, код `201`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `SOURCE_UNREADABLE`, если путь вне корня или файл недоступен
      */
@@ -337,19 +337,19 @@ class CatalogController(
             )
         // Подсчёт суммы ставится сразу: он считается заданием и идёт в фоне,
         // а ждать его в этом запросе нельзя — это нарушало бы constitution
-        // IV.1 (FR-003). Отказ постановки не отменяет регистрацию: серия уже
+        // IV.1 (FR-003). Отказ постановки не отменяет регистрацию: эпизод уже
         // заведена, а пересчёт можно поставить кнопкой.
         runCatching { checksums?.enqueueAutomatic(registered) }
         return ResponseEntity.status(HttpStatus.CREATED).body(registered.toView(movie))
     }
 
     /**
-     * Читает параметры серии и состояние готовности.
+     * Читает параметры эпизода и состояние готовности.
      *
-     * @param episodeId идентификатор серии
-     * @return параметры серии
+     * @param episodeId идентификатор эпизода
+     * @return параметры эпизода
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если серии нет
+     *   `NOT_FOUND`, если эпизода нет
      */
     @GetMapping("/api/episodes/{episodeId}")
     fun readEpisode(
@@ -360,15 +360,15 @@ class CatalogController(
     }
 
     /**
-     * Снимает серию с учёта.
+     * Снимает эпизод с учёта.
      *
      * Файл источника не трогается — он лежит в архиве и принадлежит не
-     * системе. Удаляются записи о серии и производные от них данные.
+     * системе. Удаляются записи о эпизоде и производные от них данные.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return пустой ответ, код `204`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если серии нет
+     *   `NOT_FOUND`, если эпизода нет
      */
     @DeleteMapping("/api/episodes/{episodeId}")
     fun deleteEpisode(
@@ -382,10 +382,10 @@ class CatalogController(
     /**
      * Читает настройки анализа и выдачи сценария.
      *
-     * @param movieId идентификатор сериала
-     * @return настройки сериала
+     * @param movieId идентификатор фильма
+     * @return настройки фильма
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если сериала нет
+     *   `NOT_FOUND`, если фильма нет
      */
     @GetMapping("/api/movies/{movieId}/settings")
     fun readSettings(
@@ -407,7 +407,7 @@ class CatalogController(
      * запускается: он уничтожил бы ручные правки оператора, которые
      * накапливаются месяцами. Решение о пересчёте принимает человек.
      *
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @param changes новые значения по именам настроек
      * @return настройки после изменения и список действительно изменившихся
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
@@ -427,32 +427,32 @@ class CatalogController(
     }
 
     /**
-     * Читает сериал или отказывает.
+     * Читает фильм или отказывает.
      *
-     * Отказ `NOT_FOUND`, а не пустой список: пустой ответ на «сериала нет»
-     * выглядел бы как «у сериала нет серий», и интерфейс показал бы пустую
-     * страницу вместо того, чтобы сказать, что сериал не заведён.
+     * Отказ `NOT_FOUND`, а не пустой список: пустой ответ на «фильма нет»
+     * выглядел бы как «у фильма нет эпизодов», и интерфейс показал бы пустую
+     * страницу вместо того, чтобы сказать, что фильм не заведён.
      *
-     * @param movieId идентификатор сериала
-     * @return сериал
-     * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
+     * @param movieId идентификатор фильма
+     * @return фильм
+     * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
     private fun requireMovie(movieId: Long): Movie =
         movies.find(movieId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "сериал $movieId не заведён")
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "фильм $movieId не заведён")
 
     /**
-     * Читает серию или отказывает.
+     * Читает эпизод или отказывает.
      *
-     * @param episodeId идентификатор серии
-     * @return серия
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @param episodeId идентификатор эпизода
+     * @return эпизод
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     private fun requireEpisode(episodeId: Long): Episode =
         episodeStore.find(episodeId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "серия $episodeId не зарегистрирована")
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $episodeId не зарегистрирована")
 
-    /** Собирает список настроек сериала для ответа. */
+    /** Собирает список настроек фильма для ответа. */
     private fun settingsView(movieId: Long): List<SettingView> {
         val read = settingsStore.read(movieId)
         return MovieSetting.entries.map { setting ->
@@ -468,10 +468,10 @@ class CatalogController(
 }
 
 /**
- * Описание сериала для ответа.
+ * Описание фильма для ответа.
  *
- * @param episodeCount сколько серий заведено
- * @return описание сериала
+ * @param episodeCount сколько эпизодов заведено
+ * @return описание фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 internal fun Movie.toView(episodeCount: Int): MovieView =
@@ -484,10 +484,10 @@ internal fun Movie.toView(episodeCount: Int): MovieView =
     )
 
 /**
- * Описание серии для ответа.
+ * Описание эпизода для ответа.
  *
- * @param movie сериал-владелец: из него берётся корень для относительного пути
- * @return описание серии
+ * @param movie фильм-владелец: из него берётся корень для относительного пути
+ * @return описание эпизода
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 internal fun Episode.toView(

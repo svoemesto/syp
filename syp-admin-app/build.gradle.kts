@@ -17,7 +17,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
 
-    // Jackson с поддержкой Kotlin: разбор и запись значений настроек сериала
+    // Jackson с поддержкой Kotlin: разбор и запись значений настроек фильма
     // (столбец jsonb) и разбор тела запроса в контроллере. Зависимость и так
     // приходит в корзине Spring Boot, но объявлена явно: без неё модуль молча
     // опирался бы на чужую транзитивную, и её отключение сломало бы сборку
@@ -27,7 +27,7 @@ dependencies {
     // Модуль времени: без него Jackson не умеет ни прочитать, ни отдать
     // java.time.Instant и отвечает 500 на любой ответ с датой. Нашлось на
     // сквозном прогоне: GET /api/movies отвечал 200 на пустом списке и
-    // падал 500, как только сериал создавался и в ответе появлялась дата.
+    // падал 500, как только фильм создавался и в ответе появлялась дата.
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

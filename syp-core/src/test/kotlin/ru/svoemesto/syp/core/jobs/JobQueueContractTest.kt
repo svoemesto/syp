@@ -349,7 +349,7 @@ class JobQueueContractTest {
 
     /**
      * Свойство 8: прерванный подсчёт суммы не оставляет запись в состоянии
-     * `DONE`, и у серии не может оказаться двух актуальных сумм (FR-089).
+     * `DONE`, и у эпизода не может оказаться двух актуальных сумм (FR-089).
      */
     @Test
     @DisplayName("Свойство 8: прерванный подсчёт суммы не оставляет DONE")
@@ -393,7 +393,7 @@ class JobQueueContractTest {
                     episodeId,
                 )
             }
-        assertTrue(second.isFailure, "вторая актуальная сумма той же серии должна отклоняться базой")
+        assertTrue(second.isFailure, "вторая актуальная сумма того же эпизода должна отклоняться базой")
 
         // Первая актуальная сумма на месте, устаревших — сколько угодно.
         val current =
@@ -439,7 +439,7 @@ class JobQueueContractTest {
             algorithmVersion = "contract-test-1",
         )
 
-    /** Создаёт серию для проверок справочника сумм. */
+    /** Создаёт эпизод для проверок справочника сумм. */
     private fun createEpisode(db: ru.svoemesto.syp.core.db.Db): Long {
         val movieId =
             db.use { connection ->

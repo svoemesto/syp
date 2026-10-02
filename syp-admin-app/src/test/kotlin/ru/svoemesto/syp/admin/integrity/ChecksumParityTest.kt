@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
  *
  * Что проверяется. Сумма, посчитанная системой, сверяется с выводом
  * `sha256sum` — программы, которой воспользуется воркер на машине
- * пользователя. Сверка идёт на **настоящем файле серии**: сумма на
+ * пользователя. Сверка идёт на **настоящем файле эпизода**: сумма на
  * синтетическом файле ничего не говорит о 5,6 ГБ, которые придётся читать.
  *
  * Проверка идёт через настоящий путь: постановка задания, воркер, исполнитель,
@@ -39,7 +39,7 @@ import kotlin.test.assertTrue
  * Замер ведётся в трёх прогонах: время чтения 5,6 ГБ меняется от кэша
  * диска, а число без повторов — мнение, а не измерение.
  *
- * Проверка требует файла серии и живой базы. Без них она **пропускается**,
+ * Проверка требует файла эпизода и живой базы. Без них она **пропускается**,
  * а не падает.
  *
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -80,10 +80,10 @@ class ChecksumParityTest {
     }
 
     /**
-     * Путь к проверяемому файлу серии из окружения.
+     * Путь к проверяемому файлу эпизода из окружения.
      *
-     * @return путь к файлу серии
-     * @throws org.opentest4j.TestAbortedException если переменная не задана
+     * @return путь к файлу эпизода
+     * @throws org.opentest4j.TestAbortedException если переменный не задана
      */
     private fun requireEpisode(): Path {
         val declared = System.getenv(ENV_EPISODE)
@@ -91,7 +91,7 @@ class ChecksumParityTest {
             "Переменная $ENV_EPISODE не задана: сверка суммы с внешней пропущена"
         }
         val path = Paths.get(declared!!)
-        assumeTrue(Files.isRegularFile(path)) { "Файла серии $path нет: сверка пропущена" }
+        assumeTrue(Files.isRegularFile(path)) { "Файла эпизода $path нет: сверка пропущена" }
         return path
     }
 
@@ -152,8 +152,8 @@ class ChecksumParityTest {
                 episodePath.toString(),
                 "S1E1",
             )
-        println("определение параметров серии: ${elapsedSeconds(probeStarted)} с")
-        println("серия: ${episode.frameCount} кадров, ${episode.byteSize} байт, карта ключевых ${episode.keyframeMap?.keyframeCount()}")
+        println("определение параметров эпизода: ${elapsedSeconds(probeStarted)} с")
+        println("эпизод: ${episode.frameCount} кадров, ${episode.byteSize} байт, карта ключевых ${episode.keyframeMap?.keyframeCount()}")
 
         val external = sha256sumOf(episodePath)
         println("sha256sum файла: $external")
@@ -200,7 +200,7 @@ class ChecksumParityTest {
     private fun elapsedSeconds(started: Long): Double = (System.nanoTime() - started) / 1_000_000_000.0
 
     private companion object {
-        /** Имя переменной окружения с путём к файлу серии. */
+        /** Имя переменной окружения с путём к файлу эпизода. */
         const val ENV_EPISODE: String = "SYP_SOURCE_EPISODE"
 
         /** Сколько прогонов измеряется: один прогон — мнение, три — измерение. */

@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
  *
  * Требования задачи:
  *
- * 1. **у каждого сериала есть обе персоны-заглушки** — «распознано, но имя не
+ * 1. **у каждого фильма есть обе персоны-заглушки** — «распознано, но имя не
  *    подтверждено» и «не лицо»;
  * 2. **удалению они не подлежат** — ни через сервис, ни прямым `DELETE`;
  * 3. **ссылка на персону у лица непустая всегда** — «нет персоны» выражается
@@ -56,11 +56,11 @@ class PersonServiceTest {
     }
 
     @Test
-    fun `у нового сериала сразу есть обе служебные персоны`() {
+    fun `у нового фильма сразу есть обе служебные персоны`() {
         val movie = movies.create("Персоны ${System.nanoTime()}", "/srv/got")
         val service = persons.listByMovie(movie.id!!).filter { it.kind.isService }
 
-        assertEquals(2, service.size, "у сериала обязаны быть обе служебные персоны")
+        assertEquals(2, service.size, "у фильма обязаны быть обе служебные персоны")
         assertEquals(
             setOf(PersonKind.UNRECOGNIZED, PersonKind.NONPERSON),
             service.map { it.kind }.toSet(),
@@ -86,7 +86,7 @@ class PersonServiceTest {
         assertEquals(
             2,
             persons.listByMovie(movie.id).count { it.kind.isService },
-            "служебных персон у сериала должно быть ровно две",
+            "служебных персон у фильма должно быть ровно две",
         )
     }
 
@@ -188,10 +188,10 @@ class PersonServiceTest {
     }
 
     /**
-     * Заводит серию в сериале.
+     * Заводит эпизод в фильме.
      *
-     * @param movieId идентификатор сериала
-     * @return записанная серия
+     * @param movieId идентификатор фильма
+     * @return записанный эпизод
      */
     private fun newEpisode(movieId: Long): Episode =
         episodeStore.insert(
@@ -219,7 +219,7 @@ class PersonServiceTest {
     /**
      * Заводит лицо, отнесённое к персонам.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param frame номер кадра
      * @param personId идентификатор персоны
      */

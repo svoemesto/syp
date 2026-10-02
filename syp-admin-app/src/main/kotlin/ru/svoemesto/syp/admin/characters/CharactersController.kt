@@ -35,9 +35,9 @@ data class PersonView(
 )
 
 /**
- * Персоны сериала в ответе.
+ * Персоны фильма в ответе.
  *
- * @property movieId сериал
+ * @property movieId фильм
  * @property persons персоны: сначала служебные, затем именованные по имени
  */
 data class PersonsView(
@@ -49,7 +49,7 @@ data class PersonsView(
  * Лицо в ответе.
  *
  * Время не приходит: номер кадра — единственный источник правды, а клиент
- * пересчитывает время от `time_base` серии (ADR-0001).
+ * пересчитывает время от `time_base` эпизода (ADR-0001).
  *
  * @property id идентификатор лица
  * @property frameNumber номер кадра
@@ -84,17 +84,17 @@ data class FaceView(
 )
 
 /**
- * Лица серии в ответе.
+ * Лица эпизода в ответе.
  *
- * Список пагинируется **всегда**: на серии лиц десятки тысяч, а полный
+ * Список пагинируется **всегда**: на эпизоде лиц десятки тысяч, а полный
  * ответ занял бы мегабайты и положил бы вкладку оператора
  * (`admin-api.md` § 1.5).
  *
- * @property episodeId серия
- * @property movieId сериал-владелец: по нему клиент читает справочник персон
- * @property frameWidth ширина кадра серии: по ней клиент кладёт рамку на миниатюру
- * @property frameHeight высота кадра серии
- * @property facesTotal сколько лиц у серии всего
+ * @property episodeId эпизод
+ * @property movieId фильм-владелец: по нему клиент читает справочник персон
+ * @property frameWidth ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру
+ * @property frameHeight высота кадра эпизода
+ * @property facesTotal сколько лиц у эпизода всего
  * @property offset смещение выборки
  * @property limit размер выборки
  * @property faces лица выборки
@@ -126,16 +126,16 @@ data class FaceClusterView(
 )
 
 /**
- * Кластеры серии в ответе.
+ * Кластеры эпизода в ответе.
  *
  * Отдаются **без имени**: кластер, которому оператор дал имя, стал персоной
  * и в списке кластеров безымянных не показывается (FR-031).
  *
- * @property episodeId серия
- * @property frameWidth ширина кадра серии: по ней клиент кладёт рамку на миниатюру
- * @property frameHeight высота кадра серии
+ * @property episodeId эпизод
+ * @property frameWidth ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру
+ * @property frameHeight высота кадра эпизода
  * @property embeddingModelKey ключ модели эмбеддингов, которой получены векторы
- * @property clustersTotal сколько кластеров без имени у серии
+ * @property clustersTotal сколько кластеров без имени у эпизода
  * @property clusters кластеры по убыванию числа лиц
  */
 data class FaceClustersView(
@@ -199,9 +199,9 @@ data class RenamePersonRequest(
  * @property embeddings хранилище эмбеддингов
  * @property clustering кластеризация на холодном старте
  * @property persons сервис персон
- * @property episodeStore хранилище серий
- * @property movies хранилище сериалов
- * @property settingsStore настройки сериала
+ * @property episodeStore хранилище эпизодов
+ * @property movies хранилище фильмов
+ * @property settingsStore настройки фильма
  * @property embeddingModelKey ключ модели эмбеддингов из конфигурации развёртывания
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
@@ -218,13 +218,13 @@ class CharactersController(
     private val embeddingModelKey: String,
 ) {
     /**
-     * Отдаёт лица серии.
+     * Отдаёт лица эпизода.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param offset смещение выборки
      * @param limit размер выборки
-     * @return страница лиц серии
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @return страница лиц эпизода
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     @GetMapping("/episodes/{episodeId}/faces")
     fun readFaces(
@@ -250,7 +250,7 @@ class CharactersController(
     }
 
     /**
-     * Отдаёт кластеры похожих лиц серии, у которых ещё нет имени.
+     * Отдаёт кластеры похожих лиц эпизода, у которых ещё нет имени.
      *
      * Кластеры **вычисляются** из эмбеддингов при чтении и не хранятся: они
      * производны от векторов, и второе место, где живёт истина о похожестве
@@ -260,9 +260,9 @@ class CharactersController(
      * «распознано, имя не подтверждено»: «нет персоны» выражается заглушкой,
      * а не пустой ссылкой (Р-12).
      *
-     * @param episodeId идентификатор серии
-     * @return кластеры серии
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @param episodeId идентификатор эпизода
+     * @return кластеры эпизода
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     @GetMapping("/episodes/{episodeId}/faces/clusters")
     fun readClusters(
@@ -323,7 +323,7 @@ class CharactersController(
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
                     "Лицо $anchorId ещё есть, но кластера «$clusterId» уже нет: состав лиц " +
-                        "серии изменился, перечитайте список кластеров",
+                        "эпизода изменился, перечитайте список кластеров",
                 )
         val movieId = requireEpisode(anchor.episodeId).movieId
         val person =
@@ -349,11 +349,11 @@ class CharactersController(
     }
 
     /**
-     * Отдаёт персон сериала.
+     * Отдаёт персон фильма.
      *
-     * @param movieId идентификатор сериала
-     * @return персоны сериала
-     * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
+     * @param movieId идентификатор фильма
+     * @return персоны фильма
+     * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
     @GetMapping("/movies/{movieId}/persons")
     fun readPersons(
@@ -394,7 +394,7 @@ class CharactersController(
      * @param personId идентификатор персоны
      * @return `204`, если персона удалена
      * @throws DomainException с кодом `NOT_FOUND`, если персоны нет; с кодом
-     *   `CONFLICT`, если персона служебная
+     *   `CONFLICT`, если персона служебного
      */
     @DeleteMapping("/persons/{personId}")
     fun deletePerson(
@@ -405,10 +405,10 @@ class CharactersController(
     }
 
     /**
-     * Кластеры серии по её эмбеддингам.
+     * Кластеры эпизода по её эмбеддингам.
      *
-     * @param episodeId серия
-     * @return кластеры серии
+     * @param episodeId эпизод
+     * @return кластеры эпизода
      */
     private fun clustersOf(episodeId: Long): List<FaceCluster> =
         clustering.cluster(
@@ -442,25 +442,25 @@ class CharactersController(
             )
 
     /**
-     * Требует серию.
+     * Требует эпизод.
      *
-     * @param episodeId идентификатор серии
-     * @return серия
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @param episodeId идентификатор эпизода
+     * @return эпизод
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     private fun requireEpisode(episodeId: Long): Episode =
         episodeStore.find(episodeId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "Серия $episodeId не зарегистрирована")
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "Эпизод $episodeId не зарегистрирована")
 
     /**
-     * Требует сериал.
+     * Требует фильм.
      *
-     * @param movieId идентификатор сериала
-     * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
+     * @param movieId идентификатор фильма
+     * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
     private fun requireMovie(movieId: Long) {
         if (movies.find(movieId) == null) {
-            throw DomainException(ErrorCode.NOT_FOUND, "Сериал $movieId не заведён")
+            throw DomainException(ErrorCode.NOT_FOUND, "Фильм $movieId не заведён")
         }
     }
 

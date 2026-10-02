@@ -17,14 +17,14 @@ import ru.svoemesto.syp.admin.catalog.MovieSettings
  *    (FR-032, SC-006);
  * 3. **не пишет в кадры без лиц**: пустой список означает «в кадре нет лиц»,
  *    и запись пустого списка означала бы лишний поход в базу на каждом
- *    кадре серии — при 88 643 кадрах это десятки тысяч холостых транзакций.
+ *    кадре эпизода — при 88 643 кадрах это десятки тысяч холостых транзакций.
  *
  * @property faces хранилище лиц
  * @property nonPersonFilter отбрасывание рамок, которые лицом не являются
- * @property maxAspect порог пропорции из настроек сериала
+ * @property maxAspect порог пропорции из настроек фильма
  * @property unrecognizedId служебная персона «распознано, имя не подтверждено»
  * @property nonPersonId служебная персона «не лицо»
- * @property episodeId серия, к которой относятся рамки
+ * @property episodeId эпизод, к которой относятся рамки
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class StoringFaceSink(
@@ -64,11 +64,11 @@ class StoringFaceSink(
 }
 
 /**
- * Сборка приёмника рамок для серии.
+ * Сборка приёмника рамок для эпизода.
  *
- * Служебные персоны читаются **один раз на серию**, а не на каждый кадр:
+ * Служебные персоны читаются **один раз на эпизод**, а не на каждый кадр:
  * на 88 643 кадрах это 88 643 похода в базу за двумя строками, которые не
- * менялись с момента заведения сериала.
+ * менялись с момента заведения фильма.
  *
  * @property faces хранилище лиц
  * @property persons сервис персон
@@ -81,17 +81,17 @@ class FaceSinkFactory(
     private val nonPersonFilter: NonPersonFilter,
 ) {
     /**
-     * Собирает приёмник рамок для серии.
+     * Собирает приёмник рамок для эпизода.
      *
-     * @param episode серия; из неё берётся сериал-владелец
-     * @param settings настройки сериала: из них берётся порог пропорции
+     * @param episode эпизод; из неё берётся фильм-владелец
+     * @param settings настройки фильма: из них берётся порог пропорции
      * @return приёмник, пишущий рамки в базу
      */
     fun forEpisode(
         episode: ru.svoemesto.syp.admin.catalog.Episode,
         settings: MovieSettings,
     ): FaceSink {
-        val episodeId = requireNotNull(episode.id) { "У серии «${episode.name}» нет идентификатора: рамкам некуда писаться" }
+        val episodeId = requireNotNull(episode.id) { "У эпизода «${episode.name}» нет идентификатора: рамкам некуда писаться" }
         val unrecognized =
             requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
         val nonPerson = requireNotNull(persons.servicePerson(episode.movieId, PersonKind.NONPERSON).id)

@@ -98,10 +98,10 @@ object TestDatabase {
     }
 
     /**
-     * Заводит сериал для теста.
+     * Заводит фильм для теста.
      *
-     * @param name название сериала, уникальное внутри прогона
-     * @return идентификатор сериала
+     * @param name название фильма, уникальное внутри прогона
+     * @return идентификатор фильма
      */
     fun insertMovie(name: String): Long =
         connection().use { connection ->
@@ -119,11 +119,11 @@ object TestDatabase {
         }
 
     /**
-     * Заводит серию для теста с минимальным набором параметров.
+     * Заводит эпизод для теста с минимальным набором параметров.
      *
-     * @param movieId сериал-владелец
-     * @param name название серии
-     * @return идентификатор серии
+     * @param movieId фильм-владелец
+     * @param name название эпизода
+     * @return идентификатор эпизода
      */
     fun insertEpisode(
         movieId: Long,
@@ -155,7 +155,7 @@ object TestDatabase {
     /**
      * Заводит сцену для теста.
      *
-     * @param episodeId серия-владелец
+     * @param episodeId эпизод-владелец
      * @param firstFrame расчётная граница начала
      * @param lastFrame расчётная граница конца
      * @return идентификатор сцены
@@ -187,7 +187,7 @@ object TestDatabase {
      * записать обычным путём, а проверить надо именно то, что база его не
      * пропустит.
      *
-     * @param movieId сериал-владелец
+     * @param movieId фильм-владелец
      * @param name название сценария
      * @param state состояние выдачи
      * @param artifactId артефакт

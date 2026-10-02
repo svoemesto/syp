@@ -66,11 +66,11 @@ class ChecksumRegistryTest {
     private fun digest(seed: Int): String = "%064x".format(seed)
 
     /**
-     * Создаёт серию на временном файле заданного размера.
+     * Создаёт эпизод на временном файле заданного размера.
      *
-     * @param byteSize размер файла серии
-     * @param path файл серии
-     * @return записанная серия
+     * @param byteSize размер файла эпизода
+     * @param path файл эпизода
+     * @return записанный эпизод
      */
     private fun newEpisode(
         byteSize: Long,
@@ -101,7 +101,7 @@ class ChecksumRegistryTest {
     }
 
     @Test
-    fun `новая сумма не затирает прежнюю и актуальной остаётся одна`() {
+    fun `новый сумма не затирает прежнюю и актуальной остаётся одна`() {
         val file = Files.createTempFile("syp-sum", ".bin")
         Files.write(file, ByteArray(4096))
         val episode = newEpisode(4096, file)
@@ -139,7 +139,7 @@ class ChecksumRegistryTest {
             }
         assertTrue(
             conflict.message!!.contains("source_file_checksum_one_current_idx"),
-            "вторая актуальная сумма той же серии обязана отклоняться базой, а отказ шёл с текстом: ${conflict.message}",
+            "вторая актуальная сумма того же эпизода обязана отклоняться базой, а отказ шёл с текстом: ${conflict.message}",
         )
     }
 
@@ -157,7 +157,7 @@ class ChecksumRegistryTest {
 
         assertFalse(registry.isUsable(episode.id!!), "после изменения размера файла сумма устарела и непригодна")
         val stored = registry.current(episode.id!!)
-        assertNull(stored, "актуальной суммы у серии быть не должно")
+        assertNull(stored, "актуальной суммы у эпизода быть не должно")
         val history = registry.history(episode.id!!)
         assertEquals(digest(4), history.first().digest, "старое значение сохраняется: по нему видно подмену")
 
@@ -204,7 +204,7 @@ class ChecksumRegistryTest {
     }
 
     @Test
-    fun `второй подсчёт той же серии отклоняется, пока идёт первый`() {
+    fun `второй подсчёт того же эпизода отклоняется, пока идёт первый`() {
         val file = Files.createTempFile("syp-sum", ".bin")
         Files.write(file, ByteArray(4096))
         val episode = newEpisode(4096, file)
@@ -258,9 +258,9 @@ class ChecksumRegistryTest {
     }
 
     /**
-     * Ставит задание вида `HASH` для серии.
+     * Ставит задание вида `HASH` для эпизода.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return идентификатор задания
      */
     private fun enqueueHashJob(episodeId: Long): Long =

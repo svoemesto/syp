@@ -48,10 +48,10 @@ class FrameSignificanceTest {
     }
 
     /**
-     * Заводит серию с указанным числом кадров.
+     * Заводит эпизод с указанным числом кадров.
      *
-     * @param frameCount число кадров серии
-     * @return записанная серия
+     * @param frameCount число кадров эпизода
+     * @return записанный эпизод
      */
     private fun newEpisode(frameCount: Int): Episode {
         val movies = MovieStore(db)
@@ -138,7 +138,7 @@ class FrameSignificanceTest {
     }
 
     @Test
-    fun `на серии 88 643 кадра значимых кадров немного`() {
+    fun `на эпизоде 88 643 кадра значимых кадров немного`() {
         val episode = newEpisode(88_643)
         val boundaries = listOf(0, 150, 1500, 88_000)
 
@@ -149,7 +149,7 @@ class FrameSignificanceTest {
         assertEquals(boundaries.size, store.countByEpisode(episode.id!!))
         assertTrue(
             store.countByEpisode(episode.id!!) < episode.frameCount / 100,
-            "значимых кадров на два порядка меньше, чем кадров серии: полной таблицы нет (Р-07)",
+            "значимых кадров на два порядка меньше, чем кадров эпизода: полный таблицы нет (Р-07)",
         )
     }
 }

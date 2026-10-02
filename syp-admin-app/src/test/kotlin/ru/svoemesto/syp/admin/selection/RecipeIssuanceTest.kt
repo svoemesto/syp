@@ -134,7 +134,7 @@ class RecipeIssuanceTest {
             items[0].personNames.contains("Не лицо"),
             "служебная персона не является персонажем сцены (Р-12)",
         )
-        assertEquals(fixture.relativePath, items[0].relativePath, "путь относителен корню сериала (FR-089a)")
+        assertEquals(fixture.relativePath, items[0].relativePath, "путь относителен корню фильма (FR-089a)")
 
         // Правка справочника после выдачи не «слепит» уже скачанный сценарий.
         db.update("UPDATE tbl_locations SET name = ? WHERE id = ?", "Лагерь Хуттон", fixture.locationId)
@@ -156,22 +156,22 @@ class RecipeIssuanceTest {
     }
 
     @Test
-    fun `несовместимые серии не выдаются с перечнем различающихся признаков`() {
+    fun `несовместимые эпизоды не выдаются с перечнем различающихся признаков`() {
         val fixture = fixture(profile = "High")
         val other = newEpisode(fixture.movieId, "S1E2", ordinal = 1, profile = "Main")
         val scene = newScene(other.id!!, 20, 60)
-        // Актуальная сумма есть, но серии несовместимы по профилю видео.
+        // Актуальная сумма есть, но эпизода несовместимы по профилю видео.
         checksums.begin(other, null).let { entry ->
             checksums.complete(entry.id!!, digest(7), other.byteSize, other.fileMtime)
         }
 
         val failure =
             assertFailsWith<DomainException> {
-                builder().issue("Разные серии", fixture.sceneIds + scene)
+                builder().issue("Разные эпизоды", fixture.sceneIds + scene)
             }
         assertEquals(ErrorCode.INCOMPATIBLE_EPISODE, failure.code)
         assertEquals(422, failure.code.httpStatus)
-        assertTrue(failure.items.isNotEmpty(), "отказ перечисляет проблемные серии")
+        assertTrue(failure.items.isNotEmpty(), "отказ перечисляет проблемные эпизода")
     }
 
     @Test
@@ -218,7 +218,7 @@ class RecipeIssuanceTest {
             clock = clock,
         )
 
-    /** Данные для одной выдачи: сериал, серия с суммой, сцена, локация, персона, лицо. */
+    /** Данные для одной выдачи: фильм, эпизод с суммой, сцена, локация, персона, лицо. */
     private fun fixture(
         profile: String,
         withChecksum: Boolean = true,
@@ -246,7 +246,7 @@ class RecipeIssuanceTest {
         )
     }
 
-    /** Создаёт серию с картой ключевых кадров. */
+    /** Создаёт эпизод с картой ключевых кадров. */
     private fun newEpisode(
         movieId: Long,
         name: String,
@@ -258,7 +258,7 @@ class RecipeIssuanceTest {
                 movieId = movieId,
                 ordinal = ordinal,
                 name = name,
-                // Путь уникален во всей базе: одна серия на один файл, поэтому
+                // Путь уникален во всей базе: один эпизод на один файл, поэтому
                 // повторный прогон набора проверок не должен натыкаться на
                 // прежний ряд.
                 sourcePath = SOURCE_ROOT + "/" + name + "-" + System.nanoTime() + ".mkv",
@@ -300,7 +300,7 @@ class RecipeIssuanceTest {
                 }
         }
 
-    /** Вставляет место действия сериала. */
+    /** Вставляет место действия фильма. */
     private fun insertLocation(
         movieId: Long,
         name: String,
@@ -318,7 +318,7 @@ class RecipeIssuanceTest {
                 }
         }
 
-    /** Вставляет обычную персону сериала. */
+    /** Вставляет обычную персону фильма. */
     private fun insertPerson(
         movieId: Long,
         name: String,
@@ -372,16 +372,16 @@ class RecipeIssuanceTest {
     )
 
     private companion object {
-        /** Корень каталога сериала на тестовой машине. */
+        /** Корень каталога фильма на тестовой машине. */
         const val SOURCE_ROOT: String = "/tmp/syp-test-movie"
 
         /** Идентификатор тестовой пары ключей. */
         const val TEST_KEY_ID: String = "syp-test-2026-10"
 
-        /** Число кадров тестовой серии. */
+        /** Число кадров тестового эпизода. */
         const val FRAME_COUNT: Int = 100
 
-        /** Ключевые кадры тестовой серии: округление границ идёт к ним. */
+        /** Ключевые кадры тестового эпизода: округление границ идёт к ним. */
         val KEYFRAMES: List<Int> = listOf(0, 25, 50, 75, 99)
     }
 }

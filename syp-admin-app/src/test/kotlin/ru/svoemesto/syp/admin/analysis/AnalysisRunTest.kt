@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
  * 1. **повторный анализ создаёт новый прогон и новые сырые границы**, а
  *    предыдущие остаются — иначе невозможно ни сравнить «было и стало», ни
  *    сказать, какими входами получен результат (FR-090, FR-093);
- * 2. **сцены покрывают серию без разрывов и перекрытий**, и то же верно для
+ * 2. **сцены покрывают эпизод без разрывов и перекрытий**, и то же верно для
  *    планов (FR-011);
  * 3. **происхождение границы принимает ровно три значения**, а связь сцена и
  *    плана не хранится, а вычисляется по диапазонам кадров (ADR-0007).
@@ -60,10 +60,10 @@ class AnalysisRunTest {
     }
 
     /**
-     * Заводит серию с указанным числом кадров.
+     * Заводит эпизод с указанным числом кадров.
      *
-     * @param frameCount число кадров серии
-     * @return записанная серия
+     * @param frameCount число кадров эпизода
+     * @return записанный эпизод
      */
     private fun newEpisode(frameCount: Int): Episode {
         val movies = MovieStore(db)
@@ -218,7 +218,7 @@ class AnalysisRunTest {
     }
 
     @Test
-    fun `сцены и планы покрывают серию без разрывов и перекрытий`() {
+    fun `сцены и планы покрывают эпизод без разрывов и перекрытий`() {
         val episode = newEpisode(1000)
         val detection =
             DetectionResult(
@@ -238,8 +238,8 @@ class AnalysisRunTest {
 
         val (sceneCount, shotCount) = structure.applyDetection(run.id!!, episode.id!!, detection)
 
-        assertEquals(3, sceneCount, "две границы сцен делят серию на три сцены")
-        assertEquals(6, shotCount, "пять границ планов делят серию на шесть планов")
+        assertEquals(3, sceneCount, "две границы сцен делят эпизод на три сцены")
+        assertEquals(6, shotCount, "пять границ планов делят эпизод на шесть планов")
 
         val scenes = structure.listScenes(episode.id!!)
         val shots = structure.listShots(episode.id!!)
@@ -377,7 +377,7 @@ class AnalysisRunTest {
         assertFalse(scenes.first { it.firstFrame == 0 && !it.isStale }.isStale)
         assertNull(
             structure.listScenes(episode.id!!).firstOrNull { it.firstFrame == 999 },
-            "структура покрывает серию целиком, а не выходит за её пределы",
+            "структура покрывает эпизод целиком, а не выходит за её пределы",
         )
     }
 }

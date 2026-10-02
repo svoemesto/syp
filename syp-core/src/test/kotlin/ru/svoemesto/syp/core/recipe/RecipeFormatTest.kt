@@ -186,7 +186,7 @@ class RecipeFormatTest {
     }
 
     @Test
-    @DisplayName("Путь за пределы копии сериала отвергается")
+    @DisplayName("Путь за пределы копии фильма отвергается")
     fun relativePathRules() {
         listOf(
             "/GOT.S01/GOT.S01E01.mkv",

@@ -146,7 +146,7 @@ class RecipeFormatContractTest {
         val movieId = newMovie()
         val episodeId = newEpisode(movieId, "GOT.S01E01")
         val sceneId = newScene(episodeId, 1200, 1455)
-        TestDatabase.rejected("путь, уводящий за пределы копии сериала") {
+        TestDatabase.rejected("путь, уводящий за пределы копии фильма") {
             store.insert(
                 BuildRecipe(
                     movieId = movieId,

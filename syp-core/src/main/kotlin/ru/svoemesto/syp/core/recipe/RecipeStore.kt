@@ -58,7 +58,7 @@ enum class RecipeState {
  * он подписан (FR-089c).
  *
  * @property id идентификатор сценария; `null`, пока не записан
- * @property movieId сериал-владелец
+ * @property movieId фильм-владелец
  * @property name название сценария
  * @property schemaVersion версия формата сценария
  * @property state состояние выдачи
@@ -150,9 +150,9 @@ data class BuildRecipe(
  * @property recipeId сценарий-владелец
  * @property ordinal порядковый номер фрагмента, с единицы
  * @property sceneId сцена-источник
- * @property episodeId серия-источник
- * @property episodeName название серии-снимок
- * @property relativePath путь к файлу серии от корня сериала
+ * @property episodeId эпизод-источник
+ * @property episodeName название эпизода-снимок
+ * @property relativePath путь к файлу эпизода от корня фильма
  * @property sourceSha256 снимок эталонной суммы на момент выдачи
  * @property firstFrame расчётная граница начала
  * @property lastFrame расчётная граница конца
@@ -266,9 +266,9 @@ class RecipeStore(
         db.selectOne("SELECT ${BuildRecipe.READ_COLUMNS} FROM $TABLE WHERE id = ?", ::readRow, recipeId)
 
     /**
-     * Перечисляет сценарии сериала, свежие сверху.
+     * Перечисляет сценарии фильма, свежие сверху.
      *
-     * @param movieId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @param limit сколько сценариев вернуть
      * @return сценарии в порядке убывания времени выдачи
      */
@@ -538,7 +538,7 @@ class RecipeStore(
  * Своего разбора JSON в общем модуле нет: подключать библиотеку ради одного
  * столбца `jsonb` означало бы тянуть в общий модуль то, что в нём быть не
  * должно (ADR-0011, последствие 4). Значения — имена персонажей и названия
- * серий, то есть обычный текст; экранирование задаётся теми же правилами, что
+ * эпизодов, то есть обычный текст; экранирование задаётся теми же правилами, что
  * и в канонической форме сценария, иначе одно и то же имя записалось бы в
  * двух форматах по-разному.
  *

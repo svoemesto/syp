@@ -22,13 +22,13 @@ export function formatBytes(bytes: number, unit = 'байт', fraction = 0): str
   }
   const kib = bytes / BYTES_IN_KIB
   if (kib < BYTES_IN_KIB) {
-    return `${kib.toFixed(fraction)} КиБ`
+    return `${kib.toFixed(fraction)} Киб`
   }
   const mib = kib / BYTES_IN_KIB
   if (mib < BYTES_IN_KIB) {
-    return `${mib.toFixed(fraction)} МиБ`
+    return `${mib.toFixed(fraction)} Миб`
   }
-  return `${(mib / BYTES_IN_KIB).toFixed(fraction)} ГиБ`
+  return `${(mib / BYTES_IN_KIB).toFixed(fraction)} Гиб`
 }
 
 /**

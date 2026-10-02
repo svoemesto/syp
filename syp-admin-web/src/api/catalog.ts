@@ -1,4 +1,4 @@
-// Клиент приёма сериалов и серий.
+// Клиент приёма фильмов и эпизодов.
 //
 // Соответствует разделу 3 контракта
 // `specs/001-first-vertical-slice/contracts/admin-api.md`. Время в ответах
@@ -7,39 +7,39 @@
 
 import { request } from './http'
 
-/** Описание сериала в ответе. */
+/** Описание фильма в ответе. */
 export interface MovieView {
-  /** Идентификатор сериала. */
+  /** Идентификатор фильма. */
   id: number
-  /** Отображаемое имя сериала. */
+  /** Отображаемое имя фильма. */
   name: string
-  /** Корень каталога сериала на машине администратора. */
+  /** Корень каталога фильма на машине администратора. */
   sourceRoot: string
-  /** Дата создания сериала. */
+  /** Дата создания фильма. */
   createdAt?: string | null
-  /** Сколько серий заведено в сериале. */
+  /** Сколько эпизодов заведено в фильме. */
   episodeCount: number
 }
 
-/** Описание серии в ответе со всеми измеренными параметрами. */
+/** Описание эпизода в ответе со всеми измеренными параметрами. */
 export interface EpisodeView {
-  /** Идентификатор серии. */
+  /** Идентификатор эпизода. */
   id: number
-  /** Идентификатор сериала-владельца. */
+  /** Идентификатор фильма-владельца. */
   movieId: number
-  /** Порядковый номер серии в сериале. */
+  /** Порядковый номер эпизода в фильме. */
   ordinal: number
-  /** Отображаемое имя серии. */
+  /** Отображаемое имя эпизода. */
   name: string
   /** Абсолютный путь к исходному файлу. */
   sourcePath: string
-  /** Путь относительно корня сериала: он и попадёт в сценарий сборки. */
+  /** Путь относительно корня фильма: он и попадёт в сценарий сборки. */
   relativePath?: string | null
   /** Размер файла в байтах. */
   byteSize: number
   /** Время изменения файла. */
   fileMtime: string
-  /** Число кадров серии. */
+  /** Число кадров эпизода. */
   frameCount: number
   /** Числитель длительности кадра в секундах. */
   timeBaseNum: number
@@ -51,7 +51,7 @@ export interface EpisodeView {
   width: number
   /** Высота кадра. */
   height: number
-  /** Длительность серии, вычисленная по кадрам. */
+  /** Длительность эпизода, вычисленная по кадрам. */
   durationSeconds: number
   /** Кодек видео. */
   videoCodec: string
@@ -69,7 +69,7 @@ export interface EpisodeView {
   keyframeCount: number
   /** Длина карты ключевых кадров в байтах. */
   keyframeMapBytes: number
-  /** Готова ли серия к работе. */
+  /** Готова ли эпизод к работе. */
   ready: boolean
 }
 
@@ -87,87 +87,87 @@ export interface SettingView {
   updatedAt?: string | null
 }
 
-/** Ответ на создание сериала: сам сериал и его настройки по умолчанию. */
+/** Ответ на создание фильма: сам фильм и его настройки по умолчанию. */
 export interface CreatedMovieView {
-  /** Созданный сериал. */
+  /** Созданный фильм. */
   movie: MovieView
   /** Значения настроек по умолчанию. */
   settings: SettingView[]
 }
 
-/** Ответ на чтение сериала вместе с его содержимым. */
+/** Ответ на чтение фильма вместе с его содержимым. */
 export interface MovieDetailView {
-  /** Сериал. */
+  /** Фильм. */
   movie: MovieView
-  /** Серии сериала. */
+  /** Эпизода фильма. */
   episode: EpisodeView[]
-  /** Настройки сериала. */
+  /** Настройки фильма. */
   settings: SettingView[]
 }
 
 /**
- * Перечисляет сериалы с числом серий каждого.
+ * Перечисляет фильмы с числом эпизодов каждого.
  *
- * @returns список сериалов
+ * @returns список фильмов
  */
 export function listMovies(): Promise<MovieView[]> {
   return request<MovieView[]>('GET', '/movies')
 }
 
 /**
- * Создаёт сериал с корнем каталога на машине администратора.
+ * Создаёт фильм с корнем каталога на машине администратора.
  *
- * @param name название сериала
- * @param sourceRoot корневой каталог сериала: без него нельзя вычислить
+ * @param name название фильма
+ * @param sourceRoot корневой каталог фильма: без него нельзя вычислить
  *   относительный путь к файлу, который попадёт в сценарий сборки (FR-089a)
- * @returns созданный сериал вместе с настройками по умолчанию
+ * @returns созданный фильм вместе с настройками по умолчанию
  */
 export function createMovie(name: string, sourceRoot: string): Promise<CreatedMovieView> {
   return request<CreatedMovieView>('POST', '/movies', { name, sourceRoot })
 }
 
 /**
- * Читает сериал, его серии и настройки.
+ * Читает фильм, его эпизода и настройки.
  *
- * @param movieId идентификатор сериала
- * @returns сериал с содержимым
+ * @param movieId идентификатор фильма
+ * @returns фильм с содержимым
  */
 export function readMovie(movieId: number): Promise<MovieDetailView> {
   return request<MovieDetailView>('GET', `/movies/${movieId}`)
 }
 
 /**
- * Удаляет сериал вместе с производными данными.
+ * Удаляет фильм вместе с производными данными.
  *
  * Файлы архива при этом не трогаются: они принадлежат не системе.
  *
- * @param movieId идентификатор сериала
+ * @param movieId идентификатор фильма
  */
 export function deleteMovie(movieId: number): Promise<null> {
   return request<null>('DELETE', `/movies/${movieId}`)
 }
 
 /**
- * Перечисляет серии сериала.
+ * Перечисляет эпизоды фильма.
  *
- * @param movieId идентификатор сериала
- * @returns серии в порядке порядковых номеров
+ * @param movieId идентификатор фильма
+ * @returns эпизода в порядке порядковых номеров
  */
 export function listEpisode(movieId: number): Promise<EpisodeView[]> {
   return request<EpisodeView[]>('GET', `/movies/${movieId}/episodes`)
 }
 
 /**
- * Регистрирует серию по пути к файлу.
+ * Регистрирует эпизод по пути к файлу.
  *
  * Параметры файла определяет система: оператор их не вводит (FR-002). Файл
- * обязан лежать внутри корня сериала, иначе ответ — ошибка
+ * обязан лежать внутри корня фильма, иначе ответ — ошибка
  * `SOURCE_UNREADABLE` с путём в тексте.
  *
- * @param movieId идентификатор сериала
- * @param sourcePath абсолютный путь к файлу внутри корня сериала
- * @param name название серии; если не задано, берётся имя файла
- * @returns зарегистрированная серия с измеренными параметрами
+ * @param movieId идентификатор фильма
+ * @param sourcePath абсолютный путь к файлу внутри корня фильма
+ * @param name название эпизода; если не задано, берётся имя файла
+ * @returns зарегистрированный эпизод с измеренными параметрами
  */
 export function registerEpisode(
   movieId: number,
@@ -181,19 +181,19 @@ export function registerEpisode(
 }
 
 /**
- * Читает параметры серии и состояние готовности.
+ * Читает параметры эпизода и состояние готовности.
  *
- * @param episodeId идентификатор серии
- * @returns параметры серии
+ * @param episodeId идентификатор эпизода
+ * @returns параметры эпизода
  */
 export function readEpisode(episodeId: number): Promise<EpisodeView> {
   return request<EpisodeView>('GET', `/episodes/${episodeId}`)
 }
 
 /**
- * Снимает серию с учёта; файл источника не трогается.
+ * Снимает эпизод с учёта; файл источника не трогается.
  *
- * @param episodeId идентификатор серии
+ * @param episodeId идентификатор эпизода
  */
 export function deleteEpisode(episodeId: number): Promise<null> {
   return request<null>('DELETE', `/episodes/${episodeId}`)
@@ -202,8 +202,8 @@ export function deleteEpisode(episodeId: number): Promise<null> {
 /**
  * Читает настройки анализа и выдачи сценария.
  *
- * @param movieId идентификатор сериала
- * @returns настройки сериала
+ * @param movieId идентификатор фильма
+ * @returns настройки фильма
  */
 export function readSettings(movieId: number): Promise<SettingView[]> {
   return request<SettingView[]>('GET', `/movies/${movieId}/settings`)
@@ -212,7 +212,7 @@ export function readSettings(movieId: number): Promise<SettingView[]> {
 /**
  * Изменяет настройки анализа и выдачи сценария.
  *
- * @param movieId идентификатор сериала
+ * @param movieId идентификатор фильма
  * @param changes новые значения по именам настроек
  * @returns настройки после изменения и список действительно изменившихся
  */

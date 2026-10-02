@@ -1,7 +1,7 @@
-// Экран приёма сериалов и серий (задача T037). // // Экран закрывает три требования: оператор
-создаёт сериал с корнем // каталога, добавляет серию указанием пути и видит параметры, которые //
+// Экран приёма фильмов и эпизодов (задача T037). // // Экран закрывает три требования: оператор
+создаёт фильм с корнем // каталога, добавляет эпизод указанием пути и видит параметры, которые //
 определила система сама. Отдельно показывается внятная ошибка при // недоступном файле — «успех с
-пустым результатом» на экране выглядел бы // как «серия заведена», а на деле файл не был прочитан
+пустым результатом» на экране выглядел бы // как «эпизод заведена», а на деле файл не был прочитан
 (FR-092).
 
 <script setup lang="ts">
@@ -23,18 +23,18 @@ onMounted(() => {
 })
 
 /**
- * Создаёт сериал по введённым названию и корню каталога.
+ * Создаёт фильм по введённым названию и корню каталога.
  *
- * @returns `true`, если сериал создан
+ * @returns `true`, если фильм создан
  */
 async function submitMovie(): Promise<boolean> {
   return store.addMovie(movieName.value.trim(), movieRoot.value.trim())
 }
 
 /**
- * Регистрирует серию по введённому пути к файлу.
+ * Регистрирует эпизод по введённому пути к файлу.
  *
- * @returns `true`, если серия зарегистрирована
+ * @returns `true`, если эпизод зарегистрирована
  */
 async function submitEpisode(): Promise<boolean> {
   const created = await store.addEpisode(episodePath.value.trim(), episodeName.value.trim())
@@ -46,9 +46,9 @@ async function submitEpisode(): Promise<boolean> {
 }
 
 /**
- * Открывает экран состояния суммы для серии.
+ * Открывает экран состояния суммы для эпизода.
  *
- * @param episodeId идентификатор серии
+ * @param episodeId идентификатор эпизода
  */
 function openChecksum(episodeId: number): void {
   void router.push({ name: 'checksum', params: { episodeId: String(episodeId) } })
@@ -57,7 +57,7 @@ function openChecksum(episodeId: number): void {
 
 <template>
   <section class="intake">
-    <h2>Приём сериалов и серий</h2>
+    <h2>Приём фильмов и эпизодов</h2>
 
     <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
 
@@ -68,13 +68,13 @@ function openChecksum(episodeId: number): void {
     </p>
 
     <fieldset>
-      <legend>Сериалы</legend>
+      <legend>Фильмы</legend>
       <table>
         <thead>
           <tr>
             <th>Название</th>
             <th>Корень каталога</th>
-            <th>Серий</th>
+            <th>Эпизодов</th>
             <th />
           </tr>
         </thead>
@@ -90,20 +90,20 @@ function openChecksum(episodeId: number): void {
             </td>
           </tr>
           <tr v-if="store.movies.value.length === 0">
-            <td colspan="4" class="note">Сериалов пока нет</td>
+            <td colspan="4" class="note">Фильмов пока нет</td>
           </tr>
         </tbody>
       </table>
 
       <div class="form">
-        <input v-model="movieName" type="text" placeholder="Название сериала" />
+        <input v-model="movieName" type="text" placeholder="Название фильма" />
         <input
           v-model="movieRoot"
           type="text"
           placeholder="Корень каталога, например /disks/HDD_16Tb_Clouds/GOT"
         />
         <button type="button" :disabled="store.loading.value" @click="submitMovie">
-          создать сериал
+          создать фильм
         </button>
       </div>
       <p class="note">
@@ -113,7 +113,7 @@ function openChecksum(episodeId: number): void {
     </fieldset>
 
     <fieldset v-if="store.current.value">
-      <legend>Серии сериала «{{ store.current.value.movie.name }}»</legend>
+      <legend>Эпизода фильма «{{ store.current.value.movie.name }}»</legend>
       <table>
         <thead>
           <tr>
@@ -145,7 +145,7 @@ function openChecksum(episodeId: number): void {
             </td>
           </tr>
           <tr v-if="store.episode.value.length === 0">
-            <td colspan="9" class="note">Серий пока нет</td>
+            <td colspan="9" class="note">Эпизодов пока нет</td>
           </tr>
         </tbody>
       </table>
@@ -154,20 +154,20 @@ function openChecksum(episodeId: number): void {
         <input
           v-model="episodePath"
           type="text"
-          placeholder="Путь к файлу серии внутри корня сериала"
+          placeholder="Путь к файлу эпизода внутри корня фильма"
         />
-        <input v-model="episodeName" type="text" placeholder="Название серии (необязательно)" />
+        <input v-model="episodeName" type="text" placeholder="Название эпизода (необязательно)" />
         <button
           type="button"
           :disabled="!store.canRegisterEpisode.value || store.loading.value"
           @click="submitEpisode"
         >
-          добавить серию
+          добавить эпизод
         </button>
       </div>
       <p class="note">
         Параметры файла определяет система: оператор их не вводит. Путь обязан лежать внутри корня
-        сериала, иначе придёт отказ <code>SOURCE_UNREADABLE</code> с путём в тексте.
+        фильма, иначе придёт отказ <code>SOURCE_UNREADABLE</code> с путём в тексте.
       </p>
     </fieldset>
   </section>

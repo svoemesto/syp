@@ -131,7 +131,7 @@ class SigningTest {
 
         val tampered =
             Canonicalizer.canonicalBytes(
-                CanonicalObject.of("schema_version" to 1, "movie_name" to "Подменённый сериал", "items" to emptyList<Any>()),
+                CanonicalObject.of("schema_version" to 1, "movie_name" to "Подменённый фильм", "items" to emptyList<Any>()),
             )
         assertTrue(
             !verificationKey.verify(tampered, signature),

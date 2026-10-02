@@ -17,7 +17,7 @@ import ru.svoemesto.syp.core.jobs.ParamsHash
 import java.time.Instant
 
 /**
- * Состояние суммы серии в ответе.
+ * Состояние суммы эпизода в ответе.
  *
  * Поля ответа — ровно те, что перечислены в контракте
  * [`admin-api.md`](../../../../../specs/001-first-vertical-slice/contracts/admin-api.md),
@@ -25,7 +25,7 @@ import java.time.Instant
  * незавершённого подсчёта суммы не существует, и выдавать вместо неё пустую
  * строку означало бы выдать выдуманное значение.
  *
- * @property episodeId идентификатор серии
+ * @property episodeId идентификатор эпизода
  * @property state состояние подсчёта
  * @property algorithm алгоритм подсчёта
  * @property digest значение суммы; `null`, пока сумма не посчитана
@@ -36,7 +36,7 @@ import java.time.Instant
  * @property isUsable пригодна ли сумма для сверки на машине пользователя
  * @property errorText текст ошибки при сбое подсчёта
  * @property jobId задание, считающее или посчитавшее сумму
- * @property historyCount сколько записей пересчётов у серии всего
+ * @property historyCount сколько записей пересчётов у эпизода всего
  * @property canRecalculate можно ли поставить пересчёт прямо сейчас
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
@@ -64,7 +64,7 @@ data class ChecksumView(
  * (FR-003).
  *
  * @property jobId идентификатор поставленного задания
- * @property episodeId серия, для которой считается сумма
+ * @property episodeId эпизод, для которой считается сумма
  * @property state состояние задания на момент постановки
  * @property reason зачем поставлен пересчёт
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -82,7 +82,7 @@ data class ChecksumEnqueuedView(
  * Подсчёт ставится в двух случаях, и оба приводят к одному и тому же
  * заданию:
  *
- * 1. **автоматически** — при регистрации серии: без суммы сценарий отдать
+ * 1. **автоматически** — при регистрации эпизода: без суммы сценарий отдать
  *    нельзя, а узнать об этом через месяц работы невозможно (ADR-0009,
  *    последствие 4);
  * 2. **по кнопке** — оператор пересчитывает сам: он либо подозревает подмену
@@ -101,9 +101,9 @@ data class ChecksumEnqueuedView(
  * «сумма посчитана» для файла, которого уже нет (FR-090).
  *
  * @property queue очередь заданий
- * @property episodeStore хранилище серий
+ * @property episodeStore хранилище эпизодов
  * @property registry справочник сумм
- * @property paramsBuilder собирает параметры задания из серии
+ * @property paramsBuilder собирает параметры задания из эпизода
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class ChecksumEnqueuer(
@@ -113,12 +113,12 @@ class ChecksumEnqueuer(
     private val paramsBuilder: (Episode) -> String = { episode -> defaultParams(episode) },
 ) {
     /**
-     * Ставит подсчёт суммы серии.
+     * Ставит подсчёт суммы эпизода.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param reason зачем поставлен пересчёт
      * @return идентификатор поставленного задания
-     * @throws DomainException с кодом `NOT_FOUND`, если серия не зарегистрирована
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизод не зарегистрирована
      */
     fun enqueue(
         episodeId: Long,
@@ -128,7 +128,7 @@ class ChecksumEnqueuer(
             episodeStore.find(episodeId)
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
-                    "серия $episodeId не зарегистрирована: сумму считать нечего",
+                    "эпизод $episodeId не зарегистрирована: сумму считать нечего",
                 )
         // Подмена источника обнаруживается до постановки: пересчёт всё равно
         // пойдёт, но оператор должен увидеть устаревшую прежнюю сумму, а не
@@ -143,22 +143,22 @@ class ChecksumEnqueuer(
     }
 
     /**
-     * Ставит подсчёт автоматически, при регистрации серии.
+     * Ставит подсчёт автоматически, при регистрации эпизода.
      *
-     * @param episode только что зарегистрированная серия
+     * @param episode только что зарегистрированный эпизод
      * @return идентификатор поставленного задания
      */
-    fun enqueueAutomatic(episode: Episode): Long = enqueue(episode.id!!, "серия зарегистрирована: сумма считается автоматически")
+    fun enqueueAutomatic(episode: Episode): Long = enqueue(episode.id!!, "эпизод зарегистрирована: сумма считается автоматически")
 
     companion object {
         /**
-         * Параметры задания для серии.
+         * Параметры задания для эпизода.
          *
          * В параметры входит всё, что влияет на результат: сам путь, размер
          * файла и время его изменения. По ним же считается хеш параметров,
          * поэтому подмена файла даёт другое задание даже при том же пути.
          *
-         * @param episode серия
+         * @param episode эпизод
          * @return параметры задания в виде JSON
          */
         fun defaultParams(episode: Episode): String =
@@ -170,7 +170,7 @@ class ChecksumEnqueuer(
         /**
          * Хеш параметров задания подсчёта.
          *
-         * @param episode серия
+         * @param episode эпизод
          * @return 64 шестнадцатеричных символа в нижнем регистре
          */
         fun paramsHashOf(episode: Episode): String =
@@ -187,13 +187,13 @@ class ChecksumEnqueuer(
  * Эндпоинты сверки целостности исходника.
  *
  * Пара методов, у которой есть честный ответ на вопрос «можно ли выдавать
- * сценарий этой серии» и «как пересчитать сумму». Ничего больше: выдача
+ * сценарий этого эпизода» и «как пересчитать сумму». Ничего больше: выдача
  * сценария в админке невозможна (FR-085, ADR-0009), и эндпоинта выдачи
  * здесь нет.
  *
  * @property enqueuer постановщик подсчёта
  * @property registry справочник сумм
- * @property episodeStore хранилище серий
+ * @property episodeStore хранилище эпизодов
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 @RestController
@@ -203,16 +203,16 @@ class ChecksumController(
     private val episodeStore: EpisodeStore,
 ) {
     /**
-     * Отдаёт состояние суммы серии.
+     * Отдаёт состояние суммы эпизода.
      *
      * Ответ идёт по **последней** записи, а не по актуальной: интерфейсу
      * нужно показать «считается» и «ошибка», а не пустую страницу. Отдельного
      * ответа «суммы нет» не делается — вместо него `409` с кодом
      * `CHECKSUM_NOT_READY`, как требует контракт.
      *
-     * @param episodeId идентификатор серии
-     * @return состояние суммы серии
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет; с кодом
+     * @param episodeId идентификатор эпизода
+     * @return состояние суммы эпизода
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет; с кодом
      *   `CHECKSUM_NOT_READY`, если сумма ещё ни разу не считалась
      */
     @GetMapping("/api/episodes/{episodeId}/checksum")
@@ -224,7 +224,7 @@ class ChecksumController(
             registry.latest(episodeId)
                 ?: throw DomainException(
                     ErrorCode.CHECKSUM_NOT_READY,
-                    "сумма серии «${episode.name}» ещё не считалась. Поставьте пересчёт: " +
+                    "сумма эпизода «${episode.name}» ещё не считалась. Поставьте пересчёт: " +
                         "без актуальной суммы сценарий сборки выдать нельзя (FR-089)",
                 )
         // Сверка подмены источника при чтении: файл мог смениться после того,
@@ -235,11 +235,11 @@ class ChecksumController(
     }
 
     /**
-     * Ставит пересчёт суммы серии.
+     * Ставит пересчёт суммы эпизода.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return поставленное задание, код `202`
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     @PostMapping("/api/episodes/{episodeId}/checksum")
     fun startChecksum(
@@ -261,21 +261,21 @@ class ChecksumController(
     }
 
     /**
-     * Читает серию или отказывает.
+     * Читает эпизод или отказывает.
      *
-     * @param episodeId идентификатор серии
-     * @return серия
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @param episodeId идентификатор эпизода
+     * @return эпизод
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     private fun requireEpisode(episodeId: Long): Episode =
         episodeStore.find(episodeId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "серия $episodeId не зарегистрирована")
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $episodeId не зарегистрирована")
 }
 
 /**
  * Описание записи справочника для ответа.
  *
- * @param historyCount сколько записей пересчётов у серии всего
+ * @param historyCount сколько записей пересчётов у эпизода всего
  * @return описание суммы
  */
 internal fun ChecksumEntry.toView(historyCount: Int): ChecksumView =

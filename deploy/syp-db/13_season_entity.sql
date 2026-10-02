@@ -1,7 +1,7 @@
--- Сезон — самостоятельная сущность, а не пометка у серии.
+-- Сезон — самостоятельная сущность, а не пометка у эпизода.
 --
 -- Структура произведения по решению владельца (2026-10-03):
---   сериал состоит из сезонов, сезон состоит из эпизодов.
+--   фильм состоит из сезонов, сезон состоит из эпизодов.
 -- У художественного фильма ни сезонов, ни эпизодов нет, и его обозначение
 -- S00E00: ноль означает «сезона нет», а не «сезон забыли внести».
 --
@@ -18,7 +18,7 @@ CREATE TABLE season (
 
 -- Номер сезона начинается с единицы: ноль зарезервирован под «сезона нет».
 ALTER TABLE season ADD CONSTRAINT season_ordinal_positive CHECK (ordinal > 0);
--- Сезон уникален по номеру внутри сериала.
+-- Сезон уникален по номеру внутри фильма.
 CREATE UNIQUE INDEX season_serial_ordinal_uq ON season (serial_id, ordinal);
 CREATE INDEX season_serial_idx ON season (serial_id);
 
@@ -33,10 +33,10 @@ CREATE INDEX series_season_idx ON series (season_id);
 CREATE UNIQUE INDEX series_season_episode_uq
     ON series (season_id, episode_ordinal) WHERE season_id IS NOT NULL;
 
--- Пометка season из миграции 12 была неверна по сути: сезон не поле у серии,
+-- Пометка season из миграции 12 была неверна по сути: сезон не поле у эпизода,
 -- а отдельная сущность. Убираем, чтобы в модели не осталось двух «сезонов».
 ALTER TABLE series DROP COLUMN season;
 
-COMMENT ON TABLE season IS 'Сезон сериала; у фильма сезонов нет, и серия остаётся без сезона';
+COMMENT ON TABLE season IS 'Сезон фильма; у фильма сезонов нет, и эпизод остаётся без сезона';
 COMMENT ON COLUMN series.episode_ordinal IS 'Номер эпизода внутри сезона; 0 — у фильма';
 COMMENT ON COLUMN series.season_id IS 'Сезон-владелец; пуст у фильма, обозначение тогда S00E00';

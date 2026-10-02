@@ -39,13 +39,13 @@ data class LocationView(
 )
 
 /**
- * План в ответе структуры серии.
+ * План в ответе структуры эпизода.
  *
  * Поля совпадают с примером контракта
  * [`admin-api.md`](../../../../../specs/001-first-vertical-slice/contracts/admin-api.md)
  * § 5.1: границы по номерам кадров, происхождение границы и размера, признак
  * устаревания. Время не приходит: номер кадра — единственный источник правды,
- * а клиент пересчитывает время от `time_base` серии (ADR-0001).
+ * а клиент пересчитывает время от `time_base` эпизода (ADR-0001).
  *
  * @property id идентификатор плана
  * @property firstFrame первый кадр плана
@@ -67,7 +67,7 @@ data class ShotView(
 )
 
 /**
- * Сцена в ответе структуры серии.
+ * Сцена в ответе структуры эпизода.
  *
  * @property id идентификатор сцены
  * @property firstFrame первый кадр сцены
@@ -91,7 +91,7 @@ data class SceneView(
 )
 
 /**
- * Ответ о структуре серии.
+ * Ответ о структуре эпизода.
  *
  * На верхнем уровне лежит состояние актуальности: `staleResultCode` равен
  * `STALE_RESULT`, когда результат получен при других входах. Ответ при этом
@@ -99,16 +99,16 @@ data class SceneView(
  * есть ручные правки оператора, которые смена порога не отменяет (FR-090,
  * SC-006).
  *
- * @property episodeId серия
- * @property frameCount число кадров серии
+ * @property episodeId эпизод
+ * @property frameCount число кадров эпизода
  * @property isStale устарел ли результат
  * @property staleResultCode машинный код устаревания либо `null`
  * @property staleReason чем именно результат устарел
  * @property runId последний прогон структуры либо `null`
  * @property algorithmVersion версия алгоритма прогона
  * @property paramsHash хеш входов прогона
- * @property scenesTotal сколько сцен у серии всего
- * @property shotsTotal сколько планов у серии всего
+ * @property scenesTotal сколько сцен у эпизода всего
+ * @property shotsTotal сколько планов у эпизода всего
  * @property offset смещение выборки сцен
  * @property limit размер выборки сцен
  * @property scenes сцены выборки с их планами
@@ -153,7 +153,7 @@ data class RawBoundaryView(
 /**
  * Ответ с сырыми границами последнего прогона.
  *
- * @property episodeId серия
+ * @property episodeId эпизод
  * @property runId последний прогон структуры либо `null`
  * @property offset смещение выборки
  * @property limit размер выборки
@@ -180,7 +180,7 @@ data class RawBoundariesView(
  * @property isShotBoundary начинается ли здесь новый план
  * @property faceCount сколько лиц найдено в кадре
  * @property sizeHint подсказка смены крупности либо `null`
- * @property isKeyframe ключевой ли кадр по карте серии
+ * @property isKeyframe ключевой ли кадр по карте эпизода
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class FrameView(
@@ -195,12 +195,12 @@ data class FrameView(
 /**
  * Страница значимых кадров.
  *
- * Списки кадров и лиц пагинируются **всегда**: на серии их десятки тысяч, а
+ * Списки кадров и лиц пагинируются **всегда**: на эпизоде их десятки тысяч, а
  * полный ответ занял бы мегабайты и положил бы вкладку оператора
  * (`admin-api.md` § 1.5).
  *
- * @property episodeId серия
- * @property total сколько значимых кадров у серии
+ * @property episodeId эпизод
+ * @property total сколько значимых кадров у эпизода
  * @property offset смещение выборки
  * @property limit размер выборки
  * @property frames кадры выборки
@@ -237,7 +237,7 @@ data class FrameFlagsView(
 /**
  * Ответ с признаками кадров диапазона.
  *
- * @property episodeId серия
+ * @property episodeId эпизод
  * @property fromFrame первый кадр диапазона
  * @property toFrame последний кадр диапазона
  * @property flags признаки кадров диапазона по возрастанию номера
@@ -277,7 +277,7 @@ data class CellCropView(
  * спросили про конкретный кадр, область его кадрирования на листе
  * (`admin-api.md` § 5.2, FR-022).
  *
- * @property episodeId серия
+ * @property episodeId эпизод
  * @property index номер листа, с нуля
  * @property firstFrame первый кадр листа
  * @property lastFrame последний кадр листа
@@ -320,16 +320,16 @@ data class PreviewUrlView(
  * Ответ на постановку анализа структуры.
  *
  * Ответ — `202`: работа принята в очередь, а не выполнена. Кнопка, ждащая
- * окончания разбора серии, нарушала бы constitution IV.1 (FR-003).
+ * окончания разбора эпизода, нарушала бы constitution IV.1 (FR-003).
  *
  * @property jobId идентификатор поставленного задания
- * @property episodeId серия
+ * @property episodeId эпизод
  * @property state состояние задания на момент постановки
  * @property sceneThreshold порог границы сцены
  * @property shotThreshold порог границы плана
  * @property paramsHash хеш входов задания
- * @property frameCount число кадров серии
- * @property previewSheetCount сколько листов превью у серии будет
+ * @property frameCount число кадров эпизода
+ * @property previewSheetCount сколько листов превью у эпизода будет
  * @property alreadyCompleted выполнялась ли работа с такими входами раньше
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
@@ -346,17 +346,17 @@ data class AnalysisEnqueuedView(
 )
 
 /**
- * Постановщик анализа структуры серии.
+ * Постановщик анализа структуры эпизода.
  *
  * **Повторная постановка означает пересчёт.** Правило о пропуске задания с
  * тем же хешем параметров (Р-10) здесь не действует: кнопка анализа означает
- * требование человека разобрать серию заново — например, после правки
+ * требование человека разобрать эпизод заново — например, после правки
  * границ вручную. Ответ при этом прямо говорит, была ли такая работа
  * выполнена раньше, чтобы интерфейс не показывал лишний час ожидания как
  * неизвестность.
  *
  * @property queue очередь заданий
- * @property settingsStore настройки сериала: из них берутся пороги
+ * @property settingsStore настройки фильма: из них берутся пороги
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class AnalysisEnqueuer(
@@ -364,11 +364,11 @@ class AnalysisEnqueuer(
     private val settingsStore: MovieSettingsStore,
 ) {
     /**
-     * Ставит анализ структуры серии.
+     * Ставит анализ структуры эпизода.
      *
-     * @param episode серия
+     * @param episode эпизод
      * @return ответ на постановку
-     * @throws DomainException если у сериала нет настроек: значения по
+     * @throws DomainException если у фильма нет настроек: значения по
      *   умолчанию создаёт триггер базы, и их отсутствие — дефект данных
      */
     fun enqueue(episode: Episode): AnalysisEnqueuedView {
@@ -402,9 +402,9 @@ class AnalysisEnqueuer(
     }
 
     /**
-     * Раскладка листа превью по настройкам сериала.
+     * Раскладка листа превью по настройкам фильма.
      *
-     * @param settings настройки сериала
+     * @param settings настройки фильма
      * @return раскладка листа
      */
     private fun previewLayoutOf(settings: ru.svoemesto.syp.admin.catalog.MovieSettings): PreviewLayout =
@@ -422,7 +422,7 @@ class AnalysisEnqueuer(
 internal fun Location.toView(): LocationView = LocationView(id!!, name)
 
 /**
- * Эндпоинты структуры серии и превью кадров.
+ * Эндпоинты структуры эпизода и превью кадров.
  *
  * Это чтение результата анализа и постановка самого анализа. Ручной доводки
  * границ здесь нет: она описана отдельными механиками и приходит вместе с
@@ -430,16 +430,16 @@ internal fun Location.toView(): LocationView = LocationView(id!!, name)
  * операция правки может случайно изменить то, что он смотрит.
  *
  * @property enqueuer постановщик анализа
- * @property episodeStore хранилище серий
+ * @property episodeStore хранилище эпизодов
  * @property runStore хранилище прогонов
  * @param structure сервис рабочей структуры
  * @property boundaryStore хранилище сырых границ
  * @property frameStore хранилище значимых кадров
  * @property staleness состояние актуальности результата
- * @property settingsStore настройки сериала
+ * @property settingsStore настройки фильма
  * @property artifactRegistry реестр артефактов листов превью
  * @property storage объектное хранилище
- * @property locations справочник мест действия сериала
+ * @property locations справочник мест действия фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 @RestController
@@ -457,11 +457,11 @@ class StructureController(
     private val locations: LocationStore,
 ) {
     /**
-     * Ставит серию на анализ структуры.
+     * Ставит эпизод на анализ структуры.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return поставленное задание, код `202`
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     @PostMapping("/api/episodes/{episodeId}/analysis")
     fun startAnalysis(
@@ -472,16 +472,16 @@ class StructureController(
             .body(enqueuer.enqueue(requireEpisode(episodeId)))
 
     /**
-     * Отдаёт структуру серии: сцены с планами.
+     * Отдаёт структуру эпизода: сцены с планами.
      *
      * Планы внутри сцены вычисляются по диапазонам кадров, а не берутся из
      * сохранённой связи: такой связи в схеме нет и быть не должно (ADR-0007).
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param offset смещение выборки сцен
      * @param limit размер выборки сцен
      * @return страница структуры со сведениями об актуальности
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     @GetMapping("/api/episodes/{episodeId}/structure")
     fun readStructure(
@@ -543,12 +543,12 @@ class StructureController(
      * Показываются **отдельно** от рабочей структуры: иначе сравнить
      * предложение машины с решением человека нечем (FR-093).
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param level уровень границ: сцена или план; оба, если не задан
      * @param offset смещение выборки
      * @param limit размер выборки
      * @return страница сырых границ
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет, или с кодом
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет, или с кодом
      *   `BAD_REQUEST`, если уровень неизвестен
      */
     @GetMapping("/api/episodes/{episodeId}/raw-boundaries")
@@ -583,13 +583,13 @@ class StructureController(
     }
 
     /**
-     * Отдаёт страницу значимых кадров серии.
+     * Отдаёт страницу значимых кадров эпизода.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param offset смещение выборки
      * @param limit размер выборки
      * @return страница значимых кадров
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     @GetMapping("/api/episodes/{episodeId}/frames")
     fun readFrames(
@@ -613,14 +613,14 @@ class StructureController(
     /**
      * Отдаёт признаки кадров диапазона.
      *
-     * Признак «ключевой кадр» приходит из карты серии, а не из таблицы
+     * Признак «ключевой кадр» приходит из карты эпизода, а не из таблицы
      * кадров: полной таблицы на 88 643 строки не существует (Р-07).
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param fromFrame первый кадр диапазона включительно
      * @param toFrame последний кадр диапазона включительно
      * @return признаки кадров диапазона
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет, или с кодом
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет, или с кодом
      *   `BAD_REQUEST`, если диапазон вывернут наизнанку
      */
     @GetMapping("/api/episodes/{episodeId}/frames/flags")
@@ -646,13 +646,13 @@ class StructureController(
     }
 
     /**
-     * Отдаёт лист превью серии.
+     * Отдаёт лист превью эпизода.
      *
      * Отдаётся **только** лист, зарегистрированный в состоянии `READY`:
      * незавершённый файл не считается готовым и показывать его незачем
      * (FR-091).
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param index номер листа, с нуля
      * @return содержимое листа
      * @throws DomainException с кодом `NOT_FOUND`, если листа нет или он ещё
@@ -668,7 +668,7 @@ class StructureController(
             artifactRegistry.findReady(ArtifactKind.PREVIEW_SHEET, sheet.finalKey())
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
-                    "лист превью №$index серии $episodeId ещё не готов: анализ не завершён " +
+                    "лист превью №$index эпизода $episodeId ещё не готов: анализ не завершён " +
                         "или оборвался. Незавершённый лист не выдаётся (FR-091)",
                 )
         val bytes = storage.get(artifact.objectKey).use { it.readBytes() }
@@ -682,11 +682,11 @@ class StructureController(
     /**
      * Отдаёт адрес листа превью и раскладку листа.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param index номер листа, с нуля; если не задан, берётся из `frame`
      * @param frame кадр, для которого нужен адрес листа и область кадрирования
      * @return описание листа
-     * @throws DomainException с кодом `NOT_FOUND`, если серии или листа нет,
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода или листа нет,
      *   либо с кодом `BAD_REQUEST`, если не задан ни номер листа, ни кадр
      */
     @GetMapping("/api/episodes/{episodeId}/preview-url")
@@ -704,7 +704,7 @@ class StructureController(
                     if (frame < 0 || frame >= episode.frameCount) {
                         throw DomainException(
                             ErrorCode.BAD_REQUEST,
-                            "кадра $frame у серии из ${episode.frameCount} кадров нет: " +
+                            "кадра $frame у эпизода из ${episode.frameCount} кадров нет: " +
                                 "спросить лист превью не о чем",
                         )
                     }
@@ -752,15 +752,15 @@ class StructureController(
     }
 
     /**
-     * Читает серию или отказывает.
+     * Читает эпизод или отказывает.
      *
-     * @param episodeId идентификатор серии
-     * @return серия
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @param episodeId идентификатор эпизода
+     * @return эпизод
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     private fun requireEpisode(episodeId: Long): Episode =
         episodeStore.find(episodeId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "серия $episodeId не зарегистрирована")
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $episodeId не зарегистрирована")
 
     /**
      * Сырые границы прогона указанного уровня либо обоих сразу.
@@ -783,31 +783,31 @@ class StructureController(
     }
 
     /**
-     * Состояние актуальности структуры серии.
+     * Состояние актуальности структуры эпизода.
      *
-     * @param episode серия
+     * @param episode эпизод
      * @return состояние актуальности
      */
     private fun currentStatus(episode: Episode): StaleStatus =
         staleness.status(episode.id!!, AnalysisKind.STRUCTURE, currentParamsHash(episode))
 
     /**
-     * Актуальный хеш входов детекции по настройкам сериала.
+     * Актуальный хеш входов детекции по настройкам фильма.
      *
-     * @param episode серия
+     * @param episode эпизод
      * @return 64 шестнадцатеричных символов в нижнем регистре
      */
     private fun currentParamsHash(episode: Episode): String = SceneDetector.paramsHashOf(settingsStore.read(episode.movieId))
 
     /**
-     * Лист серии по номеру.
+     * Лист эпизода по номеру.
      *
-     * @param episodeId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param index номер листа, с нуля
      * @param layout раскладка листа
-     * @param frameCount число кадров серии
+     * @param frameCount число кадров эпизода
      * @return лист
-     * @throws DomainException с кодом `NOT_FOUND`, если серии или листа нет
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода или листа нет
      */
     private fun requireSheet(
         episodeId: Long,
@@ -819,14 +819,14 @@ class StructureController(
             .getOrElse { failure ->
                 throw DomainException(
                     ErrorCode.NOT_FOUND,
-                    "листа превью №$index у серии $episodeId нет: $failure",
+                    "листа превью №$index у эпизода $episodeId нет: $failure",
                 )
             }
 
     /**
-     * Раскладка листа превью по настройкам сериала.
+     * Раскладка листа превью по настройкам фильма.
      *
-     * @param settings настройки сериала
+     * @param settings настройки фильма
      * @return раскладка листа
      */
     private fun previewLayoutOf(settings: MovieSettings): PreviewLayout =
@@ -860,11 +860,11 @@ class StructureController(
     /**
      * Справочник мест действия по идентификаторам.
      *
-     * Локаций у сериала десятки, а не тысячи, поэтому берётся весь справочник
-     * сериала и фильтруется по нужным: запрос «по десяти идентификаторам» был
+     * Локаций у фильма десятки, а не тысячи, поэтому берётся весь справочник
+     * фильма и фильтруется по нужным: запрос «по десяти идентификаторам» был
      * бы сложнее ради того же результата.
      *
-     * @param movieId сериал-владелец локаций
+     * @param movieId фильм-владелец локаций
      * @param ids идентификаторы локаций, которые нужны в ответе
      * @return описания локаций по идентификаторам
      */
@@ -899,7 +899,7 @@ class StructureController(
     /**
      * Кадр в ответе списка значимых кадров.
      *
-     * @param episode серия: из неё берётся карта ключевых кадров
+     * @param episode эпизод: из неё берётся карта ключевых кадров
      * @return описание кадра
      */
     private fun FrameSignificance.toView(episode: Episode): FrameView =
@@ -915,7 +915,7 @@ class StructureController(
     /**
      * Кадр в ответе с признаками диапазона.
      *
-     * @param episode серия: из неё берётся карта ключевых кадров
+     * @param episode эпизод: из неё берётся карта ключевых кадров
      * @return признаки кадра
      */
     private fun FrameSignificance.toFlagsView(episode: Episode): FrameFlagsView =

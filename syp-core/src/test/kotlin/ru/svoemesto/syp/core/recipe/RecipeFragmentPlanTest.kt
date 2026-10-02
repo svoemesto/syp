@@ -8,7 +8,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Тесты совместимости серий и расчёта фактических границ.
+ * Тесты совместимости эпизодов и расчёта фактических границ.
  *
  * Обе проверки обязаны выполняться **до** выдачи сценария: узнать о
  * несовместимости через полчаса работы на своей машине пользователь не должен
@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  *
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-@DisplayName("Совместимость серий и фактические границы")
+@DisplayName("Совместимость эпизодов и фактические границы")
 class RecipeFragmentPlanTest {
     /** Карта ключевых кадров: ключевой каждый сотый кадр плюс первый. */
     private val keyframes: KeyframeLookup =
@@ -59,10 +59,10 @@ class RecipeFragmentPlanTest {
     )
 
     @Test
-    @DisplayName("Серия одна — совместима сама с собой")
+    @DisplayName("Эпизод один — совместима сама с собой")
     fun singleEpisodeIsCompatible() {
         val report = RecipeCompatibility.check(listOf(episode(7)))
-        assertTrue(report.isCompatible, "единственная серия не может быть несовместима сама с собой")
+        assertTrue(report.isCompatible, "единственный эпизод не может быть несовместима сама с собой")
         assertEquals(7L, report.reference.episodeId)
     }
 
@@ -70,7 +70,7 @@ class RecipeFragmentPlanTest {
     @DisplayName("Одинаковые параметры дают совместимость")
     fun equalParametersAreCompatible() {
         val report = RecipeCompatibility.check(listOf(episode(7), episode(8)))
-        assertTrue(report.isCompatible, "серии с одинаковыми параметрами совместимы")
+        assertTrue(report.isCompatible, "эпизода с одинаковыми параметрами совместимы")
     }
 
     @Test
@@ -98,7 +98,7 @@ class RecipeFragmentPlanTest {
     }
 
     @Test
-    @DisplayName("Пустой список серий — отказ, а не «всё совместимо»")
+    @DisplayName("Пустой список эпизодов — отказ, а не «всё совместимо»")
     fun emptySelectionIsRejected() {
         assertFailsWith<IllegalArgumentException> { RecipeCompatibility.check(emptyList()) }
     }
@@ -123,7 +123,7 @@ class RecipeFragmentPlanTest {
                 RecipeFragmentPlan.cutBoundaries(1120, 1455, null)
             }
         assertEquals(
-            "у серии не посчитана карта ключевых кадров, фактические границы фрагмента вычислить нечем; " +
+            "у эпизода не посчитана карта ключевых кадров, фактические границы фрагмента вычислить нечем; " +
                 "округление на стыке выдумывать нельзя (FR-082)",
             failure.detail,
         )

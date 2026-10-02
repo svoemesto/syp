@@ -72,9 +72,9 @@ class RecipeConfiguration {
      * Собирает генератор сценария.
      *
      * @param database доступ к базе
-     * @param episodeStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @param checksums справочник эталонных сумм
-     * @param settingsStore настройки сериала
+     * @param settingsStore настройки фильма
      * @param recipes хранилище сценариев
      * @param catalog каталог сценариев
      * @param artifacts реестр артефактов

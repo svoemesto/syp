@@ -21,14 +21,14 @@ import kotlin.test.assertTrue
  * Требования задач:
  *
  * 1. **T064** — у лица сохранены четыре координаты рамки, порядковый номер в
- *    кадре и уверенность детектора; естественный ключ — серия, номер кадра и
+ *    кадре и уверенность детектора; естественный ключ — эпизод, номер кадра и
  *    порядковый номер; рамка перевёрнутая или вне разрешения — отказ базой;
  * 2. **T065** — принадлежность лица плану всегда соответствует правилу
  *    диапазонов кадров; пересчёт выполняется в той же транзакции, что и
  *    операция с границами; пустое значение допустимо, только если номер кадра
- *    вне диапазонов всех планов серии;
+ *    вне диапазонов всех планов эпизода;
  * 3. **T067** — слишком вытянутая рамка не признаётся лицом и получает
- *    служебную персону «не лицо»; порог пропорций — настройка сериала.
+ *    служебную персону «не лицо»; порог пропорций — настройка фильма.
  *
  * Проверки идут против живой базы: часть правил держит сама база, и на
  * подставной базе проверять было бы нечего.
@@ -63,10 +63,10 @@ class FaceStoreTest {
     }
 
     /**
-     * Заводит серию в сериале.
+     * Заводит эпизод в фильме.
      *
-     * @param frames число кадров серии
-     * @return записанная серия
+     * @param frames число кадров эпизода
+     * @return записанный эпизод
      */
     private fun newEpisode(frames: Int = 1000): Episode {
         val movie = movies.create("Лица ${System.nanoTime()}", "/srv/got")
@@ -128,14 +128,14 @@ class FaceStoreTest {
     }
 
     @Test
-    fun `естественный ключ лица — серия, кадр и порядковый номер`() {
+    fun `естественный ключ лица — эпизод, кадр и порядковый номер`() {
         val episode = newEpisode()
         val episodeId = requireNotNull(episode.id)
         val unrecognized = requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
         val found = listOf(DetectedFace(10, 10, 110, 110, 0.9))
 
         // Повторный проход идёт через replaceAutoFrame — так пишет задание
-        // FACES: рамки прежнего прохода той же серии обновляются, а не
+        // FACES: рамки прежнего прохода того же эпизода обновляются, а не
         // плодят вторые строки.
         faces.replaceAutoFrame(episodeId, 7, found, { unrecognized }, frameWidth, frameHeight)
         faces.replaceAutoFrame(episodeId, 7, found, { unrecognized }, frameWidth, frameHeight)
@@ -249,7 +249,7 @@ class FaceStoreTest {
     }
 
     @Test
-    fun `порог пропорций не зашит в код а берётся у сериала`() {
+    fun `порог пропорций не зашит в код а берётся у фильма`() {
         val episode = newEpisode()
         val settings =
             ru.svoemesto.syp.admin.catalog
@@ -258,14 +258,14 @@ class FaceStoreTest {
         val threshold = settings.number(ru.svoemesto.syp.admin.catalog.MovieSetting.FACE_NOT_PERSON_ASPECT)
         assertTrue(
             threshold >= 1.0,
-            "порог пропорций живёт в настройках сериала и не меньше единицы, задано $threshold",
+            "порог пропорций живёт в настройках фильма и не меньше единицы, задано $threshold",
         )
     }
 
     /**
-     * Заводит план серии напрямую в базе.
+     * Заводит план эпизода напрямую в базе.
      *
-     * @param episodeId серия
+     * @param episodeId эпизод
      * @param first первый кадр
      * @param last последний кадр
      * @return идентификатор плана

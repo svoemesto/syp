@@ -62,7 +62,7 @@ COMMENT ON TABLE model_version IS
 COMMENT ON COLUMN model_version.threshold IS
     'Порог распознавания — настройка обучения, а не константа кода (FR-065).';
 
--- Ровно одна активная версия на сериал: частичный уникальный индекс.
+-- Ровно одна активная версия на фильм: частичный уникальный индекс.
 CREATE UNIQUE INDEX model_version_one_active_idx ON model_version (serial_id) WHERE is_active;
 
 CREATE INDEX model_version_serial_idx ON model_version (serial_id, created_at DESC);
@@ -107,7 +107,7 @@ CREATE TABLE face (
 );
 
 COMMENT ON TABLE face IS
-    'Лицо — рамка в кадре. Ищется в каждом кадре серии (ADR-0002); кадры не копятся.';
+    'Лицо — рамка в кадре. Ищется в каждом кадре эпизода (ADR-0002); кадры не копятся.';
 COMMENT ON COLUMN face.shot_id IS
     'Принадлежность к плану (FR-034). Всегда соответствует правилу диапазонов и пересчитывается в транзакции доводки границ.';
 COMMENT ON COLUMN face.origin IS
