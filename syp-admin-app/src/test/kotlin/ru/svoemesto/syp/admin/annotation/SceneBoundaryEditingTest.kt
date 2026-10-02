@@ -62,19 +62,31 @@ class SceneBoundaryEditingTest {
      * Заводит эпизод с готовой структурой: планы по 60 кадров, сцены —
      * каждые две сцены планов.
      *
+     * Каждый вызов заводит свой фильм, свой эпизод и свой путь к файлу: база
+     * требует один эпизод на один файл, и общий путь у пяти проверок означал
+     * бы, что первая из них занимает файл, а остальные падают мимо своего
+     * предмета.
+     *
      * @return эпизод с записанной структурой
      */
     private fun analysed(): Episode {
         val frameCount = 600
         val store = EpisodeStore(db)
-        val movie = MovieStore(db).create("Доводка ${System.nanoTime()}", "/srv/got")
+        // Один уникальный признак на весь вызов, и имя фильма, имя эпизода и
+        // путь к файлу берутся из него. Путь обязан быть уникальным: база
+        // требует один эпизод на один файл, и проверка на одинаковый путь
+        // стоит в `insert` до записи. С фиксированным путём первый же прогон
+        // занимал файл, а остальные четыре падали с отказом `CONFLICT` — мимо
+        // самой доводки границ, в заведении эпизода.
+        val token = System.nanoTime()
+        val movie = MovieStore(db).create("Доводка $token", "/srv/got")
         val episode =
             store.insert(
                 Episode(
                     movieId = movie.id!!,
                     ordinal = 0,
-                    name = "S1E1-${System.nanoTime()}.mkv",
-                    sourcePath = "/srv/got/S1E1.mkv",
+                    name = "S1E1-$token.mkv",
+                    sourcePath = "/srv/got/S1E1-$token.mkv",
                     byteSize = 1000,
                     fileMtime = java.time.OffsetDateTime.parse("2024-11-05T10:00:00Z"),
                     frameCount = frameCount,
