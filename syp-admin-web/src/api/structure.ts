@@ -42,6 +42,8 @@ export interface SceneView {
   firstFrame: number
   /** Последний кадр сцены. */
   lastFrame: number
+  /** Название сцены либо `null`, если оператор её не назвал. */
+  title: string | null
   /** Происхождение границы. */
   origin: string
   /** Место действия либо `null`, если не назначено. */
@@ -192,6 +194,8 @@ export interface PreviewUrlView {
   lastFrame: number
   /** Сколько кадров на листе. */
   frameNumbers: number
+  /** Сколько листов превью у эпизода всего. */
+  sheetCount: number
   /** Ячеек по горизонтали. */
   columns: number
   /** Ячеек по вертикали. */
@@ -216,6 +220,34 @@ export interface PreviewUrlView {
   frame: number | null
   /** Область кадрирования запрошенного кадра либо `null`. */
   crop: CellCropView | null
+}
+
+/**
+ * Ответ на правку границы сцены.
+ *
+ * Ответ несёт изменённый участок, а не ссылку «перечитайте всё»: перечитывать
+ * весь эпизод из-за двух сцен — это мегабайты ради двух строк, а оператор
+ * после правки должен видеть результат немедленно.
+ */
+export interface SceneBoundaryView {
+  /** Эпизод. */
+  episodeId: number
+  /** Кадр, на котором теперь стоит граница. */
+  frame: number
+  /** Вид операции: `MOVE`, `SPLIT` или `MERGE`. */
+  action: string
+  /** Вид операции словами. */
+  actionTitle: string
+  /** Рабочие сцены затронутого участка после операции. */
+  scenes: SceneView[]
+  /** Строки, выведенные из рабочей структуры. */
+  supersededSceneIds: number[]
+  /** Сколько рабочих сцен у эпизода после операции. */
+  scenesTotal: number
+  /** Сколько планов у эпизода. */
+  shotsTotal: number
+  /** Число кадров эпизода. */
+  frameCount: number
 }
 
 /**
@@ -283,13 +315,74 @@ export function readFrames(episodeId: number, offset = 0, limit = 200): Promise<
 /**
  * Читает адрес листа превью и область кадрирования кадра.
  *
+ * Лист задаётся **номером** либо **кадром** — как и на сервере: номер нужен
+ * навигации по листам, а кадр — переходу к кадру. Ничего не подставлять по
+ * умолчанию нельзя: молчаливый нулевой лист показывал бы первый вместо
+ * запрошенного, а молчаливо заданный нулевой индекс при кадре с другого листа
+ * увёл бы сервер не туда, и область кадрирования не пришла бы вовсе.
+ *
  * @param episodeId идентификатор эпизода
- * @param frame кадр, для которого нужен лист; без него берётся первый лист
+ * @param index номер листа, с нуля; без него лист определяется по кадру
+ * @param frame кадр, для которого нужна область кадрирования
  * @returns описание листа превью
  */
-export function readPreviewUrl(episodeId: number, frame?: number): Promise<PreviewUrlView> {
-  const frameQuery = frame === undefined ? '' : `&frame=${frame}`
-  return request<PreviewUrlView>('GET', `/episodes/${episodeId}/preview-url?index=0${frameQuery}`)
+export function readPreviewUrl(
+  episodeId: number,
+  index?: number,
+  frame?: number,
+): Promise<PreviewUrlView> {
+  const parts: string[] = []
+  if (index !== undefined) {
+    parts.push(`index=${index}`)
+  }
+  if (frame !== undefined) {
+    parts.push(`frame=${frame}`)
+  }
+  return request<PreviewUrlView>('GET', `/episodes/${episodeId}/preview-url?${parts.join('&')}`)
+}
+
+/**
+ * Сдвигает границу между двумя соседними сценами.
+ *
+ * Границы передаются номерами кадров, а не идентификаторами сцен: оператор
+ * видит кадры, и требовать от него знания внутренних ключей незачем (ADR-0001).
+ *
+ * @param episodeId идентификатор эпизода
+ * @param fromFrame кадр, на котором граница стоит сейчас
+ * @param toFrame кадр, на который её ставят
+ * @returns изменённый участок структуры
+ */
+export function moveSceneBoundary(
+  episodeId: number,
+  fromFrame: number,
+  toFrame: number,
+): Promise<SceneBoundaryView> {
+  return request<SceneBoundaryView>('POST', `/episodes/${episodeId}/scenes/boundary/move`, {
+    fromFrame,
+    toFrame,
+  })
+}
+
+/**
+ * Разделяет сцену по номеру кадра.
+ *
+ * @param episodeId идентификатор эпизода
+ * @param frame первый кадр второй из получившихся сцен
+ * @returns изменённый участок структуры
+ */
+export function splitScene(episodeId: number, frame: number): Promise<SceneBoundaryView> {
+  return request<SceneBoundaryView>('POST', `/episodes/${episodeId}/scenes/${frame}/split`)
+}
+
+/**
+ * Объединяет сцену, начинающуюся с указанного кадра, с предыдущей.
+ *
+ * @param episodeId идентификатор эпизода
+ * @param frame первый кадр поглощаемой сцены
+ * @returns изменённый участок структуры
+ */
+export function mergeScenes(episodeId: number, frame: number): Promise<SceneBoundaryView> {
+  return request<SceneBoundaryView>('POST', `/episodes/${episodeId}/scenes/${frame}/merge`)
 }
 
 /**

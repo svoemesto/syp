@@ -4,6 +4,7 @@ import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.db.Row
 import ru.svoemesto.syp.core.db.Save
 import ru.svoemesto.syp.core.db.Table
+import java.sql.Connection
 
 /**
  * Происхождение границы.
@@ -468,15 +469,43 @@ class StructureService(
     /**
      * Читает рабочие сцены эпизода по возрастанию первого кадра.
      *
+     * Возвращаются **все** строки, включая помеченные устаревшими: помеченная
+     * строка — это прежняя редакция структуры, и сравнить её с сырым
+     * результатом автоматики оператор может только здесь (FR-093). Рабочей
+     * структурой считаются строки с `isStale = FALSE`.
+     *
      * @param episodeId идентификатор эпизода
      * @return сцены эпизода
      */
-    fun listScenes(episodeId: Long): List<Scene> =
-        db.select(
-            "$SCENE_READ_SQL WHERE id_episode = ? ORDER BY first_frame",
-            ::readScene,
-            episodeId,
-        )
+    fun listScenes(episodeId: Long): List<Scene> = db.use { listScenesIn(it, episodeId) }
+
+    /**
+     * Читает сцены эпизода в уже открытой транзакции.
+     *
+     * Отдельный метод нужен операциям правки границ: прочитать и записать надо
+     * в одной транзакции, иначе между чтением и записью успела бы встать чужая
+     * правка, а решение посчиталось бы по уже не тому состоянию.
+     *
+     * @param connection открытое соединение, транзакцией управляет вызывающий
+     * @param episodeId идентификатор эпизода
+     * @return сцены эпизода по возрастанию первого кадра
+     */
+    fun listScenesIn(
+        connection: Connection,
+        episodeId: Long,
+    ): List<Scene> =
+        connection
+            .prepareStatement("$SCENE_READ_SQL WHERE id_episode = ? ORDER BY first_frame")
+            .use { statement ->
+                statement.setLong(1, episodeId)
+                statement.executeQuery().use { resultSet ->
+                    val rows = mutableListOf<Scene>()
+                    while (resultSet.next()) {
+                        rows.add(readScene(Row(resultSet)))
+                    }
+                    rows
+                }
+            }
 
     /**
      * Читает рабочие планы эпизода по возрастанию первого кадра.
@@ -484,12 +513,31 @@ class StructureService(
      * @param episodeId идентификатор эпизода
      * @return планы эпизода
      */
-    fun listShots(episodeId: Long): List<Shot> =
-        db.select(
-            "$SHOT_READ_SQL WHERE id_episode = ? ORDER BY first_frame",
-            ::readShot,
-            episodeId,
-        )
+    fun listShots(episodeId: Long): List<Shot> = db.use { listShotsIn(it, episodeId) }
+
+    /**
+     * Читает планы эпизода в уже открытой транзакции.
+     *
+     * @param connection открытое соединение, транзакцией управляет вызывающий
+     * @param episodeId идентификатор эпизода
+     * @return планы эпизода по возрастанию первого кадра
+     */
+    fun listShotsIn(
+        connection: Connection,
+        episodeId: Long,
+    ): List<Shot> =
+        connection
+            .prepareStatement("$SHOT_READ_SQL WHERE id_episode = ? ORDER BY first_frame")
+            .use { statement ->
+                statement.setLong(1, episodeId)
+                statement.executeQuery().use { resultSet ->
+                    val rows = mutableListOf<Shot>()
+                    while (resultSet.next()) {
+                        rows.add(readShot(Row(resultSet)))
+                    }
+                    rows
+                }
+            }
 
     /**
      * Планы сцены, вычисленные по диапазонам кадров.

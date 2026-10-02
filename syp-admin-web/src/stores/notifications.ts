@@ -61,6 +61,16 @@ const notice = shallowRef<NoticeView | null>(null)
  */
 const checksumRevisions = ref<Record<number, number>>({})
 
+/**
+ * Счётчик изменений структуры по эпизодам.
+ *
+ * Устроен так же, как счётчик сумм, и по той же причине: разбор эпизода идёт
+ * десятки минут, и единственный способ узнать, что он закончился, — событие о
+ * смене состояния задания. Экран структуры перечитывает данные, когда счётчик
+ * его эпизода растёт, и не опрашивает сервер по таймеру.
+ */
+const analysisRevisions = ref<Record<number, number>>({})
+
 /** Открытая подписка; `null`, пока подписка не открыта. */
 let subscription: Subscription | null = null
 
@@ -97,6 +107,17 @@ function handle(name: string, payload: unknown): void {
     case SseEventType.JOB_STATE: {
       const dto = payload as JobStatePayload
       lastJob.value = toJobStateView(dto)
+      // Смена состояния задания означает, что результат на экране изменился:
+      // задание `ANALYZE` переписало структуру эпизода, и читать её надо по
+      // событию, а не по таймеру (ADR-0017). Предмет работы приходит в событии
+      // идентификатором, и без него счётчик поднять не на чем.
+      if (dto.kind === 'ANALYZE' && dto.subjectType === 'EPISODE' && dto.subjectId !== null) {
+        const episodeId = dto.subjectId
+        analysisRevisions.value = {
+          ...analysisRevisions.value,
+          [episodeId]: (analysisRevisions.value[episodeId] ?? 0) + 1,
+        }
+      }
       const message = toJobNotice(dto)
       if (message !== null) {
         publish(message.tone, message.title, message.text)
@@ -221,6 +242,16 @@ export function connectionIsAttention(): boolean {
  */
 export function checksumRevision(episodeId: number): number {
   return checksumRevisions.value[episodeId] ?? 0
+}
+
+/**
+ * Счётчик изменений структуры указанного эпизода.
+ *
+ * @param episodeId идентификатор эпизода
+ * @returns номер изменения, `0`, если изменений не было
+ */
+export function analysisRevision(episodeId: number): number {
+  return analysisRevisions.value[episodeId] ?? 0
 }
 
 /** Заметка для показа: заголовок и текст последнего уведомления. */
