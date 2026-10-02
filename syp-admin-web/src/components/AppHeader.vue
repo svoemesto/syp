@@ -8,6 +8,14 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useCatalogStore } from '../stores/catalog'
+import {
+  connectionIsAttention,
+  connectionLabel,
+  connectionTone,
+  currentJob,
+  currentQueue,
+  retryNotifications,
+} from '../stores/notifications'
 
 const route = useRoute()
 const catalog = useCatalogStore()
@@ -20,6 +28,28 @@ const sections = computed(() => [
   { name: 'faces', title: 'Лица', hint: 'Детекция, кластеры, персоны' },
   { name: 'recipes', title: 'Сценарии', hint: 'Фильтры, выдача, подпись' },
 ])
+
+/** Состояние потока уведомлений словами. */
+const connection = computed(() => connectionLabel())
+
+/** Класс индикатора состояния потока. */
+const connectionBadge = computed(() => connectionTone())
+
+/** Требует ли состояние потока внимания оператора. */
+const connectionAttention = computed(() => connectionIsAttention())
+
+/** Сводка по очереди заданий. */
+const queue = computed(() => currentQueue())
+
+/** Ход последнего задания одной строкой. */
+const jobCaption = computed(() => {
+  const row = currentJob()
+  if (row === null) {
+    return null
+  }
+  const done = row.percent === null ? row.done : `${row.percent}%`
+  return `${row.kindTitle}: ${row.stateTitle} (${done})`
+})
 
 /** Название выбранной серии для показа в шапке. */
 const selectedSeriesLabel = computed(() => {
@@ -85,6 +115,24 @@ function isActive(name: string): boolean {
         <span class="syp-selection text-body-secondary">
           {{ selectedSeriesLabel }}
         </span>
+
+        <div class="syp-live d-flex align-items-center gap-2 flex-wrap">
+          <span v-if="queue !== null" class="syp-queue text-body-secondary">
+            очередь: {{ queue.summary }}
+          </span>
+          <span v-if="jobCaption !== null" class="syp-job text-body-secondary">
+            {{ jobCaption }}
+          </span>
+          <span class="badge" :class="connectionBadge">{{ connection }}</span>
+          <button
+            v-if="connectionAttention"
+            type="button"
+            class="btn btn-sm btn-outline-light"
+            @click="retryNotifications"
+          >
+            подключиться снова
+          </button>
+        </div>
       </div>
 
       <nav class="syp-nav" aria-label="Разделы админки">
@@ -130,6 +178,15 @@ function isActive(name: string): boolean {
 
 .syp-selection {
   font-size: 0.8125rem;
+}
+
+.syp-live {
+  font-size: 0.8125rem;
+}
+
+.syp-queue,
+.syp-job {
+  font-variant-numeric: tabular-nums;
 }
 
 .syp-nav {

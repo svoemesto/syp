@@ -8,6 +8,7 @@ import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import StateBlock from '../components/StateBlock.vue'
 import { useChecksumStore } from '../stores/checksum'
+import { checksumRevision } from '../stores/notifications'
 import { useNotify } from '../ui/notify'
 
 const route = useRoute()
@@ -17,6 +18,9 @@ const notify = useNotify()
 
 /** Идентификатор серии из адреса. */
 const seriesId = computed(() => Number(route.params.seriesId))
+
+/** Номер изменения суммы этой серии: растёт по событию из потока уведомлений. */
+const revision = computed(() => checksumRevision(seriesId.value))
 
 /** Тон сообщения о состоянии подсчёта. */
 const toneClass = computed(() => {
@@ -38,6 +42,13 @@ onMounted(() => {
 
 watch(seriesId, (next) => {
   void store.reload(next)
+})
+
+// Событие о сумме приходит по подписке, и перечитывать состояние по событию
+// дешевле, чем спрашивать по таймеру: подсчёт идёт минутами, а таймер всё это
+// время опрашивал бы впустую.
+watch(revision, () => {
+  void store.reload(seriesId.value)
 })
 
 /** Ставит пересчёт и перечитывает состояние. */

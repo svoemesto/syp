@@ -6,10 +6,29 @@
 // оформление — в `theme/theme.css` поверх Bootstrap (ADR-0015).
 //
 // `BApp` обязателен: он устанавливает оркестратор тостов, которым пользуются
-// экраны постановки заданий.
+// экраны постановки заданий и поток уведомлений.
+//
+// Уведомления о ходе работы показываются здесь, а не на экранах: оператор
+// поставил задание на одном экране, а смотрит на другом. Тост из
+// `ui/notify.ts` берётся один раз на всё приложение — иначе каждая вкладка
+// экрана завела бы свой оркестратор.
 import { BApp } from 'bootstrap-vue-next'
+import { watch } from 'vue'
 import AppHeader from './components/AppHeader.vue'
 import { RouterView } from 'vue-router'
+import { useNotify } from './ui/notify'
+import { currentNotice } from './stores/notifications'
+
+const notify = useNotify()
+
+watch(
+  () => currentNotice(),
+  (message) => {
+    if (message !== null) {
+      notify(message.text, message.tone)
+    }
+  },
+)
 </script>
 
 <template>

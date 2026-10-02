@@ -11,11 +11,24 @@
 
 import { useToast } from 'bootstrap-vue-next'
 
-/** Тон уведомления: соответствует смыслу, а не оформлению Bootstrap. */
-export type NoticeTone = 'success' | 'info' | 'warning'
+/**
+ * Тон уведомления: соответствует смыслу, а не оформлению Bootstrap.
+ *
+ * `danger` добавлен ради отказов: ошибка задания и отказ выдачи сценария
+ * приходят по подписке и должны выглядеть отказом, а не «заданием поставлено».
+ */
+export type NoticeTone = 'success' | 'info' | 'warning' | 'danger'
 
 /** Сколько миллисекунд показывается сообщение. */
 const LIFETIME_MS = 6000
+
+/** Заголовок сообщения по тону. */
+const TITLES: Record<NoticeTone, string> = {
+  success: 'Готово',
+  info: 'Задание поставлено',
+  warning: 'Внимание',
+  danger: 'Отказ',
+}
 
 /**
  * Компоновщик уведомлений для экрана.
@@ -36,7 +49,7 @@ export function useNotify(): (text: string, tone?: NoticeTone) => void {
    */
   return function notify(text: string, tone: NoticeTone = 'success'): void {
     void toast.show({
-      title: tone === 'success' ? 'Готово' : 'Задание поставлено',
+      title: TITLES[tone],
       body: text,
       variant: tone,
       interval: LIFETIME_MS,
