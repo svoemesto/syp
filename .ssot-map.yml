@@ -16,6 +16,13 @@ code_to_docs:
   - docs/features/first-vertical-slice.md
   syp-core/src/main/kotlin/ru/svoemesto/syp/core/signing:
   - docs/features/first-vertical-slice.md
+  syp-core/src/main/kotlin/ru/svoemesto/syp/core/recipe:
+  - docs/domains/selection/domain.md
+  - docs/domains/selection/components/recipe-builder.md
+  - docs/domains/selection/components/recipe-signer.md
+  - docs/domains/selection/components/recipe-compatibility.md
+  - docs/domains/showcase/components/recipe-delivery.md
+  - docs/features/first-vertical-slice.md
   syp-core/src/main/kotlin/ru/svoemesto/syp/core/contract:
   - docs/features/first-vertical-slice.md
   syp-admin-app/src/test:
