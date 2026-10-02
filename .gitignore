@@ -34,13 +34,3 @@ build/
 deploy/models/*.onnx
 deploy/models/*.pt
 deploy/models/*.bin
-
-# Окружения Python и виртуальные машины. Среда исполнения для видеокарты
-# (torch, onnxruntime-gpu) стоит в .data/venv-gpu и весит единицы гигабайт;
-# в репозиторий ей нельзя попасть ни при каком расположении (решение владельца
-# 2026-10-03).
-venv/
-.venv/
-*/venv/
-__pycache__/
-*.pyc
