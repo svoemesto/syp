@@ -5,12 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.DoubleNode
 import com.fasterxml.jackson.databind.node.IntNode
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.db.Row
 import ru.svoemesto.syp.core.db.Table
+import ru.svoemesto.syp.core.json.Json
 import java.time.OffsetDateTime
 
 /**
@@ -185,7 +185,7 @@ class MovieSettings(
  */
 class MovieSettingsStore(
     private val db: Db,
-    private val mapper: ObjectMapper = ObjectMapper().registerModule(JavaTimeModule()),
+    private val mapper: ObjectMapper = Json.mapper(),
 ) {
     /**
      * Читает настройки фильма.

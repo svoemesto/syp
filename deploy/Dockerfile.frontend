@@ -20,6 +20,16 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     || npm install --no-audit --no-fund --fetch-timeout=600000
 
 COPY . .
+# Значения подписки приходят в сборку аргументом: это параметры развёртывания,
+# и менять их не должно требовать правки исходников (constitution VIII.5).
+# Значения по умолчанию совпадают с `import.meta.env` в коде и с
+# `deploy/.env.example`, и все три места должны говорить одно.
+ARG VITE_SSE_MAX_RECONNECT_ATTEMPTS=5
+ARG VITE_SSE_RECONNECT_BASE_MS=1000
+ARG VITE_SSE_RECONNECT_MAX_MS=30000
+ENV VITE_SSE_MAX_RECONNECT_ATTEMPTS=${VITE_SSE_MAX_RECONNECT_ATTEMPTS} \
+    VITE_SSE_RECONNECT_BASE_MS=${VITE_SSE_RECONNECT_BASE_MS} \
+    VITE_SSE_RECONNECT_MAX_MS=${VITE_SSE_RECONNECT_MAX_MS}
 RUN npm run build
 
 FROM nginx:stable

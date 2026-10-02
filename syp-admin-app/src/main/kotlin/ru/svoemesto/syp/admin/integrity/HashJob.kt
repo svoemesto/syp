@@ -4,6 +4,7 @@ import ru.svoemesto.syp.admin.catalog.Episode
 import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.admin.jobs.JobResult
+import ru.svoemesto.syp.admin.notify.NotificationPublisher
 import ru.svoemesto.syp.core.jobs.Job
 import ru.svoemesto.syp.core.jobs.JobKind
 import ru.svoemesto.syp.core.jobs.JobProgress
@@ -40,6 +41,8 @@ import java.security.MessageDigest
  *
  * @property episodeStore хранилище эпизодов: из него берётся путь к файлу
  * @property registry справочник сумм
+ * @property notifications уведомления интерфейса; `null` — публиковать некуда,
+ *   и задание от этого работает как раньше
  * @property blockSize размер блока чтения, байт
  * @property progressStep как часто сообщается прогресс, байт
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -47,6 +50,7 @@ import java.security.MessageDigest
 class HashJob(
     private val episodeStore: EpisodeStore,
     private val registry: ChecksumRegistry,
+    private val notifications: NotificationPublisher? = null,
     private val blockSize: Int = DEFAULT_BLOCK_SIZE,
     private val progressStep: Long = DEFAULT_PROGRESS_STEP,
 ) : JobHandler {
@@ -89,6 +93,9 @@ class HashJob(
                     attributes.size(),
                     attributes.lastModifiedTime().toInstant().atOffset(java.time.ZoneOffset.UTC),
                 )
+            // Подсчёт 5,6 ГБ идёт минутами: без этого события экран суммы
+            // молчал бы всё это время и выглядел бы зависшим.
+            notifications?.checksumChanged(completed)
             return JobResult(
                 note =
                     "сумма ${completed.algorithm} посчитана для «${episode.name}»: " +
@@ -107,6 +114,7 @@ class HashJob(
                     "${failure.message ?: failure::class.simpleName}. " +
                     "Проверьте, что архив смонтирован и файл доступен на чтение"
             registry.fail(entryId, text)
+            registry.find(entryId)?.let { failed -> notifications?.checksumChanged(failed) }
             throw HashFailed(text)
         }
     }

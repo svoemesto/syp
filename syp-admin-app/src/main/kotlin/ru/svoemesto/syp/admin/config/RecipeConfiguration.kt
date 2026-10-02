@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.admin.integrity.ChecksumRegistry
+import ru.svoemesto.syp.admin.notify.NotificationPublisher
 import ru.svoemesto.syp.admin.recipe.RecipeController
 import ru.svoemesto.syp.admin.selection.RecipeBuilder
 import ru.svoemesto.syp.core.db.Db
@@ -112,6 +113,7 @@ class RecipeConfiguration {
      * @param builder генератор сценария
      * @param recipes хранилище сценариев
      * @param catalog каталог сценариев
+     * @param notifications публикация уведомлений о событиях домена
      * @return контроллер выдачи
      */
     @Bean
@@ -119,7 +121,8 @@ class RecipeConfiguration {
         builder: RecipeBuilder,
         recipes: RecipeStore,
         catalog: RecipeCatalog,
-    ): RecipeController = RecipeController(builder, recipes, catalog)
+        notifications: NotificationPublisher,
+    ): RecipeController = RecipeController(builder, recipes, catalog, notifications)
 
     /**
      * Собирает источник момента выдачи.

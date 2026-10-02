@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import ru.svoemesto.syp.admin.notify.NotificationPublisher
 import ru.svoemesto.syp.admin.selection.RecipeBuilder
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
@@ -37,6 +38,8 @@ import ru.svoemesto.syp.core.recipe.RecipeStore
  * @property builder генератор сценария
  * @property recipes хранилище сценариев
  * @property catalog каталог сценариев: актуальность и устаревание
+ * @property notifications уведомления интерфейса; `null` — публиковать некуда,
+ *   и выдача от этого работает как раньше
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 @RestController
@@ -44,6 +47,7 @@ class RecipeController(
     private val builder: RecipeBuilder,
     private val recipes: RecipeStore,
     private val catalog: RecipeCatalog,
+    private val notifications: NotificationPublisher? = null,
 ) {
     /**
      * Выдаёт сценарий по выбранным сценам.
@@ -65,10 +69,19 @@ class RecipeController(
         @RequestBody request: RecipeIssueRequest,
     ): ResponseEntity<RecipeIssuedResponse> {
         val recipe =
-            builder.issue(
-                recipeName = requireName(request.name),
-                sceneIds = request.sceneIds.distinct(),
-            )
+            try {
+                builder.issue(
+                    recipeName = requireName(request.name),
+                    sceneIds = request.sceneIds.distinct(),
+                )
+            } catch (failure: DomainException) {
+                // Выдача не задание очереди: очередь об отказе не знает и
+                // сообщить о нём не может. Без этого события отказ виден только
+                // тому экрану, который его вызвал.
+                notifications?.failed(failure.code.name, failure.message ?: ISSUE_OPERATION, ISSUE_OPERATION)
+                throw failure
+            }
+        notifications?.recipeReady(recipe)
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(
@@ -153,6 +166,9 @@ class RecipeController(
     private companion object {
         /** Сколько сценариев показывает список. */
         const val LIST_LIMIT: Int = 50
+
+        /** Чем оператор занят в момент отказа: показывается в уведомлении. */
+        const val ISSUE_OPERATION: String = "выдача сценария сборки"
     }
 }
 

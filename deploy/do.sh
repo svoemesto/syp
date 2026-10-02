@@ -114,7 +114,12 @@ cmd_build_public_app() {
 
 cmd_build_admin_web() {
     build_frontend syp-admin-web
+    # Значения подписки SSE идут в сборку аргументами: это параметры
+    # развёртывания, и их правка не должна требовать правки исходников.
     docker build --file "${DEPLOY_DIR}/Dockerfile.frontend" \
+        --build-arg VITE_SSE_MAX_RECONNECT_ATTEMPTS="${SYP_SSE_MAX_RECONNECT_ATTEMPTS:-5}" \
+        --build-arg VITE_SSE_RECONNECT_BASE_MS="${SYP_SSE_RECONNECT_BASE_MS:-1000}" \
+        --build-arg VITE_SSE_RECONNECT_MAX_MS="${SYP_SSE_RECONNECT_MAX_MS:-30000}" \
         --tag svoemesto/syp-admin-web:local "${ROOT_DIR}/syp-admin-web"
 }
 

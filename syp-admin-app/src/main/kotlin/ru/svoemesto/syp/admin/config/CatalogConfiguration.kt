@@ -1,8 +1,6 @@
 package ru.svoemesto.syp.admin.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.analysis.Staleness
@@ -14,6 +12,7 @@ import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.SourceProbe
 import ru.svoemesto.syp.core.db.Db
+import ru.svoemesto.syp.core.json.Json
 import ru.svoemesto.syp.core.media.ExternalProgram
 
 /**
@@ -147,10 +146,7 @@ class CatalogConfiguration {
      * @return объект разбора JSON
      */
     @Bean
-    fun catalogObjectMapper(): ObjectMapper =
-        ObjectMapper()
-            .registerKotlinModule()
-            .registerModule(JavaTimeModule())
+    fun catalogObjectMapper(): ObjectMapper = Json.mapper()
 
     companion object {
         /** Имя переменной окружения со строкой подключения к базе. */
