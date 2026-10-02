@@ -24,6 +24,12 @@ dependencies {
     // не там, где об этом подумали.
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
+    // Модуль времени: без него Jackson не умеет ни прочитать, ни отдать
+    // java.time.Instant и отвечает 500 на любой ответ с датой. Нашлось на
+    // сквозном прогоне: GET /api/serials отвечал 200 на пустом списке и
+    // падал 500, как только сериал создавался и в ответе появлялась дата.
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(kotlin("test"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
