@@ -43,5 +43,11 @@ code_to_docs:
   syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/recipe:
   - docs/domains/selection/domain.md
   - docs/features/first-vertical-slice.md
+  syp-admin-web/src:
+  - docs/domains/analysis/domain.md
+  - docs/features/first-vertical-slice.md
+  syp-public-web/src:
+  - docs/domains/showcase/domain.md
+  - docs/features/first-vertical-slice.md
   deploy/syp-db:
   - docs/features/first-vertical-slice.md
