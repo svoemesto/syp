@@ -29,6 +29,9 @@ export DOCKER_CONFIG="${DOCKER_CONFIG:-/home/nsa/syp/.docker}"
 
 NAME="syp-testdb-$$"
 DB_PASSWORD="syp-test-password"
+STORAGE_NAME="syp-testminio-$$"
+STORAGE_USER="syp-test-user"
+STORAGE_PASSWORD="syp-test-password"
 KEEP=0
 if [[ "${1:-}" == "--keep" ]]; then
     KEEP=1
@@ -38,6 +41,7 @@ fi
 cleanup() {
     if [[ ${KEEP} -eq 0 ]]; then
         docker rm -f "${NAME}" >/dev/null 2>&1
+        docker rm -f "${STORAGE_NAME}" >/dev/null 2>&1
     else
         printf '%s\n' "контейнер ${NAME} оставлен для разбора" >&2
     fi
@@ -45,7 +49,29 @@ cleanup() {
 trap cleanup EXIT
 
 printf '%s\n' "=== SYP: тесты, требующие живой базы ==="
-printf '%s\n' "контейнер: ${NAME} (postgres:16, одноразовый)"
+printf '%s\n' "контейнеры: ${NAME} (postgres:16) и ${STORAGE_NAME} (minio), одноразовые"
+
+# Хранилище поднимается рядом с базой, иначе реализацию поверх MinIO
+# нечем проверять: подставная реализация в тесте проверяет только саму себя.
+if ! docker run -d --rm --name "${STORAGE_NAME}" -p 127.0.0.1::9000 \
+    -e MINIO_ROOT_USER="${STORAGE_USER}" -e MINIO_ROOT_PASSWORD="${STORAGE_PASSWORD}" \
+    minio/minio:RELEASE.2024-12-18T13-15-44Z server /data >/dev/null 2>&1; then
+    printf '%s\n' "НЕ УДАЛОСЬ ЗАПУСТИТЬ контейнер minio" >&2
+    exit 1
+fi
+
+storage_ready=0
+for _ in $(seq 1 90); do
+    if curl -s -o /dev/null "http://127.0.0.1:$(docker port "${STORAGE_NAME}" 9000/tcp 2>/dev/null | head -1 | cut -d: -f2)/minio/health/live"; then
+        storage_ready=1
+        break
+    fi
+    sleep 1
+done
+if [[ ${storage_ready} -ne 1 ]]; then
+    printf '%s\n' "ХРАНИЛИЩЕ НЕ ПОДНЯЛОСЬ за 90 секунд" >&2
+    exit 1
+fi
 
 # Порт публикуется на localhost со свободным номером: -p 127.0.0.1::5432
 # просит docker выбрать свободный порт сам, что не занимает порты стека SYP.
@@ -124,6 +150,10 @@ for database in syp "${CORE_DB}" "${PUBLIC_DB}"; do
 done
 
 export SYP_TEST_DB_USER="postgres"
+export SYP_TEST_STORAGE_URL="http://127.0.0.1:$(docker port "${STORAGE_NAME}" 9000/tcp 2>/dev/null | head -1 | cut -d: -f2)"
+export SYP_TEST_STORAGE_ACCESS_KEY="${STORAGE_USER}"
+export SYP_TEST_STORAGE_SECRET_KEY="${STORAGE_PASSWORD}"
+export SYP_TEST_STORAGE_BUCKET="syp-test"
 export SYP_TEST_DB_PASSWORD="${DB_PASSWORD}"
 ADMIN_URL="jdbc:postgresql://127.0.0.1:${PORT_NUMBER}/syp"
 CORE_URL="jdbc:postgresql://127.0.0.1:${PORT_NUMBER}/${CORE_DB}"

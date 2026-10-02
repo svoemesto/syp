@@ -1,5 +1,6 @@
 package ru.svoemesto.syp.admin.config
 
+import io.minio.MinioClient
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.catalog.EpisodeStore
@@ -13,6 +14,7 @@ import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.FileSystemStorage
+import ru.svoemesto.syp.core.storage.MinioObjectStorage
 import ru.svoemesto.syp.core.storage.ObjectStorage
 import java.nio.file.Files
 import java.nio.file.Path
@@ -94,23 +96,35 @@ class IntegrityConfiguration {
     ): ChecksumController = ChecksumController(enqueuer, registry, episodeStore)
 
     /**
-     * Собирает объектное хранилище артефактов.
+     * Собирает хранилище артефактов.
      *
-     * Артефакты размещаются на SSD (Д-8, FR-021), и подключение к MinIO в
-     * этой порции ещё не сделано: клиент есть, а реализации — нет. Пока
-     * артефакты пишутся в локальный каталог на SSD, путь к которому приходит
-     * из окружения. На подсчёт суммы это не влияет: задание `HASH` не
-     * производит артефактов вовсе.
+     * Выбор режима: если задан адрес MinIO, работаем с корзиной, иначе с
+     * каталогом на диске. Раньше режим был один — файловый, и каталог жил
+     * внутри контейнера, то есть исчезал при каждом пересоздании: строки в
+     * базе оставались, а файлов за ними не было.
      *
      * @return хранилище артефактов
      */
     @Bean
-    fun objectStorage(): ObjectStorage =
-        FileSystemStorage(
-            Path
-                .of(optional(ENV_STORAGE_ROOT) ?: DEFAULT_STORAGE_ROOT)
-                .also { Files.createDirectories(it) },
-        )
+    fun objectStorage(): ObjectStorage {
+        val endpoint = optional(ENV_STORAGE_ENDPOINT)
+        if (endpoint == null) {
+            return FileSystemStorage(
+                Path
+                    .of(optional(ENV_STORAGE_ROOT) ?: DEFAULT_STORAGE_ROOT)
+                    .also { Files.createDirectories(it) },
+            )
+        }
+        val client =
+            MinioClient
+                .builder()
+                .endpoint(endpoint)
+                .credentials(
+                    optional(ENV_STORAGE_ACCESS_KEY) ?: DEFAULT_STORAGE_ACCESS_KEY,
+                    optional(ENV_STORAGE_SECRET_KEY) ?: DEFAULT_STORAGE_SECRET_KEY,
+                ).build()
+        return MinioObjectStorage(client, optional(ENV_STORAGE_BUCKET) ?: DEFAULT_STORAGE_BUCKET)
+    }
 
     /**
      * Собирает реестр артефактов.
@@ -164,6 +178,27 @@ class IntegrityConfiguration {
     companion object {
         /** Имя переменной окружения с каталогом артефактов на SSD. */
         const val ENV_STORAGE_ROOT: String = "SYP_STORAGE_ROOT"
+
+        /** Имя переменной окружения с адресом MinIO. */
+        const val ENV_STORAGE_ENDPOINT: String = "SYP_STORAGE_ENDPOINT"
+
+        /** Имя переменной окружения с именем корзины. */
+        const val ENV_STORAGE_BUCKET: String = "SYP_STORAGE_BUCKET"
+
+        /** Имя переменной окружения с ключом доступа к корзине. */
+        const val ENV_STORAGE_ACCESS_KEY: String = "SYP_STORAGE_ACCESS_KEY"
+
+        /** Имя переменной окружения с секретом доступа к корзине. */
+        const val ENV_STORAGE_SECRET_KEY: String = "SYP_STORAGE_SECRET_KEY"
+
+        /** Корзина, если переменная окружения не задана. */
+        const val DEFAULT_STORAGE_BUCKET: String = "syp-media"
+
+        /** Ключ доступа, если переменная окружения не задана. */
+        const val DEFAULT_STORAGE_ACCESS_KEY: String = "sypadmin"
+
+        /** Секрет доступа, если переменная окружения не задана. */
+        const val DEFAULT_STORAGE_SECRET_KEY: String = "sypadmin"
 
         /** Имя переменной окружения со сколько заданий выполняется одновременно. */
         const val ENV_WORKER_CONCURRENCY: String = "SYP_WORKER_CONCURRENCY"
