@@ -18,6 +18,8 @@ code_to_docs:
   - docs/features/first-vertical-slice.md
   syp-core/src/main/kotlin/ru/svoemesto/syp/core/contract:
   - docs/features/first-vertical-slice.md
+  syp-admin-app/src/test:
+  - docs/features/first-vertical-slice.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog:
   - docs/domains/catalog/domain.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/analysis:
@@ -42,6 +44,12 @@ code_to_docs:
   - docs/domains/showcase/domain.md
   syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/recipe:
   - docs/domains/selection/domain.md
+  - docs/features/first-vertical-slice.md
+  syp-admin-web/src:
+  - docs/domains/analysis/domain.md
+  - docs/features/first-vertical-slice.md
+  syp-public-web/src:
+  - docs/domains/showcase/domain.md
   - docs/features/first-vertical-slice.md
   deploy/syp-db:
   - docs/features/first-vertical-slice.md

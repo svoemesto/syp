@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
+import ru.svoemesto.syp.admin.analysis.SceneDetector
+import ru.svoemesto.syp.admin.analysis.Staleness
 import ru.svoemesto.syp.admin.integrity.ChecksumEnqueuer
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
@@ -210,6 +212,7 @@ class CatalogController(
     private val settingsStore: SerialSettingsStore,
     private val registration: SeriesRegistration,
     private val checksums: ChecksumEnqueuer? = null,
+    private val staleness: Staleness? = null,
 ) {
     /**
      * Перечисляет сериалы с числом серий каждого.
@@ -383,6 +386,11 @@ class CatalogController(
      * настройка, которую никто не читает, выглядела бы как сработавшая
      * (ADR-0003, constitution).
      *
+     * **Действительно изменившаяся настройка помечает результаты
+     * устаревшими, но не удаляет их** (FR-090). Пересчёт автоматически не
+     * запускается: он уничтожил бы ручные правки оператора, которые
+     * накапливаются месяцами. Решение о пересчёте принимает человек.
+     *
      * @param serialId идентификатор сериала
      * @param changes новые значения по именам настроек
      * @return настройки после изменения и список действительно изменившихся
@@ -396,6 +404,9 @@ class CatalogController(
     ): SettingsUpdateView {
         requireSerial(serialId)
         val changed = settingsStore.update(serialId, changes)
+        if (changed.isNotEmpty()) {
+            staleness?.markStaleForSerial(serialId, SceneDetector.paramsHashOf(settingsStore.read(serialId)))
+        }
         return SettingsUpdateView(settingsView(serialId), changed)
     }
 

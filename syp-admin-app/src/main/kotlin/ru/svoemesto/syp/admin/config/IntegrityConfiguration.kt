@@ -10,7 +10,6 @@ import ru.svoemesto.syp.admin.integrity.HashJob
 import ru.svoemesto.syp.admin.jobs.AdminJobWorker
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.core.db.Db
-import ru.svoemesto.syp.core.jobs.JobKind
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.FileSystemStorage
@@ -129,13 +128,13 @@ class IntegrityConfiguration {
     /**
      * Собирает исполнителя заданий админского бэкенда.
      *
-     * Исполнитель подсчёта суммы — единственный зарегистрированный: остальные
-     * виды заданий появятся вместе со своими задачами. Пока исполнителя нет,
-     * задание такого вида уходит в ошибку с текстом, а не висит в очереди —
-     * это поведение воркера, а не совпадение.
+     * Список исполнителей приходит целиком: каждый вид задания объявляет
+     * свой исполнитель сам, а воркер строит из них таблицу. Вид без
+     * исполнителя уходит в ошибку с текстом, а не висит в очереди — это
+     * поведение воркера, а не совпадение.
      *
      * @param queue очередь заданий
-     * @param hashJob исполнитель подсчёта суммы
+     * @param handlers все зарегистрированные исполнители
      * @param artifactRegistry реестр артефактов
      * @param database доступ к базе
      * @param concurrency сколько заданий выполняется одновременно
@@ -145,7 +144,7 @@ class IntegrityConfiguration {
     @Bean(initMethod = "start")
     fun adminJobWorker(
         queue: JobQueue,
-        hashJob: HashJob,
+        handlers: List<JobHandler>,
         artifactRegistry: ArtifactRegistry,
         database: Db,
         concurrency: Int = DEFAULT_CONCURRENCY,
@@ -153,7 +152,7 @@ class IntegrityConfiguration {
     ): AdminJobWorker =
         AdminJobWorker(
             queue = queue,
-            handlers = mapOf<JobKind, JobHandler>(JobKind.HASH to hashJob),
+            handlers = handlers.associateBy { it.kind },
             artifactRegistry = artifactRegistry,
             db = database,
             concurrency = concurrency,

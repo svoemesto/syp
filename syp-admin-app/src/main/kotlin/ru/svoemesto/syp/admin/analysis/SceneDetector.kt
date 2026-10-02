@@ -1,5 +1,7 @@
 package ru.svoemesto.syp.admin.analysis
 
+import ru.svoemesto.syp.admin.catalog.SerialSetting
+import ru.svoemesto.syp.admin.catalog.SerialSettings
 import ru.svoemesto.syp.admin.catalog.Series
 import ru.svoemesto.syp.core.jobs.JobProgress
 import ru.svoemesto.syp.core.jobs.ParamsHash
@@ -151,7 +153,7 @@ class SceneDetector(
     fun paramsHash(
         sceneThreshold: Double,
         shotThreshold: Double,
-    ): String = ParamsHash.of(DetectionResult.ALGORITHM_VERSION, sceneThreshold, shotThreshold)
+    ): String = paramsHashOf(sceneThreshold, shotThreshold)
 
     /**
      * Разбирает оценки детектора из объединённого вывода программы.
@@ -203,6 +205,34 @@ class SceneDetector(
     companion object {
         /** Имя программы для текста ошибки. */
         const val PROGRAM_NAME: String = "ffmpeg"
+
+        /**
+         * Хеш входов детекции по паре порогов.
+         *
+         * Единственное место, где хеш считается: и задание, и слой устаревания
+         * берут его отсюда, иначе «актуальный хеш» и «хеш прогона»
+         * разошлись бы и каждый результат вечно считался бы устаревшим.
+         *
+         * @param sceneThreshold порог границы сцены
+         * @param shotThreshold порог границы плана
+         * @return 64 шестнадцатеричных символов в нижнем регистре
+         */
+        fun paramsHashOf(
+            sceneThreshold: Double,
+            shotThreshold: Double,
+        ): String = ParamsHash.of(DetectionResult.ALGORITHM_VERSION, sceneThreshold, shotThreshold)
+
+        /**
+         * Хеш входов детекции по настройкам сериала.
+         *
+         * @param settings настройки сериала
+         * @return 64 шестнадцатеричных символов в нижнем регистре
+         */
+        fun paramsHashOf(settings: SerialSettings): String =
+            paramsHashOf(
+                settings.number(SerialSetting.SCENE_THRESHOLD),
+                settings.number(SerialSetting.SHOT_THRESHOLD),
+            )
 
         /** Шаблон строки оценки: `lavfi.scd.score: 12.345, lavfi.scd.time: 5.96`. */
         private val SCORE: Regex = Regex("""lavfi\.scd\.score:\s*([0-9.]+)\s*,\s*lavfi\.scd\.time:\s*([0-9.]+)""")

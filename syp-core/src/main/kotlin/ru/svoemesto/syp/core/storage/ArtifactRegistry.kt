@@ -213,6 +213,85 @@ class ArtifactRegistry(
     }
 
     /**
+     * Регистрирует артефакт, собранный **снаружи** этого класса.
+     *
+     * Нужен там, где объект уже записан и перенесён на окончательный ключ
+     * собственным сборщиком — например, лист превью, который укладывает в
+     * сетку внешняя программа. Запись создаётся сразу в состоянии
+     * [ArtifactState.READY], но **только** после того, как существование
+     * объекта по окончательному ключу проверено: незавершённый файл не
+     * считается готовым, и здесь это правило не обходится (FR-091).
+     *
+     * @param jobId задание, которому принадлежит артефакт
+     * @param kind вид артефакта
+     * @param finalKey окончательный ключ объекта
+     * @param contentType тип содержимого
+     * @param byteSize размер объекта в байтах
+     * @param checksum SHA-256 содержимого
+     * @return запись созданного артефакта
+     * @throws StorageException если объекта по окончательному ключу нет
+     * @throws DbException если запись не создалась
+     */
+    fun registerBuilt(
+        jobId: Long?,
+        kind: ArtifactKind,
+        finalKey: String,
+        contentType: String,
+        byteSize: Long,
+        checksum: String,
+    ): Artifact {
+        require(checksum.matches(HEX_64)) {
+            "Контрольная сумма «$checksum» не является SHA-256 в виде 64 " +
+                "шестнадцатеричных символов в нижнем регистре"
+        }
+        require(byteSize >= 0) { "Размер артефакта отрицателен: $byteSize" }
+        if (!storage.exists(finalKey)) {
+            throw StorageException(
+                "Объект «$finalKey» отсутствует: артефакт не может быть зарегистрирован " +
+                    "как готовый (FR-091)",
+            )
+        }
+        return db.useTransaction { connection ->
+            connection
+                .prepareStatement(
+                    """
+                    INSERT INTO artifact (job_id, kind, placement, object_key, content_type,
+                                          byte_size, checksum, state)
+                    VALUES (?, ?, 'SSD', ?, ?, ?, ?, 'READY')
+                    ON CONFLICT (kind, object_key) DO UPDATE
+                        SET job_id = EXCLUDED.job_id,
+                            content_type = EXCLUDED.content_type,
+                            byte_size = EXCLUDED.byte_size,
+                            checksum = EXCLUDED.checksum,
+                            state = 'READY'
+                    RETURNING id
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setObject(1, jobId)
+                    statement.setString(2, kind.name)
+                    statement.setString(3, finalKey)
+                    statement.setString(4, contentType)
+                    statement.setLong(5, byteSize)
+                    statement.setString(6, checksum)
+                    statement.executeQuery().use { resultSet ->
+                        resultSet.next()
+                        Artifact(
+                            id = resultSet.getLong(1),
+                            jobId = jobId,
+                            kind = kind,
+                            objectKey = finalKey,
+                            contentType = contentType,
+                            byteSize = byteSize,
+                            checksum = checksum,
+                            state = ArtifactState.READY,
+                            temporaryKey = temporaryKeyFor(finalKey),
+                        )
+                    }
+                }
+        }
+    }
+
+    /**
      * Читает запись артефакта.
      *
      * @param artifactId идентификатор артефакта
