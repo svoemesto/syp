@@ -11,6 +11,7 @@ import ru.svoemesto.syp.admin.analysis.Staleness
 import ru.svoemesto.syp.admin.analysis.StructureController
 import ru.svoemesto.syp.admin.analysis.StructureJob
 import ru.svoemesto.syp.admin.analysis.StructureService
+import ru.svoemesto.syp.admin.annotation.BoundaryEditing
 import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.LocationStore
 import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
@@ -21,7 +22,6 @@ import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.ObjectStorage
 import java.nio.file.Files
 import java.nio.file.Path
-import ru.svoemesto.syp.admin.annotation.BoundaryEditing
 
 /**
  * Сборка домена разметки: прогоны, структура, листы превью, устаревание.
