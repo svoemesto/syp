@@ -309,25 +309,34 @@ class ArtifactRegistry(
     /**
      * Ищет готовый артефакт нужного вида с указанным ключом.
      *
-     * Именно эта проверка, а не «файл существует», определяет, можно ли
-     * пропустить уже выполненную работу (Р-10, контракт очереди § 3.3).
+     * Готовым считается артефакт, у которого есть и запись в состоянии
+     * `READY`, и сам объект в хранилище. Раньше проверялась только запись, и
+     * это давало правдивую на вид, но неверную по сути отговорку: артефакты
+     * лежали в каталоге внутри контейнера, контейнер пересоздали, записи в
+     * базе остались — а задание рапортовало «все 347 листов готовы ранее» и
+     * ничего не переделывало. Пропускать работу можно только по факту
+     * наличия (Р-10, контракт очереди § 3.3).
      *
      * @param kind вид артефакта
      * @param objectKey ключ объекта
-     * @return запись в состоянии `READY` либо `null`
+     * @return запись в состоянии `READY`, если объект действительно есть,
+     *   иначе `null`
      * @throws DbException если выборка не удалась
      */
     fun findReady(
         kind: ArtifactKind,
         objectKey: String,
-    ): Artifact? =
-        db.selectOne(
-            "SELECT id, job_id, kind, object_key, content_type, byte_size, checksum, state " +
-                "FROM tbl_artifacts WHERE kind = ? AND object_key = ? AND state = 'READY'",
-            ::readRow,
-            kind.name,
-            objectKey,
-        )
+    ): Artifact? {
+        val artifact =
+            db.selectOne(
+                "SELECT id, job_id, kind, object_key, content_type, byte_size, checksum, state " +
+                    "FROM tbl_artifacts WHERE kind = ? AND object_key = ? AND state = 'READY'",
+                ::readRow,
+                kind.name,
+                objectKey,
+            ) ?: return null
+        return if (storage.exists(artifact.objectKey)) artifact else null
+    }
 
     /**
      * Перечисляет артефакты задания с указанными состояниями.
