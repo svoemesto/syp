@@ -1,11 +1,11 @@
 package ru.svoemesto.syp.admin.config
 
-import java.lang.reflect.Constructor
-import kotlin.test.Test
-import kotlin.test.assertTrue
 import org.springframework.context.annotation.Bean
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.RestController
+import java.lang.reflect.Constructor
+import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /**
  * Проверка того, что каждый контроллер можно собрать из объявленных бинов.
@@ -67,7 +67,9 @@ class ApplicationContextWiringTest {
 
     /** Имена всех классов бэкенда, разобранных из каталога сборки. */
     private fun allClassNames(): List<String> {
-        val marker = javaClass.protectionDomain.codeSource.location.toURI()
+        val marker =
+            javaClass.protectionDomain.codeSource.location
+                .toURI()
         val root = java.io.File(marker)
         if (!root.isDirectory) {
             return emptyList()
@@ -75,13 +77,17 @@ class ApplicationContextWiringTest {
         return root
             .walkTopDown()
             .filter { it.isFile && it.name.endsWith(".class") }
-            .map { it.absolutePath.removePrefix(root.absolutePath).removePrefix("/").removeSuffix(".class").replace('/', '.') }
-            .toList()
+            .map {
+                it.absolutePath
+                    .removePrefix(root.absolutePath)
+                    .removePrefix("/")
+                    .removeSuffix(".class")
+                    .replace('/', '.')
+            }.toList()
     }
 
     /** Класс по имени либо `null`, если его нет. */
-    private fun loadClass(name: String): Class<*>? =
-        runCatching { Class.forName(name, false, javaClass.classLoader) }.getOrNull()
+    private fun loadClass(name: String): Class<*>? = runCatching { Class.forName(name, false, javaClass.classLoader) }.getOrNull()
 
     /** Конструктор класса: он должен быть один, иначе проверка неоднозначна. */
     private fun singleConstructor(type: Class<*>): Constructor<*> =

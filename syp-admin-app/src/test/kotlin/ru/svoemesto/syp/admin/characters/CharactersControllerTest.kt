@@ -11,11 +11,11 @@ import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import ru.svoemesto.syp.core.db.Db
+import ru.svoemesto.syp.core.jobs.JobQueue
 import java.time.OffsetDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
-import ru.svoemesto.syp.core.jobs.JobQueue
 
 /**
  * Проверки эндпоинтов лиц, кластеров и персон (задача T071).
