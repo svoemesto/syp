@@ -144,4 +144,5 @@ jobs:
           else
             echo "файла syp-worker/syp_worker.py ещё нет: фаза 12 не начата"
           fi
+      - run: bash tools/check-old-table-names.sh
           python3 -c "import json; json.load(open('syp-worker/config.example.json'))"

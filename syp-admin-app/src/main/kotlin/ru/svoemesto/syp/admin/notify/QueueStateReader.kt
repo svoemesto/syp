@@ -52,7 +52,7 @@ class QueueStateReader(
     fun read(): QueueState {
         val rows =
             db.select(
-                "SELECT state, count(*) AS total FROM job GROUP BY state",
+                "SELECT state, count(*) AS total FROM tbl_jobs GROUP BY state",
                 ::readCount,
             )
         val counts = rows.associate { it.first to it.second }

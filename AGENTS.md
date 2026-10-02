@@ -443,6 +443,7 @@ cd deploy && bash do.sh build_public_app && cd ..
 | Покрытие задач требованиями | Hard Gate «Трекер» | `tools/check-tasks-coverage.py` | готов |
 | Линтер документации | Hard Gate «Living docs SSoT» | `docs/scripts/lint-docs.py` | готов |
 | Отсутствие секретов | constitution § VIII.3 | `tools/check-no-secrets.sh` | готов |
+| Имена таблиц в SQL соответствуют схеме | миграция 16 | `tools/check-old-table-names.sh` | готов |
 
 Все перечисленные скрипты подключены к pre-commit
 (`tools/pre-commit.sh`) и к CI (`.github/workflows/ci.yml`). Правила,

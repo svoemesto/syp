@@ -55,7 +55,7 @@
 | Знания о старом проекте (читать, код не тащить) | `/home/nsa/ivfx4/legacy-analysis/` |
 | Задачи и тикеты | OpenProject, проект `syp` (id 4), через `tools/tracker.sh` |
 | Исходное видео | `/disks/HDD_16Tb_Clouds/GOT` |
-| Guards проекта (13 скриптов) | `tools/check-*`; полный список — § Tier-2 «Каталог guards» в `AGENTS.md` |
+| Guards проекта | `tools/check-*`; полный список — § Tier-2 «Каталог guards» в `AGENTS.md` |
 | Единственная точка сборки и запуска | `deploy/do.sh` |
 | Порты развёртывания | `deploy/.env.example` и § Tier-1 «Precise paths» в `AGENTS.md` |
 
