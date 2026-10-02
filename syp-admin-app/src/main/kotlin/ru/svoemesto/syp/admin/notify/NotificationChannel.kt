@@ -71,11 +71,31 @@ class SseEmitterChannel(
      * @param text текст комментария
      */
     override fun sendComment(text: String) {
-        emitter.send(SseEmitter.event().comment(text))
+        // Сердцебие уходит событием с пустым телом, а не вызовом
+        // `event().comment(...)`. Проверено на живом стенде 2026-10-02: через
+        // комментарий доходило только первое событие, а последующие сердцебия
+        // не доходили вовсе — ни напрямую, ни через nginx. Клиент молчал до
+        // своего таймаута и переподключался каждые 30 секунд, то есть поток
+        // выглядел живым, но данных не нёс.
+        emitter.send(SseEmitter.event().name(SseEvents.HEARTBEAT_EVENT).data(""))
     }
 
     /** Закрывает поток подписки. */
     override fun close() {
         runCatching { emitter.complete() }
     }
+}
+
+/**
+ * Имена событий потока, которые не несут данных.
+ *
+ * Сердцебие отправляется именованным событием с пустым телом: комментарий
+ * через `SseEmitter.event().comment(...)` на живом стенде доходил только вместе
+ * с первым событием, а дальше поток молчал до клиентского таймаута.
+ *
+ * @property heartbeat сердцебие
+ */
+object SseEvents {
+    /** Имя события-сердцебия. */
+    const val HEARTBEAT_EVENT: String = "heartbeat"
 }
