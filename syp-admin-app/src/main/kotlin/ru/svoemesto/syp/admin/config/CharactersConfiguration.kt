@@ -3,11 +3,17 @@ package ru.svoemesto.syp.admin.config
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
+import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
 import ru.svoemesto.syp.admin.catalog.SeriesStore
 import ru.svoemesto.syp.admin.characters.FaceDetector
+import ru.svoemesto.syp.admin.characters.FaceEmbeddingStore
+import ru.svoemesto.syp.admin.characters.FacePlanBinding
 import ru.svoemesto.syp.admin.characters.FaceScan
+import ru.svoemesto.syp.admin.characters.FaceSinkFactory
+import ru.svoemesto.syp.admin.characters.FaceStore
 import ru.svoemesto.syp.admin.characters.FacesJob
 import ru.svoemesto.syp.admin.characters.GpuFaceDetector
+import ru.svoemesto.syp.admin.characters.NonPersonFilter
 import ru.svoemesto.syp.admin.characters.PersonService
 import ru.svoemesto.syp.admin.characters.StubFaceDetector
 import ru.svoemesto.syp.core.db.Db
@@ -100,12 +106,16 @@ class CharactersConfiguration {
         runStore: AnalysisRunStore,
         scan: FaceScan,
         detector: FaceDetector,
+        faceSinks: FaceSinkFactory,
+        settingsStore: SerialSettingsStore,
     ): FacesJob =
         FacesJob(
             seriesStore = seriesStore,
             runStore = runStore,
             scan = scan,
             detectorKey = detector.key,
+            faceSinks = faceSinks,
+            settingsStore = settingsStore,
         )
 
     /**
@@ -116,6 +126,61 @@ class CharactersConfiguration {
      */
     @Bean
     fun personService(database: Db): PersonService = PersonService(database)
+
+    /**
+     * Собирает хранилище лиц.
+     *
+     * @param database доступ к базе
+     * @return хранилище лиц серии
+     */
+    @Bean
+    fun faceStore(database: Db): FaceStore = FaceStore(database)
+
+    /**
+     * Собирает отбрасывание рамок, которые лицом не являются.
+     *
+     * @param database доступ к базе
+     * @param personService сервис персон: он даёт служебную персону «не лицо»
+     * @return фильтр нелицевых рамок
+     */
+    @Bean
+    fun nonPersonFilter(
+        database: Db,
+        personService: PersonService,
+    ): NonPersonFilter = NonPersonFilter(database, personService)
+
+    /**
+     * Собирает сборку приёмника рамок.
+     *
+     * @param faceStore хранилище лиц
+     * @param personService сервис персон
+     * @param nonPersonFilter отбрасывание рамок, которые лицом не являются
+     * @return сборка приёмника рамок для серии
+     */
+    @Bean
+    fun faceSinkFactory(
+        faceStore: FaceStore,
+        personService: PersonService,
+        nonPersonFilter: NonPersonFilter,
+    ): FaceSinkFactory = FaceSinkFactory(faceStore, personService, nonPersonFilter)
+
+    /**
+     * Собирает хранилище эмбеддингов лиц.
+     *
+     * @param database доступ к базе
+     * @return хранилище эмбеддингов
+     */
+    @Bean
+    fun faceEmbeddingStore(database: Db): FaceEmbeddingStore = FaceEmbeddingStore(database)
+
+    /**
+     * Собирает пересчёт принадлежности лиц планам.
+     *
+     * @param database доступ к базе
+     * @return пересчёт принадлежности лиц планам
+     */
+    @Bean
+    fun facePlanBinding(database: Db): FacePlanBinding = FacePlanBinding(database)
 
     companion object {
         /** Имя переменной окружения с путём к программе детектора лиц. */
