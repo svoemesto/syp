@@ -98,7 +98,35 @@ compose() {
 
 # --- Сборка ----------------------------------------------------------------
 
+# Отказывает ли собирать устаревшее дерево: без этой проверки образ молча
+# собирается из кода, отставшего от origin/master. Так потерян один запуск
+# подряд: правка эндпоинта была слита, а образ собрался из рабочей копии
+# на несколько коммитов старше, и эндпоинт по-прежнему не отвечал по
+# объявленному адресу. Сборка выглядела исправной, а в образе её не было.
+check_source_is_fresh() {
+    local behind
+    behind="$(git -C "${ROOT_DIR}" rev-list --count HEAD..origin/master 2>/dev/null || echo "")"
+    if [[ -z "${behind}" ]]; then
+        printf '%s\n' "не удалось сверить дерево с origin/master — проверка пропущена"
+        return 0
+    fi
+    if [[ "${behind}" -gt 0 ]]; then
+        printf '%s\n' "ОТКАЗ: дерево отстаёт от origin/master на ${behind} коммит(ов)." >&2
+        printf '%s\n' "       Образ будет собран из устаревшего кода. Сначала:" >&2
+        printf '%s\n' "         git fetch origin && git reset --hard origin/master" >&2
+        printf '%s\n' "       Либо сознательно соберите из текущего состояния: SYP_ALLOW_STALE_BUILD=1" >&2
+        exit 1
+    fi
+    local dirty
+    dirty="$(git -C "${ROOT_DIR}" status --porcelain --untracked-files=no 2>/dev/null | wc -l)"
+    if [[ "${dirty}" -gt 0 && "${SYP_ALLOW_STALE_BUILD:-0}" != "1" ]]; then
+        printf '%s\n' "ВНИМАНИЕ: в дереве ${dirty} незакоммиченных изменений — в образ попадёт именно они." >&2
+    fi
+}
+
+
 cmd_build_admin_app() {
+    check_source_is_fresh
     build_backend syp-admin-app
     docker build --file "${DEPLOY_DIR}/Dockerfile.backend" \
         --build-arg SYP_MODULE=syp-admin-app \
@@ -106,6 +134,7 @@ cmd_build_admin_app() {
 }
 
 cmd_build_public_app() {
+    check_source_is_fresh
     build_backend syp-public-app
     docker build --file "${DEPLOY_DIR}/Dockerfile.backend" \
         --build-arg SYP_MODULE=syp-public-app \
@@ -113,6 +142,7 @@ cmd_build_public_app() {
 }
 
 cmd_build_admin_web() {
+    check_source_is_fresh
     build_frontend syp-admin-web
     # Значения подписки SSE идут в сборку аргументами: это параметры
     # развёртывания, и их правка не должна требовать правки исходников.
@@ -124,6 +154,7 @@ cmd_build_admin_web() {
 }
 
 cmd_build_public_web() {
+    check_source_is_fresh
     build_frontend syp-public-web
     docker build --file "${DEPLOY_DIR}/Dockerfile.frontend" \
         --tag svoemesto/syp-public-web:local "${ROOT_DIR}/syp-public-web"
