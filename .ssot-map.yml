@@ -54,6 +54,10 @@ code_to_docs:
   - docs/domains/characters/components/model-training.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation:
   - docs/domains/annotation/domain.md
+  - docs/domains/annotation/components/boundary-editing.md
+  - docs/domains/analysis/domain.md
+  - specs/001-first-vertical-slice/contracts/admin-api.md
+  - docs/features/first-vertical-slice.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/selection:
   - docs/domains/selection/domain.md
   - docs/domains/selection/components/recipe-builder.md
