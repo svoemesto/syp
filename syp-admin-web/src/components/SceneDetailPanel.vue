@@ -22,10 +22,13 @@ const props = defineProps<{
   frameCount: number
   /** Идёт ли правка: на время операции поле недоступно. */
   busy: boolean
+  /** Идентификатор выбранного плана: его строка подсвечивается. */
+  selectedShotId?: number
 }>()
 
 const emit = defineEmits<{
   pick: [frame: number]
+  select: [shotId: number]
   split: [frame: number]
   merge: [frame: number]
   move: [fromFrame: number, toFrame: number]
@@ -154,7 +157,15 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="shot in scene.shots" :key="shot.id">
+          <tr
+            v-for="shot in scene.shots"
+            :key="shot.id"
+            class="shot-row"
+            :class="{ selected: shot.id === selectedShotId }"
+            tabindex="0"
+            @click="emit('select', shot.id)"
+            @keydown.enter="emit('select', shot.id)"
+          >
             <td>
               <button
                 v-if="thumbOf(shot) !== undefined"
@@ -281,6 +292,10 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
 .shots {
   width: auto;
   min-width: 32rem;
+}
+
+.shot-row.selected > td {
+  background-color: var(--syp-raised);
 }
 
 .thumb {

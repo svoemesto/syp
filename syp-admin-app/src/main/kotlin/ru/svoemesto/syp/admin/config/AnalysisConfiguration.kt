@@ -12,9 +12,11 @@ import ru.svoemesto.syp.admin.analysis.StructureController
 import ru.svoemesto.syp.admin.analysis.StructureJob
 import ru.svoemesto.syp.admin.analysis.StructureService
 import ru.svoemesto.syp.admin.annotation.BoundaryEditing
+import ru.svoemesto.syp.admin.annotation.ShotBoundaryEditing
 import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.LocationStore
 import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.characters.FacePlanBinding
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.media.ExternalProgram
@@ -100,6 +102,29 @@ class AnalysisConfiguration {
         database: Db,
         structure: StructureService,
     ): BoundaryEditing = BoundaryEditing(database, structure)
+
+    /**
+     * Собирает сервис доводки границ плана.
+     *
+     * Отдельный бин по той же причине, что и [boundaryEditing]: сервис должен
+     * существовать в контексте сам, а тесты создают его руками — иначе всё
+     * выглядело бы исправным, пока приложение не упало бы при старте.
+     *
+     * @param database доступ к базе
+     * @param structure чтение и запись сцен и планов
+     * @param binding пересчёт принадлежности лиц планам
+     * @param episodeStore чтение эпизода: из него берутся фильм и площадь кадра
+     * @param settingsStore настройки фильма: из них берутся пороги размера плана
+     * @return сервис доводки границ плана
+     */
+    @Bean
+    fun shotBoundaryEditing(
+        database: Db,
+        structure: StructureService,
+        binding: FacePlanBinding,
+        episodeStore: EpisodeStore,
+        settingsStore: MovieSettingsStore,
+    ): ShotBoundaryEditing = ShotBoundaryEditing(database, structure, binding, episodeStore, settingsStore)
 
     /**
      * Собирает пометку устаревания результатов.

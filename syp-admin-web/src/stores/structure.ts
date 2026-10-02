@@ -18,23 +18,29 @@ import {
   type PreviewUrlView,
   type RawBoundariesView,
   type SceneBoundaryView,
+  type ShotBoundaryView,
   type StructureView,
   mergeScenes,
+  mergeShots,
   moveSceneBoundary,
+  moveShotBoundary,
   readPreviewUrl,
   readRawBoundaries,
   readStructure,
   splitScene,
+  splitShot,
   startAnalysis,
 } from '../api/structure'
 import {
   type PreviewSheetFrameRow,
   type SceneBoundaryRow,
+  type ShotBoundaryRow,
   type ShotThumbRow,
   toPreviewSheetFrameRow,
   toPreviewSheetNavRow,
   toRawBoundaryRow,
   toSceneBoundaryRow,
+  toShotBoundaryRow,
   toShotThumbRow,
   toStructureRow,
 } from '../api/view-model'
@@ -96,6 +102,15 @@ const selectedFrame = ref<number | null>(null)
 
 /** Ответ на последнюю правку границы — для показа результата операции. */
 const lastEdit = ref<SceneBoundaryRow | null>(null)
+
+/**
+ * Итог последней правки границы плана.
+ *
+ * Отдельное поле, а не общее с правкой сцены: у них разный состав ответа, и
+ *одно поле на обе правки означало бы, что надпись «граница сцены сдвинута»
+ * может появиться под результатом правки плана.
+ */
+const lastShotEdit = ref<ShotBoundaryRow | null>(null)
 
 /**
  * Помечен ли результат устаревшим.
@@ -575,6 +590,74 @@ export function useStructureStore() {
   }
 
   /**
+   * Сдвигает границу плана.
+   *
+   * @param episodeId идентификатор эпизода
+   * @param fromFrame кадр, на котором граница стоит
+   * @param toFrame кадр, на который её ставят
+   * @returns `true`, если правка выполнена
+   */
+  async function moveShotEdge(
+    episodeId: number,
+    fromFrame: number,
+    toFrame: number,
+  ): Promise<boolean> {
+    return applyShotEdit(episodeId, () => moveShotBoundary(episodeId, fromFrame, toFrame))
+  }
+
+  /**
+   * Разделяет план по кадру.
+   *
+   * @param episodeId идентификатор эпизода
+   * @param frame первый кадр второго из получившихся планов
+   * @returns `true`, если правка выполнена
+   */
+  async function splitShotAt(episodeId: number, frame: number): Promise<boolean> {
+    return applyShotEdit(episodeId, () => splitShot(episodeId, frame))
+  }
+
+  /**
+   * Объединяет план, начинающийся с кадра, с предыдущим.
+   *
+   * @param episodeId идентификатор эпизода
+   * @param frame первый кадр поглощаемого плана
+   * @returns `true`, если правка выполнена
+   */
+  async function mergeShotAt(episodeId: number, frame: number): Promise<boolean> {
+    return applyShotEdit(episodeId, () => mergeShots(episodeId, frame))
+  }
+
+  /**
+   * Выполняет правку границы плана и обновляет экран.
+   *
+   * Страница перечитывается целиком по той же причине, что и после правки
+   * сцены: правка отвечает изменённым участком, а состав планов на странице
+   * после неё меняется.
+   *
+   * @param episodeId идентификатор эпизода
+   * @param operation операция правки
+   * @returns `true`, если правка выполнена
+   */
+  async function applyShotEdit(
+    episodeId: number,
+    operation: () => Promise<ShotBoundaryView>,
+  ): Promise<boolean> {
+    editing.value = true
+    try {
+      lastShotEdit.value = toShotBoundaryRow(await operation())
+      error.value = ''
+      errorCode.value = ''
+      await reload(episodeId)
+      return true
+    } catch (failure) {
+      remember(failure)
+      return false
+    } finally {
+      editing.value = false
+    }
+  }
+
+  /**
    * Выполняет правку границы и обновляет экран.
    *
    * Правка отвечает изменённым участком, но список сцен на странице после неё
@@ -634,6 +717,7 @@ export function useStructureStore() {
     staleVisible,
     selectedFrame,
     lastEdit,
+    lastShotEdit,
     isStale,
     staleCode,
     row,
@@ -657,5 +741,8 @@ export function useStructureStore() {
     moveBoundary,
     split,
     merge,
+    moveShotEdge,
+    splitShotAt,
+    mergeShotAt,
   }
 }
