@@ -94,13 +94,10 @@ class AnalysisConfiguration {
         runStore: AnalysisRunStore,
     ): Staleness = Staleness(database, runStore)
 
-    /**
-     * Собирает единую точку запуска внешних программ.
-     *
-     * @return исполнитель внешних программ
-     */
-    @Bean
-    fun externalProgram(): ExternalProgram = ExternalProgram()
+    // Единая точка запуска внешних программ собирается один раз, в
+    // CatalogConfiguration: два бина с именем `externalProgram` в одном
+    // контексте не поднимаются вообще, и админка не стартует. Здесь бин
+    // внедряется по типу, отдельного объявления не требуется.
 
     /**
      * Собирает детектор границ сцен и планов.

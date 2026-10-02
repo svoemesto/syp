@@ -53,10 +53,82 @@ COPY deploy/syp-db/ /app/migrations/
 # ffprobe, которым снимаются параметры файла (FR-002). Ставится без
 # рекомендаций и с очисткой списков, чтобы слой не раздувался.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get install -y --no-install-recommends ffmpeg python3 python3-pip && \
     rm -rf /var/lib/apt/lists/*
 
+# ---------------------------------------------------------------------------
+# Среда исполнения детектора лиц (задача T063).
+#
+# Детектор работает **внутри этого образа**, а не на машине администратора и
+# не на машине пользователя: контейнеров стека ровно шесть, седьмого воркера
+# детекции быть не может (constitution V, research.md Т-01, Т-20). Путь к
+# программе и к модели приходит из окружения развёртывания, секретов в них
+# нет (ADR-0010, ограничение 2).
+#
+# Версии зафиксированы явно и поимённо: образ собирается заново, и «последняя
+# версия» через месяц дала бы другой результат на той же серии.
+#
+# ПОЧЕМУ 1.29.0, А НЕ 1.30.0. Сборка 1.30.0 с PyPI собрана под CUDA 13 и
+# ищет библиотеки по раскладке `nvidia/cu13/lib`, которой на PyPI нет:
+# consolidated-колёла не опубликованы. Проверено на одноразовом контейнере —
+# в тексте отказа `libcublasLt.so.13: cannot open shared object file`, и
+# провайдер молча уходит на CPU. Ближайшая стабильная сборка под CUDA 12 —
+# 1.29.0, она работает с опубликованными колелами `-cu12`. Расхождение с
+# версией, стоящей на машине администратора (1.30.0), зафиксировано в
+# measurements/m-01-gpu-runtime.md и требует решения владельца, если версии
+# должны совпадать.
+#
+# Размер образа растёт на несколько гигабайт: это цена детектора на
+# видеокарте внутри контейнера. Вес зафиксирован в том же отчёте.
+# ---------------------------------------------------------------------------
+ARG ONNXRUNTIME_VERSION=1.29.0
+ARG NUMPY_VERSION=2.5.3
+ARG CUBLAS_VERSION=12.8.4.1
+ARG CUDNN_VERSION=9.19.0.56
+ARG CUFFT_VERSION=11.3.3.83
+ARG CURAND_VERSION=10.3.9.90
+ARG CUDA_RUNTIME_VERSION=12.8.90
+ARG CUDA_NVRTC_VERSION=12.8.93
+
+RUN pip install --no-cache-dir --break-system-packages \
+        --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/ \
+        "numpy==${NUMPY_VERSION}" \
+        "onnxruntime-gpu==${ONNXRUNTIME_VERSION}" \
+        "nvidia-cublas-cu12==${CUBLAS_VERSION}" \
+        "nvidia-cudnn-cu12==${CUDNN_VERSION}" \
+        "nvidia-cufft-cu12==${CUFFT_VERSION}" \
+        "nvidia-curand-cu12==${CURAND_VERSION}" \
+        "nvidia-cuda-runtime-cu12==${CUDA_RUNTIME_VERSION}" \
+        "nvidia-cuda-nvrtc-cu12==${CUDA_NVRTC_VERSION}" \
+        "nvidia-nvjitlink-cu12==${CUDA_NVRTC_VERSION}" \
+    && rm -rf /root/.cache
+
+# Программа детектора и модель кладутся в образ: путь к ним фиксирован и не
+# приходит из данных задания (ADR-0010, ограничение 2). Модель в git не
+# попадает (deploy/models/*.onnx в .gitignore) — она скачивается отдельно,
+# лицензия её лежит рядом и коммитится.
+COPY syp-admin-app/src/main/resources/detector/syp_face_detector.py /opt/syp/face-detector/bin/syp-face-detector
+COPY deploy/models/ /opt/syp/face-detector/models/
+RUN chmod 0755 /opt/syp/face-detector/bin/syp-face-detector
+
+# Проверка образа при сборке: без неё сбой среды всплыл бы в первом задании
+# `FACES`, то есть через двадцать минут декодирования серии. Проверка
+# запускает программу детектора с моделью, которая кладёт в кадр ноль
+# байт: подняться должны и Python, и onnxruntime, и файл модели.
+RUN /opt/syp/face-detector/bin/syp-face-detector \
+        --model /opt/syp/face-detector/models/face_detection_yunet_2023mar.onnx \
+        --provider CPUExecutionProvider --input-width 640 --input-height 640 < /dev/null
+
 RUN useradd --system --create-home --uid 10001 syp
+
+# Каталоги промежуточных файлов и артефактов создаются заранее и сразу
+# принадлежат пользователю контейнера. Без этого бэкенд админки не
+# стартует: значения по умолчанию указывают на /data, каталога в образе
+# нет, а процесс работает не от root, и создать его не может. Проверено
+# запуском контейнера: без этих каталогов старт падает на
+# `AccessDeniedException: /data`, и до детектора дело не доходит.
+RUN mkdir -p /data/syp-work /data/syp-storage && chown -R syp:syp /data
+
 USER syp
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
