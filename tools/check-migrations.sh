@@ -477,7 +477,14 @@ fi
 
 # --- повторное применение применённой миграции -----------------------------
 printf '\n%s\n' "4. Защита от правки применённой миграции"
-if docker exec -i "${NAME}" psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -q -f - < "${MIGRATIONS}/01_catalog.sql" 2>/tmp/syp-reapply.txt; then
+# Повторное применение идёт в транзакции с откатом. После переименования
+# таблиц (миграция 16) первая же `CREATE TABLE` из 01_catalog.sql проходит:
+# таблица `serial` переименована, и имя освободилось. Отказ приходит позже —
+# на имени ограничения, которое переименование таблицы не тронуло. Без
+# отката в базе осталась бы лишняя пустая таблица, и следующие проверки
+# считали бы не 23.
+if printf 'BEGIN;\n' | cat - "${MIGRATIONS}/01_catalog.sql" - <(printf 'ROLLBACK;\n') \
+    | docker exec -i "${NAME}" psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -q -f - 2>/tmp/syp-reapply.txt; then
     report_fail "повторное применение 01_catalog.sql прошло: защита не работает"
 else
     if grep -q 'already exists' /tmp/syp-reapply.txt; then
@@ -485,6 +492,12 @@ else
     else
         report_fail "повторное применение отклонено с непонятной ошибкой"
     fi
+fi
+after_reapply=$(psql_run <<< "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';")
+if [[ "${after_reapply}" == "23" ]]; then
+    report_ok "после неудачного повторного применения таблиц по-прежнему 23"
+else
+    report_fail "после неудачного повторного применения таблиц ${after_reapply}, ожидалось 23"
 fi
 
 # --- сквозная вставка сценария --------------------------------------------

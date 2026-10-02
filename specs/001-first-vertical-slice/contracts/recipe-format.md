@@ -48,12 +48,12 @@ JSON в **канонической форме**. Канонизация — не
 ```json
 {
   "schemaVersion": 1,
-  "serialId": 4,
-  "serialName": "Игры Престолов",
+  "movieId": 4,
+  "movieName": "Игры Престолов",
   "recipeId": 55,
   "recipeName": "Джейми — выходы",
   "createdAt": "2026-10-02T12:41:07Z",
-  "rootLayout": "SERIAL_TREE",
+  "rootLayout": "MOVIE_TREE",
   "audioTrackCount": 1,
   "expectedDurationMs": 412000,
   "expectedFrameCount": 9876,
@@ -64,8 +64,8 @@ JSON в **канонической форме**. Канонизация — не
       "sceneTitle": "Джейми у ворот",
       "location": "Лагерь Джейми",
       "persons": ["Джейми Ланистер"],
-      "seriesId": 7,
-      "seriesName": "GOT.S01E01",
+      "episodeId": 7,
+      "episodeName": "GOT.S01E01",
       "relativePath": "GOT.S01/GOT.S01E01.BDRip.1080p.mkv",
       "sourceSha256": "3f786850e387550fdab836ed7e6dc881de23001b1a2c3d4e5f60718293a4b5c6d",
       "firstFrame": 1200,
@@ -87,7 +87,7 @@ JSON в **канонической форме**. Канонизация — не
 | `sourceSha256` | эталонная сумма файла | 64 шестнадцатеричных символа в нижнем регистре (FR-089) |
 | `firstFrame`, `lastFrame` | расчётные границы фрагмента | по размеченному плану; номер кадра — единственный источник правды (ADR-0001) |
 | `cutFirstFrame`, `cutLastFrame` | фактические границы фрагмента | `cutFirstFrame <= firstFrame`, `cutLastFrame >= lastFrame`; начало — ближайший ключевой кадр не позже начала плана (ADR-0006) |
-| `sceneTitle`, `location`, `persons` | снимок данных сцены | нужны локальному показу; сайт в показе не участвует (FR-089d) |
+| `sceneTitle`, `tbl_locations`, `persons` | снимок данных сцены | нужны локальному показу; сайт в показе не участвует (FR-089d) |
 | `expectedDurationMs`, `expectedFrameCount` | расчёт по сумме фактических границ | FR-083 |
 
 **Сценарий самодостаточен.** Всё, что нужно для показа и для сборки, лежит в

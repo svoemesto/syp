@@ -37,13 +37,13 @@
 
 | Метод и путь | Что делает |
 |---|---|
-| `POST /api/series/{seriesId}/analysis` | поставить серию на анализ структуры, ответ `202` |
-| `GET /api/series/{seriesId}/structure` | сцены с планами и сведениями об актуальности результата |
-| `GET /api/series/{seriesId}/raw-boundaries` | сырой результат автоматики последнего прогона |
-| `GET /api/series/{seriesId}/frames` | страница значимых кадров с признаками |
-| `GET /api/series/{seriesId}/frames/flags` | признаки кадров диапазона, включая признак ключевого кадра |
-| `GET /api/series/{seriesId}/preview-sheets/{index}` | содержимое листа превью |
-| `GET /api/series/{seriesId}/preview-url` | адрес листа и область кадрирования кадра на нём |
+| `POST /api/series/{episodeId}/analysis` | поставить серию на анализ структуры, ответ `202` |
+| `GET /api/series/{episodeId}/structure` | сцены с планами и сведениями об актуальности результата |
+| `GET /api/series/{episodeId}/raw-boundaries` | сырой результат автоматики последнего прогона |
+| `GET /api/series/{episodeId}/frames` | страница значимых кадров с признаками |
+| `GET /api/series/{episodeId}/frames/flags` | признаки кадров диапазона, включая признак ключевого кадра |
+| `GET /api/series/{episodeId}/preview-sheets/{index}` | содержимое листа превью |
+| `GET /api/series/{episodeId}/preview-url` | адрес листа и область кадрирования кадра на нём |
 
 Списки кадров и лиц пагинируются всегда; по умолчанию 200 строк, потолок
 2000. Сырой результат автоматики отдаётся **отдельным** эндпоинтом, а не

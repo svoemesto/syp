@@ -35,16 +35,16 @@
 |---|---|
 | `GET /api/serials` | список сериалов с числом серий |
 | `POST /api/serials` | создать сериал: название и корень каталога |
-| `GET /api/serials/{serialId}` | сериал, его серии и настройки |
-| `DELETE /api/serials/{serialId}` | удалить сериал вместе с производными данными |
-| `GET /api/serials/{serialId}/series` | список серий |
-| `POST /api/serials/{serialId}/series` | зарегистрировать серию по пути к файлу |
-| `GET /api/series/{seriesId}` | параметры серии и состояние готовности |
-| `DELETE /api/series/{seriesId}` | снять серию с учёта; файл не трогается |
-| `GET /api/serials/{serialId}/settings` | пороги, параметры кластеризации, версия формата сценария, число аудиодорожек |
-| `PUT /api/serials/{serialId}/settings` | изменить пороги и параметры |
+| `GET /api/serials/{movieId}` | сериал, его серии и настройки |
+| `DELETE /api/serials/{movieId}` | удалить сериал вместе с производными данными |
+| `GET /api/serials/{movieId}/series` | список серий |
+| `POST /api/serials/{movieId}/series` | зарегистрировать серию по пути к файлу |
+| `GET /api/series/{episodeId}` | параметры серии и состояние готовности |
+| `DELETE /api/series/{episodeId}` | снять серию с учёта; файл не трогается |
+| `GET /api/serials/{movieId}/settings` | пороги, параметры кластеризации, версия формата сценария, число аудиодорожек |
+| `PUT /api/serials/{movieId}/settings` | изменить пороги и параметры |
 
-Справочник мест действия (`GET` и `POST /api/serials/{serialId}/locations`)
+Справочник мест действия (`GET` и `POST /api/serials/{movieId}/locations`)
 наполняется в фазе плана 7.
 
 Отказы несут общие коды и русский текст. Код `SOURCE_UNREADABLE` означает и

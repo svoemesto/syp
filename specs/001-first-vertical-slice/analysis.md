@@ -148,14 +148,14 @@ T127/T128 размещают прикладную часть в админке. 
 
 | Метод | Путь | FR |
 |---|---|---|
-| `POST` | `/api/series/{seriesId}/faces` | FR-003, FR-030 |
+| `POST` | `/api/series/{episodeId}/faces` | FR-003, FR-030 |
 | `GET` | `/api/jobs` | FR-003 |
 | `GET` | `/api/jobs/{jobId}` | FR-003, FR-004 |
 | `POST` | `/api/jobs/{jobId}/cancel` | FR-003 |
 | `GET` | `/api/queue/status` | FR-003 |
 
 Проверено программно: в `tasks.md` ноль вхождений `api/jobs` и
-`api/queue/status`; `POST /api/series/{seriesId}/faces` не реализует ни одна
+`api/queue/status`; `POST /api/series/{episodeId}/faces` не реализует ни одна
 задача — T071 (`tasks.md:515-518`) перечисляет только `GET …/faces`,
 `GET …/faces/clusters`, `POST /api/clusters/{clusterId}/person` и персон.
 Код ошибки `JOB_NOT_RUNNABLE` (`contracts/admin-api.md`) не используется ни в
@@ -448,17 +448,17 @@ SC в спецификации: 12; покрыто: 12
 
 | Миграция | Таблицы | Сущности `data-model.md` |
 |---|---|---|
-| `01_catalog.sql` | `serial`, `location`, `series` | 2.1, 2.2, 2.3 |
-| `02_analysis.sql` | `analysis_run`, `raw_boundary`, `frame`, `scene`, `shot` | 2.4, 2.5, 2.6, 2.7, 2.8 |
-| `03_characters.sql` | `person`, `model_version`, `face`, `face_embedding`, `model_version_example` | 2.9, 2.10, 2.11, 2.12, 2.13 |
-| `04_selection.sql` | `syp_filter`, `filter_group`, `filter_condition` | 2.14, 2.15, 2.16 |
-| `05_jobs.sql` | `job`, `artifact` | 2.17, 2.18 |
-| `06_recipe.sql` | `source_file_checksum`, `build_recipe`, `build_recipe_item` | 2.19, 2.20, 2.21 |
-| `07_settings.sql` | `analysis_setting` | 2.22 |
+| `01_catalog.sql` | `tbl_movies`, `tbl_locations`, `tbl_episodes` | 2.1, 2.2, 2.3 |
+| `02_analysis.sql` | `tbl_analysis_runs`, `tbl_raw_boundaries`, `tbl_frames`, `tbl_scenes`, `tbl_shots` | 2.4, 2.5, 2.6, 2.7, 2.8 |
+| `03_characters.sql` | `tbl_persons`, `tbl_model_versions`, `tbl_faces`, `tbl_face_embeddings`, `tbl_model_version_examples` | 2.9, 2.10, 2.11, 2.12, 2.13 |
+| `04_selection.sql` | `tbl_filters`, `tbl_filter_groups`, `tbl_filter_conditions` | 2.14, 2.15, 2.16 |
+| `05_jobs.sql` | `tbl_jobs`, `tbl_artifacts` | 2.17, 2.18 |
+| `06_recipe.sql` | `tbl_source_file_checksums`, `tbl_build_recipes`, `tbl_build_recipe_items` | 2.19, 2.20, 2.21 |
+| `07_settings.sql` | `tbl_analysis_settings` | 2.22 |
 
 Числа из `plan.md:993` подтверждаются по файлам: `job_kind_known CHECK (kind IN
 ('ANALYZE', 'FACES', 'TRAIN', 'HASH'))` — вида `ASSEMBLE` нет (ADR-0009),
-`artifact` размещения `HDD` не содержит, `analysis_run_kind_known CHECK (kind IN
+`tbl_artifacts` размещения `HDD` не содержит, `analysis_run_kind_known CHECK (kind IN
 ('STRUCTURE', 'FACES'))`, состояние задания — ровно пять значений.
 
 ### Соответствие решениям владельца

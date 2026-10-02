@@ -83,10 +83,10 @@
 ## Как повторить
 
 ```bash
-SYP_SOURCE_SERIES=/disks/HDD_16Tb_Clouds/GOT/GOT.S01/GOT.S01E01.BDRip.1080p.mkv \
+SYP_SOURCE_EPISODE=/disks/HDD_16Tb_Clouds/GOT/GOT.S01/GOT.S01E01.BDRip.1080p.mkv \
 GRADLE_USER_HOME=/home/nsa/syp/.gradle \
   ./gradlew :syp-admin-app:test --tests '*SeriesParametersParityTest*' --rerun-tasks -i
 ```
 
-Без переменной `SYP_SOURCE_SERIES` проверка **пропускается**, а не падает:
+Без переменной `SYP_SOURCE_EPISODE` проверка **пропускается**, а не падает:
 файла серии на машине может не быть.

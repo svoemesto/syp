@@ -504,7 +504,7 @@
   в публичном контейнере. Требуется решение владельца: задевает `constitution`
   VIII.
 - **Б4 — пять эндпоинтов контракта админки** не реализует ни одна задача:
-  `POST /api/series/{seriesId}/faces`, `GET /api/jobs`,
+  `POST /api/series/{episodeId}/faces`, `GET /api/jobs`,
   `GET /api/jobs/{jobId}`, `POST /api/jobs/{jobId}/cancel`,
   `GET /api/queue/status`. Закрыто задачами T184—T185.
 

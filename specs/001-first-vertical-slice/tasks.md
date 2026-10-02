@@ -235,7 +235,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [x] T025 Применить миграции `01…07` к живой базе и проверить ограничения
   - Файлы: `deploy/syp-db/01_catalog.sql`, `deploy/syp-db/02_analysis.sql`, `deploy/syp-db/03_characters.sql`, `deploy/syp-db/04_selection.sql`, `deploy/syp-db/05_jobs.sql`, `deploy/syp-db/06_recipe.sql`, `deploy/syp-db/07_settings.sql`
   - Зависит от: T019
-  - Проверка: **требует контейнер** — одноразовый `postgres:16`, контейнеры SYP не создаются и не трогаются; все семь файлов применяются по порядку; 36 проверок ограничений дают ожидаемый результат; новый сериал получает 11 настроек по умолчанию; повторное применение `01_catalog.sql` отклоняется базой; в схеме есть `source_file_checksum`, `build_recipe`, `build_recipe_item` (команда повторена в `plan.md` § «Проверка миграций на живой базе»)
+  - Проверка: **требует контейнер** — одноразовый `postgres:16`, контейнеры SYP не создаются и не трогаются; все семь файлов применяются по порядку; 36 проверок ограничений дают ожидаемый результат; новый сериал получает 11 настроек по умолчанию; повторное применение `01_catalog.sql` отклоняется базой; в схеме есть `tbl_source_file_checksums`, `tbl_build_recipes`, `tbl_build_recipe_items` (команда повторена в `plan.md` § «Проверка миграций на живой базе»)
 
 - [x] T026 Реализовать воркер заданий бэкенда админки
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/jobs/AdminJobWorker.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/jobs/JobKinds.kt`
@@ -302,7 +302,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [x] T036 Реализовать эндпоинты приёма сериала и серии
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/CatalogController.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/config/CatalogConfiguration.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/config/ApiErrors.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/CatalogControllerTest.kt`
   - Зависит от: T030, T033, T035
-  - Проверка: реализованы `GET /api/serials`, `POST /api/serials`, `GET /api/serials/{serialId}`, `DELETE /api/serials/{serialId}`, `GET /api/serials/{serialId}/series`, `POST /api/serials/{serialId}/series`, `GET /api/series/{seriesId}`, `DELETE /api/series/{seriesId}`, `GET /api/serials/{serialId}/settings`, `PUT /api/serials/{serialId}/settings`; каждый публичный метод документирован и ссылается на `contracts/admin-api.md` и `docs/features/first-vertical-slice.md` (FR-100, FR-101)
+  - Проверка: реализованы `GET /api/serials`, `POST /api/serials`, `GET /api/serials/{movieId}`, `DELETE /api/serials/{movieId}`, `GET /api/serials/{movieId}/series`, `POST /api/serials/{movieId}/series`, `GET /api/series/{episodeId}`, `DELETE /api/series/{episodeId}`, `GET /api/serials/{movieId}/settings`, `PUT /api/serials/{movieId}/settings`; каждый публичный метод документирован и ссылается на `contracts/admin-api.md` и `docs/features/first-vertical-slice.md` (FR-100, FR-101)
 
 - [x] T037 [P] Сделать экран приёма в админке
   - Файлы: `syp-admin-web/src/views/SeriesIntakeView.vue`, `syp-admin-web/src/stores/catalog.ts`, `syp-admin-web/src/api/catalog.ts`
@@ -346,7 +346,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [x] T042 Ставить подсчёт суммы автоматически и по кнопке
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/integrity/ChecksumController.kt`
   - Зависит от: T041
-  - Проверка: `POST /api/series/{seriesId}/checksum` ставит задание; при регистрации серии задание ставится само; `GET /api/series/{seriesId}/checksum` отдаёт состояние, алгоритм, значение, дату подсчёта и признак устаревания
+  - Проверка: `POST /api/series/{episodeId}/checksum` ставит задание; при регистрации серии задание ставится само; `GET /api/series/{episodeId}/checksum` отдаёт состояние, алгоритм, значение, дату подсчёта и признак устаревания
 
 - [x] T043 [P] Вести историю пересчётов с одной актуальной суммой
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/integrity/ChecksumRegistry.kt`
@@ -414,7 +414,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [x] T053 Реализовать эндпоинты структуры и превью
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/analysis/StructureController.kt`
   - Зависит от: T048, T050
-  - Проверка: реализованы `POST /api/series/{seriesId}/analysis`, `GET /api/series/{seriesId}/structure`, `GET /api/series/{seriesId}/raw-boundaries`, `GET /api/series/{seriesId}/frames`, `GET /api/series/{seriesId}/frames/flags`, `GET /api/series/{seriesId}/preview-sheets/{index}`, `GET /api/series/{seriesId}/preview-url`; списки кадров и лиц всегда пагинируются
+  - Проверка: реализованы `POST /api/series/{episodeId}/analysis`, `GET /api/series/{episodeId}/structure`, `GET /api/series/{episodeId}/raw-boundaries`, `GET /api/series/{episodeId}/frames`, `GET /api/series/{episodeId}/frames/flags`, `GET /api/series/{episodeId}/preview-sheets/{index}`, `GET /api/series/{episodeId}/preview-url`; списки кадров и лиц всегда пагинируются
 
 - [x] T054 [P] Сделать экран структуры в админке
   - Файлы: `syp-admin-web/src/views/StructureView.vue`, `syp-admin-web/src/components/PreviewSheetView.vue`, `syp-admin-web/src/api/structure.ts`
@@ -496,7 +496,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/characters/FaceEmbedding.kt`
   - Зависит от: T064
   - Проверка: вектор лежит в отдельной таблице, а не в строке лица; векторы разных моделей эмбеддингов не смешиваются; ключ модели присутствует (Р-09)
-  - Выполнено: вектор лежит в отдельной таблице `face_embedding`, а не в строке лица; ключ модели обязателен, чтение требует ключа — векторы разных моделей не смешиваются (Р-09)
+  - Выполнено: вектор лежит в отдельной таблице `tbl_face_embeddings`, а не в строке лица; ключ модели обязателен, чтение требует ключа — векторы разных моделей не смешиваются (Р-09)
 
 - [x] T067 [P] Отбрасывать рамки, которые лицом не являются
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/characters/NonPersonFilter.kt`
@@ -524,7 +524,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [x] T071 Реализовать эндпоинты лиц, кластеров и персон
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/characters/CharactersController.kt`
   - Зависит от: T064, T068, T069
-  - Проверка: реализованы `GET /api/series/{seriesId}/faces`, `GET /api/series/{seriesId}/faces/clusters`, `POST /api/clusters/{clusterId}/person`, `GET /api/serials/{serialId}/persons`, `PATCH /api/persons/{personId}`, `DELETE /api/persons/{personId}`; удаление персоны переводит её лица в неопознанных в той же транзакции и **не удаляет** их
+  - Проверка: реализованы `GET /api/series/{episodeId}/faces`, `GET /api/series/{episodeId}/faces/clusters`, `POST /api/clusters/{clusterId}/person`, `GET /api/serials/{movieId}/persons`, `PATCH /api/persons/{personId}`, `DELETE /api/persons/{personId}`; удаление персоны переводит её лица в неопознанных в той же транзакции и **не удаляет** их
   - Выполнено: реализованы все шесть эндпоинтов контракта; удаление персоны переводит её лица в неопознанных в той же транзакции и не удаляет их; переименование не трогает ключ класса в модели
 
 - [x] T072 [P] Сделать экран лиц в админке
@@ -639,7 +639,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [ ] T089 Реализовать разделение и объединение планов
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation/BoundaryEditing.kt`
   - Зависит от: T048, T065
-  - Проверка: `POST /api/series/{seriesId}/shots/{frameNumber}/split` и `.../merge`; в той же операции согласуются пересекающиеся сцены и пересчитывается принадлежность лиц планам; при нарушении согласованности операция откатывается с кодом `409` и `BOUNDARY_CONFLICT`, промежуточного состояния не остаётся (FR-013, контракт админки 7.1)
+  - Проверка: `POST /api/series/{episodeId}/shots/{frameNumber}/split` и `.../merge`; в той же операции согласуются пересекающиеся сцены и пересчитывается принадлежность лиц планам; при нарушении согласованности операция откатывается с кодом `409` и `BOUNDARY_CONFLICT`, промежуточного состояния не остаётся (FR-013, контракт админки 7.1)
 
 - [ ] T090 Согласовывать пересекающиеся сцены в той же операции
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation/BoundaryEditing.kt`
@@ -649,12 +649,12 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [ ] T091 Реализовать отмену решения алгоритма
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation/BoundaryEditing.kt`
   - Зависит от: T089
-  - Проверка: `POST /api/series/{seriesId}/frames/{frameNumber}/cancel-detection`; отмена — **отдельное состояние**, а не отсутствие данных; помечается оранжевым; при повторном анализе признак отмены сохраняется (FR-016)
+  - Проверка: `POST /api/series/{episodeId}/frames/{frameNumber}/cancel-detection`; отмена — **отдельное состояние**, а не отсутствие данных; помечается оранжевым; при повторном анализе признак отмены сохраняется (FR-016)
 
 - [ ] T092 [P] Реализовать рисование лица мышью
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation/FaceDrawing.kt`
   - Зависит от: T064
-  - Проверка: `POST /api/series/{seriesId}/frames/{frameNumber}/faces` помечает происхождение лица как «оператор»; такое лицо **не удаляется** повторным анализом и не заменяется результатом автоматики; `DELETE /api/faces/{faceId}` удаляет ошибочное лицо (FR-032, SC-006)
+  - Проверка: `POST /api/series/{episodeId}/frames/{frameNumber}/faces` помечает происхождение лица как «оператор»; такое лицо **не удаляется** повторным анализом и не заменяется результатом автоматики; `DELETE /api/faces/{faceId}` удаляет ошибочное лицо (FR-032, SC-006)
 
 - [ ] T093 [P] Реализовать назначение лица персоне перетаскиванием
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation/FaceAssignment.kt`
@@ -701,7 +701,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [ ] T099 Вести справочник локаций сериала
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation/LocationController.kt`
   - Зависит от: T030
-  - Проверка: `GET /api/serials/{serialId}/locations`, `POST /api/serials/{serialId}/locations`, добавление и переименование; название уникально в пределах сериала (FR-050)
+  - Проверка: `GET /api/serials/{movieId}/locations`, `POST /api/serials/{movieId}/locations`, добавление и переименование; название уникально в пределах сериала (FR-050)
 
 - [ ] T100 Назначать и снимать место действия сцене
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation/SceneLocation.kt`
@@ -763,7 +763,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [ ] T109 Реализовать эндпоинты обучения и версий
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/characters/TrainingController.kt`
   - Зависит от: T105, T108
-  - Проверка: реализованы `POST /api/serials/{serialId}/training`, `GET /api/serials/{serialId}/model-versions`, `GET /api/model-versions/{id}`, `POST /api/model-versions/{id}/activate`, `POST /api/model-versions/{id}/rollback`
+  - Проверка: реализованы `POST /api/serials/{movieId}/training`, `GET /api/serials/{movieId}/model-versions`, `GET /api/model-versions/{id}`, `POST /api/model-versions/{id}/activate`, `POST /api/model-versions/{id}/rollback`
 
 - [ ] T110 [P] Сделать экран обучения в админке
   - Файлы: `syp-admin-web/src/views/TrainingView.vue`, `syp-admin-web/src/api/training.ts`
@@ -824,7 +824,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 - [ ] T119 Сохранять, применять, править и удалять фильтр
   - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/selection/SelectionController.kt`
   - Зависит от: T115, T118
-  - Проверка: реализованы `GET/POST /api/serials/{serialId}/filters`, `GET/PUT/DELETE /api/filters/{filterId}`, `POST /api/filters/{filterId}/apply`; повторное применение — одно действие из списка (FR-072, SC-007)
+  - Проверка: реализованы `GET/POST /api/serials/{movieId}/filters`, `GET/PUT/DELETE /api/filters/{filterId}`, `POST /api/filters/{filterId}/apply`; повторное применение — одно действие из списка (FR-072, SC-007)
 
 - [ ] T120 [P] Сделать редактор фильтра в админке
   - Файлы: `syp-admin-web/src/views/FilterEditorView.vue`, `syp-admin-web/src/components/ConditionGroupEditor.vue`, `syp-admin-web/src/api/filters.ts`
@@ -897,7 +897,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
   - **Остаётся открытой по существу, не из-за T136.** Механизм снимка сделан
     2026-10-03 вместе с T136: место действия и имена персонажей кладутся
     снимками строк. Не хватает **источника для названия сцены**: в модели
-    данных 2.7 у сцены нет поля названия, в таблице `scene` его нет, и
+    данных 2.7 у сцены нет поля названия, в таблице `tbl_scenes` его нет, и
     `data-model.md` 2.21 допускает, что оно пустое. Снимок названия пишется, но
     всегда пуст. Закрытие задачи требует либо столбца `scene.title`, либо
     решения владельца, что название сцены не нужно. В старом проекте названия
@@ -1511,7 +1511,7 @@ Task: "T144 → T147 → T148 → T149 → T150" (подпись, затем с�
 
 3. **Пять эндпоинтов контракта админки без задач.** `GET /api/jobs`,
    `GET /api/jobs/{jobId}`, `POST /api/jobs/{jobId}/cancel`,
-   `GET /api/queue/status`, `POST /api/series/{seriesId}/faces` объявлены в
+   `GET /api/queue/status`, `POST /api/series/{episodeId}/faces` объявлены в
    `contracts/admin-api.md`, но ни одной задачи на них нет: FR-003 и FR-004
    не закрыты на уровне API, отмена задания не реализуема. Вопрос: добавить
    две задачи и обновить счётчик 183 → 185 либо включить эндпоинты в
@@ -1586,7 +1586,7 @@ Task: "T144 → T147 → T148 → T149 → T150" (подпись, затем с�
   - Файлы: `syp-admin-app/src/main/kotlin/ru/syp/admin/api/QueueController.kt`, `syp-admin-app/src/main/kotlin/ru/syp/admin/api/FaceController.kt`
   - Зависит от: T026
   - Покрывает: FR-003, FR-004
-  - Проверка: `GET /api/queue/status` отдаёт признак работы очереди и счётчики по состояниям; `POST /api/series/{seriesId}/faces` принимает рамку, отрисованную мышью, и создаёт лицо, которого раньше не было; для обоих маршрутов есть интеграционный тест
+  - Проверка: `GET /api/queue/status` отдаёт признак работы очереди и счётчики по состояниям; `POST /api/series/{episodeId}/faces` принимает рамку, отрисованную мышью, и создаёт лицо, которого раньше не было; для обоих маршрутов есть интеграционный тест
 - [x] T186 [P] Создать общий модуль `syp-core` для кода сценария сборки
   - Файлы: `syp-core/build.gradle.kts`, `syp-core/src/main/kotlin/ru/svoemesto/syp/core/recipe/RecipeFormat.kt`
   - Зависит от: T122
