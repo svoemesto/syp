@@ -1,6 +1,7 @@
 package ru.svoemesto.syp.admin.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import java.time.Duration
 import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -8,6 +9,7 @@ import ru.svoemesto.syp.admin.notify.JobQueueNotifier
 import ru.svoemesto.syp.admin.notify.NotificationPublisher
 import ru.svoemesto.syp.admin.notify.QueueStateReader
 import ru.svoemesto.syp.admin.notify.SseNotificationService
+import ru.svoemesto.syp.admin.notify.SseConfiguration
 import ru.svoemesto.syp.admin.notify.SubscribeController
 import ru.svoemesto.syp.admin.notify.TabIdFilter
 import ru.svoemesto.syp.core.db.Db
@@ -47,11 +49,19 @@ class NotificationConfiguration {
      * контекста: расписание, оставшееся после остановки приложения, держало бы
      * поток и не давало бы контексту закрыться.
      *
+     * Интервал сердцебия приходит из окружения развёртывания, а не из кода:
+     * его правят при обслуживании, и пересборка образа ради значения не должна
+     * быть частью правки настройки.
+     *
      * @param mapper разбор значений в JSON
      * @return сервис нотификаций
      */
     @Bean(initMethod = "start", destroyMethod = "stop")
-    fun sseNotificationService(mapper: ObjectMapper): SseNotificationService = SseNotificationService(mapper)
+    fun sseNotificationService(mapper: ObjectMapper): SseNotificationService =
+        SseNotificationService(
+            mapper = mapper,
+            heartbeatInterval = Duration.ofSeconds(SseConfiguration.heartbeatSeconds()),
+        )
 
     /**
      * Собирает перевод изменений очереди в уведомления.

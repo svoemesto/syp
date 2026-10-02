@@ -103,6 +103,9 @@ services:
       SYP_SIGNING_KEY_NOT_BEFORE: ${SYP_SIGNING_KEY_NOT_BEFORE:-}
       SYP_WORKER_CONCURRENCY: ${SYP_WORKER_CONCURRENCY:-2}
       SYP_GPU_CONCURRENCY: ${SYP_GPU_CONCURRENCY:-1}
+      # Нотификации SSE: интервал сердцебия в секундах. Клиентский таймаут
+      # обязан быть больше этого значения (ADR-0017).
+      SYP_SSE_HEARTBEAT_SECONDS: ${SYP_SSE_HEARTBEAT_SECONDS:-15}
       # Путь к программе фиксирован настройкой развёртывания: он не приходит
       # из данных задания и не приходит от пользователя (ADR-0010).
       SYP_FFPROBE_PATH: ${SYP_FFPROBE_PATH:-/usr/bin/ffprobe}
@@ -151,6 +154,11 @@ services:
     build:
       context: ../syp-admin-web
       dockerfile: ../deploy/Dockerfile.frontend
+      args:
+        # Параметры подписки SSE: правятся в deploy/.env, а не в исходниках.
+        VITE_SSE_MAX_RECONNECT_ATTEMPTS: ${SYP_SSE_MAX_RECONNECT_ATTEMPTS:-5}
+        VITE_SSE_RECONNECT_BASE_MS: ${SYP_SSE_RECONNECT_BASE_MS:-1000}
+        VITE_SSE_RECONNECT_MAX_MS: ${SYP_SSE_RECONNECT_MAX_MS:-30000}
     image: svoemesto/syp-admin-web:local
     container_name: syp-admin-web
     restart: unless-stopped

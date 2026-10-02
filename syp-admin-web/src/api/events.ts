@@ -149,14 +149,39 @@ export interface SsePayloads {
  */
 export const HEARTBEAT_TIMEOUT_MS = 30000
 
-/** Сколько попыток переподключения подряд, прежде чем остановиться. */
-export const MAX_RECONNECT_ATTEMPTS = 5
+/**
+ * Сколько попыток переподключения подряд, прежде чем остановиться.
+ *
+ * Читается при сборке из `deploy/.env.example`: значения правятся при
+ * обслуживании, и пересборка образа — единственный способ их изменить.
+ * Значения по умолчанию совпадают с `VITE_SSE_*` в `deploy/Dockerfile.frontend`.
+ */
+export const MAX_RECONNECT_ATTEMPTS = positiveNumber(
+  import.meta.env.VITE_SSE_MAX_RECONNECT_ATTEMPTS,
+  5,
+)
 
 /** Первая пауза между попытками переподключения, мс. */
-export const RECONNECT_BASE_MS = 1000
+export const RECONNECT_BASE_MS = positiveNumber(import.meta.env.VITE_SSE_RECONNECT_BASE_MS, 1000)
 
 /** Потолок паузы между попытками, мс. */
-export const RECONNECT_MAX_MS = 30000
+export const RECONNECT_MAX_MS = positiveNumber(import.meta.env.VITE_SSE_RECONNECT_MAX_MS, 30000)
+
+/**
+ * Читает положительное число из настройки сборки.
+ *
+ * Негодное значение заменяется значением по умолчанию, а не отвергает сборку:
+ * предел в ноль попыток означал бы «не переподключаться никогда», а таймаут
+ * сердцебия в ноль означал бы рвать живое соединение.
+ *
+ * @param raw значение из окружения сборки
+ * @param fallback значение по умолчанию
+ * @returns положительное число либо значение по умолчанию
+ */
+function positiveNumber(raw: string | undefined, fallback: number): number {
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
 
 /** Ключ идентификатора вкладки в `sessionStorage`. */
 const TAB_ID_KEY = 'syp.tabId'
