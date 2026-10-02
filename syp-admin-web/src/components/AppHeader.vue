@@ -8,6 +8,7 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useCatalogStore } from '../stores/catalog'
+import JobProgressMeter from './JobProgressMeter.vue'
 
 const route = useRoute()
 const catalog = useCatalogStore()
@@ -85,6 +86,11 @@ function isActive(name: string): boolean {
         <span class="syp-selection text-body-secondary">
           {{ selectedSeriesLabel }}
         </span>
+
+        <!-- Прогресс-мер заданий: показывает ход работы, а не только то, что
+             кнопку нажали. Живого канала уведомлений пока нет, поэтому данные
+             обновляются опросом. -->
+        <JobProgressMeter />
       </div>
 
       <nav class="syp-nav" aria-label="Разделы админки">
