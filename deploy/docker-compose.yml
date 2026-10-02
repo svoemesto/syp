@@ -99,12 +99,35 @@ services:
       # Путь к программе фиксирован настройкой развёртывания: он не приходит
       # из данных задания и не приходит от пользователя (ADR-0010).
       SYP_FFPROBE_PATH: ${SYP_FFPROBE_PATH:-/usr/bin/ffprobe}
+      # Детектор лиц на видеокарте: пути к программе и к модели, провайдер
+      # вычислений и пороги. Секретов в них нет, это параметры развёртывания
+      # (constitution VIII.5). Пустой SYP_FACE_DETECTOR_PATH означает, что
+      # детектор не поднят: собирается заглушка, и прогон анализа называет
+      # её заглушкой, а не выдаёт пустой результат за детекцию.
+      SYP_FACE_DETECTOR_PATH: ${SYP_FACE_DETECTOR_PATH:-/opt/syp/face-detector/bin/syp-face-detector}
+      SYP_FACE_MODEL_PATH: ${SYP_FACE_MODEL_PATH:-/opt/syp/face-detector/models/face_detection_yunet_2023mar.onnx}
+      SYP_FACE_PROVIDER: ${SYP_FACE_PROVIDER:-CUDAExecutionProvider}
+      SYP_FACE_INPUT_WIDTH: ${SYP_FACE_INPUT_WIDTH:-640}
+      SYP_FACE_INPUT_HEIGHT: ${SYP_FACE_INPUT_HEIGHT:-640}
+      SYP_FACE_SCORE_THRESHOLD: ${SYP_FACE_SCORE_THRESHOLD:-0.6}
+      SYP_FACE_NMS_THRESHOLD: ${SYP_FACE_NMS_THRESHOLD:-0.3}
     ports:
       - "${SYP_ADMIN_APP_HOST_PORT:-7911}:7911"
     volumes:
       # Исходное видео монтируется только для чтения: файлы архива никогда
       # не изменяются.
       - ${SYP_SOURCE_ROOT:-/disks/HDD_16Tb_Clouds/GOT}:/sources:ro
+    # Видеокарта отдаётся контейнеру админки: детектор лиц работает внутри
+    # контейнера, седьмого контейнера детекции в стеке нет (constitution V,
+    # research.md Т-01, Т-20). Карта не обязана быть свободной — задания,
+    # требующие видеокарты, выполняются строго по одному (SYP_GPU_CONCURRENCY).
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${SYP_GPU_COUNT:-all}
+              capabilities: [gpu]
     depends_on:
       syp-db:
         condition: service_healthy

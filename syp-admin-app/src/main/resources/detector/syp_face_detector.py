@@ -194,30 +194,57 @@ def postprocess(
     cls_parts: list[np.ndarray] = []
     obj_parts: list[np.ndarray] = []
     box_parts: list[np.ndarray] = []
+    grid_parts: list[np.ndarray] = []
+    stride_parts: list[np.ndarray] = []
     for stride in STRIDES:
         cls_parts.append(outputs["cls_%d" % stride].reshape(-1))
         obj_parts.append(outputs["obj_%d" % stride].reshape(-1))
         box_parts.append(outputs["bbox_%d" % stride].reshape(-1, 4))
+        # Сетка якорей модели: сначала строки, потом столбцы, шаг — stride.
+        # Порядок совпадает с порядком, в котором сеть выдаёт оценки; сдвиг на
+        # один якорь сдвигает все рамки, и ошибка выглядит правдоподобно.
+        side = -(-input_w // stride)
+        rows = np.repeat(np.arange(-(-input_h // stride)), side)
+        cols = np.tile(np.arange(side), -(-input_h // stride))
+        grid_parts.append(np.stack([rows, cols], axis=1).astype(np.float64))
+        stride_parts.append(np.full(rows.shape, float(stride)))
     cls = np.concatenate(cls_parts)
     obj = np.concatenate(obj_parts)
     boxes_raw = np.concatenate(box_parts)
+    grid = np.concatenate(grid_parts)
+    strides = np.concatenate(stride_parts)
     scores = cls * obj
     mask = np.where(scores > score_threshold)[0]
     if mask.size == 0:
         return []
     scores = scores[mask]
     boxes_raw = boxes_raw[mask]
+    grid = grid[mask]
+    strides = strides[mask]
     order = np.argsort(scores)[::-1][:top_k]
     scores = scores[order]
     boxes_raw = boxes_raw[order]
+    grid = grid[order]
+    strides = strides[order]
 
-    # Рамка выводится в единицах шага; четыре — коэффициент самой модели.
-    centre = boxes_raw * 4.0
-    x1 = (centre[:, 0] - centre[:, 2] / 2.0) * source_w / input_w
-    y1 = (centre[:, 1] - centre[:, 3] / 2.0) * source_h / input_h
-    x2 = (centre[:, 0] + centre[:, 2] / 2.0) * source_w / input_w
-    y2 = (centre[:, 1] + centre[:, 3] / 2.0) * source_h / input_h
-    boxes = np.stack([x1, y1, x2, y2], axis=1)
+    # Разбор рамки. Сеть отдаёт четыре расстояния от якоря в единицах шага:
+    # слева, сверху, справа, снизу. Ширина — сумма расстояний, а не третье
+    # число само по себе; спутать эти два прочтения — значит получить рамки в
+    # углу кадра вместо лиц.
+    left, top, right, bottom = (boxes_raw[:, i] for i in range(4))
+    centre_x = (grid[:, 1] + left) * strides
+    centre_y = (grid[:, 0] + top) * strides
+    width = (left + right) * strides
+    height = (top + bottom) * strides
+    boxes = np.stack(
+        [
+            (centre_x - width / 2.0) * source_w / input_w,
+            (centre_y - height / 2.0) * source_h / input_h,
+            (centre_x + width / 2.0) * source_w / input_w,
+            (centre_y + height / 2.0) * source_h / input_h,
+        ],
+        axis=1,
+    )
     boxes[:, 0] = np.clip(boxes[:, 0], 0, source_w)
     boxes[:, 1] = np.clip(boxes[:, 1], 0, source_h)
     boxes[:, 2] = np.clip(boxes[:, 2], 0, source_w)
@@ -265,6 +292,13 @@ class Detector:
             fail(
                 "Детектор: провайдер «%s» недоступен, есть: %s" % (provider, ", ".join(available))
             )
+        if provider != "CPUExecutionProvider" and hasattr(ort, "preload_dlls"):
+            # Библиотеки CUDA лежат в колесах NVIDIA, а не в системных путях
+            # поиска. Без этой загрузки провайдер не поднимается, а onnxruntime
+            # молча уходит на CPU: список доступных провайдеров CUDAExecutionProvider
+            # содержит независимо от того, загрузилась ли она. Смысл проверки
+            # ниже — в том, что провайдеры сессии начинаются с CUDA, а не с CPU.
+            ort.preload_dlls(cuda=True, cudnn=True)
         options = ort.SessionOptions()
         options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         try:
@@ -286,6 +320,14 @@ class Detector:
                     % (shape[3], shape[2], input_w, input_h)
                 )
         self.provider = self.session.get_providers()[0]
+        if self.provider != wanted:
+            # Молчаливый уход на CPU — самая опасная поломка детектора: она
+            # выглядит как «просто медленно», а на 88 643 кадрах это часы.
+            # Поэтому замена провайдера объявлена отказом, а не подменой.
+            fail(
+                "Детектор: провайдер «%s» не поднялся, вычисления пошли на «%s». "
+                "Проверьте, что образ содержит библиотеки CUDA" % (provider, self.provider)
+            )
         self.score_threshold = score_threshold
         self.nms_threshold = nms_threshold
         self.top_k = top_k
@@ -352,7 +394,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--provider", default="CUDAExecutionProvider", help="провайдер вычислений")
     parser.add_argument("--input-width", type=int, default=640, help="ширина входа сети")
     parser.add_argument("--input-height", type=int, default=640, help="высота входа сети")
-    parser.add_argument("--score-threshold", type=float, default=0.9, help="порог уверенности")
+    parser.add_argument("--score-threshold", type=float, default=0.6, help="порог уверенности")
     parser.add_argument("--nms-threshold", type=float, default=0.3, help="порог перекрытия рамок")
     parser.add_argument("--top-k", type=int, default=5000, help="сколько лучших рамок разбирать")
     return parser.parse_args(argv)
