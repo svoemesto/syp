@@ -1,6 +1,7 @@
 package ru.svoemesto.syp.admin.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -146,7 +147,10 @@ class CatalogConfiguration {
      * @return объект разбора JSON
      */
     @Bean
-    fun catalogObjectMapper(): ObjectMapper = ObjectMapper().registerKotlinModule()
+    fun catalogObjectMapper(): ObjectMapper =
+        ObjectMapper()
+            .registerKotlinModule()
+            .registerModule(JavaTimeModule())
 
     companion object {
         /** Имя переменной окружения со строкой подключения к базе. */
