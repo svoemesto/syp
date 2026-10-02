@@ -285,17 +285,17 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
   - Проверка: битовая карта из одного бита на кадр, длина `ceil(88 643 / 8)` байт, бит 1 — кадр ключевой; на `GOT.S01E01` установленных битов 792 (сверка с эталоном старого проекта); отдельной строки кадра на каждый кадр не создаётся (Р-07)
 
 - [x] T033 Проверять, что путь серии лежит внутри корня сериала
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SeriesRegistration.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/SeriesRegistrationTest.kt`
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/EpisodeRegistration.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/EpisodeRegistrationTest.kt`
   - Зависит от: T030, T031
   - Проверка: путь вне корня сериала отвергается с кодом `SOURCE_UNREADABLE` и внятным текстом; относительный путь, который попал бы в сценарий, не может быть выдуман (FR-089a)
 
 - [x] T034 Отдавать внятную ошибку на недоступный файл
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SeriesRegistration.kt`
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/EpisodeRegistration.kt`
   - Зависит от: T033
   - Проверка: несуществующий или нечитаемый файл даёт `400` с кодом `SOURCE_UNREADABLE` и путём в тексте; «успех с пустым результатом» невозможен (крайний случай спецификации, FR-092)
 
 - [x] T035 Хранить настройки анализа и выдачи сценария
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SerialSettings.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/SerialSettingsTest.kt`
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/MovieSettings.kt`, `syp-admin-app/src/test/kotlin/ru/svoemesto/syp/admin/catalog/MovieSettingsTest.kt`
   - Зависит от: T030
   - Проверка: новый сериал получает 11 настроек по умолчанию; пороги границ, пороги размера плана, порог детектора, параметры кластеризации, раскладка листа превью, версия формата сценария и число аудиодорожек меняются без правки кода (ADR-0003, constitution)
 
@@ -305,12 +305,12 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
   - Проверка: реализованы `GET /api/serials`, `POST /api/serials`, `GET /api/serials/{movieId}`, `DELETE /api/serials/{movieId}`, `GET /api/serials/{movieId}/series`, `POST /api/serials/{movieId}/series`, `GET /api/series/{episodeId}`, `DELETE /api/series/{episodeId}`, `GET /api/serials/{movieId}/settings`, `PUT /api/serials/{movieId}/settings`; каждый публичный метод документирован и ссылается на `contracts/admin-api.md` и `docs/features/first-vertical-slice.md` (FR-100, FR-101)
 
 - [x] T037 [P] Сделать экран приёма в админке
-  - Файлы: `syp-admin-web/src/views/SeriesIntakeView.vue`, `syp-admin-web/src/stores/catalog.ts`, `syp-admin-web/src/api/catalog.ts`
+  - Файлы: `syp-admin-web/src/views/EpisodeIntakeView.vue`, `syp-admin-web/src/stores/catalog.ts`, `syp-admin-web/src/api/catalog.ts`
   - Зависит от: T036
   - Проверка: оператор создаёт сериал с корнем, добавляет серию указанием пути, видит определённые системой параметры и внятную ошибку при недоступном файле
 
 - [x] T038 Сверить параметры серии с измеренными
-  - Файлы: `specs/001-first-vertical-slice/measurements/series-params-parity.md`
+  - Файлы: `specs/001-first-vertical-slice/measurements/episode-params-parity.md`
   - Зависит от: T031
   - Проверка: **требует запуска контейнеров**; для `GOT.S01E01` зафиксировано: **88 643 кадра**, 1920×1080, 23,976 fps (24000/1001), 3697,2 с, 5 598 286 865 байт; отчёт содержит вывод `ffprobe` рядом с выводом системы
 
@@ -590,7 +590,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
   - Проверка: план без лиц получает значение «нет размера»; сцена при этом остаётся в выборке, но под фильтр «персонаж = X» не подходит (FR-042, крайний случай спецификации)
 
 - [ ] T082 Хранить пороги в настройках сериала
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/SerialSettings.kt`
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/MovieSettings.kt`
   - Зависит от: T035, T080
   - Проверка: пороги — настройка, а не константа кода; их смена помечает результаты устаревшими, но не удаляет (ADR-0003, FR-090)
 

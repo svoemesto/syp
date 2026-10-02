@@ -180,4 +180,4 @@
 
 - Требования: `../spec.md`, FR-093, FR-090
 - Смежные отчёты: [М-03](m-03-boundary-thresholds.md), [М-07](m-07-preview-volume.md), [SC-003](sc-003-boundary-acceptance.md)
-- Прошлые сверки: [series-params-parity.md](series-params-parity.md), [legacy-boundaries-parity.md](legacy-boundaries-parity.md), [legacy-frames-parity.md](legacy-frames-parity.md)
+- Прошлые сверки: [episode-params-parity.md](episode-params-parity.md), [legacy-boundaries-parity.md](legacy-boundaries-parity.md), [legacy-frames-parity.md](legacy-frames-parity.md)

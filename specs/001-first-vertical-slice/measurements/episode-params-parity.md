@@ -18,7 +18,7 @@
 | Файл | `/disks/HDD_16Tb_Clouds/GOT/GOT.S01/GOT.S01E01.BDRip.1080p.mkv` |
 | Размер | 5 598 286 865 байт, время изменения 2024-11-05 13:34:28 +0300 |
 | Программа | `ffprobe` 6.1.1-3ubuntu5, из `/usr/bin` (та же, что требуется контейнеру `syp-admin-app`) |
-| Код системы | `SourceProbe` (`syp-admin-app/.../catalog/SourceProbe.kt`), проверка `SeriesParametersParityTest` |
+| Код системы | `SourceProbe` (`syp-admin-app/.../catalog/SourceProbe.kt`), проверка `EpisodeParametersParityTest` |
 | Число прогонов | по одному прогону каждого прохода; разброс не измерялся, потому что все проходы **детерминированные**: считают пакеты и читают отметки времени, а не меряют скорость |
 | Среда | агентская сессия машины `nsa-i9`; `ffprobe` читал заголовок и считал пакеты без декодирования изображения |
 
@@ -85,7 +85,7 @@
 ```bash
 SYP_SOURCE_EPISODE=/disks/HDD_16Tb_Clouds/GOT/GOT.S01/GOT.S01E01.BDRip.1080p.mkv \
 GRADLE_USER_HOME=/home/nsa/syp/.gradle \
-  ./gradlew :syp-admin-app:test --tests '*SeriesParametersParityTest*' --rerun-tasks -i
+  ./gradlew :syp-admin-app:test --tests '*EpisodeParametersParityTest*' --rerun-tasks -i
 ```
 
 Без переменной `SYP_SOURCE_EPISODE` проверка **пропускается**, а не падает:
