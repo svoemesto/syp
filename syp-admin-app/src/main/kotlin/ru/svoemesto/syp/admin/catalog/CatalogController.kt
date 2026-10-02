@@ -36,14 +36,16 @@ data class CreateSerialRequest(
  *
  * @property sourcePath путь к исходному видеофайлу внутри корня сериала
  * @property name название серии; если не задано, берётся имя файла
- * @property season номер сезона; не задан — у серий, которые сезону не
- *   принадлежат, например у фильма
+ * @property seasonId сезон-владелец; не задан — у фильма, у которого
+ *   сезонов нет
+ * @property episodeOrdinal номер эпизода внутри сезона; 0 — у фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class RegisterSeriesRequest(
     val sourcePath: String,
     val name: String? = null,
-    val season: Int? = null,
+    val seasonId: Long? = null,
+    val episodeOrdinal: Int = 0,
 )
 
 /**
@@ -85,7 +87,10 @@ data class SeriesView(
     val serialId: Long,
     val ordinal: Int,
     val name: String,
-    val season: Int?,
+    val seasonId: Long?,
+    val seasonOrdinal: Int?,
+    val episodeOrdinal: Int,
+    val designation: String,
     val sourcePath: String,
     val relativePath: String?,
     val byteSize: Long,
@@ -323,7 +328,13 @@ class CatalogController(
     ): ResponseEntity<SeriesView> {
         val serial = requireSerial(serialId)
         val registered =
-            registration.register(serialId, request.sourcePath, request.name, request.season)
+            registration.register(
+                serialId,
+                request.sourcePath,
+                request.name,
+                request.seasonId,
+                request.episodeOrdinal,
+            )
         // Подсчёт суммы ставится сразу: он считается заданием и идёт в фоне,
         // а ждать его в этом запросе нельзя — это нарушало бы constitution
         // IV.1 (FR-003). Отказ постановки не отменяет регистрацию: серия уже
@@ -479,13 +490,19 @@ internal fun Serial.toView(seriesCount: Int): SerialView =
  * @return описание серии
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-internal fun Series.toView(serial: Serial): SeriesView =
+internal fun Series.toView(
+    serial: Serial,
+    seasonOrdinal: Int? = null,
+): SeriesView =
     SeriesView(
         id = id!!,
         serialId = serialId,
         ordinal = ordinal,
         name = name,
-        season = season,
+        seasonId = seasonId,
+        seasonOrdinal = seasonOrdinal,
+        episodeOrdinal = episodeOrdinal,
+        designation = "S%02dE%02d".format(seasonOrdinal ?: 0, episodeOrdinal),
         sourcePath = sourcePath,
         relativePath = relativePath(serial.sourceRoot),
         byteSize = byteSize,

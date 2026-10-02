@@ -7,7 +7,7 @@
 # Проверяется ровно то, что перечислено в задаче T025, плюс ограничения,
 # добавленные миграциями 09 и правила каскадного удаления сериала:
 #   1. все файлы deploy/syp-db/NN_*.sql применяются по порядку;
-#   2. состав схемы: 22 таблицы, среди них source_file_checksum,
+#   2. состав схемы: 23 таблицы, среди них source_file_checksum,
 #      build_recipe, build_recipe_item;
 #   3. проверки ограничений: каждая — «ожидается отказ» или «ожидается
 #      принятие», в отдельной транзакции с откатом;
@@ -91,10 +91,10 @@ printf '%s\n' "  применено файлов: ${applied}"
 # --- 2. Состав схемы -------------------------------------------------------
 printf '\n%s\n' "2. Состав схемы"
 tables=$(psql_run <<< "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';")
-if [[ "${tables}" == "22" ]]; then
-    report_ok "таблиц 22, как ожидалось"
+if [[ "${tables}" == "23" ]]; then
+    report_ok "таблиц 23, как ожидалось"
 else
-    report_fail "таблиц ${tables}, ожидалось 22"
+    report_fail "таблиц ${tables}, ожидалось 23"
 fi
 
 for table in source_file_checksum build_recipe build_recipe_item; do
@@ -107,10 +107,10 @@ for table in source_file_checksum build_recipe build_recipe_item; do
 done
 
 hashes=$(psql_run <<< "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND column_name='recordhash';")
-if [[ "${hashes}" == "22" ]]; then
-    report_ok "столбец recordhash во всех 22 таблицах"
+if [[ "${hashes}" == "23" ]]; then
+    report_ok "столбец recordhash во во всех 23 таблицах"
 else
-    report_fail "recordhash в ${hashes} таблицах из 22"
+    report_fail "recordhash в ${hashes} таблицах из 23"
 fi
 
 # --- 3. Проверки ограничений ----------------------------------------------
@@ -524,12 +524,16 @@ if [[ ${failed} -gt 0 ]]; then
 fi
 printf '%s\n' "ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ"
 exit 0
-# Сезон серии: необязателен, но положителен.
-check "серия без сезона (фильм) — принят" ok \
-    "UPDATE series SET season = NULL WHERE source_path LIKE '%S01E01%';"
-check "серия сезона 1 — принят" ok \
-    "UPDATE series SET season = 1 WHERE source_path LIKE '%S01E01%';"
-check "нулевой сезон — отказ" fail \
-    "UPDATE series SET season = 0 WHERE source_path LIKE '%S01E01%';"
-check "отрицательный сезон — отказ" fail \
-    "UPDATE series SET season = -1 WHERE source_path LIKE '%S01E01%';"
+# Сезон — отдельная сущность. У фильма сезона нет, и обозначение выходит S00E00.
+check "создание сезона — принят" ok \
+    "INSERT INTO season (serial_id, ordinal, name, recordhash) SELECT id, 1, 'Первый сезон', repeat('a',64) FROM serial LIMIT 1;"
+check "нулевой номер сезона — отказ (ноль занят под «сезона нет»)" fail \
+    "INSERT INTO season (serial_id, ordinal, name, recordhash) SELECT id, 0, 'Ноль', repeat('a',64) FROM serial LIMIT 1;"
+check "отрицательный номер сезона — отказ" fail \
+    "INSERT INTO season (serial_id, ordinal, name, recordhash) SELECT id, -1, 'Минус', repeat('a',64) FROM serial LIMIT 1;"
+check "повтор номера сезона в сериале — отказ" fail \
+    "INSERT INTO season (serial_id, ordinal, name, recordhash) SELECT id, 1, 'Дубль', repeat('b',64) FROM serial LIMIT 1;"
+check "эпизод с номером 0 (фильм) — принят" ok \
+    "UPDATE series SET episode_ordinal = 0;"
+check "отрицательный номер эпизода — отказ" fail \
+    "UPDATE series SET episode_ordinal = -1;"
