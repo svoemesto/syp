@@ -45,7 +45,7 @@ watch(recipeId, (next) => {
       </div>
       <div class="btn-group">
         <a
-          v-if="store.detail.value?.isReady"
+          v-if="store.detail.value?.canDownload"
           class="btn btn-primary"
           :href="fileUrl"
           :download="`${store.detail.value.name}.syp-recipe.json`"
@@ -131,12 +131,16 @@ watch(recipeId, (next) => {
               <span class="badge mb-3" :class="`text-bg-${store.detail.value.stateTone}`">
                 {{ store.detail.value.stateTitle }}
               </span>
-              <p v-if="store.detail.value.staleReason" class="form-text">
-                {{ store.detail.value.staleReason }}
-              </p>
+              <div v-if="store.detail.value.isStale" class="syp-stale my-3" role="status">
+                {{ store.detail.value.staleNotice }}
+                <div v-if="store.detail.value.staleReason" class="mt-1 form-text">
+                  {{ store.detail.value.staleReason }}
+                </div>
+              </div>
               <p class="form-text mb-0">
                 Устаревший сценарий всё равно проверяем по своему ключу, пока тот доверенный: файл,
-                подпись и идентификатор ключа остаются прежними.
+                подпись и идентификатор ключа остаются прежними. Помеченный сценарий скачивается —
+                запрещать его было бы запретом того, что контракт разрешает (FR-090).
               </p>
             </div>
           </div>

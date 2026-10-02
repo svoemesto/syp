@@ -7,6 +7,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { type PreviewUrlView, previewSheetUrl } from '../api/structure'
+import { toPreviewSheetAlt, toPreviewSheetCaption } from '../api/view-model'
 
 const props = defineProps<{
   /** Серия-владелец листа. */
@@ -16,6 +17,12 @@ const props = defineProps<{
   /** Кадр, который нужно подсветить, либо `null`. */
   highlightFrame: number | null
 }>()
+
+/** Описание листа для подписи под ним. */
+const caption = computed(() => toPreviewSheetCaption(props.sheet))
+
+/** То же самое для `alt` у изображения. */
+const alt = computed(() => toPreviewSheetAlt(props.sheet))
 
 /**
  * Положение подсвеченной ячейки в процентах листа.
@@ -39,11 +46,7 @@ const highlight = computed(() => {
 
 <template>
   <figure class="syp-sheet mb-0">
-    <figcaption class="text-body-secondary mb-2">
-      Лист №{{ sheet.index }}: кадры {{ sheet.firstFrame }}…{{ sheet.lastFrame }},
-      {{ sheet.frameNumbers }} шт., {{ sheet.columns }}×{{ sheet.rows }} ячеек по
-      {{ sheet.cellWidth }}×{{ sheet.cellHeight }}
-    </figcaption>
+    <figcaption class="text-body-secondary mb-2">{{ caption }}</figcaption>
 
     <p v-if="!sheet.isReady" class="syp-stale mb-0">
       Лист не готов: анализ не завершён или оборвался. Незавершённый лист не выдаётся — иначе
@@ -53,7 +56,7 @@ const highlight = computed(() => {
     <div v-else class="syp-sheet-canvas">
       <img
         :src="previewSheetUrl(seriesId, sheet.index)"
-        :alt="`Лист превью №${sheet.index}, кадры ${sheet.firstFrame}…${sheet.lastFrame}`"
+        :alt="alt"
         :width="sheet.sheetWidth"
         :height="sheet.sheetHeight"
       />

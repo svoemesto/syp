@@ -8,6 +8,11 @@
 // `bootstrap-vue-next` подключается точечно — ради `BApp` и тостов, чем админка
 // Karaoke пользуется: кнопка постановки задания обязана сказать, что задание
 // поставлено, иначе оператор жмёт её второй раз.
+//
+// Шрифт Roboto берётся из пакета `@fontsource-variable/roboto`: файлы `.woff2`
+// попадают в сборку и отдаёт их nginx. Обращения к сети в рантайме нет, и
+// доступность Google Fonts на работу интерфейса не влияет.
+import '@fontsource-variable/roboto'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import './theme/theme.css'
 import { createApp } from 'vue'

@@ -113,9 +113,12 @@ async function open(recipeId: number): Promise<void> {
         <div class="card h-100">
           <div class="card-body d-flex flex-column">
             <h2 class="syp-card-title">{{ recipe.name }}</h2>
-            <span class="badge mb-3 align-self-start" :class="`text-bg-${recipe.stateTone}`">
+            <span class="badge mb-2 align-self-start" :class="`text-bg-${recipe.stateTone}`">
               {{ recipe.stateTitle }}
             </span>
+            <div v-if="recipe.isStale" class="syp-stale small align-self-start mb-3" role="status">
+              {{ recipe.staleNotice }}
+            </div>
             <dl class="row mt-auto mb-0">
               <dt class="col-7">Фрагментов</dt>
               <dd class="col-5 text-end">{{ recipe.itemCount }}</dd>
@@ -130,11 +133,11 @@ async function open(recipeId: number): Promise<void> {
             <button
               type="button"
               class="btn"
-              :class="recipe.isReady ? 'btn-primary' : 'btn-outline-secondary'"
-              :disabled="!recipe.isReady"
+              :class="recipe.canDownload ? 'btn-primary' : 'btn-outline-secondary'"
+              :disabled="!recipe.canDownload"
               @click="open(recipe.id)"
             >
-              {{ recipe.isReady ? 'открыть и скачать' : 'пока недоступен' }}
+              {{ recipe.actionTitle }}
             </button>
           </div>
         </div>

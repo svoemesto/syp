@@ -17,6 +17,14 @@
 import { formatBytes, formatDate, formatDuration, formatNumber } from '../format/values'
 import type { SerialView, SeriesView } from './catalog'
 import type { ChecksumView } from './checksum'
+import type {
+  FaceClusterView,
+  FaceView,
+  FacesView,
+  FaceClustersView,
+  PersonView,
+} from './characters'
+import type { PreviewUrlView } from './structure'
 import type { SceneView, ShotView, StructureView } from './structure'
 
 /** Сериал на экране: то, что о нём знает оператор. */
@@ -388,4 +396,262 @@ export function toStructureRow(dto: StructureView): StructureRow {
     visibleTo: dto.offset + scenes.length,
     hasNextPage: dto.offset + dto.limit < dto.scenesTotal,
   }
+}
+
+/** Лицо на экране: то, что показывается оператору. */
+export interface FaceRow extends FaceView {
+  /** Номер кадра с разделителем разрядов. */
+  frameLabel: string
+  /** Подпись миниатюры для программ чтения с экрана. */
+  caption: string
+}
+
+/** Группа лиц одной персоны на экране. */
+export interface PersonFaceGroup {
+  /** Идентификатор персоны. */
+  personId: number
+  /** Название персоны. */
+  name: string
+  /** Пояснение вида персоны словами. */
+  kindTitle: string
+  /** Лица персоны на текущей странице. */
+  faces: FaceRow[]
+}
+
+/** Кластер похожих лиц на экране. */
+export interface FaceClusterRow {
+  /** Ключ кластера: его же принимает наименование. */
+  id: string
+  /** Сколько лиц в кластере словами. */
+  size: string
+}
+
+/** Страница лиц серии на экране. */
+export interface FacesRow {
+  /** Серия. */
+  seriesId: number
+  /** Сериал-владелец: по нему читается справочник персон. */
+  serialId: number
+  /** Ширина кадра серии. */
+  frameWidth: number
+  /** Высота кадра серии. */
+  frameHeight: number
+  /** Счётчики одной строкой. */
+  summary: string
+  /** Сколько лиц у сериала. */
+  facesTotal: number
+  /** Смещение выборки. */
+  offset: number
+  /** Лица выборки. */
+  faces: FaceRow[]
+  /** Есть ли предыдущая страница. */
+  hasPreviousPage: boolean
+  /** Есть ли следующая страница. */
+  hasNextPage: boolean
+}
+
+/** Кластеры серии на экране. */
+export interface FaceClustersRow {
+  /** Сколько кластеров без имени словами. */
+  total: string
+  /** Ключ модели эмбеддингов либо прочерк. */
+  modelKey: string
+  /** Кластеры по убыванию числа лиц. */
+  clusters: FaceClusterRow[]
+}
+
+/**
+ * Поясняет вид персоны словами.
+ *
+ * Персона приходит машинным видом, а читает его оператор. Три служебные персоны
+ * особенно важно назвать словами: они означают «детектор ошибся», и молчаливая
+ * метка выглядела бы как потеря данных (FR-036).
+ *
+ * @param kind вид персоны из ответа бэкенда
+ * @returns текст для оператора
+ */
+export function describePersonKind(kind: string): string {
+  switch (kind) {
+    case 'PERSON':
+      return 'именованная персона'
+    case 'UNRECOGNIZED':
+      return 'лицо найдено, имя не подтверждено оператором'
+    case 'NONPERSON':
+      return 'рамка оказалась не лицом'
+    default:
+      return kind
+  }
+}
+
+/**
+ * Приводит лицо к строке экрана.
+ *
+ * Само лицо отдаётся компоненту миниатюр как есть: рамку надо рисовать по
+ * пикселям кадра, и приводить её к процентам здесь означало бы продублировать
+ * раскладку миниатюры в двух местах.
+ *
+ * @param dto лицо из ответа бэкенда
+ * @returns строка экрана
+ */
+export function toFaceRow(dto: FaceView): FaceRow {
+  const frame = formatNumber(dto.frameNumber)
+  return {
+    ...dto,
+    frameLabel: frame,
+    caption: `Лицо на кадре ${frame}, ${dto.personName}`,
+  }
+}
+
+/**
+ * Приводит страницу лиц серии к строке экрана.
+ *
+ * @param dto страница лиц из ответа бэкенда
+ * @returns строка экрана
+ */
+export function toFacesRow(dto: FacesView): FacesRow {
+  return {
+    seriesId: dto.seriesId,
+    serialId: dto.serialId,
+    frameWidth: dto.frameWidth,
+    frameHeight: dto.frameHeight,
+    summary: `лиц найдено: ${formatNumber(dto.facesTotal)}, разрешение кадра: ${dto.frameWidth}×${dto.frameHeight}`,
+    facesTotal: dto.facesTotal,
+    offset: dto.offset,
+    faces: dto.faces.map(toFaceRow),
+    hasPreviousPage: dto.offset > 0,
+    hasNextPage: dto.offset + dto.limit < dto.facesTotal,
+  }
+}
+
+/**
+ * Приводит кластер к строке экрана.
+ *
+ * @param dto кластер из ответа бэкенда
+ * @returns строка экрана
+ */
+export function toFaceClusterRow(dto: FaceClusterView): FaceClusterRow {
+  return {
+    id: dto.id,
+    size: `${formatNumber(dto.size)} ${faceWord(dto.size)}`,
+  }
+}
+
+/**
+ * Склоняет слово «лицо» по числу.
+ *
+ * @param count число лиц
+ * @returns слово в нужной форме
+ */
+function faceWord(count: number): string {
+  const mod100 = Math.abs(count) % 100
+  const mod10 = mod100 % 10
+  if (mod100 >= 11 && mod100 <= 14) {
+    return 'лиц'
+  }
+  if (mod10 === 1) {
+    return 'лицо'
+  }
+  if (mod10 >= 2 && mod10 <= 4) {
+    return 'лица'
+  }
+  return 'лиц'
+}
+
+/**
+ * Приводит кластеры серии к строке экрана.
+ *
+ * @param dto кластеры из ответа бэкенда
+ * @returns строка экрана
+ */
+export function toFaceClustersRow(dto: FaceClustersView): FaceClustersRow {
+  return {
+    total: formatNumber(dto.clustersTotal),
+    modelKey: dto.embeddingModelKey === '' ? '—' : dto.embeddingModelKey,
+    clusters: dto.clusters.map(toFaceClusterRow),
+  }
+}
+
+/** Персона сериала на экране правки. */
+export interface PersonRow {
+  /** Идентификатор персоны. */
+  id: number
+  /** Название персоны. */
+  name: string
+  /** Ключ класса в модели либо прочерк. */
+  recognizerKey: string
+}
+
+/**
+ * Приводит персону к строке экрана.
+ *
+ * @param dto персона из ответа бэкенда
+ * @returns строка экрана
+ */
+export function toPersonRow(dto: PersonView): PersonRow {
+  return {
+    id: dto.id,
+    name: dto.name,
+    recognizerKey: dto.recognizerKey ?? '—',
+  }
+}
+
+/**
+ * Группирует лица по персонам для показа.
+ *
+ * Группировка живёт здесь, а не в экране, потому что читает поля ответа:
+ * `personId`, `personName`, `personKind`. Экран получает готовые группы и не
+ * знает, что такое персона в ответе бэкенда.
+ *
+ * @param faces лица текущей страницы
+ * @returns группы по персонам, от большей к меньшей
+ */
+export function toPersonFaceGroups(faces: FaceRow[]): PersonFaceGroup[] {
+  const groups = new Map<number, { name: string; kind: string; faces: FaceRow[] }>()
+  for (const face of faces) {
+    const group = groups.get(face.personId) ?? {
+      name: face.personName,
+      kind: face.personKind,
+      faces: [],
+    }
+    group.faces.push(face)
+    groups.set(face.personId, group)
+  }
+  return [...groups.entries()]
+    .sort((a, b) => b[1].faces.length - a[1].faces.length)
+    .map(([personId, group]) => ({
+      personId,
+      name: group.name,
+      kindTitle: describePersonKind(group.kind),
+      faces: group.faces,
+    }))
+}
+
+/**
+ * Описание листа превью одной строкой.
+ *
+ * Раскладка листа приходит с сервера, и собирать подпись из его полей на
+ * экране — значит знать про формат больше, чем должен знать экран.
+ *
+ * @param dto лист превью из ответа бэкенда
+ * @returns строка описания
+ */
+export function toPreviewSheetCaption(dto: PreviewUrlView): string {
+  return (
+    `Лист №${dto.index}: кадры ${formatNumber(dto.firstFrame)}…${formatNumber(dto.lastFrame)}, ` +
+    `${formatNumber(dto.frameNumbers)} шт., ${dto.columns}×${dto.rows} ячеек по ` +
+    `${dto.cellWidth}×${dto.cellHeight}`
+  )
+}
+
+/**
+ * Описание листа превью для `alt` у изображения.
+ *
+ * @param dto лист превью из ответа бэкенда
+ * @returns текст для программ чтения с экрана
+ */
+export function toPreviewSheetAlt(dto: PreviewUrlView): string {
+  return (
+    `Лист превью №${dto.index}, кадры ` +
+    `${formatNumber(dto.firstFrame)}…${formatNumber(dto.lastFrame)}`
+  )
 }

@@ -38,12 +38,22 @@ export interface RecipeCard {
   stateTitle: string
   /** Тон состояния. */
   stateTone: 'success' | 'info' | 'warning' | 'secondary'
-  /** Готов ли сценарий к выдаче. */
-  isReady: boolean
+  /**
+   * Можно ли скачивать файл сценария.
+   *
+   * Устаревший сценарий скачивается: смена версии формата помечает его, но не
+   * отзывает подпись и не запрещает выдачу (FR-090, контракт `public-api.md`
+   * § 4). Запрещать его — значит запрещать то, что контракт разрешает.
+   */
+  canDownload: boolean
+  /** Надпись на кнопке действия. */
+  actionTitle: string
   /** Помечен ли сценарий устаревшим. */
   isStale: boolean
   /** Чем сценарий устарел либо `null`. */
   staleReason: string | null
+  /** Предупреждение об устаревании для показа на карточке либо `null`. */
+  staleNotice: string | null
   /** Число фрагментов словами. */
   itemCount: string
   /** Ожидаемая длительность словами. */
@@ -80,12 +90,14 @@ export interface RecipeDetailCard {
   stateTitle: string
   /** Тон состояния. */
   stateTone: 'success' | 'info' | 'warning' | 'secondary'
-  /** Готов ли сценарий к выдаче. */
-  isReady: boolean
+  /** Можно ли скачивать файл сценария; устаревание не мешает (FR-090). */
+  canDownload: boolean
   /** Помечен ли сценарий устаревшим. */
   isStale: boolean
   /** Чем сценарий устарел либо `null`. */
   staleReason: string | null
+  /** Предупреждение об устаревании для показа либо `null`. */
+  staleNotice: string | null
   /** Идентификатор ключа подписи либо прочерк. */
   signingKeyId: string
   /** Сумма содержимого файла либо прочерк. */
@@ -113,6 +125,16 @@ export interface SignatureCard {
   /** С какого момента ключ доверенный. */
   notBefore: string
 }
+
+/**
+ * Предупреждение об устаревшем сценарии.
+ *
+ * Формулировка одна на обе части: сценарий помечен, но им можно пользоваться.
+ * Слова «устаревший» без продолжения читаются как «испорченный».
+ */
+const STALE_NOTICE =
+  'Создан при другой версии формата. Подпись и сумма прежние, сценарий ' +
+  'проверяется по своему ключу и остаётся пригодным (FR-090).'
 
 /**
  * Поясняет состояние сценария словами.
@@ -155,20 +177,27 @@ export function toSerialOption(dto: SerialView): SerialOption {
 /**
  * Приводит сценарий списка к строке экрана.
  *
+ * Устаревший сценарий не блокируется: он подписан, файл у него есть, и
+ * воркер проверит его по своему ключу (FR-090). Блокировать его — значит
+ * запрещать то, что контракт прямо разрешает.
+ *
  * @param dto сценарий из ответа бэкенда
  * @returns строка экрана
  */
 export function toRecipeCard(dto: RecipeSummaryView): RecipeCard {
   const state = describeState(dto.state)
   const isStale = dto.isStale === true
+  const canDownload = dto.state === 'DONE'
   return {
     id: dto.id,
     name: dto.name,
-    stateTitle: isStale ? 'подписан, но помечен устаревшим' : state.stateTitle,
+    stateTitle: state.stateTitle,
     stateTone: isStale ? 'warning' : state.stateTone,
-    isReady: dto.state === 'DONE' && !isStale,
+    canDownload,
+    actionTitle: canDownload ? 'открыть и скачать' : 'пока недоступен',
     isStale,
     staleReason: dto.staleReason ?? null,
+    staleNotice: isStale ? STALE_NOTICE : null,
     itemCount: `${formatNumber(dto.itemCount)} ${countWord(dto.itemCount)}`,
     duration: formatMilliseconds(dto.expectedDurationMs ?? null),
   }
@@ -250,11 +279,12 @@ export function toRecipeDetailCard(dto: RecipeCompositionView): RecipeDetailCard
   return {
     id: dto.recipeId,
     name: dto.name ?? `Сценарий №${dto.recipeId}`,
-    stateTitle: isStale ? 'подписан, но помечен устаревшим' : state.stateTitle,
+    stateTitle: state.stateTitle,
     stateTone: isStale ? 'warning' : state.stateTone,
-    isReady: dto.state === 'DONE' && !isStale,
+    canDownload: dto.state === 'DONE',
     isStale,
     staleReason: dto.staleReason ?? null,
+    staleNotice: isStale ? STALE_NOTICE : null,
     signingKeyId: dto.signingKeyId ?? '—',
     contentSha256: dto.contentSha256 ?? '—',
     duration: formatMilliseconds(dto.expectedDurationMs ?? null),

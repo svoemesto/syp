@@ -9,13 +9,14 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { type FaceView, facePreviewUrl } from '../api/characters'
+import { facePreviewUrl } from '../api/characters'
+import type { FaceRow } from '../api/view-model'
 
 const props = defineProps<{
   /** Серия-владелец лиц. */
   seriesId: number
   /** Лица для показа. */
-  faces: FaceView[]
+  faces: FaceRow[]
   /** Разрешение кадра серии: по нему считается положение рамки. */
   frameWidth: number
   /** Высота кадра серии. */
@@ -38,16 +39,6 @@ const boxes = computed(() =>
     height: `${((face.y2 - face.y1) / props.frameHeight) * 100}%`,
   })),
 )
-
-/**
- * Подпись миниатюры для оператора.
- *
- * @param face лицо
- * @returns текст для `alt`
- */
-function caption(face: FaceView): string {
-  return `Лицо на кадре ${face.frameNumber}, ${face.personName}`
-}
 </script>
 
 <template>
@@ -61,12 +52,12 @@ function caption(face: FaceView): string {
       <img
         class="frame"
         :src="facePreviewUrl(seriesId, face.frameNumber)"
-        :alt="caption(face)"
+        :alt="face.caption"
         loading="lazy"
       />
       <span class="box" :style="boxes[index]" />
       <span class="caption">
-        кадр {{ face.frameNumber }}
+        кадр {{ face.frameLabel }}
         <span v-if="face.origin === 'OPERATOR'" class="operator" title="рамку нарисовал оператор">
           вручную
         </span>
@@ -82,18 +73,20 @@ function caption(face: FaceView): string {
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 0.5rem;
 }
 
 .thumb {
   width: 135px;
   position: relative;
-  border: 1px solid #d0d4d8;
-  background: #ffffff;
+  background: #0d1117;
+  border: 1px solid var(--syp-border);
+  border-radius: var(--bs-border-radius);
+  overflow: hidden;
 }
 
 .thumb.outlined {
-  border-color: #2f7d32;
+  border-color: var(--syp-origin-operator);
 }
 
 .frame {
@@ -104,26 +97,27 @@ function caption(face: FaceView): string {
 
 .box {
   position: absolute;
-  border: 2px solid #c62828;
+  border: 2px solid var(--syp-origin-auto);
   box-sizing: border-box;
   pointer-events: none;
 }
 
 .thumb.outlined .box {
   border-style: dashed;
-  border-color: #2f7d32;
+  border-color: var(--syp-origin-operator);
 }
 
 .caption {
-  font-size: 11px;
-  padding: 2px 4px;
-  color: #333333;
+  font-size: 0.6875rem;
+  padding: 0.2rem 0.35rem;
+  color: var(--syp-text-muted);
+  background-color: var(--syp-raised);
   display: flex;
-  gap: 4px;
+  gap: 0.25rem;
   justify-content: space-between;
 }
 
 .operator {
-  color: #2f7d32;
+  color: var(--syp-origin-operator);
 }
 </style>

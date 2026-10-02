@@ -33,26 +33,43 @@ const selectedSeriesLabel = computed(() => {
 /**
  * Адрес раздела с учётом выбранной серии.
  *
+ * Суммы, структура и лица живут для конкретной серии: пункт ведёт на её экран,
+ * а пока серия не выбрана — на страницу с пояснением.
+ *
  * @param name имя раздела
  * @returns адрес маршрута
  */
 function linkFor(name: string): { name: string; params?: { seriesId: string } } {
-  if (name === 'sums' || name === 'structure') {
-    const seriesId = catalog.selectedSeriesId.value
-    if (seriesId !== null) {
-      return {
-        name: name === 'sums' ? 'checksum' : 'structure-of-series',
-        params: { seriesId: String(seriesId) },
-      }
-    }
+  const perSeries: Record<string, string> = {
+    sums: 'checksum',
+    structure: 'structure-of-series',
+    faces: 'faces-of-series',
+  }
+  const target = perSeries[name]
+  if (target === undefined) {
     return { name }
   }
-  return { name }
+  const seriesId = catalog.selectedSeriesId.value
+  if (seriesId === null) {
+    return { name }
+  }
+  return { name: target, params: { seriesId: String(seriesId) } }
 }
 
 /** Активен ли раздел по адресу. */
 function isActive(name: string): boolean {
-  return route.name === name
+  if (route.name === name) {
+    return true
+  }
+  // Экран серии считается активным вместе со своим разделом: иначе при
+  // переходе на `/series/:seriesId/structure` пункт «структура» гас бы,
+  // хотя оператор именно в нём.
+  const perSeries: Record<string, string> = {
+    sums: 'checksum',
+    structure: 'structure-of-series',
+    faces: 'faces-of-series',
+  }
+  return route.name === perSeries[name]
 }
 </script>
 
