@@ -422,6 +422,50 @@ class AnalysisEnqueuer(
 internal fun Location.toView(): LocationView = LocationView(id!!, name)
 
 /**
+ * План в ответе структуры.
+ *
+ * Отдельная функция, а не тело цикла в контроллере: раскладку плана читают два
+ * контроллера — чтение структуры и ответ на правку границы, — и разъезжающиеся
+ * копии означали бы, что один и тот же план оператор увидит по-разному в
+ * зависимости от того, откуда пришёл ответ.
+ *
+ * @return описание плана
+ */
+internal fun Shot.toView(): ShotView =
+    ShotView(
+        id = id!!,
+        firstFrame = firstFrame,
+        lastFrame = lastFrame,
+        size = size.name,
+        sizeOrigin = sizeOrigin.name,
+        origin = origin.name,
+        isStale = isStale,
+    )
+
+/**
+ * Сцена с планами в ответе структуры.
+ *
+ * @param shotsInside планы, лежащие в сцене целиком: связь вычисляется по
+ *   диапазонам кадров и не хранится (ADR-0007)
+ * @param locations описания мест действия по идентификаторам
+ * @return описание сцены
+ */
+internal fun Scene.toView(
+    shotsInside: List<Shot>,
+    locations: Map<Long, LocationView>,
+): SceneView =
+    SceneView(
+        id = id!!,
+        firstFrame = firstFrame,
+        lastFrame = lastFrame,
+        title = title,
+        origin = origin.name,
+        location = locationId?.let { locations[it] },
+        isStale = isStale,
+        shots = shotsInside.map { it.toView() },
+    )
+
+/**
  * Эндпоинты структуры эпизода и превью кадров.
  *
  * Это чтение результата анализа и постановка самого анализа. Ручной доводки
@@ -510,29 +554,7 @@ class StructureController(
             limit = checkedLimit(limit),
             scenes =
                 page.map { scene ->
-                    SceneView(
-                        id = scene.id!!,
-                        firstFrame = scene.firstFrame,
-                        lastFrame = scene.lastFrame,
-                        title = scene.title,
-                        origin = scene.origin.name,
-                        location = locations[scene.locationId],
-                        isStale = scene.isStale,
-                        shots =
-                            structure
-                                .shotsInside(scene, shots)
-                                .map { shot ->
-                                    ShotView(
-                                        id = shot.id!!,
-                                        firstFrame = shot.firstFrame,
-                                        lastFrame = shot.lastFrame,
-                                        size = shot.size.name,
-                                        sizeOrigin = shot.sizeOrigin.name,
-                                        origin = shot.origin.name,
-                                        isStale = shot.isStale,
-                                    )
-                                },
-                    )
+                    scene.toView(structure.shotsInside(scene, shots), locations)
                 },
         )
     }
