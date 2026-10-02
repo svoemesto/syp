@@ -36,11 +36,14 @@ data class CreateSerialRequest(
  *
  * @property sourcePath путь к исходному видеофайлу внутри корня сериала
  * @property name название серии; если не задано, берётся имя файла
+ * @property season номер сезона; не задан — у серий, которые сезону не
+ *   принадлежат, например у фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class RegisterSeriesRequest(
     val sourcePath: String,
     val name: String? = null,
+    val season: Int? = null,
 )
 
 /**
@@ -82,6 +85,7 @@ data class SeriesView(
     val serialId: Long,
     val ordinal: Int,
     val name: String,
+    val season: Int?,
     val sourcePath: String,
     val relativePath: String?,
     val byteSize: Long,
@@ -318,7 +322,8 @@ class CatalogController(
         @RequestBody request: RegisterSeriesRequest,
     ): ResponseEntity<SeriesView> {
         val serial = requireSerial(serialId)
-        val registered = registration.register(serialId, request.sourcePath, request.name)
+        val registered =
+            registration.register(serialId, request.sourcePath, request.name, request.season)
         // Подсчёт суммы ставится сразу: он считается заданием и идёт в фоне,
         // а ждать его в этом запросе нельзя — это нарушало бы constitution
         // IV.1 (FR-003). Отказ постановки не отменяет регистрацию: серия уже
@@ -480,6 +485,7 @@ internal fun Series.toView(serial: Serial): SeriesView =
         serialId = serialId,
         ordinal = ordinal,
         name = name,
+        season = season,
         sourcePath = sourcePath,
         relativePath = relativePath(serial.sourceRoot),
         byteSize = byteSize,
