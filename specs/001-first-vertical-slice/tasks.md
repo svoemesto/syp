@@ -270,7 +270,7 @@ specs/001-first-vertical-slice/measurements/ — отчёты по замера�
 параметры в базе; попытка указать файл вне корня сериала отвергается.
 
 - [x] T030 [P] Реализовать домен каталога поверх готовых миграций
-  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/Serial.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/Series.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/Location.kt`
+  - Файлы: `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/Movie.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/Episode.kt`, `syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog/Location.kt`
   - Зависит от: T019, T025
   - Проверка: корень каталога сериала — абсолютный путь без завершающего слэша; путь серии абсолютный; одна серия принадлежит ровно одному сериалу; удаление сериала каскадом уносит производные данные
 

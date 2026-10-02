@@ -356,7 +356,7 @@ class JobQueue(
                         """
                         SELECT count(*)
                           FROM tbl_jobs job
-                          JOIN tbl_artifacts artifact ON tbl_artifacts.job_id = job.id
+                          JOIN tbl_artifacts artifact ON artifact.job_id = job.id
                          WHERE job.kind = ?
                            AND job.params_hash = ?
                            AND job.state = 'DONE'
