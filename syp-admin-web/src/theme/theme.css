@@ -1,0 +1,327 @@
+/* Тема оформления SYP поверх Bootstrap.
+ *
+ * Файл **одинаков** в `syp-admin-web` и `syp-public-web`: обе части обязаны
+ * выглядеть одинаково, а общего пакета у них нет — в корне репозитория файла
+ * `package.json` нет намеренно (R-375). Правка темы делается здесь и копируется
+ * в соседний фронтенд тем же коммитом; расхождение видно сразу, потому что
+ * оба файла проверяются `npm run format:check`.
+ *
+ * Решение об основах оформления — ADR-0015.
+ *
+ * Схема — **светлая**, и вот почему:
+ *
+ * 1. Админкой оператор работает часами над плотными таблицами и листами
+ *    превью. Лист превью — это кадры видео: на тёмном фоне они выглядят
+ *    вырезанными из другого изображения, а мелкий текст таблиц теряет контраст.
+ * 2. Публичную часть открывает обычный пользователь, у него системная схема
+ *    может быть любой; принудительная тёмная схема означала бы светлый текст на
+ *    светлом окне у тех, у кого тёмная тема браузера.
+ * 3. Тёмная схема в админке Karaoke — не решение, а остаток шаблона Vite:
+ *    в `webvue3/src/style.css` стоят цвета стартовой заготовки `#242424` и
+ *    `#646cff`. Переносить заготовку как «подход» незачем.
+ *
+ * Все величины заданы переменными Bootstrap 5.3: тема переопределяет их, а не
+ * подменяет библиотеку. Своих цветов «поверх» не появляется — новый цвет
+ * добавляется токеном здесь, иначе он разъедется между двумя частями.
+ */
+
+/* Палитра и отступы. Токены с префиксом `--syp-` принадлежат теме,
+ * `--bs-` переопределяют Bootstrap. */
+:root {
+  color-scheme: light;
+
+  /* Основной цвет: навигация, кнопки, активный пункт меню. */
+  --syp-primary: #2f5aa8;
+  --syp-primary-dark: #27498a;
+  --syp-primary-subtle: #eef2fa;
+  --syp-secondary: #5a6b8c;
+
+  /* Смысловые цвета совпадают с теми, что уже были в коде экранов:
+     отказ — `#b3261e`, происхождение границы — алгоритм, оператор, отмена. */
+  --syp-success: #1f7a4d;
+  --syp-warning: #b26a00;
+  --syp-danger: #b3261e;
+  --syp-info: #1e6f9e;
+
+  /* Происхождение границы (FR-015, FR-016). Задано один раз в теме:
+     правило «цвет происхождения один раз в CSS» держится только так. */
+  --syp-origin-auto: #b02020;
+  --syp-origin-operator: #1f7a35;
+  --syp-origin-cancelled: #d06000;
+
+  /* Поверхности и текст. */
+  --syp-bg: #f4f6fa;
+  --syp-surface: #ffffff;
+  --syp-border: #dbe2ee;
+  --syp-text: #1c2430;
+  --syp-text-muted: #5b6675;
+
+  /* Шрифт: системный, без загрузки из сети. Стек локальный и в интернет не
+     публикуется, а веб-шрифт весит сотни килобайт ради отличия, которого на
+     экране оператора не видно. */
+  --syp-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --syp-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Ширина рабочей области. Админка рассчитана на 1920 и выше: колонки
+     растягиваются, а не собираются в узкую полосу по центру. */
+  --syp-content-max: 1680px;
+
+  /* Переопределение переменных Bootstrap. */
+  --bs-primary: var(--syp-primary);
+  --bs-primary-rgb: 47, 90, 168;
+  --bs-secondary-color: var(--syp-text-muted);
+  --bs-body-color: var(--syp-text);
+  --bs-body-bg: var(--syp-bg);
+  --bs-border-color: var(--syp-border);
+  --bs-link-color: var(--syp-primary);
+  --bs-link-hover-color: var(--syp-primary-dark);
+  --bs-font-sans-serif: var(--syp-font-sans);
+  --bs-font-monospace: var(--syp-font-mono);
+  --bs-border-radius: 0.375rem;
+  --bs-border-radius-lg: 0.5rem;
+}
+
+/* Основа: фон рабочей области, шрифт и сглаживание. */
+body {
+  background-color: var(--syp-bg);
+  color: var(--syp-text);
+  font-family: var(--syp-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Рабочая область: ширина до 1680, дальше — поля. На 1920 колонки получают
+   свободное место, и таблицы не сжимаются в нечитаемую полосу. */
+.syp-content {
+  margin: 0 auto;
+  max-width: var(--syp-content-max);
+  width: 100%;
+}
+
+/* Заголовок раздела: имя раздела и его смысл в одном блоке. */
+.syp-page-head {
+  align-items: baseline;
+  border-bottom: 1px solid var(--syp-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+}
+
+.syp-page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.syp-page-lead {
+  color: var(--syp-text-muted);
+  margin: 0.25rem 0 0;
+  max-width: 68ch;
+}
+
+/* Карточка — основная единица раскладки. */
+.card {
+  background-color: var(--syp-surface);
+  border-color: var(--syp-border);
+  box-shadow: 0 1px 2px rgb(28 36 48 / 6%);
+}
+
+.card-header {
+  background-color: var(--syp-surface);
+  border-bottom-color: var(--syp-border);
+  font-weight: 600;
+}
+
+/* Таблицы оператора: плотные, с фиксированной раскладкой колонок. */
+.table {
+  --bs-table-bg: var(--syp-surface);
+  --bs-table-color: var(--syp-text);
+  --bs-table-border-color: var(--syp-border);
+  margin-bottom: 0;
+}
+
+.table > :not(caption) > * > * {
+  padding: 0.5rem 0.75rem;
+}
+
+.table thead th {
+  background-color: var(--syp-primary-subtle);
+  border-bottom-width: 1px;
+  color: var(--syp-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table tbody tr:hover > * {
+  --bs-table-bg-state: var(--syp-primary-subtle);
+}
+
+/* Путь к файлу и машинные коды — моноширинным: сравнивать их приходится
+   посимвольно, и пропорциональный шрифт мешает. */
+.syp-mono {
+  font-family: var(--syp-font-mono);
+  font-size: 0.8125rem;
+}
+
+.syp-path {
+  font-family: var(--syp-font-mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+/* Происхождение границы: алгоритм, оператор, отмена решения алгоритма. */
+.syp-origin-auto {
+  color: var(--syp-origin-auto);
+}
+
+.syp-origin-operator {
+  color: var(--syp-origin-operator);
+}
+
+.syp-origin-cancelled {
+  color: var(--syp-origin-cancelled);
+}
+
+/* Метка происхождения — плашкой, чтобы цвет читался как признак, а не как
+   ошибка в тексте. */
+.syp-origin {
+  border-radius: 0.25rem;
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+}
+
+.syp-origin-auto.syp-origin {
+  background-color: rgb(176 32 32 / 10%);
+}
+
+.syp-origin-operator.syp-origin {
+  background-color: rgb(31 122 53 / 10%);
+}
+
+.syp-origin-cancelled.syp-origin {
+  background-color: rgb(208 96 0 / 12%);
+}
+
+/* Пустое состояние: не ошибка, а отсутствие данных. Показывается словами,
+   потому что «пусто» без пояснения выглядит как сбой. */
+.syp-empty {
+  color: var(--syp-text-muted);
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.syp-empty-title {
+  color: var(--syp-text);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+/* Состояние загрузки: работа видна, экран не мигает как пустой. */
+.syp-loading {
+  align-items: center;
+  color: var(--syp-text-muted);
+  display: flex;
+  gap: 0.75rem;
+  padding: 1.5rem 0;
+}
+
+/* Отказ: полоса слева — тот же приём, что был в экранах до темы, чтобы
+   привычное место ошибки не переехало. */
+.syp-error {
+  background-color: rgb(179 38 30 / 6%);
+  border-left: 4px solid var(--syp-danger);
+  border-radius: var(--bs-border-radius);
+  padding: 0.75rem 1rem;
+}
+
+/* Предупреждение об устаревшем результате: заметно, но не как отказ. */
+.syp-stale {
+  background-color: rgb(178 106 0 / 8%);
+  border-left: 4px solid var(--syp-warning);
+  border-radius: var(--bs-border-radius);
+  padding: 0.75rem 1rem;
+}
+
+/* Кнопки: одинаковый вид во всех разделах, действие по умолчанию —
+   второстепенное, опасное подтверждается отдельно. */
+.btn {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--syp-primary);
+  --bs-btn-border-color: var(--syp-primary);
+  --bs-btn-hover-bg: var(--syp-primary-dark);
+  --bs-btn-hover-border-color: var(--syp-primary-dark);
+  --bs-btn-active-bg: var(--syp-primary-dark);
+  --bs-btn-active-border-color: var(--syp-primary-dark);
+  --bs-btn-disabled-bg: var(--syp-primary);
+  --bs-btn-disabled-border-color: var(--syp-primary);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--syp-secondary);
+  --bs-btn-border-color: var(--syp-border);
+  --bs-btn-hover-bg: var(--syp-primary-subtle);
+  --bs-btn-hover-border-color: var(--syp-primary);
+  --bs-btn-hover-color: var(--syp-primary-dark);
+}
+
+/* Формы: подпись поля и подсказка под ним — разными величинами, иначе
+   подсказка читается как продолжение названия. */
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.form-text {
+  color: var(--syp-text-muted);
+  font-size: 0.8125rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--syp-primary);
+  box-shadow: 0 0 0 0.2rem rgb(47 90 168 / 20%);
+}
+
+/* Значения величин в таблице не должны прыгать при смене цифр. */
+.syp-number {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Подпись величины: «кадров», «серий» — приглушённая подпись под числом. */
+.syp-unit {
+  color: var(--syp-text-muted);
+  font-size: 0.8125rem;
+}
+
+/* Разделитель «что есть» от «что из этого следует». */
+.syp-list-plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Нижняя строка приложения: версия формата и имя проекта. */
+.syp-footer {
+  border-top: 1px solid var(--syp-border);
+  color: var(--syp-text-muted);
+  font-size: 0.8125rem;
+  margin-top: 2rem;
+  padding: 1rem 0;
+}

@@ -5,22 +5,25 @@
 // структура с её планами и отдельно сырой результат автоматики. Смешивать их
 // в одну таблицу нельзя — тогда исчезла бы сама возможность сравнить, и
 // расхождение накапливалось бы незаметно (FR-093).
+//
+// На экране лежат строки из `api/view-model.ts`, а не ответы бэкенда: поля
+// ответа читаются в одном месте (см. `api/view-model.ts`).
 
-import { computed, ref } from 'vue'
-import {
-  type RawBoundariesView,
-  type StructureView,
-  readRawBoundaries,
-  readStructure,
-  startAnalysis,
-} from '../api/structure'
+import { ref } from 'vue'
+import { readRawBoundaries, readStructure, startAnalysis } from '../api/structure'
 import { ApiError } from '../api/http'
+import {
+  type RawBoundaryRow,
+  type StructureRow,
+  toRawBoundaryRow,
+  toStructureRow,
+} from '../api/view-model'
 
-/** Рабочая структура серии. */
-const structure = ref<StructureView | null>(null)
+/** Рабочая структура серии на экране. */
+const structure = ref<StructureRow | null>(null)
 
-/** Сырой результат автоматики последнего прогона. */
-const raw = ref<RawBoundariesView | null>(null)
+/** Сырые границы автоматики последнего прогона на экране. */
+const raw = ref<RawBoundaryRow[]>([])
 
 /** Идёт ли обращение к бэкенду. */
 const loading = ref(false)
@@ -34,28 +37,26 @@ const errorCode = ref('')
 /** Показывается ли сырой результат автоматики. */
 const rawVisible = ref(false)
 
+/** Номер последнего прогона структуры либо `null`. */
+const rawRunId = ref<number | null>(null)
+
+/** Сколько границ автоматики у прогона всего. */
+const rawTotal = ref(0)
+
+/** Помечен ли результат устаревшим. */
+const isStale = ref(false)
+
+/** Машинный код устаревания. */
+const staleCode = ref('')
+
+/** Чем именно результат устарел. */
+const staleReason = ref<string | null>(null)
+
 /** Страница сцен, с которой начат просмотр. */
 const offset = ref(0)
 
 /** Размер страницы сцен. */
 const pageSize = 200
-
-/**
- * Помечен ли результат устаревшим.
- *
- * Отдельное вычисление, а не чтение поля: экран показывает пометку в шапке и
- * у каждой границы, и обе надписи должны говорить об одном и том же.
- *
- * @returns `true`, если результат устарел
- */
-const isStale = computed(() => structure.value?.isStale === true)
-
-/**
- * Показывается ли результат устаревшим.
- *
- * @returns `true`, если у результата есть машинный код устаревания
- */
-const staleCode = computed(() => structure.value?.staleResultCode ?? '')
 
 /**
  * Состояние экрана структуры и действия над ним.
@@ -72,8 +73,18 @@ export function useStructureStore() {
   async function reload(seriesId: number): Promise<boolean> {
     loading.value = true
     try {
-      structure.value = await readStructure(seriesId, offset.value, pageSize)
-      raw.value = await readRawBoundaries(seriesId, undefined, 0, pageSize)
+      const dto = await readStructure(seriesId, offset.value, pageSize)
+      const row = toStructureRow(dto)
+      structure.value = row
+      isStale.value = row.isStale
+      staleCode.value = row.staleCode
+      staleReason.value = row.staleReason
+      const boundaries = await readRawBoundaries(seriesId, undefined, 0, pageSize)
+      raw.value = boundaries.boundaries.map((item) =>
+        toRawBoundaryRow(item.level, item.firstFrame, item.lastFrame),
+      )
+      rawRunId.value = boundaries.runId
+      rawTotal.value = boundaries.total
       error.value = ''
       errorCode.value = ''
       return true
@@ -166,12 +177,15 @@ export function useStructureStore() {
   return {
     structure,
     raw,
+    rawRunId,
+    rawTotal,
     loading,
     error,
     errorCode,
     rawVisible,
     isStale,
     staleCode,
+    staleReason,
     reload,
     nextPage,
     previousPage,

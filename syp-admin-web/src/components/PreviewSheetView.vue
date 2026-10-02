@@ -38,19 +38,19 @@ const highlight = computed(() => {
 </script>
 
 <template>
-  <figure class="sheet">
-    <figcaption>
+  <figure class="syp-sheet mb-0">
+    <figcaption class="text-body-secondary mb-2">
       Лист №{{ sheet.index }}: кадры {{ sheet.firstFrame }}…{{ sheet.lastFrame }},
       {{ sheet.frameNumbers }} шт., {{ sheet.columns }}×{{ sheet.rows }} ячеек по
       {{ sheet.cellWidth }}×{{ sheet.cellHeight }}
     </figcaption>
 
-    <p v-if="!sheet.isReady" class="note">
+    <p v-if="!sheet.isReady" class="syp-stale mb-0">
       Лист не готов: анализ не завершён или оборвался. Незавершённый лист не выдаётся — иначе
       оператор увидел бы половину серии и решил, что второй половины нет.
     </p>
 
-    <div v-else class="canvas">
+    <div v-else class="syp-sheet-canvas">
       <img
         :src="previewSheetUrl(seriesId, sheet.index)"
         :alt="`Лист превью №${sheet.index}, кадры ${sheet.firstFrame}…${sheet.lastFrame}`"
@@ -59,7 +59,7 @@ const highlight = computed(() => {
       />
       <span
         v-if="highlight"
-        class="cell"
+        class="syp-sheet-cell"
         :style="{
           left: highlight.left,
           top: highlight.top,
@@ -72,32 +72,20 @@ const highlight = computed(() => {
 </template>
 
 <style scoped>
-.sheet {
-  margin: 0;
-}
-
-figcaption {
-  font-size: 0.9rem;
-  margin-bottom: 0.35rem;
-}
-
-.canvas {
+.syp-sheet-canvas {
   display: inline-block;
   line-height: 0;
+  max-width: 100%;
   position: relative;
 }
 
-img {
-  max-width: 100%;
+.syp-sheet-canvas img {
   height: auto;
+  max-width: 100%;
 }
 
-.cell {
-  border: 2px solid #d06000;
+.syp-sheet-cell {
+  border: 2px solid var(--syp-origin-cancelled);
   position: absolute;
-}
-
-.note {
-  font-size: 0.9rem;
 }
 </style>
