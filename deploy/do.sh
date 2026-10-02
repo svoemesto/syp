@@ -216,6 +216,8 @@ cmd_keys_generate() {
     info "открытый ключ (base64, в SYP_SIGNING_PUBLIC_KEY):"
     base64 -w0 < "${dir}/public.pem"
     printf '\n'
+    info "момент начала действия ключа (в SYP_SIGNING_KEY_NOT_BEFORE):"
+    date -u +%Y-%m-%dT%H:%M:%SZ
     rm -rf "${dir}"
     warn "закрытый ключ показан один раз и нигде не сохранён"
 }

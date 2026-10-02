@@ -21,6 +21,7 @@ package ru.svoemesto.syp.public.config
  * @property storageBucket корзина артефактов на SSD
  * @property signingKeyId идентификатор пары ключей подписи, которой подписан сценарий
  * @property signingPublicKey открытый ключ подписи в формате base64
+ * @property signingKeyNotBefore момент, с которого ключ считается доверенным
  * @see <a href="../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class PublicPorts(
@@ -34,6 +35,7 @@ data class PublicPorts(
     val storageBucket: String,
     val signingKeyId: String,
     val signingPublicKey: String,
+    val signingKeyNotBefore: String,
 ) {
     companion object {
         /** Имя переменной окружения с портом публичного бэкенда. */
@@ -44,6 +46,26 @@ data class PublicPorts(
 
         /** Имя переменной окружения с открытым ключом подписи. */
         const val ENV_SIGNING_PUBLIC_KEY: String = "SYP_SIGNING_PUBLIC_KEY"
+
+        /**
+         * Имя переменной окружения с моментом начала действия ключа.
+         *
+         * Необязательна: ключ, выпущенный до появления поля в контракте,
+         * считается доверенным с самого начала.
+         */
+        const val ENV_SIGNING_KEY_NOT_BEFORE: String = "SYP_SIGNING_KEY_NOT_BEFORE"
+
+        /** Имя переменной окружения со строкой подключения к базе. */
+        const val ENV_DB_URL: String = "SYP_DB_URL"
+
+        /** Имя переменной окружения с пользователем базы. */
+        const val ENV_DB_USER: String = "SYP_DB_USER"
+
+        /** Имя переменной окружения с паролем пользователя базы. */
+        const val ENV_DB_PASSWORD: String = "SYP_DB_PASSWORD"
+
+        /** Имя переменной окружения с каталогом артефактов. */
+        const val ENV_STORAGE_ROOT: String = "SYP_STORAGE_ROOT"
 
         /** Порт по умолчанию, если переменная окружения не задана. */
         const val DEFAULT_PUBLIC_WEB_PORT: Int = 7911

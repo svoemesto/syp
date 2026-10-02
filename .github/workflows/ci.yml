@@ -38,6 +38,7 @@ jobs:
           bash tools/check-feature-doc.sh
           bash tools/check-frontend-build.sh
           bash tools/check-no-job-worker.sh
+          bash tools/check-no-video-endpoints.sh
           bash tools/check-container-restart.sh
 
       - name: Guards процесса

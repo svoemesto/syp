@@ -1,5 +1,7 @@
 package ru.svoemesto.syp.admin.catalog
 
+import ru.svoemesto.syp.core.recipe.KeyframeLookup
+
 /**
  * Карта ключевых кадров серии.
  *
@@ -27,13 +29,19 @@ package ru.svoemesto.syp.admin.catalog
  * прочитанная для сценария, могла бы измениться под ногами у того, кто её
  * уже вычитал.
  *
+ * Карта **реализует** `KeyframeLookup` из общего модуля: код расчёта
+ * фактических границ лежит в `syp-core` и не должен знать, где хранится карта
+ * (ADR-0011, последствие 3). Интерфейс объявлен не случайно совпадающим — при
+ * изменении одного из них компилятор потребует привести в соответствие второе,
+ * иначе расчёт границ молча разошёлся бы с картой.
+ *
  * @property frameCount число кадров серии, которому соответствует карта
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class KeyframeMap private constructor(
-    val frameCount: Int,
+    override val frameCount: Int,
     private val bits: ByteArray,
-) {
+) : KeyframeLookup {
     /** Длина карты в байтах: ровно `ceil(frameCount / 8)`. */
     val byteLength: Int
         get() = bits.size
@@ -90,7 +98,7 @@ class KeyframeMap private constructor(
      * @return номер ключевого кадра или `null`, если раньше него ключевых нет
      * @throws IllegalArgumentException если номер кадра вне серии
      */
-    fun lastKeyframeAtOrBefore(frame: Int): Int? {
+    override fun lastKeyframeAtOrBefore(frame: Int): Int? {
         requireFrame(frame)
         for (candidate in frame downTo 0) {
             if (isKeyframe(candidate)) return candidate
@@ -108,7 +116,7 @@ class KeyframeMap private constructor(
      * @return номер ключевого кадра или `null`, если после него ключевых нет
      * @throws IllegalArgumentException если номер кадра вне серии
      */
-    fun firstKeyframeAtOrAfter(frame: Int): Int? {
+    override fun firstKeyframeAtOrAfter(frame: Int): Int? {
         requireFrame(frame)
         for (candidate in frame..lastFrameIndex()) {
             if (isKeyframe(candidate)) return candidate

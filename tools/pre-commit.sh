@@ -69,6 +69,7 @@ if [[ ${has_code} -eq 1 ]]; then
     bash tools/check-no-mp4-mentions.sh || fail "R-11: домен оперирует сценами, не файлами"
     bash tools/check-feature-doc.sh || fail "R-32: публичные API не документированы"
     bash tools/check-no-job-worker.sh || fail "FR-085: у публичного бэкенда нет исполнителя заданий"
+    bash tools/check-no-video-endpoints.sh || fail "FR-085, FR-088: в публичной части нет видео, разметки и исполнителя заданий"
 fi
 
 if echo "${staged}" | grep -qE '\.(sh|yml)$'; then
