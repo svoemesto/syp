@@ -58,7 +58,7 @@ enum class RecipeState {
  * он подписан (FR-089c).
  *
  * @property id идентификатор сценария; `null`, пока не записан
- * @property serialId сериал-владелец
+ * @property movieId сериал-владелец
  * @property name название сценария
  * @property schemaVersion версия формата сценария
  * @property state состояние выдачи
@@ -79,7 +79,7 @@ enum class RecipeState {
  */
 data class BuildRecipe(
     val id: Long? = null,
-    val serialId: Long,
+    val movieId: Long,
     val name: String,
     val schemaVersion: Int = RecipeFormat.SCHEMA_VERSION,
     val state: RecipeState,
@@ -111,7 +111,7 @@ data class BuildRecipe(
             RecipeStore.COLUMNS,
             {
                 listOf(
-                    serialId,
+                    movieId,
                     name,
                     schemaVersion,
                     state.name,
@@ -134,7 +134,7 @@ data class BuildRecipe(
     companion object {
         /** Столбцы сценария в порядке чтения из базы, вместе со служебным хешем. */
         val READ_COLUMNS: String =
-            "id, serial_id, name, schema_version, state, artifact_id, content_sha256, " +
+            "id, id_movie, name, schema_version, state, artifact_id, content_sha256, " +
                 "signature, signing_key_id, item_count, expected_duration_ms, " +
                 "expected_frame_count, created_at, finished_at, error_text, is_stale, recordhash"
     }
@@ -150,8 +150,8 @@ data class BuildRecipe(
  * @property recipeId сценарий-владелец
  * @property ordinal порядковый номер фрагмента, с единицы
  * @property sceneId сцена-источник
- * @property seriesId серия-источник
- * @property seriesName название серии-снимок
+ * @property episodeId серия-источник
+ * @property episodeName название серии-снимок
  * @property relativePath путь к файлу серии от корня сериала
  * @property sourceSha256 снимок эталонной суммы на момент выдачи
  * @property firstFrame расчётная граница начала
@@ -168,8 +168,8 @@ data class BuildRecipeItem(
     val recipeId: Long,
     val ordinal: Int,
     val sceneId: Long,
-    val seriesId: Long,
-    val seriesName: String,
+    val episodeId: Long,
+    val episodeName: String,
     val relativePath: String,
     val sourceSha256: String,
     val firstFrame: Int,
@@ -195,8 +195,8 @@ data class BuildRecipeItem(
                     recipeId,
                     ordinal,
                     sceneId,
-                    seriesId,
-                    seriesName,
+                    episodeId,
+                    episodeName,
                     relativePath,
                     sourceSha256,
                     firstFrame,
@@ -220,8 +220,8 @@ data class BuildRecipeItem(
             sceneTitle = sceneTitle,
             location = locationName,
             persons = personNames,
-            seriesId = seriesId,
-            seriesName = seriesName,
+            episodeId = episodeId,
+            episodeName = episodeName,
             relativePath = relativePath,
             sourceSha256 = sourceSha256,
             firstFrame = firstFrame,
@@ -236,7 +236,7 @@ data class BuildRecipeItem(
 
         /** Столбцы фрагмента в порядке чтения из базы, вместе со служебным хешем. */
         val READ_COLUMNS: String =
-            "recipe_id, ordinal, scene_id, series_id, series_name, relative_path, " +
+            "recipe_id, ordinal, scene_id, id_episode, episode_name, relative_path, " +
                 "source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, " +
                 "scene_title, location_name, person_names, recordhash"
     }
@@ -268,19 +268,19 @@ class RecipeStore(
     /**
      * Перечисляет сценарии сериала, свежие сверху.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @param limit сколько сценариев вернуть
      * @return сценарии в порядке убывания времени выдачи
      */
-    fun listBySerial(
-        serialId: Long,
+    fun listByMovie(
+        movieId: Long,
         limit: Int,
     ): List<BuildRecipe> =
         db.select(
-            "SELECT ${BuildRecipe.READ_COLUMNS} FROM $TABLE WHERE serial_id = ? " +
+            "SELECT ${BuildRecipe.READ_COLUMNS} FROM $TABLE WHERE id_movie = ? " +
                 "ORDER BY created_at DESC, id DESC LIMIT ?",
             ::readRow,
-            serialId,
+            movieId,
             limit,
         )
 
@@ -430,7 +430,7 @@ class RecipeStore(
     private fun readRow(row: Row): BuildRecipe =
         BuildRecipe(
             id = row.long("id"),
-            serialId = row.long("serial_id"),
+            movieId = row.long("id_movie"),
             name = row.string("name"),
             schemaVersion = row.int("schema_version"),
             state = RecipeState.parse(row.string("state")),
@@ -454,8 +454,8 @@ class RecipeStore(
             recipeId = row.long("recipe_id"),
             ordinal = row.int("ordinal"),
             sceneId = row.long("scene_id"),
-            seriesId = row.long("series_id"),
-            seriesName = row.string("series_name"),
+            episodeId = row.long("id_episode"),
+            episodeName = row.string("episode_name"),
             relativePath = row.string("relative_path"),
             sourceSha256 = row.string("source_sha256"),
             firstFrame = row.int("first_frame"),
@@ -486,15 +486,15 @@ class RecipeStore(
 
     companion object {
         /** Имя таблицы сценариев. */
-        const val TABLE: String = "build_recipe"
+        const val TABLE: String = "tbl_build_recipes"
 
         /** Имя таблицы фрагментов сценария. */
-        const val ITEM_TABLE: String = "build_recipe_item"
+        const val ITEM_TABLE: String = "tbl_build_recipe_items"
 
         /** Записываемые столбцы сценария в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "serial_id",
+                "id_movie",
                 "name",
                 "schema_version",
                 "state",
@@ -517,8 +517,8 @@ class RecipeStore(
                 "recipe_id",
                 "ordinal",
                 "scene_id",
-                "series_id",
-                "series_name",
+                "id_episode",
+                "episode_name",
                 "relative_path",
                 "source_sha256",
                 "first_frame",

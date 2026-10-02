@@ -1,7 +1,7 @@
 package ru.svoemesto.syp.admin.integrity
 
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.admin.jobs.JobResult
 import ru.svoemesto.syp.core.jobs.Job
@@ -38,14 +38,14 @@ import java.security.MessageDigest
  * которых она считалась. Если файл подменён, прежняя сумма станет устаревшей
  * при следующей сверке (FR-090).
  *
- * @property seriesStore хранилище серий: из него берётся путь к файлу
+ * @property episodeStore хранилище серий: из него берётся путь к файлу
  * @property registry справочник сумм
  * @property blockSize размер блока чтения, байт
  * @property progressStep как часто сообщается прогресс, байт
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class HashJob(
-    private val seriesStore: SeriesStore,
+    private val episodeStore: EpisodeStore,
     private val registry: ChecksumRegistry,
     private val blockSize: Int = DEFAULT_BLOCK_SIZE,
     private val progressStep: Long = DEFAULT_PROGRESS_STEP,
@@ -69,8 +69,8 @@ class HashJob(
         job: Job,
         progress: (JobProgress) -> Unit,
     ): JobResult {
-        val series = requireSeries(job)
-        val entry = registry.begin(series, job.id)
+        val episode = requireEpisode(job)
+        val entry = registry.begin(episode, job.id)
         val entryId =
             entry.id
                 ?: throw ru.svoemesto.syp.core.db.DbException(
@@ -78,9 +78,9 @@ class HashJob(
                 )
         registry.markWorking(entryId)
 
-        val file = Path.of(series.sourcePath)
+        val file = Path.of(episode.sourcePath)
         try {
-            val digest = computeDigest(file, series.byteSize, progress)
+            val digest = computeDigest(file, episode.byteSize, progress)
             val attributes = Files.readAttributes(file, java.nio.file.attribute.BasicFileAttributes::class.java)
             val completed =
                 registry.complete(
@@ -91,7 +91,7 @@ class HashJob(
                 )
             return JobResult(
                 note =
-                    "сумма ${completed.algorithm} посчитана для «${series.name}»: " +
+                    "сумма ${completed.algorithm} посчитана для «${episode.name}»: " +
                         "${completed.byteSize} байт, посчитано ${completed.computedAt}",
                 progressTotal = completed.byteSize,
             )
@@ -103,7 +103,7 @@ class HashJob(
             throw interrupted
         } catch (failure: IOException) {
             val text =
-                "не удалось прочитать файл серии «${series.sourcePath}» для подсчёта суммы: " +
+                "не удалось прочитать файл серии «${episode.sourcePath}» для подсчёта суммы: " +
                     "${failure.message ?: failure::class.simpleName}. " +
                     "Проверьте, что архив смонтирован и файл доступен на чтение"
             registry.fail(entryId, text)
@@ -167,12 +167,12 @@ class HashJob(
      * @throws ru.svoemesto.syp.core.contract.DomainException если предмет задания
      *   не серия либо серия не зарегистрирована
      */
-    private fun requireSeries(job: Job): Series {
+    private fun requireEpisode(job: Job): Episode {
         val subject = job.subject
-        require(subject.type == SUBJECT_SERIES && subject.identifier != null) {
+        require(subject.type == SUBJECT_EPISODE && subject.identifier != null) {
             "Задание HASH без предмета «серия»: считать нечего. Предмет задания — ${subject.type}"
         }
-        return seriesStore.find(subject.identifier!!)
+        return episodeStore.find(subject.identifier!!)
             ?: throw ru.svoemesto.syp.core.contract.DomainException(
                 ru.svoemesto.syp.core.contract.ErrorCode.NOT_FOUND,
                 "серия ${subject.identifier} не зарегистрирована: подсчёт суммы невозможен",
@@ -187,7 +187,7 @@ class HashJob(
         const val DEFAULT_PROGRESS_STEP: Long = 64L * 1024 * 1024
 
         /** Тип предмета задания для серии. */
-        const val SUBJECT_SERIES: String = "SERIES"
+        const val SUBJECT_EPISODE: String = "EPISODE"
 
         /** Имя программы в тексте ошибки: у задания нет внешней программы. */
         private const val PROGRAM_NAME: String = "подсчёт sha256"

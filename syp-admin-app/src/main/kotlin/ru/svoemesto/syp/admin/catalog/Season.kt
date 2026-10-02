@@ -11,7 +11,7 @@ import java.time.OffsetDateTime
  * обозначение — `S00E00`: ноль означает «сезона нет», а не «забыли внести».
  *
  * @property id идентификатор сезона
- * @property serialId сериал-владелец
+ * @property movieId сериал-владелец
  * @property ordinal номер сезона, начиная с единицы
  * @property name название сезона, например «Первый сезон»
  * @property createdAt дата создания
@@ -19,7 +19,7 @@ import java.time.OffsetDateTime
  */
 data class Season(
     val id: Long? = null,
-    val serialId: Long,
+    val movieId: Long,
     val ordinal: Int,
     val name: String,
     val createdAt: OffsetDateTime,
@@ -36,22 +36,22 @@ data class Season(
      *
      * @return таблица с записываемыми столбцами сезона
      */
-    fun toTable(): Table = Table(NAME, COLUMNS, { listOf(serialId, ordinal, name, createdAt) })
+    fun toTable(): Table = Table(NAME, COLUMNS, { listOf(movieId, ordinal, name, createdAt) })
 
     companion object {
         /** Имя таблицы сезонов. */
-        const val NAME: String = "season"
+        const val NAME: String = "tbl_seasons"
 
         /** Записываемые столбцы сезона в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "serial_id",
+                "id_movie",
                 "ordinal",
                 "name",
                 "created_at",
             )
 
         /** Столбцы сезона в порядке чтения из базы. */
-        val READ_COLUMNS: String = "id, serial_id, ordinal, name, created_at, recordhash"
+        val READ_COLUMNS: String = "id, id_movie, ordinal, name, created_at, recordhash"
     }
 }

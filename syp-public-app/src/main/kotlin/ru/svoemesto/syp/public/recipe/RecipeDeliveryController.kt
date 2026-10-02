@@ -59,13 +59,13 @@ class RecipeDeliveryController(
      * страницы ничего не теряет, и список отдаётся по сериалу, а не по
      * содержимому окна.
      *
-     * @param serialId сериал
+     * @param movieId сериал
      * @return сценарии, свежие сверху
      */
     @GetMapping("/api/recipes")
     fun list(
-        @RequestParam("serialId") serialId: Long,
-    ): List<RecipeSummary> = recipes.listBySerial(serialId, LIST_LIMIT).map { it.toSummary() }
+        @RequestParam("movieId") movieId: Long,
+    ): List<RecipeSummary> = recipes.listByMovie(movieId, LIST_LIMIT).map { it.toSummary() }
 
     /**
      * Отдаёт состав сценария перед скачиванием.
@@ -272,8 +272,8 @@ data class RecipeComposition(
  *
  * @property ordinal порядковый номер фрагмента
  * @property sceneId сцена-источник
- * @property seriesId серия-источник
- * @property seriesName название серии
+ * @property episodeId серия-источник
+ * @property episodeName название серии
  * @property relativePath путь к файлу серии от корня сериала
  * @property sourceSha256 эталонная сумма файла серии
  * @property firstFrame расчётная граница начала
@@ -288,8 +288,8 @@ data class RecipeComposition(
 data class RecipeCompositionItem(
     val ordinal: Int,
     val sceneId: Long,
-    val seriesId: Long,
-    val seriesName: String,
+    val episodeId: Long,
+    val episodeName: String,
     val relativePath: String,
     val sourceSha256: String,
     val firstFrame: Int,
@@ -357,8 +357,8 @@ private fun BuildRecipeItem.toCompositionItem(): RecipeCompositionItem =
     RecipeCompositionItem(
         ordinal = ordinal,
         sceneId = sceneId,
-        seriesId = seriesId,
-        seriesName = seriesName,
+        episodeId = episodeId,
+        episodeName = episodeName,
         relativePath = relativePath,
         sourceSha256 = sourceSha256,
         firstFrame = firstFrame,

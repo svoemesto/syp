@@ -27,7 +27,7 @@ import java.time.OffsetDateTime
  * @property title назначение настройки человеческим языком
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-enum class SerialSetting(
+enum class MovieSetting(
     val key: String,
     val kind: Kind,
     val title: String,
@@ -85,7 +85,7 @@ enum class SerialSetting(
          * @param key имя настройки
          * @return настройка или `null`, если такой настройки нет
          */
-        fun byKey(key: String): SerialSetting? = entries.firstOrNull { it.key == key }
+        fun byKey(key: String): MovieSetting? = entries.firstOrNull { it.key == key }
 
         /** Сколько настроек получает новый сериал. */
         const val DEFAULT_COUNT: Int = 11
@@ -104,7 +104,7 @@ enum class SerialSetting(
  * @property values значения по именам настроек
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class SerialSettings(
+class MovieSettings(
     val values: Map<String, JsonNode>,
 ) {
     /**
@@ -115,7 +115,7 @@ class SerialSettings(
      * @throws DomainException если настройка отсутствует: у сериала обязаны
      *   быть все настройки, и отсутствие — это дефект данных, а не «дефолт»
      */
-    fun node(setting: SerialSetting): JsonNode =
+    fun node(setting: MovieSetting): JsonNode =
         values[setting.key]
             ?: throw DomainException(
                 ErrorCode.INTERNAL_ERROR,
@@ -129,7 +129,7 @@ class SerialSettings(
      * @param setting настройка
      * @return значение
      */
-    fun number(setting: SerialSetting): Double = node(setting).asDouble()
+    fun number(setting: MovieSetting): Double = node(setting).asDouble()
 
     /**
      * Целое значение настройки.
@@ -137,7 +137,7 @@ class SerialSettings(
      * @param setting настройка
      * @return значение
      */
-    fun integer(setting: SerialSetting): Int = node(setting).asInt()
+    fun integer(setting: MovieSetting): Int = node(setting).asInt()
 
     /**
      * Список дробных значений настройки.
@@ -145,20 +145,20 @@ class SerialSettings(
      * @param setting настройка
      * @return список значений в том же порядке, что и в базе
      */
-    fun numbers(setting: SerialSetting): List<Double> = node(setting).map { it.asDouble() }
+    fun numbers(setting: MovieSetting): List<Double> = node(setting).map { it.asDouble() }
 
     /**
      * Проверяет, что присутствуют все настройки перечисления.
      *
-     * @param serialId сериал, у которого проверяются настройки
+     * @param movieId сериал, у которого проверяются настройки
      * @throws DomainException если какой-то настройки нет
      */
-    fun requireComplete(serialId: Long) {
-        val missing = SerialSetting.entries.map { it.key }.filterNot { values.containsKey(it) }
+    fun requireComplete(movieId: Long) {
+        val missing = MovieSetting.entries.map { it.key }.filterNot { values.containsKey(it) }
         if (missing.isNotEmpty()) {
             throw DomainException(
                 ErrorCode.INTERNAL_ERROR,
-                "у сериала $serialId нет настроек: ${missing.joinToString(", ")}. " +
+                "у сериала $movieId нет настроек: ${missing.joinToString(", ")}. " +
                     "Значения по умолчанию создаёт триггер базы при заведении сериала",
             )
         }
@@ -176,40 +176,40 @@ class SerialSettings(
  *
  * Смена значения не трогает результаты анализа: их перевод в состояние
  * устаревших делает слой анализа, который знает, каким набором параметров они
- * получены ([SerialSettingsStore.update] отдаёт список изменённых ключей
+ * получены ([MovieSettingsStore.update] отдаёт список изменённых ключей
  * именно для этого).
  *
  * @property db доступ к базе сырым JDBC
  * @property mapper разбор и запись значений JSON
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class SerialSettingsStore(
+class MovieSettingsStore(
     private val db: Db,
     private val mapper: ObjectMapper = ObjectMapper().registerModule(JavaTimeModule()),
 ) {
     /**
      * Читает настройки сериала.
      *
-     * @param serialId сериал
+     * @param movieId сериал
      * @param requireComplete требовать ли наличия всех настроек
      * @return настройки сериала
      * @throws DomainException если сериала нет либо настройки неполны
      */
     fun read(
-        serialId: Long,
+        movieId: Long,
         requireComplete: Boolean = true,
-    ): SerialSettings {
-        requireSerial(serialId)
+    ): MovieSettings {
+        requireMovie(movieId)
         val values =
             db
                 .select(
-                    "SELECT key, value FROM analysis_setting WHERE serial_id = ?",
+                    "SELECT key, value FROM tbl_analysis_settings WHERE id_movie = ?",
                     { row -> row.string("key") to mapper.readTree(row.string("value")) },
-                    serialId,
+                    movieId,
                 ).toMap()
-        val settings = SerialSettings(values)
+        val settings = MovieSettings(values)
         if (requireComplete) {
-            settings.requireComplete(serialId)
+            settings.requireComplete(movieId)
         }
         return settings
     }
@@ -222,24 +222,24 @@ class SerialSettingsStore(
      * по убыванию, сделали бы последующий анализ бессмысленным, а заметить
      * это можно было бы только через сорванные границы сцен.
      *
-     * @param serialId сериал
+     * @param movieId сериал
      * @param changes новые значения по именам настроек
      * @return имена настроек, значение которых действительно изменилось
      * @throws DomainException с кодом `BAD_REQUEST`, если ключ неизвестен или
      *   значение не проходит проверку
      */
     fun update(
-        serialId: Long,
+        movieId: Long,
         changes: Map<String, JsonNode>,
     ): List<String> {
-        requireSerial(serialId)
+        requireMovie(movieId)
         if (changes.isEmpty()) {
             return emptyList()
         }
         val checked = changes.map { (key, value) -> key to validate(key, value) }
         return db.useTransaction { connection ->
             checked
-                .filter { (key, value) -> put(connection, serialId, key, value) }
+                .filter { (key, value) -> put(connection, movieId, key, value) }
                 .map { (key, _) -> key }
         }
     }
@@ -251,22 +251,22 @@ class SerialSettingsStore(
      * означало бы хранить её в jsonb вместе с числом, и тогда подпись значения
      * зависела бы от того, когда его переписали.
      *
-     * @param serialId сериал
+     * @param movieId сериал
      * @param setting настройка
      * @return дата записи или `null`, если настройки нет
      */
     fun updatedAt(
-        serialId: Long,
-        setting: SerialSetting,
+        movieId: Long,
+        setting: MovieSetting,
     ): OffsetDateTime? =
         db.selectOne(
-            "SELECT updated_at FROM analysis_setting WHERE serial_id = ? AND key = ?",
+            "SELECT updated_at FROM tbl_analysis_settings WHERE id_movie = ? AND key = ?",
             { row: Row ->
                 (row.raw("updated_at") as? java.sql.Timestamp)
                     ?.toInstant()
                     ?.atOffset(java.time.ZoneOffset.UTC)
             },
-            serialId,
+            movieId,
             setting.key,
         )
 
@@ -277,45 +277,45 @@ class SerialSettingsStore(
      * канонизирует числа без дробной части и ведущих нулей, и приводить их к
      * типу заранее значит потерять исходную запись.
      *
-     * @param serialId сериал
+     * @param movieId сериал
      * @param setting настройка
      * @return значение как оно лежит в базе
      * @throws DomainException если настройки нет
      */
     fun rawValue(
-        serialId: Long,
-        setting: SerialSetting,
+        movieId: Long,
+        setting: MovieSetting,
     ): String =
         db.selectOne(
-            "SELECT value FROM analysis_setting WHERE serial_id = ? AND key = ?",
+            "SELECT value FROM tbl_analysis_settings WHERE id_movie = ? AND key = ?",
             { row: Row -> row.string("value") },
-            serialId,
+            movieId,
             setting.key,
         ) ?: throw DomainException(
             ErrorCode.INTERNAL_ERROR,
-            "у сериала $serialId нет настройки «${setting.key}»",
+            "у сериала $movieId нет настройки «${setting.key}»",
         )
 
     /**
      * Записывает значение настройки, если оно изменилось.
      *
      * @param connection открытое соединение, транзакцией управляет вызывающий
-     * @param serialId сериал
+     * @param movieId сериал
      * @param key имя настройки
      * @param value новое значение
      * @return `true`, если строка переписана
      */
     private fun put(
         connection: java.sql.Connection,
-        serialId: Long,
+        movieId: Long,
         key: String,
         value: JsonNode,
     ): Boolean {
         val current =
             connection
-                .prepareStatement("SELECT value, recordhash FROM analysis_setting WHERE serial_id = ? AND key = ?")
+                .prepareStatement("SELECT value, recordhash FROM tbl_analysis_settings WHERE id_movie = ? AND key = ?")
                 .use { statement ->
-                    statement.setLong(1, serialId)
+                    statement.setLong(1, movieId)
                     statement.setString(2, key)
                     statement.executeQuery().use { resultSet ->
                         if (resultSet.next()) {
@@ -328,7 +328,7 @@ class SerialSettingsStore(
 
         // Хеш считается по содержимому настройки, без даты обновления: дата —
         // следствие записи, а не свойство значения.
-        val table = Table(TABLE, listOf("serial_id", "key", "value"), { listOf(serialId, key, value.toString()) }, current?.second)
+        val table = Table(TABLE, listOf("id_movie", "key", "value"), { listOf(movieId, key, value.toString()) }, current?.second)
         val hash = table.computeRecordHash()
         if (current?.second == hash) {
             return false
@@ -337,10 +337,10 @@ class SerialSettingsStore(
         if (current == null) {
             connection
                 .prepareStatement(
-                    "INSERT INTO $TABLE (serial_id, key, value, updated_at, recordhash) " +
+                    "INSERT INTO $TABLE (id_movie, key, value, updated_at, recordhash) " +
                         "VALUES (?, ?, ?::jsonb, now(), ?)",
                 ).use { statement ->
-                    statement.setLong(1, serialId)
+                    statement.setLong(1, movieId)
                     statement.setString(2, key)
                     statement.setString(3, value.toString())
                     statement.setString(4, hash)
@@ -350,11 +350,11 @@ class SerialSettingsStore(
             connection
                 .prepareStatement(
                     "UPDATE $TABLE SET value = ?::jsonb, updated_at = now(), recordhash = ? " +
-                        "WHERE serial_id = ? AND key = ?",
+                        "WHERE id_movie = ? AND key = ?",
                 ).use { statement ->
                     statement.setString(1, value.toString())
                     statement.setString(2, hash)
-                    statement.setLong(3, serialId)
+                    statement.setLong(3, movieId)
                     statement.setString(4, key)
                     statement.executeUpdate()
                 }
@@ -377,10 +377,10 @@ class SerialSettingsStore(
         value: JsonNode?,
     ): JsonNode {
         val setting =
-            SerialSetting.byKey(key)
+            MovieSetting.byKey(key)
                 ?: throw DomainException(
                     ErrorCode.BAD_REQUEST,
-                    "настройки «$key» нет. Доступны: ${SerialSetting.entries.joinToString(", ") { it.key }}",
+                    "настройки «$key» нет. Доступны: ${MovieSetting.entries.joinToString(", ") { it.key }}",
                 )
         val node =
             value
@@ -389,15 +389,15 @@ class SerialSettingsStore(
             throw DomainException(ErrorCode.BAD_REQUEST, "у настройки «$key» значение null")
         }
         return when (setting.kind) {
-            SerialSetting.Kind.NUMBER -> numberOf(setting, node)
-            SerialSetting.Kind.INTEGER -> integerOf(setting, node)
-            SerialSetting.Kind.NUMBER_LIST -> numberListOf(setting, node)
+            MovieSetting.Kind.NUMBER -> numberOf(setting, node)
+            MovieSetting.Kind.INTEGER -> integerOf(setting, node)
+            MovieSetting.Kind.NUMBER_LIST -> numberListOf(setting, node)
         }
     }
 
     /** Проверяет и приводит дробное значение. */
     private fun numberOf(
-        setting: SerialSetting,
+        setting: MovieSetting,
         node: JsonNode,
     ): JsonNode {
         val value = requireNumber(setting, node)
@@ -410,7 +410,7 @@ class SerialSettingsStore(
 
     /** Проверяет и приводит целое значение. */
     private fun integerOf(
-        setting: SerialSetting,
+        setting: MovieSetting,
         node: JsonNode,
     ): JsonNode {
         if (!node.isIntegralNumber) {
@@ -429,7 +429,7 @@ class SerialSettingsStore(
 
     /** Проверяет и приводит список дробных значений. */
     private fun numberListOf(
-        setting: SerialSetting,
+        setting: MovieSetting,
         node: JsonNode,
     ): JsonNode {
         if (!node.isArray) {
@@ -472,7 +472,7 @@ class SerialSettingsStore(
 
     /** Требует, чтобы значение было числом. */
     private fun requireNumber(
-        setting: SerialSetting,
+        setting: MovieSetting,
         node: JsonNode,
     ): Double {
         if (!node.isNumber) {
@@ -500,21 +500,21 @@ class SerialSettingsStore(
 
     /** Смысловая проверка дробной настройки: возвращает текст проблемы либо `null`. */
     private fun problemOfNumber(
-        setting: SerialSetting,
+        setting: MovieSetting,
         value: Double,
     ): String? =
         when (setting) {
-            SerialSetting.SCENE_THRESHOLD, SerialSetting.SHOT_THRESHOLD ->
+            MovieSetting.SCENE_THRESHOLD, MovieSetting.SHOT_THRESHOLD ->
                 if (value <= 0.0) "порог должен быть положительным, задано $value" else null
 
-            SerialSetting.FACE_NOT_PERSON_ASPECT ->
+            MovieSetting.FACE_NOT_PERSON_ASPECT ->
                 if (value <= 1.0) {
                     "пропорция должна быть больше единицы, задано $value"
                 } else {
                     null
                 }
 
-            SerialSetting.FACE_DETECT_THRESHOLD, SerialSetting.CLUSTER_MERGE_THRESHOLD ->
+            MovieSetting.FACE_DETECT_THRESHOLD, MovieSetting.CLUSTER_MERGE_THRESHOLD ->
                 if (value <= 0.0 || value > 1.0) {
                     "порог должен лежать в интервале (0; 1], задано $value"
                 } else {
@@ -526,14 +526,14 @@ class SerialSettingsStore(
 
     /** Смысловая проверка целой настройки: возвращает текст проблемы либо `null`. */
     private fun problemOfInteger(
-        setting: SerialSetting,
+        setting: MovieSetting,
         value: Long,
     ): String? =
         when (setting) {
-            SerialSetting.CLUSTER_COUNT,
-            SerialSetting.PREVIEW_SHEET_COLS,
-            SerialSetting.PREVIEW_SHEET_ROWS,
-            SerialSetting.RECIPE_SCHEMA_VERSION,
+            MovieSetting.CLUSTER_COUNT,
+            MovieSetting.PREVIEW_SHEET_COLS,
+            MovieSetting.PREVIEW_SHEET_ROWS,
+            MovieSetting.RECIPE_SCHEMA_VERSION,
             ->
                 if (value <= 0) {
                     "значение должно быть положительным, задано $value"
@@ -541,7 +541,7 @@ class SerialSettingsStore(
                     null
                 }
 
-            SerialSetting.RECIPE_AUDIO_TRACK_COUNT ->
+            MovieSetting.RECIPE_AUDIO_TRACK_COUNT ->
                 if (value < 0) {
                     "число аудиодорожек не может быть отрицательным, задано $value"
                 } else {
@@ -552,23 +552,23 @@ class SerialSettingsStore(
         }
 
     /** Проверяет, что сериал заведён. */
-    private fun requireSerial(serialId: Long) {
+    private fun requireMovie(movieId: Long) {
         val exists =
             db.selectOne(
-                "SELECT count(*) AS total FROM serial WHERE id = ?",
+                "SELECT count(*) AS total FROM tbl_movies WHERE id = ?",
                 { row: Row -> row.int("total") },
-                serialId,
+                movieId,
             ) ?: 0
         if (exists == 0) {
             throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "сериал $serialId не заведён: настройки задаются только заведённому сериалу",
+                "сериал $movieId не заведён: настройки задаются только заведённому сериалу",
             )
         }
     }
 
     private companion object {
         /** Имя таблицы настроек. */
-        const val TABLE: String = "analysis_setting"
+        const val TABLE: String = "tbl_analysis_settings"
     }
 }

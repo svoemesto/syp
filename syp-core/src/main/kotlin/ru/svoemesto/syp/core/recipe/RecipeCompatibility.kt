@@ -11,7 +11,7 @@ package ru.svoemesto.syp.core.recipe
  * Ни одна величина здесь не вводится оператором: она снята с файла и
  * принадлежит серии, а не подборке.
  *
- * @property seriesId идентификатор серии
+ * @property episodeId идентификатор серии
  * @property name название серии
  * @property width ширина кадра в пикселях
  * @property height высота кадра в пикселях
@@ -25,8 +25,8 @@ package ru.svoemesto.syp.core.recipe
  * @property audioSampleRate частота дискретизации; `null` у серии без звука
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class SeriesParameters(
-    val seriesId: Long,
+data class EpisodeParameters(
+    val episodeId: Long,
     val name: String,
     val width: Int,
     val height: Int,
@@ -64,8 +64,8 @@ data class SeriesParameters(
  *   от опорной
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class IncompatibleSeries(
-    val parameters: SeriesParameters,
+data class IncompatibleEpisode(
+    val parameters: EpisodeParameters,
     val differingAttributes: List<String>,
 )
 
@@ -78,8 +78,8 @@ data class IncompatibleSeries(
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class CompatibilityReport(
-    val reference: SeriesParameters,
-    val incompatible: List<IncompatibleSeries>,
+    val reference: EpisodeParameters,
+    val incompatible: List<IncompatibleEpisode>,
 ) {
     /** Все серии совпадают: подборку можно выдавать. */
     val isCompatible: Boolean
@@ -112,19 +112,19 @@ object RecipeCompatibility {
      * Опорной считается первая серия списка: порядок определяется выдачей, а не
      * сортировкой, иначе отчёт зависел бы от того, как отсортировали серии.
      *
-     * @param series серии подборки
+     * @param episode серии подборки
      * @return отчёт; при пустом списке — отказ, а не «всё совместимо»
      * @throws IllegalArgumentException если список серий пуст
      */
-    fun check(series: List<SeriesParameters>): CompatibilityReport {
-        require(series.isNotEmpty()) {
+    fun check(episode: List<EpisodeParameters>): CompatibilityReport {
+        require(episode.isNotEmpty()) {
             "Проверять совместимость нечего: список серий подборки пуст"
         }
-        val reference = series.first()
+        val reference = episode.first()
         val incompatible =
-            series
+            episode
                 .drop(1)
-                .map { candidate -> IncompatibleSeries(candidate, differences(reference, candidate)) }
+                .map { candidate -> IncompatibleEpisode(candidate, differences(reference, candidate)) }
                 .filter { it.differingAttributes.isNotEmpty() }
         return CompatibilityReport(reference, incompatible)
     }
@@ -140,8 +140,8 @@ object RecipeCompatibility {
      * @return имена различающихся признаков
      */
     fun differences(
-        reference: SeriesParameters,
-        candidate: SeriesParameters,
+        reference: EpisodeParameters,
+        candidate: EpisodeParameters,
     ): List<String> =
         buildList {
             if (reference.width != candidate.width) add("width")

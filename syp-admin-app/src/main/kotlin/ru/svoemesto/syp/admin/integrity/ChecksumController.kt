@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.jobs.JobKind
@@ -25,7 +25,7 @@ import java.time.Instant
  * незавершённого подсчёта суммы не существует, и выдавать вместо неё пустую
  * строку означало бы выдать выдуманное значение.
  *
- * @property seriesId идентификатор серии
+ * @property episodeId идентификатор серии
  * @property state состояние подсчёта
  * @property algorithm алгоритм подсчёта
  * @property digest значение суммы; `null`, пока сумма не посчитана
@@ -41,7 +41,7 @@ import java.time.Instant
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class ChecksumView(
-    val seriesId: Long,
+    val episodeId: Long,
     val state: String,
     val algorithm: String,
     val digest: String?,
@@ -64,14 +64,14 @@ data class ChecksumView(
  * (FR-003).
  *
  * @property jobId идентификатор поставленного задания
- * @property seriesId серия, для которой считается сумма
+ * @property episodeId серия, для которой считается сумма
  * @property state состояние задания на момент постановки
  * @property reason зачем поставлен пересчёт
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class ChecksumEnqueuedView(
     val jobId: Long,
-    val seriesId: Long,
+    val episodeId: Long,
     val state: String,
     val reason: String,
 )
@@ -101,54 +101,54 @@ data class ChecksumEnqueuedView(
  * «сумма посчитана» для файла, которого уже нет (FR-090).
  *
  * @property queue очередь заданий
- * @property seriesStore хранилище серий
+ * @property episodeStore хранилище серий
  * @property registry справочник сумм
  * @property paramsBuilder собирает параметры задания из серии
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class ChecksumEnqueuer(
     private val queue: JobQueue,
-    private val seriesStore: SeriesStore,
+    private val episodeStore: EpisodeStore,
     private val registry: ChecksumRegistry,
-    private val paramsBuilder: (Series) -> String = { series -> defaultParams(series) },
+    private val paramsBuilder: (Episode) -> String = { episode -> defaultParams(episode) },
 ) {
     /**
      * Ставит подсчёт суммы серии.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @param reason зачем поставлен пересчёт
      * @return идентификатор поставленного задания
      * @throws DomainException с кодом `NOT_FOUND`, если серия не зарегистрирована
      */
     fun enqueue(
-        seriesId: Long,
+        episodeId: Long,
         reason: String,
     ): Long {
-        val series =
-            seriesStore.find(seriesId)
+        val episode =
+            episodeStore.find(episodeId)
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
-                    "серия $seriesId не зарегистрирована: сумму считать нечего",
+                    "серия $episodeId не зарегистрирована: сумму считать нечего",
                 )
         // Подмена источника обнаруживается до постановки: пересчёт всё равно
         // пойдёт, но оператор должен увидеть устаревшую прежнюю сумму, а не
         // новую на месте старой.
-        registry.markStaleWhenSourceChanged(series)
+        registry.markStaleWhenSourceChanged(episode)
         return queue.enqueue(
             kind = JobKind.HASH,
-            subject = JobSubject.series(seriesId),
-            paramsJson = paramsBuilder(series),
-            paramsHash = paramsHashOf(series),
+            subject = JobSubject.episode(episodeId),
+            paramsJson = paramsBuilder(episode),
+            paramsHash = paramsHashOf(episode),
         )
     }
 
     /**
      * Ставит подсчёт автоматически, при регистрации серии.
      *
-     * @param series только что зарегистрированная серия
+     * @param episode только что зарегистрированная серия
      * @return идентификатор поставленного задания
      */
-    fun enqueueAutomatic(series: Series): Long = enqueue(series.id!!, "серия зарегистрирована: сумма считается автоматически")
+    fun enqueueAutomatic(episode: Episode): Long = enqueue(episode.id!!, "серия зарегистрирована: сумма считается автоматически")
 
     companion object {
         /**
@@ -158,27 +158,27 @@ class ChecksumEnqueuer(
          * файла и время его изменения. По ним же считается хеш параметров,
          * поэтому подмена файла даёт другое задание даже при том же пути.
          *
-         * @param series серия
+         * @param episode серия
          * @return параметры задания в виде JSON
          */
-        fun defaultParams(series: Series): String =
+        fun defaultParams(episode: Episode): String =
             "{\"algorithm\":\"${ChecksumEntry.ALGORITHM_SHA256}\"," +
-                "\"sourcePath\":\"${series.sourcePath}\"," +
-                "\"byteSize\":${series.byteSize}," +
-                "\"fileMtime\":\"${series.fileMtime}\"}"
+                "\"sourcePath\":\"${episode.sourcePath}\"," +
+                "\"byteSize\":${episode.byteSize}," +
+                "\"fileMtime\":\"${episode.fileMtime}\"}"
 
         /**
          * Хеш параметров задания подсчёта.
          *
-         * @param series серия
+         * @param episode серия
          * @return 64 шестнадцатеричных символа в нижнем регистре
          */
-        fun paramsHashOf(series: Series): String =
+        fun paramsHashOf(episode: Episode): String =
             ParamsHash.of(
                 ChecksumEntry.ALGORITHM_SHA256,
-                series.sourcePath,
-                series.byteSize,
-                series.fileMtime,
+                episode.sourcePath,
+                episode.byteSize,
+                episode.fileMtime,
             )
     }
 }
@@ -193,14 +193,14 @@ class ChecksumEnqueuer(
  *
  * @property enqueuer постановщик подсчёта
  * @property registry справочник сумм
- * @property seriesStore хранилище серий
+ * @property episodeStore хранилище серий
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 @RestController
 class ChecksumController(
     private val enqueuer: ChecksumEnqueuer,
     private val registry: ChecksumRegistry,
-    private val seriesStore: SeriesStore,
+    private val episodeStore: EpisodeStore,
 ) {
     /**
      * Отдаёт состояние суммы серии.
@@ -210,50 +210,50 @@ class ChecksumController(
      * ответа «суммы нет» не делается — вместо него `409` с кодом
      * `CHECKSUM_NOT_READY`, как требует контракт.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return состояние суммы серии
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет; с кодом
      *   `CHECKSUM_NOT_READY`, если сумма ещё ни разу не считалась
      */
-    @GetMapping("/api/series/{seriesId}/checksum")
+    @GetMapping("/api/episode/{episodeId}/checksum")
     fun readChecksum(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
     ): ChecksumView {
-        val series = requireSeries(seriesId)
+        val episode = requireEpisode(episodeId)
         val entry =
-            registry.latest(seriesId)
+            registry.latest(episodeId)
                 ?: throw DomainException(
                     ErrorCode.CHECKSUM_NOT_READY,
-                    "сумма серии «${series.name}» ещё не считалась. Поставьте пересчёт: " +
+                    "сумма серии «${episode.name}» ещё не считалась. Поставьте пересчёт: " +
                         "без актуальной суммы сценарий сборки выдать нельзя (FR-089)",
                 )
         // Сверка подмены источника при чтении: файл мог смениться после того,
         // как оператор последний раз смотрел на страницу.
-        registry.markStaleWhenSourceChanged(series)
-        val refreshed = registry.latest(seriesId) ?: entry
-        return refreshed.toView(registry.history(seriesId).size)
+        registry.markStaleWhenSourceChanged(episode)
+        val refreshed = registry.latest(episodeId) ?: entry
+        return refreshed.toView(registry.history(episodeId).size)
     }
 
     /**
      * Ставит пересчёт суммы серии.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return поставленное задание, код `202`
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    @PostMapping("/api/series/{seriesId}/checksum")
+    @PostMapping("/api/episode/{episodeId}/checksum")
     fun startChecksum(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
     ): ResponseEntity<ChecksumEnqueuedView> {
-        requireSeries(seriesId)
+        requireEpisode(episodeId)
         val reason = "пересчёт по запросу оператора"
-        val jobId = enqueuer.enqueue(seriesId, reason)
+        val jobId = enqueuer.enqueue(episodeId, reason)
         return ResponseEntity
             .status(HttpStatus.ACCEPTED)
             .body(
                 ChecksumEnqueuedView(
                     jobId = jobId,
-                    seriesId = seriesId,
+                    episodeId = episodeId,
                     state = ru.svoemesto.syp.core.jobs.JobState.WAITING.name,
                     reason = reason,
                 ),
@@ -263,13 +263,13 @@ class ChecksumController(
     /**
      * Читает серию или отказывает.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return серия
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    private fun requireSeries(seriesId: Long): Series =
-        seriesStore.find(seriesId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "серия $seriesId не зарегистрирована")
+    private fun requireEpisode(episodeId: Long): Episode =
+        episodeStore.find(episodeId)
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "серия $episodeId не зарегистрирована")
 }
 
 /**
@@ -280,7 +280,7 @@ class ChecksumController(
  */
 internal fun ChecksumEntry.toView(historyCount: Int): ChecksumView =
     ChecksumView(
-        seriesId = seriesId,
+        episodeId = episodeId,
         state = state.name,
         algorithm = algorithm,
         digest = digest,

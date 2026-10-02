@@ -55,7 +55,7 @@ export interface SceneView {
 /** Ответ о структуре серии. */
 export interface StructureView {
   /** Серия. */
-  seriesId: number
+  episodeId: number
   /** Число кадров серии. */
   frameCount: number
   /** Устарел ли результат. */
@@ -97,7 +97,7 @@ export interface RawBoundaryView {
 /** Ответ с сырыми границами. */
 export interface RawBoundariesView {
   /** Серия. */
-  seriesId: number
+  episodeId: number
   /** Прогон либо `null`, если прогона ещё не было. */
   runId: number | null
   /** Смещение выборки. */
@@ -131,7 +131,7 @@ export interface FrameView {
 /** Страница значимых кадров. */
 export interface FramesView {
   /** Серия. */
-  seriesId: number
+  episodeId: number
   /** Сколько значимых кадров у серии. */
   total: number
   /** Смещение выборки. */
@@ -147,7 +147,7 @@ export interface AnalysisEnqueuedView {
   /** Поставленное задание. */
   jobId: number
   /** Серия. */
-  seriesId: number
+  episodeId: number
   /** Состояние задания на момент постановки. */
   state: string
   /** Порог границы сцены. */
@@ -183,7 +183,7 @@ export interface CellCropView {
 /** Адрес листа превью и его раскладка. */
 export interface PreviewUrlView {
   /** Серия. */
-  seriesId: number
+  episodeId: number
   /** Номер листа, с нуля. */
   index: number
   /** Первый кадр листа. */
@@ -224,39 +224,39 @@ export interface PreviewUrlView {
  * Работа идёт заданием очереди и занимает минуты, поэтому ответ приходит
  * сразу: кнопка, ждущая окончания, в интерфейсе недопустима (FR-003).
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  * @returns поставленное задание
  */
-export function startAnalysis(seriesId: number): Promise<AnalysisEnqueuedView> {
-  return request<AnalysisEnqueuedView>('POST', `/series/${seriesId}/analysis`)
+export function startAnalysis(episodeId: number): Promise<AnalysisEnqueuedView> {
+  return request<AnalysisEnqueuedView>('POST', `/series/${episodeId}/analysis`)
 }
 
 /**
  * Читает структуру серии.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  * @param offset смещение выборки сцен
  * @param limit размер выборки сцен
  * @returns страница структуры
  */
-export function readStructure(seriesId: number, offset = 0, limit = 200): Promise<StructureView> {
+export function readStructure(episodeId: number, offset = 0, limit = 200): Promise<StructureView> {
   return request<StructureView>(
     'GET',
-    `/series/${seriesId}/structure?offset=${offset}&limit=${limit}`,
+    `/series/${episodeId}/structure?offset=${offset}&limit=${limit}`,
   )
 }
 
 /**
  * Читает сырые границы результата автоматики.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  * @param level уровень границ: `SCENE`, `SHOT` или оба
  * @param offset смещение выборки
  * @param limit размер выборки
  * @returns страница сырых границ
  */
 export function readRawBoundaries(
-  seriesId: number,
+  episodeId: number,
   level?: string,
   offset = 0,
   limit = 200,
@@ -264,32 +264,32 @@ export function readRawBoundaries(
   const levelQuery = level === undefined ? '' : `&level=${level}`
   return request<RawBoundariesView>(
     'GET',
-    `/series/${seriesId}/raw-boundaries?offset=${offset}&limit=${limit}${levelQuery}`,
+    `/series/${episodeId}/raw-boundaries?offset=${offset}&limit=${limit}${levelQuery}`,
   )
 }
 
 /**
  * Читает страницу значимых кадров серии.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  * @param offset смещение выборки
  * @param limit размер выборки
  * @returns страница значимых кадров
  */
-export function readFrames(seriesId: number, offset = 0, limit = 200): Promise<FramesView> {
-  return request<FramesView>('GET', `/series/${seriesId}/frames?offset=${offset}&limit=${limit}`)
+export function readFrames(episodeId: number, offset = 0, limit = 200): Promise<FramesView> {
+  return request<FramesView>('GET', `/series/${episodeId}/frames?offset=${offset}&limit=${limit}`)
 }
 
 /**
  * Читает адрес листа превью и область кадрирования кадра.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  * @param frame кадр, для которого нужен лист; без него берётся первый лист
  * @returns описание листа превью
  */
-export function readPreviewUrl(seriesId: number, frame?: number): Promise<PreviewUrlView> {
+export function readPreviewUrl(episodeId: number, frame?: number): Promise<PreviewUrlView> {
   const frameQuery = frame === undefined ? '' : `&frame=${frame}`
-  return request<PreviewUrlView>('GET', `/series/${seriesId}/preview-url?index=0${frameQuery}`)
+  return request<PreviewUrlView>('GET', `/series/${episodeId}/preview-url?index=0${frameQuery}`)
 }
 
 /**
@@ -298,10 +298,10 @@ export function readPreviewUrl(seriesId: number, frame?: number): Promise<Previe
  * Отдельная функция вместо строки в шаблоне: адрес собирается в одном месте,
  * и переименование пути не потребует правок по экрану.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  * @param index номер листа, с нуля
  * @returns адрес листа
  */
-export function previewSheetUrl(seriesId: number, index: number): string {
-  return `/api/series/${seriesId}/preview-sheets/${index}`
+export function previewSheetUrl(episodeId: number, index: number): string {
+  return `/api/series/${episodeId}/preview-sheets/${index}`
 }

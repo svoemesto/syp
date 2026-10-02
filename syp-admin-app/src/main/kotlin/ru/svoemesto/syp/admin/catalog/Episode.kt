@@ -22,7 +22,7 @@ import java.time.OffsetDateTime
  * (ADR-0001).
  *
  * @property id идентификатор; `null`, пока серия не записана
- * @property serialId сериал-владелец: одна серия принадлежит ровно одному
+ * @property movieId сериал-владелец: одна серия принадлежит ровно одному
  * @property ordinal порядковый номер серии в сериале, уникален в его пределах
  * @property name название серии
  * @property sourcePath абсолютный путь к исходному видеофайлу, уникален
@@ -47,9 +47,9 @@ import java.time.OffsetDateTime
  * @property recordHash хеш значений строки, прочитанный при загрузке
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class Series(
+data class Episode(
     val id: Long? = null,
-    val serialId: Long,
+    val movieId: Long,
     val ordinal: Int,
     val name: String,
     val seasonId: Long? = null,
@@ -126,7 +126,7 @@ data class Series(
             COLUMNS,
             {
                 listOf(
-                    serialId,
+                    movieId,
                     ordinal,
                     name,
                     seasonId,
@@ -156,12 +156,12 @@ data class Series(
 
     companion object {
         /** Имя таблицы серий. */
-        const val NAME: String = "series"
+        const val NAME: String = "tbl_episodes"
 
         /** Записываемые столбцы серии в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "serial_id",
+                "id_movie",
                 "ordinal",
                 "name",
                 "season_id",
@@ -189,7 +189,7 @@ data class Series(
         /** Столбцы серии в порядке чтения из базы. */
         val READ_COLUMNS: String =
             (
-                "id, serial_id, ordinal, name, season_id, episode_ordinal, source_path, file_size, file_mtime, " +
+                "id, id_movie, ordinal, name, season_id, episode_ordinal, source_path, file_size, file_mtime, " +
                     "frame_count, time_base_num, time_base_den, width, height, " +
                     "duration_num, duration_den, video_codec, video_profile, pixel_format, " +
                     "audio_codec, audio_channels, audio_sample_rate, keyframe_bitmap, " +
@@ -199,7 +199,7 @@ data class Series(
         /**
          * Собирает серию из определённых опросом параметров файла.
          *
-         * @param serialId сериал-владелец
+         * @param movieId сериал-владелец
          * @param ordinal порядковый номер в сериале
          * @param name название серии
          * @param seasonId сезон-владелец; не задан — у фильма
@@ -209,16 +209,16 @@ data class Series(
          * @return готовая к записи серия
          */
         fun of(
-            serialId: Long,
+            movieId: Long,
             ordinal: Int,
             name: String,
             seasonId: Long?,
             episodeOrdinal: Int,
             sourcePath: String,
             parameters: SourceParameters,
-        ): Series =
-            Series(
-                serialId = serialId,
+        ): Episode =
+            Episode(
+                movieId = movieId,
                 ordinal = ordinal,
                 name = name,
                 seasonId = seasonId,
@@ -250,29 +250,29 @@ data class Series(
  * @property db доступ к базе сырым JDBC
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class SeriesStore(
+class EpisodeStore(
     private val db: Db,
 ) {
     /**
      * Записывает серию и возвращает её с идентификатором и хешем.
      *
-     * @param series серия для записи
+     * @param episode серия для записи
      * @return записанная серия
      * @throws DomainException с кодом `CONFLICT`, если такой путь уже занят
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
-    fun insert(series: Series): Series {
-        val duplicate = findBySourcePath(series.sourcePath)
+    fun insert(episode: Episode): Episode {
+        val duplicate = findBySourcePath(episode.sourcePath)
         if (duplicate != null) {
             throw DomainException(
                 ErrorCode.CONFLICT,
-                "файл «${series.sourcePath}» уже зарегистрирован как серия «${duplicate.name}»: " +
+                "файл «${episode.sourcePath}» уже зарегистрирован как серия «${duplicate.name}»: " +
                     "одна серия на один файл, второй раз завести его нельзя",
             )
         }
         return db.useTransaction { connection ->
-            Save.insertIfAbsent(connection, series.toTable())
-            val identifier = readIdentifier(connection, series)
+            Save.insertIfAbsent(connection, episode.toTable())
+            val identifier = readIdentifier(connection, episode)
             readOne(connection, identifier)
                 ?: throw DomainException(
                     ErrorCode.INTERNAL_ERROR,
@@ -284,22 +284,23 @@ class SeriesStore(
     /**
      * Читает серию по идентификатору.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return серия или `null`, если её нет
      */
-    fun find(seriesId: Long): Series? = db.selectOne("SELECT ${Series.READ_COLUMNS} FROM series WHERE id = ?", ::readRow, seriesId)
+    fun find(episodeId: Long): Episode? =
+        db.selectOne("SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE id = ?", ::readRow, episodeId)
 
     /**
      * Перечисляет серии сериала.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @return серии в порядке порядковых номеров
      */
-    fun listBySerial(serialId: Long): List<Series> =
+    fun listByMovie(movieId: Long): List<Episode> =
         db.select(
-            "SELECT ${Series.READ_COLUMNS} FROM series WHERE serial_id = ? ORDER BY ordinal",
+            "SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE id_movie = ? ORDER BY ordinal",
             ::readRow,
-            serialId,
+            movieId,
         )
 
     /**
@@ -308,25 +309,25 @@ class SeriesStore(
      * @param sourcePath абсолютный путь к файлу
      * @return серия или `null`, если такой путь не заведён
      */
-    fun findBySourcePath(sourcePath: String): Series? =
-        db.selectOne("SELECT ${Series.READ_COLUMNS} FROM series WHERE source_path = ?", ::readRow, sourcePath)
+    fun findBySourcePath(sourcePath: String): Episode? =
+        db.selectOne("SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE source_path = ?", ::readRow, sourcePath)
 
     /**
      * Сохраняет изменения серии, если значения изменились.
      *
-     * @param series серия с заполненным [Series.id]
+     * @param episode серия с заполненным [Episode.id]
      * @return `true`, если строка переписана
      * @throws DomainException если у серии нет идентификатора
      */
-    fun save(series: Series): Boolean {
-        val seriesId =
-            series.id
+    fun save(episode: Episode): Boolean {
+        val episodeId =
+            episode.id
                 ?: throw DomainException(
                     ErrorCode.BAD_REQUEST,
-                    "у серии «${series.name}» нет идентификатора: сохранять нечего",
+                    "у серии «${episode.name}» нет идентификатора: сохранять нечего",
                 )
         return db.useTransaction { connection ->
-            Save.saveIfChanged(connection, series.toTable(), listOf("id"), listOf(seriesId))
+            Save.saveIfChanged(connection, episode.toTable(), listOf("id"), listOf(episodeId))
         }
     }
 
@@ -336,40 +337,40 @@ class SeriesStore(
      * Файл источника при этом **не трогается**: он лежит в архиве и принадлежит
      * не системе. Удаляются только записи о нём и производные от них данные.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return `true`, если серия была удалена
      */
-    fun delete(seriesId: Long): Boolean = db.update("DELETE FROM series WHERE id = ?", seriesId) > 0
+    fun delete(episodeId: Long): Boolean = db.update("DELETE FROM tbl_episodes WHERE id = ?", episodeId) > 0
 
     /**
      * Считает серии сериала.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @return число серий
      */
-    fun countBySerial(serialId: Long): Int =
+    fun countByMovie(movieId: Long): Int =
         db.selectOne(
-            "SELECT count(*) AS total FROM series WHERE serial_id = ?",
+            "SELECT count(*) AS total FROM tbl_episodes WHERE id_movie = ?",
             { it.int("total") },
-            serialId,
+            movieId,
         ) ?: 0
 
     /** Читает идентификатор только что записанной серии. */
     private fun readIdentifier(
         connection: java.sql.Connection,
-        series: Series,
+        episode: Episode,
     ): Long =
         connection
-            .prepareStatement("SELECT id FROM series WHERE source_path = ?")
+            .prepareStatement("SELECT id FROM tbl_episodes WHERE source_path = ?")
             .use { statement ->
-                statement.setString(1, series.sourcePath)
+                statement.setString(1, episode.sourcePath)
                 statement.executeQuery().use { resultSet ->
                     if (resultSet.next()) {
                         resultSet.getLong(1)
                     } else {
                         throw DomainException(
                             ErrorCode.INTERNAL_ERROR,
-                            "серия «${series.name}» записана, но идентификатор не прочитан",
+                            "серия «${episode.name}» записана, но идентификатор не прочитан",
                         )
                     }
                 }
@@ -378,22 +379,22 @@ class SeriesStore(
     /** Читает серию по идентификатору в пределах открытого соединения. */
     private fun readOne(
         connection: java.sql.Connection,
-        seriesId: Long,
-    ): Series? =
+        episodeId: Long,
+    ): Episode? =
         connection
-            .prepareStatement("SELECT ${Series.READ_COLUMNS} FROM series WHERE id = ?")
+            .prepareStatement("SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE id = ?")
             .use { statement ->
-                statement.setLong(1, seriesId)
+                statement.setLong(1, episodeId)
                 statement.executeQuery().use { resultSet ->
                     if (resultSet.next()) read(resultSet) else null
                 }
             }
 
     /** Строит серию из готовой строки результата. */
-    private fun read(resultSet: java.sql.ResultSet): Series =
-        Series(
+    private fun read(resultSet: java.sql.ResultSet): Episode =
+        Episode(
             id = resultSet.getLong("id"),
-            serialId = resultSet.getLong("serial_id"),
+            movieId = resultSet.getLong("id_movie"),
             ordinal = resultSet.getInt("ordinal"),
             name = resultSet.getString("name"),
             sourcePath = resultSet.getString("source_path"),
@@ -421,10 +422,10 @@ class SeriesStore(
         )
 
     /** Строит серию из типизированной строки выборки. */
-    private fun readRow(row: Row): Series =
-        Series(
+    private fun readRow(row: Row): Episode =
+        Episode(
             id = row.long("id"),
-            serialId = row.long("serial_id"),
+            movieId = row.long("id_movie"),
             ordinal = row.int("ordinal"),
             name = row.string("name"),
             seasonId = row.longOrNull("season_id"),

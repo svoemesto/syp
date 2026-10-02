@@ -1,7 +1,7 @@
 package ru.svoemesto.syp.admin.characters
 
-import ru.svoemesto.syp.admin.catalog.SerialSetting
-import ru.svoemesto.syp.admin.catalog.SerialSettings
+import ru.svoemesto.syp.admin.catalog.MovieSetting
+import ru.svoemesto.syp.admin.catalog.MovieSettings
 import ru.svoemesto.syp.core.db.Db
 
 /**
@@ -79,7 +79,7 @@ class NonPersonFilter(
      * @param settings настройки сериала
      * @return порог пропорции
      */
-    fun thresholdOf(settings: SerialSettings): Double = settings.number(SerialSetting.FACE_NOT_PERSON_ASPECT)
+    fun thresholdOf(settings: MovieSettings): Double = settings.number(MovieSetting.FACE_NOT_PERSON_ASPECT)
 
     /**
      * Переводит лица, которые лицом не являются, в служебную персону «не лицо».
@@ -94,23 +94,23 @@ class NonPersonFilter(
      * наблюдаемо через интерфейс, но наблюдаемо в отчёте «кто в сцене» —
      * а значит, попало бы в сценарий сборки.
      *
-     * @param seriesId серия
+     * @param episodeId серия
      * @param settings настройки сериала; из них берётся порог пропорции
      * @return сколько лиц переведено в «не лицо»
      * @throws ru.svoemesto.syp.core.db.DbException если перевод не удался
      */
-    fun applySeries(
-        seriesId: Long,
-        settings: SerialSettings,
+    fun applyEpisode(
+        episodeId: Long,
+        settings: MovieSettings,
     ): Int {
-        val serialId =
+        val movieId =
             db.selectOne(
-                "SELECT serial_id FROM series WHERE id = ?",
-                { it.long("serial_id") },
-                seriesId,
+                "SELECT id_movie FROM tbl_episodes WHERE id = ?",
+                { it.long("id_movie") },
+                episodeId,
             ) ?: return 0
         val maxAspect = thresholdOf(settings)
-        val nonPerson = persons.servicePerson(serialId, PersonKind.NONPERSON).id
+        val nonPerson = persons.servicePerson(movieId, PersonKind.NONPERSON).id
         requireNotNull(nonPerson)
         return db.useTransaction { connection ->
             var changed = 0
@@ -118,9 +118,9 @@ class NonPersonFilter(
             // годится — на S01E01 их десятки тысяч.
             connection
                 .prepareStatement(
-                    "SELECT id, x1, y1, x2, y2, person_id FROM ${FaceStore.TABLE} WHERE series_id = ?",
+                    "SELECT id, x1, y1, x2, y2, person_id FROM ${FaceStore.TABLE} WHERE id_episode = ?",
                 ).use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.executeQuery().use { resultSet ->
                         val suspected = mutableListOf<Pair<Long, Long>>()
                         while (resultSet.next()) {

@@ -89,7 +89,7 @@ data class PreviewLayout(
  * frameCount - 1)`, нумерация с нуля (ADR-0001): между листами нет щели и нет
  * наложения, иначе один кадр показывался бы дважды, а другой — ни разу.
  *
- * @property seriesId серия-владелец
+ * @property episodeId серия-владелец
  * @property index номер листа, с нуля
  * @property firstFrame первый кадр листа
  * @property lastFrame последний кадр листа
@@ -99,7 +99,7 @@ data class PreviewLayout(
  * @see <a href="../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class PreviewSheet(
-    val seriesId: Long,
+    val episodeId: Long,
     val index: Int,
     val firstFrame: Int,
     val lastFrame: Int,
@@ -145,7 +145,7 @@ class PreviewSheet(
      *
      * @return ключ объекта
      */
-    fun finalKey(): String = "series/$seriesId/preview-sheets/${KEY_PREFIX}/%06d".format(index)
+    fun finalKey(): String = "episode/$episodeId/preview-sheets/${KEY_PREFIX}/%06d".format(index)
 
     /**
      * Временный ключ листа, в который он пишется до переноса.
@@ -156,9 +156,9 @@ class PreviewSheet(
      *
      * @return временный ключ объекта
      */
-    fun temporaryKey(): String = "series/$seriesId/preview-sheets/tmp/${KEY_PREFIX}/%06d.part".format(index)
+    fun temporaryKey(): String = "episode/$episodeId/preview-sheets/tmp/${KEY_PREFIX}/%06d.part".format(index)
 
-    override fun toString(): String = "PreviewSheet(series=$seriesId, index=$index, frames=$firstFrame..$lastFrame)"
+    override fun toString(): String = "PreviewSheet(episode=$episodeId, index=$index, frames=$firstFrame..$lastFrame)"
 
     companion object {
         /** Префикс ключа листа: версия раскладки входит в ключ намеренно. */
@@ -185,7 +185,7 @@ class PreviewSheet(
         /**
          * Собирает лист серии по его номеру.
          *
-         * @param seriesId серия-владелец
+         * @param episodeId серия-владелец
          * @param index номер листа, с нуля
          * @param frameCount число кадров серии
          * @param layout раскладка листа
@@ -193,7 +193,7 @@ class PreviewSheet(
          * @throws IllegalArgumentException если номера листа нет
          */
         fun of(
-            seriesId: Long,
+            episodeId: Long,
             index: Int,
             frameCount: Int,
             layout: PreviewLayout = PreviewLayout.STANDARD,
@@ -204,22 +204,22 @@ class PreviewSheet(
             }
             val first = index * layout.framesPerSheet
             val last = minOf(first + layout.framesPerSheet - 1, frameCount - 1)
-            return PreviewSheet(seriesId, index, first, last, layout, count, frameCount)
+            return PreviewSheet(episodeId, index, first, last, layout, count, frameCount)
         }
 
         /**
          * Разбивает серию на листы.
          *
-         * @param seriesId серия-владелец
+         * @param episodeId серия-владелец
          * @param frameCount число кадров серии
          * @param layout раскладка листа
          * @return все листы серии в порядке номеров
          */
         fun all(
-            seriesId: Long,
+            episodeId: Long,
             frameCount: Int,
             layout: PreviewLayout = PreviewLayout.STANDARD,
-        ): List<PreviewSheet> = (0 until sheetCount(frameCount, layout)).map { of(seriesId, it, frameCount, layout) }
+        ): List<PreviewSheet> = (0 until sheetCount(frameCount, layout)).map { of(episodeId, it, frameCount, layout) }
     }
 }
 
@@ -275,7 +275,7 @@ class PreviewSheetBuilder(
                 val preview =
                     frameImage(frame)
                         ?: throw IOException(
-                            "Превью кадра $frame для листа ${sheet.index} серии ${sheet.seriesId} недоступно",
+                            "Превью кадра $frame для листа ${sheet.index} серии ${sheet.episodeId} недоступно",
                         )
                 preview.use { stream ->
                     val cell =

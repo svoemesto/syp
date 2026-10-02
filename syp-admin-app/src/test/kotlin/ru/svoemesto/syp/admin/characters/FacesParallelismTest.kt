@@ -2,8 +2,8 @@ package ru.svoemesto.syp.admin.characters
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import ru.svoemesto.syp.admin.catalog.Episode
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.Series
 import ru.svoemesto.syp.admin.catalog.SourceParameters
 import ru.svoemesto.syp.admin.catalog.SourceProbe
 import ru.svoemesto.syp.core.media.ExternalProgram
@@ -67,18 +67,18 @@ class FacesParallelismTest {
         }
         val ffmpeg = System.getenv(ENV_FFMPEG)?.takeIf { it.isNotBlank() } ?: "ffmpeg"
         val probed = SourceProbe(ExternalProgram(), "ffprobe").probe(Path.of(source))
-        val series = seriesOf(probed, source)
+        val episode = episodeOf(probed, source)
         val levels = parallelLevels()
 
         println("ЗАМЕР ПАРАЛЛЕЛИЗМА ОЧЕРЕДИ (М-05)")
         println("файл: $source")
-        println("кадров: ${series.frameCount}, разрешение: ${series.width}x${series.height}")
+        println("кадров: ${episode.frameCount}, разрешение: ${episode.width}x${episode.height}")
         println("детектор: ${StubFaceDetector.KEY} (заглушка, нагрузка нулевая)")
         println("декодер: $ffmpeg")
         println("уровни параллелизма: ${levels.joinToString(", ")}")
 
         levels.forEach { level ->
-            val measurement = measure(ffmpeg, series, level)
+            val measurement = measure(ffmpeg, episode, level)
             println(
                 "ИТОГ параллелизм=$level всего_кадров=${measurement.frames} " +
                     "общее_время_с=${measurement.wallSeconds} " +
@@ -94,13 +94,13 @@ class FacesParallelismTest {
      * Прогоняет N проходов по серии одновременно и меряет.
      *
      * @param ffmpeg путь к декодеру
-     * @param series серия
+     * @param episode серия
      * @param level сколько проходов одновременно
      * @return результат замера
      */
     private fun measure(
         ffmpeg: String,
-        series: Series,
+        episode: Episode,
         level: Int,
     ): Measurement {
         val pool =
@@ -113,9 +113,9 @@ class FacesParallelismTest {
                     Callable {
                         val started = System.nanoTime()
                         val scan = FaceScan(FrameChannel(ffmpeg), StubFaceDetector())
-                        val result = scan.scan(series)
+                        val result = scan.scan(episode)
                         assertEquals(
-                            series.frameCount,
+                            episode.frameCount,
                             result.frames,
                             "проход обязан обработать все кадры серии: частичный результат " +
                                 "не является замером",
@@ -138,7 +138,7 @@ class FacesParallelismTest {
             }
             val seconds = futures.map { it.get() }
             val wall = (System.nanoTime() - started) / 1_000_000_000.0
-            val frames = series.frameCount.toLong() * level
+            val frames = episode.frameCount.toLong() * level
             val slowest = seconds.max()
             return Measurement(
                 frames = frames,
@@ -146,7 +146,7 @@ class FacesParallelismTest {
                 fastestSeconds = "%.1f".format(seconds.min()),
                 slowestSeconds = "%.1f".format(slowest),
                 totalFps = "%.1f".format(frames / wall),
-                slowestFps = "%.1f".format(series.frameCount / slowest),
+                slowestFps = "%.1f".format(episode.frameCount / slowest),
             )
         } finally {
             pool.shutdownNow()
@@ -160,12 +160,12 @@ class FacesParallelismTest {
      * @param source путь к файлу
      * @return серия
      */
-    private fun seriesOf(
+    private fun episodeOf(
         probed: SourceParameters,
         source: String,
-    ): Series =
-        Series(
-            serialId = 1,
+    ): Episode =
+        Episode(
+            movieId = 1,
             ordinal = 0,
             name = Path.of(source).fileName.toString(),
             sourcePath = source,

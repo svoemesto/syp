@@ -3,10 +3,10 @@ package ru.svoemesto.syp.admin.analysis
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import ru.svoemesto.syp.core.db.Db
 import java.time.OffsetDateTime
@@ -35,7 +35,7 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AnalysisRunTest {
     private lateinit var db: Db
-    private lateinit var seriesStore: SeriesStore
+    private lateinit var episodeStore: EpisodeStore
     private lateinit var runStore: AnalysisRunStore
     private lateinit var boundaryStore: RawBoundaryStore
     private lateinit var structure: StructureService
@@ -53,7 +53,7 @@ class AnalysisRunTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        seriesStore = SeriesStore(db)
+        episodeStore = EpisodeStore(db)
         runStore = AnalysisRunStore(db)
         boundaryStore = RawBoundaryStore(db)
         structure = StructureService(db, runStore, boundaryStore)
@@ -65,12 +65,12 @@ class AnalysisRunTest {
      * @param frameCount число кадров серии
      * @return записанная серия
      */
-    private fun newSeries(frameCount: Int): Series {
-        val serials = SerialStore(db)
-        val serial = serials.create("Анализ ${System.nanoTime()}", "/srv/got")
-        return seriesStore.insert(
-            Series(
-                serialId = serial.id!!,
+    private fun newEpisode(frameCount: Int): Episode {
+        val movies = MovieStore(db)
+        val movie = movies.create("Анализ ${System.nanoTime()}", "/srv/got")
+        return episodeStore.insert(
+            Episode(
+                movieId = movie.id!!,
                 ordinal = 0,
                 name = "S1E1",
                 sourcePath = "/srv/got/S1E1-${System.nanoTime()}.mkv",
@@ -93,11 +93,11 @@ class AnalysisRunTest {
 
     @Test
     fun `повторный анализ создаёт новый прогон и не трогает прежний`() {
-        val series = newSeries(300)
+        val episode = newEpisode(300)
         val first =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = "ffmpeg-scdet-1",
                     paramsHash = "a".repeat(64),
@@ -114,7 +114,7 @@ class AnalysisRunTest {
         val second =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = "ffmpeg-scdet-1",
                     paramsHash = "b".repeat(64),
@@ -126,7 +126,7 @@ class AnalysisRunTest {
             ),
         )
 
-        val runs = runStore.listBySeries(series.id!!)
+        val runs = runStore.listByEpisode(episode.id!!)
         assertEquals(2, runs.size, "оба прогона обязаны остаться: без прежнего нет сравнения")
         assertEquals(first.id, runs.last().id, "свежий прогон идёт первым")
         assertEquals(AnalysisState.DONE, runs.last { it.id == first.id }.state)
@@ -136,7 +136,7 @@ class AnalysisRunTest {
         // Смена параметров помечает прежний результат устаревшим, но не
         // удаляет его: ручные правки по старым границам должны остаться
         // видимыми (FR-090, SC-006).
-        assertEquals(1, runStore.markStaleExcept(series.id!!, AnalysisKind.STRUCTURE, "b".repeat(64)))
+        assertEquals(1, runStore.markStaleExcept(episode.id!!, AnalysisKind.STRUCTURE, "b".repeat(64)))
         val stale = runStore.find(first.id!!)
         assertTrue(stale!!.isStale)
         assertEquals(AnalysisState.DONE, stale.state, "устаревший прогон не перестаёт быть прогоном")
@@ -145,11 +145,11 @@ class AnalysisRunTest {
 
     @Test
     fun `прогон в состоянии ошибки обязан нести текст`() {
-        val series = newSeries(100)
+        val episode = newEpisode(100)
         val run =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.FACES,
                     algorithmVersion = "detector-1",
                     paramsHash = "c".repeat(64),
@@ -158,7 +158,7 @@ class AnalysisRunTest {
 
         assertFailsWith<IllegalArgumentException> {
             AnalysisRun(
-                seriesId = series.id!!,
+                episodeId = episode.id!!,
                 kind = AnalysisKind.FACES,
                 algorithmVersion = "detector-1",
                 paramsHash = "d".repeat(64),
@@ -175,11 +175,11 @@ class AnalysisRunTest {
 
     @Test
     fun `сырая граница принадлежит ровно одному прогону`() {
-        val series = newSeries(100)
+        val episode = newEpisode(100)
         val run =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = "ffmpeg-scdet-1",
                     paramsHash = "e".repeat(64),
@@ -201,14 +201,14 @@ class AnalysisRunTest {
         assertTrue(scenes.all { it.runId == run.id }, "граница принадлежит ровно одному прогону")
 
         db.use { connection ->
-            assertTrue(runStore.listBySeries(series.id!!).all { it.kind == AnalysisKind.STRUCTURE })
+            assertTrue(runStore.listByEpisode(episode.id!!).all { it.kind == AnalysisKind.STRUCTURE })
             // Ссылка на прогон проверяется базой: граница без прогона
             // означала бы предложение алгоритма, у которого неизвестно, при
             // каких входах оно получено.
             assertFailsWith<java.sql.SQLException> {
                 connection
                     .prepareStatement(
-                        "INSERT INTO raw_boundary (run_id, level, first_frame, last_frame) VALUES (?, 'SCENE', 1, 1)",
+                        "INSERT INTO tbl_raw_boundaries (run_id, level, first_frame, last_frame) VALUES (?, 'SCENE', 1, 1)",
                     ).use { statement ->
                         statement.setLong(1, НЕСУЩЕСТВУЮЩИЙ_ПРОГОН)
                         statement.executeUpdate()
@@ -219,7 +219,7 @@ class AnalysisRunTest {
 
     @Test
     fun `сцены и планы покрывают серию без разрывов и перекрытий`() {
-        val series = newSeries(1000)
+        val episode = newEpisode(1000)
         val detection =
             DetectionResult(
                 sceneBoundaries = listOf(300, 700),
@@ -229,20 +229,20 @@ class AnalysisRunTest {
         val run =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = "ffmpeg-scdet-1",
                     paramsHash = "1".repeat(64),
                 ),
             )
 
-        val (sceneCount, shotCount) = structure.applyDetection(run.id!!, series.id!!, detection)
+        val (sceneCount, shotCount) = structure.applyDetection(run.id!!, episode.id!!, detection)
 
         assertEquals(3, sceneCount, "две границы сцен делят серию на три сцены")
         assertEquals(6, shotCount, "пять границ планов делят серию на шесть планов")
 
-        val scenes = structure.listScenes(series.id!!)
-        val shots = structure.listShots(series.id!!)
+        val scenes = structure.listScenes(episode.id!!)
+        val shots = structure.listShots(episode.id!!)
         assertTrue(scenes.zipWithNext().all { (a, b) -> a.lastFrame + 1 == b.firstFrame }, "между сценами нет разрывов и перекрытий")
         assertTrue(shots.zipWithNext().all { (a, b) -> a.lastFrame + 1 == b.firstFrame }, "между планами нет разрывов и перекрытий")
         assertEquals(0, scenes.first().firstFrame)
@@ -255,7 +255,7 @@ class AnalysisRunTest {
 
     @Test
     fun `связь сцена и плана вычисляется по диапазонам кадров`() {
-        val series = newSeries(1000)
+        val episode = newEpisode(1000)
         val detection =
             DetectionResult(
                 sceneBoundaries = listOf(400),
@@ -265,16 +265,16 @@ class AnalysisRunTest {
         val run =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = "ffmpeg-scdet-1",
                     paramsHash = "2".repeat(64),
                 ),
             )
-        structure.applyDetection(run.id!!, series.id!!, detection)
+        structure.applyDetection(run.id!!, episode.id!!, detection)
 
-        val scenes = structure.listScenes(series.id!!)
-        val shots = structure.listShots(series.id!!)
+        val scenes = structure.listScenes(episode.id!!)
+        val shots = structure.listShots(episode.id!!)
         val firstScene = scenes.first { it.firstFrame == 0 }
         val secondScene = scenes.first { it.firstFrame == 400 }
 
@@ -292,20 +292,20 @@ class AnalysisRunTest {
 
     @Test
     fun `происхождение границы принимает ровно три значения`() {
-        val series = newSeries(100)
+        val episode = newEpisode(100)
         val detection = DetectionResult(sceneBoundaries = emptyList(), shotBoundaries = emptyList(), scores = 0)
         val run =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = "ffmpeg-scdet-1",
                     paramsHash = "3".repeat(64),
                 ),
             )
-        structure.applyDetection(run.id!!, series.id!!, detection)
+        structure.applyDetection(run.id!!, episode.id!!, detection)
 
-        val stored = structure.listScenes(series.id!!).single()
+        val stored = structure.listScenes(episode.id!!).single()
         assertEquals(BoundaryOrigin.AUTO, stored.origin)
         assertEquals(
             listOf(BoundaryOrigin.AUTO, BoundaryOrigin.OPERATOR, BoundaryOrigin.CANCELLED),
@@ -317,20 +317,20 @@ class AnalysisRunTest {
             assertFailsWith<java.sql.SQLException> {
                 connection
                     .prepareStatement(
-                        "INSERT INTO scene (series_id, first_frame, last_frame, origin) " +
+                        "INSERT INTO tbl_scenes (id_episode, first_frame, last_frame, origin) " +
                             "VALUES (?, 0, 10, 'MAGIC')",
                     ).use { statement ->
-                        statement.setLong(1, series.id!!)
+                        statement.setLong(1, episode.id!!)
                         statement.executeUpdate()
                     }
             }
             assertFailsWith<java.sql.SQLException> {
                 connection
                     .prepareStatement(
-                        "INSERT INTO scene (series_id, first_frame, last_frame, origin) " +
+                        "INSERT INTO tbl_scenes (id_episode, first_frame, last_frame, origin) " +
                             "VALUES (?, 20, 10, 'AUTO')",
                     ).use { statement ->
-                        statement.setLong(1, series.id!!)
+                        statement.setLong(1, episode.id!!)
                         statement.executeUpdate()
                     }
             }
@@ -339,11 +339,11 @@ class AnalysisRunTest {
 
     @Test
     fun `прежняя структура помечается устаревшей, а не удаляется`() {
-        val series = newSeries(600)
+        val episode = newEpisode(600)
         val firstRun =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = "ffmpeg-scdet-1",
                     paramsHash = "4".repeat(64),
@@ -351,13 +351,13 @@ class AnalysisRunTest {
             )
         structure.applyDetection(
             firstRun.id!!,
-            series.id!!,
+            episode.id!!,
             DetectionResult(listOf(200), listOf(200), scores = 4),
         )
         val secondRun =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = "ffmpeg-scdet-1",
                     paramsHash = "5".repeat(64),
@@ -365,18 +365,18 @@ class AnalysisRunTest {
             )
         structure.applyDetection(
             secondRun.id!!,
-            series.id!!,
+            episode.id!!,
             DetectionResult(listOf(300), listOf(300), scores = 4),
         )
 
-        val scenes = structure.listScenes(series.id!!)
+        val scenes = structure.listScenes(episode.id!!)
         assertEquals(4, scenes.size, "прежняя структура сохранена, новая добавлена рядом")
         assertTrue(scenes.any { it.isStale }, "прежние сцены помечены устаревшими")
         assertTrue(scenes.any { !it.isStale }, "новые сцены актуальны")
         assertNotNull(scenes.first { it.firstFrame == 200 }.runId)
         assertFalse(scenes.first { it.firstFrame == 0 && !it.isStale }.isStale)
         assertNull(
-            structure.listScenes(series.id!!).firstOrNull { it.firstFrame == 999 },
+            structure.listScenes(episode.id!!).firstOrNull { it.firstFrame == 999 },
             "структура покрывает серию целиком, а не выходит за её пределы",
         )
     }

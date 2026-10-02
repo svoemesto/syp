@@ -23,12 +23,12 @@ import kotlin.test.assertTrue
 /**
  * Проверки эндпоинтов приёма сериала и серии.
  *
- * Закрываются требованиями задачи T036: реализованы `GET /api/serials`,
- * `POST /api/serials`, `GET /api/serials/{serialId}`,
- * `DELETE /api/serials/{serialId}`, `GET /api/serials/{serialId}/series`,
- * `POST /api/serials/{serialId}/series`, `GET /api/series/{seriesId}`,
- * `DELETE /api/series/{seriesId}`, `GET /api/serials/{serialId}/settings` и
- * `PUT /api/serials/{serialId}/settings` (FR-100, FR-101).
+ * Закрываются требованиями задачи T036: реализованы `GET /api/movies`,
+ * `POST /api/movies`, `GET /api/movies/{movieId}`,
+ * `DELETE /api/movies/{movieId}`, `GET /api/movies/{movieId}/episode`,
+ * `POST /api/movies/{movieId}/episode`, `GET /api/episode/{episodeId}`,
+ * `DELETE /api/episode/{episodeId}`, `GET /api/movies/{movieId}/settings` и
+ * `PUT /api/movies/{movieId}/settings` (FR-100, FR-101).
  *
  * Контроллер проверяется напрямую, без поднятого HTTP-сервера: проверяются
  * контракт ответов и коды отказов, а не работа сетевого слоя Spring.
@@ -41,9 +41,9 @@ import kotlin.test.assertTrue
 class CatalogControllerTest {
     private val mapper = ObjectMapper().registerKotlinModule()
     private lateinit var db: Db
-    private lateinit var serials: SerialStore
-    private lateinit var seriesStore: SeriesStore
-    private lateinit var settingsStore: SerialSettingsStore
+    private lateinit var movies: MovieStore
+    private lateinit var episodeStore: EpisodeStore
+    private lateinit var settingsStore: MovieSettingsStore
     private lateinit var controller: CatalogController
     private lateinit var errors: ApiErrors
     private lateinit var root: Path
@@ -57,18 +57,18 @@ class CatalogControllerTest {
     @BeforeEach
     fun prepare() {
         db = TestDatabase.assumeDatabase()
-        serials = SerialStore(db)
-        seriesStore = SeriesStore(db)
-        settingsStore = SerialSettingsStore(db, mapper)
+        movies = MovieStore(db)
+        episodeStore = EpisodeStore(db)
+        settingsStore = MovieSettingsStore(db, mapper)
         root = Files.createTempDirectory("syp-api").resolve("корень")
         Files.createDirectories(root)
         val ffprobe = programOnPath("ffprobe") ?: throw org.opentest4j.TestAbortedException("ffprobe не найден в PATH")
         controller =
             CatalogController(
-                serials,
-                seriesStore,
+                movies,
+                episodeStore,
                 settingsStore,
-                SeriesRegistration(serials, seriesStore, SourceProbe(ExternalProgram(), ffprobe)),
+                EpisodeRegistration(movies, episodeStore, SourceProbe(ExternalProgram(), ffprobe)),
             )
         errors = ApiErrors()
     }
@@ -121,15 +121,15 @@ class CatalogControllerTest {
 
     @Test
     fun `список сериалов пуст, пока сериал не заведён`() {
-        val created = controller.createSerial(CreateSerialRequest("Пустой список ${System.nanoTime()}", "/srv/нет"))
+        val created = controller.createMovie(CreateMovieRequest("Пустой список ${System.nanoTime()}", "/srv/нет"))
 
-        assertEquals("/srv/нет", created.body?.serial?.sourceRoot)
-        assertTrue(controller.listSerials().any { it.id == created.body?.serial?.id })
+        assertEquals("/srv/нет", created.body?.movie?.sourceRoot)
+        assertTrue(controller.listMovies().any { it.id == created.body?.movie?.id })
     }
 
     @Test
     fun `создание сериала отдаёт его вместе с настройками по умолчанию`() {
-        val created = controller.createSerial(CreateSerialRequest("С настройками ${System.nanoTime()}", "/srv/got"))
+        val created = controller.createMovie(CreateMovieRequest("С настройками ${System.nanoTime()}", "/srv/got"))
 
         val body = created.body!!
         assertEquals(201, created.statusCode.value())
@@ -140,30 +140,30 @@ class CatalogControllerTest {
 
     @Test
     fun `чтение сериала отдаёт сериал, серии и настройки`() {
-        val created = controller.createSerial(CreateSerialRequest("Чтение ${System.nanoTime()}", "/srv/got"))
-        val serialId = created.body!!.serial.id
+        val created = controller.createMovie(CreateMovieRequest("Чтение ${System.nanoTime()}", "/srv/got"))
+        val movieId = created.body!!.movie.id
 
-        val detail = controller.readSerial(serialId)
+        val detail = controller.readMovie(movieId)
 
-        assertEquals(serialId, detail.serial.id)
+        assertEquals(movieId, detail.movie.id)
         assertEquals(11, detail.settings.size)
-        assertTrue(detail.series.isEmpty())
+        assertTrue(detail.episode.isEmpty())
     }
 
     @Test
     fun `удаление сериала снимает его со счёта`() {
-        val created = controller.createSerial(CreateSerialRequest("Удаление ${System.nanoTime()}", "/srv/got"))
-        val serialId = created.body!!.serial.id
+        val created = controller.createMovie(CreateMovieRequest("Удаление ${System.nanoTime()}", "/srv/got"))
+        val movieId = created.body!!.movie.id
 
-        val response = controller.deleteSerial(serialId)
+        val response = controller.deleteMovie(movieId)
 
         assertEquals(204, response.statusCode.value())
-        assertNull(serials.find(serialId))
+        assertNull(movies.find(movieId))
     }
 
     @Test
     fun `чтение несуществующего сериала даёт 404 с кодом и текстом`() {
-        val failure = assertFailsWith<DomainException> { controller.readSerial(-1) }
+        val failure = assertFailsWith<DomainException> { controller.readMovie(-1) }
 
         val response = errors.onDomainFailure(failure)
         assertEquals(404, response.statusCode.value())
@@ -173,7 +173,7 @@ class CatalogControllerTest {
 
     @Test
     fun `чтение несуществующей серии даёт 404, а не пустой ответ`() {
-        val failure = assertFailsWith<DomainException> { controller.readSeries(-1) }
+        val failure = assertFailsWith<DomainException> { controller.readEpisode(-1) }
 
         val response = errors.onDomainFailure(failure)
         assertEquals(404, response.statusCode.value())
@@ -182,10 +182,10 @@ class CatalogControllerTest {
 
     @Test
     fun `регистрация серии отдаёт снятые с файла параметры`() {
-        val serial = controller.createSerial(CreateSerialRequest("Серия ${System.nanoTime()}", root.toString())).body!!.serial
+        val movie = controller.createMovie(CreateMovieRequest("Серия ${System.nanoTime()}", root.toString())).body!!.movie
         val file = video("S01E01.mkv")
 
-        val response = controller.registerSeries(serial.id, RegisterSeriesRequest(file.toString()))
+        val response = controller.registerEpisode(movie.id, RegisterEpisodeRequest(file.toString()))
 
         assertEquals(201, response.statusCode.value())
         val view = response.body!!
@@ -207,13 +207,13 @@ class CatalogControllerTest {
 
     @Test
     fun `регистрация файла вне корня сериала даёт 400 с кодом SOURCE_UNREADABLE`() {
-        val serial = controller.createSerial(CreateSerialRequest("Вне корня ${System.nanoTime()}", root.toString())).body!!.serial
+        val movie = controller.createMovie(CreateMovieRequest("Вне корня ${System.nanoTime()}", root.toString())).body!!.movie
         val other = Files.createTempDirectory("syp-api").resolve("снаружи")
         Files.createDirectories(other)
 
         val failure =
             assertFailsWith<DomainException> {
-                controller.registerSeries(serial.id, RegisterSeriesRequest(other.resolve("серия.mkv").toString()))
+                controller.registerEpisode(movie.id, RegisterEpisodeRequest(other.resolve("серия.mkv").toString()))
             }
 
         val response = errors.onDomainFailure(failure)
@@ -223,31 +223,31 @@ class CatalogControllerTest {
 
     @Test
     fun `чтение серии и её удаление работают по идентификатору`() {
-        val serial = controller.createSerial(CreateSerialRequest("Удаление серии ${System.nanoTime()}", root.toString())).body!!.serial
+        val movie = controller.createMovie(CreateMovieRequest("Удаление серии ${System.nanoTime()}", root.toString())).body!!.movie
         val registered =
-            controller.registerSeries(serial.id, RegisterSeriesRequest(video("S01E02.mkv").toString())).body!!
+            controller.registerEpisode(movie.id, RegisterEpisodeRequest(video("S01E02.mkv").toString())).body!!
 
-        val read = controller.readSeries(registered.id)
+        val read = controller.readEpisode(registered.id)
 
         assertEquals(registered.id, read.id)
-        assertEquals(1, controller.listSeries(serial.id).size)
+        assertEquals(1, controller.listEpisode(movie.id).size)
 
-        assertEquals(204, controller.deleteSeries(registered.id).statusCode.value())
-        assertNull(seriesStore.find(registered.id))
+        assertEquals(204, controller.deleteEpisode(registered.id).statusCode.value())
+        assertNull(episodeStore.find(registered.id))
         assertTrue(video("S01E02.mkv").exists(), "снятие с учёта не должно трогать файл архива")
     }
 
     @Test
     fun `настройки читаются и меняются через эндпоинты`() {
-        val serial = controller.createSerial(CreateSerialRequest("Настройки ${System.nanoTime()}", "/srv/got")).body!!.serial
+        val movie = controller.createMovie(CreateMovieRequest("Настройки ${System.nanoTime()}", "/srv/got")).body!!.movie
 
-        val read = controller.readSettings(serial.id)
+        val read = controller.readSettings(movie.id)
         assertEquals(11, read.size)
         assertEquals("NUMBER_LIST", read.first { it.key == "shot.size.thresholds" }.kind)
 
         val updated =
             controller.updateSettings(
-                serial.id,
+                movie.id,
                 mapOf("scene.threshold" to mapper.readTree("14"), "cluster.merge_threshold" to mapper.readTree("0.8")),
             )
 
@@ -267,17 +267,17 @@ class CatalogControllerTest {
                 .asDouble(),
         )
 
-        val again = controller.updateSettings(serial.id, mapOf("scene.threshold" to mapper.readTree("14")))
+        val again = controller.updateSettings(movie.id, mapOf("scene.threshold" to mapper.readTree("14")))
         assertTrue(again.changedKeys.isEmpty(), "запись того же значения не является изменением")
     }
 
     @Test
     fun `неизвестная настройка отвечает 400 и перечисляет доступные`() {
-        val serial = controller.createSerial(CreateSerialRequest("Ошибка ${System.nanoTime()}", "/srv/got")).body!!.serial
+        val movie = controller.createMovie(CreateMovieRequest("Ошибка ${System.nanoTime()}", "/srv/got")).body!!.movie
 
         val failure =
             assertFailsWith<DomainException> {
-                controller.updateSettings(serial.id, mapOf("нет.такой" to mapper.readTree("1")))
+                controller.updateSettings(movie.id, mapOf("нет.такой" to mapper.readTree("1")))
             }
 
         val response = errors.onDomainFailure(failure)

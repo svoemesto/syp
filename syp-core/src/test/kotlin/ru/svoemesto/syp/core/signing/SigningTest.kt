@@ -21,7 +21,7 @@ class SigningTest {
     private val recipe =
         CanonicalObject.of(
             "schema_version" to 1,
-            "serial_name" to "Игра престолов",
+            "movie_name" to "Игра престолов",
             "items" to
                 listOf(
                     CanonicalObject.of(
@@ -54,7 +54,7 @@ class SigningTest {
     fun fieldOrderIsFixed() {
         val reordered =
             CanonicalObject.of(
-                "serial_name" to "Игра престолов",
+                "movie_name" to "Игра престолов",
                 "schema_version" to 1,
                 "items" to
                     listOf(
@@ -131,7 +131,7 @@ class SigningTest {
 
         val tampered =
             Canonicalizer.canonicalBytes(
-                CanonicalObject.of("schema_version" to 1, "serial_name" to "Подменённый сериал", "items" to emptyList<Any>()),
+                CanonicalObject.of("schema_version" to 1, "movie_name" to "Подменённый сериал", "items" to emptyList<Any>()),
             )
         assertTrue(
             !verificationKey.verify(tampered, signature),

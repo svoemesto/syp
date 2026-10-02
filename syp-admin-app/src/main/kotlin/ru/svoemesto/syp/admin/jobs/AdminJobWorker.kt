@@ -254,7 +254,7 @@ class AdminJobWorker(
             connection
                 .prepareStatement(
                     """
-                    UPDATE job
+                    UPDATE tbl_jobs
                        SET state = 'WAITING',
                            started_at = NULL,
                            progress_note = COALESCE(progress_note, '') ||

@@ -34,20 +34,20 @@ import java.nio.file.Paths
  * несуществующая, сообщала бы «файла нет» — а дело в том, что каталог выбран не
  * тот, и оператор пошёл бы искать несуществующий файл вместо неверного корня.
  *
- * @property serials хранилище сериалов
- * @property seriesStore хранилище серий
+ * @property movies хранилище сериалов
+ * @property episodeStore хранилище серий
  * @property probe опрос файла серии
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class SeriesRegistration(
-    private val serials: SerialStore,
-    private val seriesStore: SeriesStore,
+class EpisodeRegistration(
+    private val movies: MovieStore,
+    private val episodeStore: EpisodeStore,
     private val probe: SourceProbe,
 ) {
     /**
      * Регистрирует серию в сериале.
      *
-     * @param serialId сериал-владелец
+     * @param movieId сериал-владелец
      * @param sourcePath путь к исходному видеофайлу
      * @param name название серии; если не задано, берётся имя файла без
      *   расширения
@@ -57,24 +57,24 @@ class SeriesRegistration(
      *   недоступен; с кодом `CONFLICT`, если такой файл уже зарегистрирован
      */
     fun register(
-        serialId: Long,
+        movieId: Long,
         sourcePath: String,
         name: String? = null,
         seasonId: Long? = null,
         episodeOrdinal: Int = 0,
-    ): Series {
-        val serial =
-            serials.find(serialId)
+    ): Episode {
+        val movie =
+            movies.find(movieId)
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
-                    "сериал $serialId не заведён: создайте сериал с корнем каталога и повторите",
+                    "сериал $movieId не заведён: создайте сериал с корнем каталога и повторите",
                 )
-        val file = requireInsideRoot(serial, sourcePath)
+        val file = requireInsideRoot(movie, sourcePath)
         val parameters = probe.probe(file)
-        val series =
-            Series.of(
-                serialId = serial.id!!,
-                ordinal = serials.nextSeriesOrdinal(serialId),
+        val episode =
+            Episode.of(
+                movieId = movie.id!!,
+                ordinal = movies.nextEpisodeOrdinal(movieId),
                 name = (name?.takeIf { it.isNotBlank() }) ?: file.fileName.toString().substringBeforeLast('.'),
                 seasonId = seasonId,
                 episodeOrdinal =
@@ -92,14 +92,14 @@ class SeriesRegistration(
                 sourcePath = file.toString(),
                 parameters = parameters,
             )
-        return seriesStore.insert(series)
+        return episodeStore.insert(episode)
     }
 
     /**
      * Проверяет, что файл лежит внутри корня каталога сериала, и отдаёт его
      * настоящий путь.
      *
-     * @param serial сериал-владелец
+     * @param movie сериал-владелец
      * @param sourcePath путь, указанный оператором
      * @return путь к файлу с раскрытыми символами
      * @throws DomainException с кодом `SOURCE_UNREADABLE`, если путь не
@@ -107,15 +107,15 @@ class SeriesRegistration(
      *   каталог недоступен или самого файла нет
      */
     fun requireInsideRoot(
-        serial: Serial,
+        movie: Movie,
         sourcePath: String,
     ): Path {
-        val root = requireAccessibleRoot(serial)
+        val root = requireAccessibleRoot(movie)
         val declared = requireAbsolute(sourcePath)
         val normalized = declared.normalize()
 
         if (!normalized.startsWith(root)) {
-            throw outsideRoot(serial, declared)
+            throw outsideRoot(movie, declared)
         }
         if (!Files.isRegularFile(normalized)) {
             throw unreadableFile(
@@ -130,7 +130,7 @@ class SeriesRegistration(
         val real = normalized.toRealPath()
         val realRoot = root.toRealPath()
         if (!real.startsWith(realRoot)) {
-            throw outsideRoot(serial, declared)
+            throw outsideRoot(movie, declared)
         }
         if (!Files.isReadable(real)) {
             throw unreadableFile(declared, "файл не доступен для чтения: проверьте права на архив")
@@ -172,16 +172,16 @@ class SeriesRegistration(
     /**
      * Проверяет, что корневой каталог сериала доступен.
      *
-     * @param serial сериал-владелец
+     * @param movie сериал-владелец
      * @return настоящий путь корня
      * @throws DomainException с кодом `SOURCE_UNREADABLE`, если каталога нет
      */
-    private fun requireAccessibleRoot(serial: Serial): Path {
-        val root = Paths.get(serial.sourceRoot)
+    private fun requireAccessibleRoot(movie: Movie): Path {
+        val root = Paths.get(movie.sourceRoot)
         if (!Files.isDirectory(root)) {
             throw DomainException(
                 ErrorCode.SOURCE_UNREADABLE,
-                "корневой каталог сериала «${serial.sourceRoot}» недоступен: " +
+                "корневой каталог сериала «${movie.sourceRoot}» недоступен: " +
                     "каталога нет или он не смонтирован. Проверьте корень в карточке сериала",
             )
         }
@@ -191,17 +191,17 @@ class SeriesRegistration(
     /**
      * Отказ «путь вне корня каталога сериала».
      *
-     * @param serial сериал-владелец
+     * @param movie сериал-владелец
      * @param path путь, указанный оператором
      * @return исключение с кодом `SOURCE_UNREADABLE`
      */
     private fun outsideRoot(
-        serial: Serial,
+        movie: Movie,
         path: Path,
     ): DomainException =
         DomainException(
             ErrorCode.SOURCE_UNREADABLE,
-            "файл «$path» лежит вне корня каталога сериала «${serial.sourceRoot}»: " +
+            "файл «$path» лежит вне корня каталога сериала «${movie.sourceRoot}»: " +
                 "сценарий сборки обращается к файлам по путям относительно этого корня, " +
                 "и путь вне его был бы выдуманным (FR-089a)",
         )

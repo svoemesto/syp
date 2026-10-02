@@ -3,9 +3,9 @@ package ru.svoemesto.syp.admin.characters
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import ru.svoemesto.syp.core.db.Db
 import java.time.OffsetDateTime
@@ -38,8 +38,8 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FaceStoreTest {
     private lateinit var db: Db
-    private lateinit var serials: SerialStore
-    private lateinit var seriesStore: SeriesStore
+    private lateinit var movies: MovieStore
+    private lateinit var episodeStore: EpisodeStore
     private lateinit var faces: FaceStore
     private lateinit var persons: PersonService
     private lateinit var binding: FacePlanBinding
@@ -55,8 +55,8 @@ class FaceStoreTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        serials = SerialStore(db)
-        seriesStore = SeriesStore(db)
+        movies = MovieStore(db)
+        episodeStore = EpisodeStore(db)
         faces = FaceStore(db)
         persons = PersonService(db)
         binding = FacePlanBinding(db)
@@ -68,11 +68,11 @@ class FaceStoreTest {
      * @param frames число кадров серии
      * @return записанная серия
      */
-    private fun newSeries(frames: Int = 1000): Series {
-        val serial = serials.create("Лица ${System.nanoTime()}", "/srv/got")
-        return seriesStore.insert(
-            Series(
-                serialId = requireNotNull(serial.id),
+    private fun newEpisode(frames: Int = 1000): Episode {
+        val movie = movies.create("Лица ${System.nanoTime()}", "/srv/got")
+        return episodeStore.insert(
+            Episode(
+                movieId = requireNotNull(movie.id),
                 ordinal = 0,
                 name = "S01E0${System.nanoTime() % 10}",
                 sourcePath = "/srv/got/лица-${System.nanoTime()}.mkv",
@@ -97,12 +97,12 @@ class FaceStoreTest {
 
     @Test
     fun `у лица сохранены рамка, порядковый номер и уверенность`() {
-        val series = newSeries()
-        val seriesId = requireNotNull(series.id)
-        val unrecognized = requireNotNull(persons.servicePerson(series.serialId, PersonKind.UNRECOGNIZED).id)
+        val episode = newEpisode()
+        val episodeId = requireNotNull(episode.id)
+        val unrecognized = requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
 
         faces.saveFrame(
-            seriesId = seriesId,
+            episodeId = episodeId,
             frameNumber = 42,
             found =
                 listOf(
@@ -114,7 +114,7 @@ class FaceStoreTest {
             frameHeight = frameHeight,
         )
 
-        val stored = faces.listBySeries(seriesId).filter { it.frameNumber == 42 }
+        val stored = faces.listByEpisode(episodeId).filter { it.frameNumber == 42 }
         assertEquals(2, stored.size, "в кадре записано два лица")
         val byIndex = stored.associateBy { it.faceIndex }
         val first = byIndex.getValue(0)
@@ -129,36 +129,36 @@ class FaceStoreTest {
 
     @Test
     fun `естественный ключ лица — серия, кадр и порядковый номер`() {
-        val series = newSeries()
-        val seriesId = requireNotNull(series.id)
-        val unrecognized = requireNotNull(persons.servicePerson(series.serialId, PersonKind.UNRECOGNIZED).id)
+        val episode = newEpisode()
+        val episodeId = requireNotNull(episode.id)
+        val unrecognized = requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
         val found = listOf(DetectedFace(10, 10, 110, 110, 0.9))
 
         // Повторный проход идёт через replaceAutoFrame — так пишет задание
         // FACES: рамки прежнего прохода той же серии обновляются, а не
         // плодят вторые строки.
-        faces.replaceAutoFrame(seriesId, 7, found, { unrecognized }, frameWidth, frameHeight)
-        faces.replaceAutoFrame(seriesId, 7, found, { unrecognized }, frameWidth, frameHeight)
+        faces.replaceAutoFrame(episodeId, 7, found, { unrecognized }, frameWidth, frameHeight)
+        faces.replaceAutoFrame(episodeId, 7, found, { unrecognized }, frameWidth, frameHeight)
 
         assertEquals(
             1,
-            faces.listBySeries(seriesId).count { it.frameNumber == 7 },
+            faces.listByEpisode(episodeId).count { it.frameNumber == 7 },
             "повторная запись того же кадра не плодит второе лицо: работает естественный ключ",
         )
     }
 
     @Test
     fun `база отвергает перевёрнутую рамку`() {
-        val series = newSeries()
-        val seriesId = requireNotNull(series.id)
-        val unrecognized = requireNotNull(persons.servicePerson(series.serialId, PersonKind.UNRECOGNIZED).id)
+        val episode = newEpisode()
+        val episodeId = requireNotNull(episode.id)
+        val unrecognized = requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
 
         val failure =
             assertFailsWith<Exception> {
                 db.update(
-                    "INSERT INTO ${FaceStore.TABLE} (series_id, frame_number, face_index, x1, y1, x2, y2, " +
+                    "INSERT INTO ${FaceStore.TABLE} (id_episode, frame_number, face_index, x1, y1, x2, y2, " +
                         "person_id, origin) VALUES (?, 3, 0, 200, 10, 100, 100, ?, 'AUTO')",
-                    seriesId,
+                    episodeId,
                     unrecognized,
                 )
             }
@@ -171,16 +171,16 @@ class FaceStoreTest {
 
     @Test
     fun `база отвергает рамку за пределами разрешения`() {
-        val series = newSeries()
-        val seriesId = requireNotNull(series.id)
-        val unrecognized = requireNotNull(persons.servicePerson(series.serialId, PersonKind.UNRECOGNIZED).id)
+        val episode = newEpisode()
+        val episodeId = requireNotNull(episode.id)
+        val unrecognized = requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
 
         val failure =
             assertFailsWith<Exception> {
                 db.update(
-                    "INSERT INTO ${FaceStore.TABLE} (series_id, frame_number, face_index, x1, y1, x2, y2, " +
+                    "INSERT INTO ${FaceStore.TABLE} (id_episode, frame_number, face_index, x1, y1, x2, y2, " +
                         "person_id, origin) VALUES (?, 5, 0, 10, 10, 5000, 100, ?, 'AUTO')",
-                    seriesId,
+                    episodeId,
                     unrecognized,
                 )
             }
@@ -189,26 +189,26 @@ class FaceStoreTest {
             "база обязана отвергнуть рамку за пределами кадра, а отвечает: ${failure.message}",
         )
         assertNull(
-            faces.listBySeries(seriesId).firstOrNull { it.frameNumber == 5 },
+            faces.listByEpisode(episodeId).firstOrNull { it.frameNumber == 5 },
             "несохранённой рамки в базе быть не должно",
         )
     }
 
     @Test
     fun `принадлежность лица плану соответствует диапазонам кадров`() {
-        val series = newSeries()
-        val seriesId = requireNotNull(series.id)
-        val unrecognized = requireNotNull(persons.servicePerson(series.serialId, PersonKind.UNRECOGNIZED).id)
-        val firstShot = insertShot(seriesId, 0, 99)
-        val secondShot = insertShot(seriesId, 100, 199)
+        val episode = newEpisode()
+        val episodeId = requireNotNull(episode.id)
+        val unrecognized = requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
+        val firstShot = insertShot(episodeId, 0, 99)
+        val secondShot = insertShot(episodeId, 100, 199)
 
-        faces.saveFrame(seriesId, 50, listOf(DetectedFace(10, 10, 110, 110, 0.9)), { unrecognized }, frameWidth, frameHeight)
-        faces.saveFrame(seriesId, 150, listOf(DetectedFace(10, 10, 110, 110, 0.9)), { unrecognized }, frameWidth, frameHeight)
-        faces.saveFrame(seriesId, 500, listOf(DetectedFace(10, 10, 110, 110, 0.9)), { unrecognized }, frameWidth, frameHeight)
+        faces.saveFrame(episodeId, 50, listOf(DetectedFace(10, 10, 110, 110, 0.9)), { unrecognized }, frameWidth, frameHeight)
+        faces.saveFrame(episodeId, 150, listOf(DetectedFace(10, 10, 110, 110, 0.9)), { unrecognized }, frameWidth, frameHeight)
+        faces.saveFrame(episodeId, 500, listOf(DetectedFace(10, 10, 110, 110, 0.9)), { unrecognized }, frameWidth, frameHeight)
 
-        binding.rebindSeries(seriesId)
+        binding.rebindEpisode(episodeId)
 
-        val stored = faces.listBySeries(seriesId).associateBy { it.frameNumber }
+        val stored = faces.listByEpisode(episodeId).associateBy { it.frameNumber }
         assertEquals(firstShot, stored.getValue(50).shotId, "кадр 50 лежит в первом плане")
         assertEquals(secondShot, stored.getValue(150).shotId, "кадр 150 лежит во втором плане")
         assertNull(stored.getValue(500).shotId, "кадр 500 вне всех планов — принадлежность пустая")
@@ -216,23 +216,23 @@ class FaceStoreTest {
 
     @Test
     fun `пересчёт отвязывает лицо от исчезнувшего плана`() {
-        val series = newSeries()
-        val seriesId = requireNotNull(series.id)
-        val unrecognized = requireNotNull(persons.servicePerson(series.serialId, PersonKind.UNRECOGNIZED).id)
-        insertShot(seriesId, 0, 199)
+        val episode = newEpisode()
+        val episodeId = requireNotNull(episode.id)
+        val unrecognized = requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
+        insertShot(episodeId, 0, 199)
 
-        faces.saveFrame(seriesId, 50, listOf(DetectedFace(10, 10, 110, 110, 0.9)), { unrecognized }, frameWidth, frameHeight)
-        binding.rebindSeries(seriesId)
+        faces.saveFrame(episodeId, 50, listOf(DetectedFace(10, 10, 110, 110, 0.9)), { unrecognized }, frameWidth, frameHeight)
+        binding.rebindEpisode(episodeId)
         assertNotNull(
-            faces.listBySeries(seriesId).first { it.frameNumber == 50 }.shotId,
+            faces.listByEpisode(episodeId).first { it.frameNumber == 50 }.shotId,
             "до пересчёта кадр принадлежит плану",
         )
 
-        db.update("UPDATE shot SET is_stale = TRUE WHERE series_id = ?", seriesId)
-        binding.rebindSeries(seriesId)
+        db.update("UPDATE tbl_shots SET is_stale = TRUE WHERE id_episode = ?", episodeId)
+        binding.rebindEpisode(episodeId)
 
         assertNull(
-            faces.listBySeries(seriesId).first { it.frameNumber == 50 }.shotId,
+            faces.listByEpisode(episodeId).first { it.frameNumber == 50 }.shotId,
             "план стал устаревшим — лицо обязано отвязаться от него",
         )
     }
@@ -250,12 +250,12 @@ class FaceStoreTest {
 
     @Test
     fun `порог пропорций не зашит в код а берётся у сериала`() {
-        val series = newSeries()
+        val episode = newEpisode()
         val settings =
             ru.svoemesto.syp.admin.catalog
-                .SerialSettingsStore(db)
-                .read(series.serialId)
-        val threshold = settings.number(ru.svoemesto.syp.admin.catalog.SerialSetting.FACE_NOT_PERSON_ASPECT)
+                .MovieSettingsStore(db)
+                .read(episode.movieId)
+        val threshold = settings.number(ru.svoemesto.syp.admin.catalog.MovieSetting.FACE_NOT_PERSON_ASPECT)
         assertTrue(
             threshold >= 1.0,
             "порог пропорций живёт в настройках сериала и не меньше единицы, задано $threshold",
@@ -265,28 +265,28 @@ class FaceStoreTest {
     /**
      * Заводит план серии напрямую в базе.
      *
-     * @param seriesId серия
+     * @param episodeId серия
      * @param first первый кадр
      * @param last последний кадр
      * @return идентификатор плана
      */
     private fun insertShot(
-        seriesId: Long,
+        episodeId: Long,
         first: Int,
         last: Int,
     ): Long {
         db.update(
-            "INSERT INTO shot (series_id, first_frame, last_frame, size, size_origin, origin, is_stale) " +
+            "INSERT INTO tbl_shots (id_episode, first_frame, last_frame, size, size_origin, origin, is_stale) " +
                 "VALUES (?, ?, ?, 'NONE', 'AUTO', 'AUTO', FALSE)",
-            seriesId,
+            episodeId,
             first,
             last,
         )
         return requireNotNull(
             db.selectOne(
-                "SELECT id FROM shot WHERE series_id = ? AND first_frame = ? AND last_frame = ?",
+                "SELECT id FROM tbl_shots WHERE id_episode = ? AND first_frame = ? AND last_frame = ?",
                 { it.long("id") },
-                seriesId,
+                episodeId,
                 first,
                 last,
             ),

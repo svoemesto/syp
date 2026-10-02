@@ -137,7 +137,7 @@ enum class SizeOrigin {
  * расхождение этих мест ловилось бы только при чтении.
  *
  * @property id идентификатор сцены; `null`, пока не записана
- * @property seriesId серия-владелец
+ * @property episodeId серия-владелец
  * @property firstFrame первый кадр сцены, нумерация с нуля
  * @property lastFrame последний кадр сцены
  * @property locationId место действия, если назначено вручную; `null`, если
@@ -151,7 +151,7 @@ enum class SizeOrigin {
  */
 data class Scene(
     val id: Long? = null,
-    val seriesId: Long,
+    val episodeId: Long,
     val firstFrame: Int,
     val lastFrame: Int,
     val title: String? = null,
@@ -179,7 +179,7 @@ data class Scene(
             StructureService.SCENE_COLUMNS,
             {
                 listOf(
-                    seriesId,
+                    episodeId,
                     firstFrame,
                     lastFrame,
                     title,
@@ -195,7 +195,7 @@ data class Scene(
     companion object {
         /** Столбцы сцены в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, series_id, first_frame, last_frame, title, location_id, origin, run_id, is_stale, recordhash"
+            "id, id_episode, first_frame, last_frame, title, location_id, origin, run_id, is_stale, recordhash"
     }
 }
 
@@ -211,7 +211,7 @@ data class Scene(
  * исправить размер, не трогая границу, и наоборот.
  *
  * @property id идентификатор плана; `null`, пока не записан
- * @property seriesId серия-владелец
+ * @property episodeId серия-владелец
  * @property firstFrame первый кадр плана, нумерация с нуля
  * @property lastFrame последний кадр плана
  * @property size размер плана; `NONE` у плана без лиц
@@ -224,7 +224,7 @@ data class Scene(
  */
 data class Shot(
     val id: Long? = null,
-    val seriesId: Long,
+    val episodeId: Long,
     val firstFrame: Int,
     val lastFrame: Int,
     val size: ShotSize = ShotSize.NONE,
@@ -252,7 +252,7 @@ data class Shot(
             StructureService.SHOT_COLUMNS,
             {
                 listOf(
-                    seriesId,
+                    episodeId,
                     firstFrame,
                     lastFrame,
                     size.name,
@@ -268,7 +268,7 @@ data class Shot(
     companion object {
         /** Столбцы плана в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, series_id, first_frame, last_frame, size, size_origin, origin, run_id, " +
+            "id, id_episode, first_frame, last_frame, size, size_origin, origin, run_id, " +
                 "is_stale, recordhash"
     }
 }
@@ -384,21 +384,21 @@ class StructureService(
      * Записывает результат прогона как рабочую структуру серии.
      *
      * @param runId идентификатор прогона
-     * @param seriesId серия-владелец
+     * @param episodeId серия-владелец
      * @param detection результат детекции
      * @return число записанных сцен и планов
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun applyDetection(
         runId: Long,
-        seriesId: Long,
+        episodeId: Long,
         detection: DetectionResult,
     ): Pair<Int, Int> {
-        val builder = StructureBuilder(detection, frameCountOf(seriesId))
+        val builder = StructureBuilder(detection, frameCountOf(episodeId))
         val scenes =
             builder.sceneSections().map { range ->
                 Scene(
-                    seriesId = seriesId,
+                    episodeId = episodeId,
                     firstFrame = range.firstFrame,
                     lastFrame = range.lastFrame,
                     origin = BoundaryOrigin.AUTO,
@@ -408,7 +408,7 @@ class StructureService(
         val shots =
             builder.shotSections().map { range ->
                 Shot(
-                    seriesId = seriesId,
+                    episodeId = episodeId,
                     firstFrame = range.firstFrame,
                     lastFrame = range.lastFrame,
                     size = ShotSize.NONE,
@@ -422,15 +422,15 @@ class StructureService(
             // удаление уничтожило бы ручные правки оператора, которые он делал
             // по старым границам (FR-090, SC-006).
             connection
-                .prepareStatement("UPDATE $SCENE_TABLE SET is_stale = TRUE WHERE series_id = ?")
+                .prepareStatement("UPDATE $SCENE_TABLE SET is_stale = TRUE WHERE id_episode = ?")
                 .use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.executeUpdate()
                 }
             connection
-                .prepareStatement("UPDATE $SHOT_TABLE SET is_stale = TRUE WHERE series_id = ?")
+                .prepareStatement("UPDATE $SHOT_TABLE SET is_stale = TRUE WHERE id_episode = ?")
                 .use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.executeUpdate()
                 }
             boundaryStore.appendAll(
@@ -468,27 +468,27 @@ class StructureService(
     /**
      * Читает рабочие сцены серии по возрастанию первого кадра.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return сцены серии
      */
-    fun listScenes(seriesId: Long): List<Scene> =
+    fun listScenes(episodeId: Long): List<Scene> =
         db.select(
-            "$SCENE_READ_SQL WHERE series_id = ? ORDER BY first_frame",
+            "$SCENE_READ_SQL WHERE id_episode = ? ORDER BY first_frame",
             ::readScene,
-            seriesId,
+            episodeId,
         )
 
     /**
      * Читает рабочие планы серии по возрастанию первого кадра.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return планы серии
      */
-    fun listShots(seriesId: Long): List<Shot> =
+    fun listShots(episodeId: Long): List<Shot> =
         db.select(
-            "$SHOT_READ_SQL WHERE series_id = ? ORDER BY first_frame",
+            "$SHOT_READ_SQL WHERE id_episode = ? ORDER BY first_frame",
             ::readShot,
-            seriesId,
+            episodeId,
         )
 
     /**
@@ -509,19 +509,19 @@ class StructureService(
     ): List<Shot> = shots.filter { it.firstFrame >= scene.firstFrame && it.lastFrame <= scene.lastFrame }
 
     /** Число кадров серии: без него границы не в чем разобрать. */
-    private fun frameCountOf(seriesId: Long): Int =
+    private fun frameCountOf(episodeId: Long): Int =
         db.selectOne(
-            "SELECT frame_count FROM series WHERE id = ?",
+            "SELECT frame_count FROM tbl_episodes WHERE id = ?",
             { it.int("frame_count") },
-            seriesId,
+            episodeId,
         ) ?: throw ru.svoemesto.syp.core.db
-            .DbException("Серия $seriesId не найдена: не из чего собрать структуру")
+            .DbException("Серия $episodeId не найдена: не из чего собрать структуру")
 
     /** Строит сцену из типизированной строки выборки. */
     private fun readScene(row: Row): Scene =
         Scene(
             id = row.long("id"),
-            seriesId = row.long("series_id"),
+            episodeId = row.long("id_episode"),
             firstFrame = row.int("first_frame"),
             lastFrame = row.int("last_frame"),
             title = row.stringOrNull("title"),
@@ -536,7 +536,7 @@ class StructureService(
     private fun readShot(row: Row): Shot =
         Shot(
             id = row.long("id"),
-            seriesId = row.long("series_id"),
+            episodeId = row.long("id_episode"),
             firstFrame = row.int("first_frame"),
             lastFrame = row.int("last_frame"),
             size = ShotSize.parse(row.string("size")),
@@ -549,15 +549,15 @@ class StructureService(
 
     companion object {
         /** Имя таблицы рабочих сцен. */
-        const val SCENE_TABLE: String = "scene"
+        const val SCENE_TABLE: String = "tbl_scenes"
 
         /** Имя таблицы рабочих планов. */
-        const val SHOT_TABLE: String = "shot"
+        const val SHOT_TABLE: String = "tbl_shots"
 
         /** Записываемые столбцы сцены в порядке значений. */
         val SCENE_COLUMNS: List<String> =
             listOf(
-                "series_id",
+                "id_episode",
                 "first_frame",
                 "last_frame",
                 "title",
@@ -570,7 +570,7 @@ class StructureService(
         /** Записываемые столбцы плана в порядке значений. */
         val SHOT_COLUMNS: List<String> =
             listOf(
-                "series_id",
+                "id_episode",
                 "first_frame",
                 "last_frame",
                 "size",

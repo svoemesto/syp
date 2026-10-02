@@ -1,6 +1,6 @@
 package ru.svoemesto.syp.admin.characters
 
-import ru.svoemesto.syp.admin.catalog.SerialSettings
+import ru.svoemesto.syp.admin.catalog.MovieSettings
 
 /**
  * Приёмник рамок, записывающий их в базу.
@@ -24,7 +24,7 @@ import ru.svoemesto.syp.admin.catalog.SerialSettings
  * @property maxAspect порог пропорции из настроек сериала
  * @property unrecognizedId служебная персона «распознано, имя не подтверждено»
  * @property nonPersonId служебная персона «не лицо»
- * @property seriesId серия, к которой относятся рамки
+ * @property episodeId серия, к которой относятся рамки
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class StoringFaceSink(
@@ -33,7 +33,7 @@ class StoringFaceSink(
     private val maxAspect: Double,
     private val unrecognizedId: Long,
     private val nonPersonId: Long,
-    private val seriesId: Long,
+    private val episodeId: Long,
 ) : FaceSink {
     /**
      * Записывает найденные лица кадра.
@@ -51,7 +51,7 @@ class StoringFaceSink(
     ) {
         if (found.isEmpty()) return
         faces.replaceAutoFrame(
-            seriesId = seriesId,
+            episodeId = episodeId,
             frameNumber = frameNumber,
             found = found,
             personOf = { detected ->
@@ -83,25 +83,25 @@ class FaceSinkFactory(
     /**
      * Собирает приёмник рамок для серии.
      *
-     * @param series серия; из неё берётся сериал-владелец
+     * @param episode серия; из неё берётся сериал-владелец
      * @param settings настройки сериала: из них берётся порог пропорции
      * @return приёмник, пишущий рамки в базу
      */
-    fun forSeries(
-        series: ru.svoemesto.syp.admin.catalog.Series,
-        settings: SerialSettings,
+    fun forEpisode(
+        episode: ru.svoemesto.syp.admin.catalog.Episode,
+        settings: MovieSettings,
     ): FaceSink {
-        val seriesId = requireNotNull(series.id) { "У серии «${series.name}» нет идентификатора: рамкам некуда писаться" }
+        val episodeId = requireNotNull(episode.id) { "У серии «${episode.name}» нет идентификатора: рамкам некуда писаться" }
         val unrecognized =
-            requireNotNull(persons.servicePerson(series.serialId, PersonKind.UNRECOGNIZED).id)
-        val nonPerson = requireNotNull(persons.servicePerson(series.serialId, PersonKind.NONPERSON).id)
+            requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
+        val nonPerson = requireNotNull(persons.servicePerson(episode.movieId, PersonKind.NONPERSON).id)
         return StoringFaceSink(
             faces = faces,
             nonPersonFilter = nonPersonFilter,
             maxAspect = nonPersonFilter.thresholdOf(settings),
             unrecognizedId = unrecognized,
             nonPersonId = nonPerson,
-            seriesId = seriesId,
+            episodeId = episodeId,
         )
     }
 }

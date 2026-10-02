@@ -14,7 +14,7 @@ import java.time.OffsetDateTime
  *
  * Сериал владеет справочником мест действия, списком серий и настройками
  * анализа. Одна серия принадлежит **ровно одному** сериалу: это не соглашение,
- * а внешний ключ `series.serial_id NOT NULL`.
+ * а внешний ключ `episode.id_movie NOT NULL`.
  *
  * **Корень каталога** — обязательное поле, а не украшение. Сценарий сборки
  * обращается к файлам по путям относительно этого корня (FR-089a): у
@@ -33,7 +33,7 @@ import java.time.OffsetDateTime
  * @property recordHash хеш значений строки, прочитанный при загрузке
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class Serial(
+data class Movie(
     val id: Long? = null,
     val name: String,
     val sourceRoot: String,
@@ -66,7 +66,7 @@ data class Serial(
 
     companion object {
         /** Имя таблицы сериалов. */
-        const val NAME: String = "serial"
+        const val NAME: String = "tbl_movies"
 
         /** Записываемые столбцы сериала в порядке значений. */
         val COLUMNS: List<String> = listOf("name", "source_root")
@@ -83,13 +83,13 @@ data class Serial(
  * нет, и хранить его означало бы держать вторую правду о составе сериала,
  * которая расходилась бы с фактом после каждого удаления.
  *
- * @property serial сам сериал
- * @property seriesCount сколько серий заведено в сериале
+ * @property movie сам сериал
+ * @property episodeCount сколько серий заведено в сериале
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class SerialSummary(
-    val serial: Serial,
-    val seriesCount: Int,
+data class MovieSummary(
+    val movie: Movie,
+    val episodeCount: Int,
 )
 
 /**
@@ -103,7 +103,7 @@ data class SerialSummary(
  * @property db доступ к базе сырым JDBC
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class SerialStore(
+class MovieStore(
     private val db: Db,
 ) {
     /**
@@ -121,28 +121,28 @@ class SerialStore(
     fun create(
         name: String,
         sourceRoot: String,
-    ): Serial {
-        val serial = Serial(name = name.trim(), sourceRoot = sourceRoot.trim())
+    ): Movie {
+        val movie = Movie(name = name.trim(), sourceRoot = sourceRoot.trim())
         return db.useTransaction { connection ->
-            val existing = findByName(connection, serial.name)
+            val existing = findByName(connection, movie.name)
             if (existing != null) {
                 throw DomainException(
                     ErrorCode.CONFLICT,
-                    "сериал «${serial.name}» уже заведён: переименуйте или удалите прежний",
+                    "сериал «${movie.name}» уже заведён: переименуйте или удалите прежний",
                 )
             }
-            Save.insertIfAbsent(connection, serial.toTable())
-            readRequired(connection, findByName(connection, serial.name))
+            Save.insertIfAbsent(connection, movie.toTable())
+            readRequired(connection, findByName(connection, movie.name))
         }
     }
 
     /**
      * Читает сериал по идентификатору.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @return сериал или `null`, если его нет
      */
-    fun find(serialId: Long): Serial? = db.selectOne(SELECT_BY_ID, ::readRow, serialId)
+    fun find(movieId: Long): Movie? = db.selectOne(SELECT_BY_ID, ::readRow, movieId)
 
     /**
      * Перечисляет сериалы с числом серий каждого.
@@ -153,10 +153,10 @@ class SerialStore(
      *
      * @return сериалы с числом серий в порядке создания
      */
-    fun listWithSeriesCount(): List<SerialSummary> =
+    fun listWithEpisodeCount(): List<MovieSummary> =
         db.select(
             "$SELECT_WITH_COUNT ORDER BY s.created_at, s.id",
-            { row -> SerialSummary(readRow(row), row.int("series_count")) },
+            { row -> MovieSummary(readRow(row), row.int("episode_count")) },
         )
 
     /**
@@ -164,24 +164,24 @@ class SerialStore(
      *
      * @return сериалы в порядке создания
      */
-    fun list(): List<Serial> = db.select("SELECT ${Serial.READ_COLUMNS} FROM serial ORDER BY created_at, id", ::readRow)
+    fun list(): List<Movie> = db.select("SELECT ${Movie.READ_COLUMNS} FROM tbl_movies ORDER BY created_at, id", ::readRow)
 
     /**
      * Сохраняет изменения сериала, если значения изменились.
      *
-     * @param serial сериал с заполненным [Serial.id]
+     * @param movie сериал с заполненным [Movie.id]
      * @return `true`, если строка переписана
      * @throws DomainException если у сериала нет идентификатора
      */
-    fun save(serial: Serial): Boolean {
-        val serialId =
-            serial.id
+    fun save(movie: Movie): Boolean {
+        val movieId =
+            movie.id
                 ?: throw DomainException(
                     ErrorCode.BAD_REQUEST,
-                    "у сериала «${serial.name}» нет идентификатора: сохранять нечего",
+                    "у сериала «${movie.name}» нет идентификатора: сохранять нечего",
                 )
         return db.useTransaction { connection ->
-            Save.saveIfChanged(connection, serial.toTable(), listOf("id"), listOf(serialId))
+            Save.saveIfChanged(connection, movie.toTable(), listOf("id"), listOf(movieId))
         }
     }
 
@@ -192,32 +192,32 @@ class SerialStore(
      * фильтры, сценарии сборки, справочник сумм и настройки. Файл источника
      * при этом **не трогается** — он лежит в архиве и принадлежит не системе.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @return `true`, если сериал был удалён
      */
-    fun delete(serialId: Long): Boolean = db.update("DELETE FROM serial WHERE id = ?", serialId) > 0
+    fun delete(movieId: Long): Boolean = db.update("DELETE FROM tbl_movies WHERE id = ?", movieId) > 0
 
     /**
      * Считает серии сериала.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @return число серий
      */
-    fun countSeries(serialId: Long): Int =
-        db.selectOne("SELECT count(*) AS total FROM series WHERE serial_id = ?", { it.int("total") }, serialId) ?: 0
+    fun countEpisode(movieId: Long): Int =
+        db.selectOne("SELECT count(*) AS total FROM tbl_episodes WHERE id_movie = ?", { it.int("total") }, movieId) ?: 0
 
     /**
      * Следующий свободный порядковый номер серии в сериале.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @return номер, который можно занять
      */
-    fun nextSeriesOrdinal(serialId: Long): Int =
+    fun nextEpisodeOrdinal(movieId: Long): Int =
         (
             db.selectOne(
-                "SELECT COALESCE(max(ordinal), -1) + 1 AS next_ordinal FROM series WHERE serial_id = ?",
+                "SELECT COALESCE(max(ordinal), -1) + 1 AS next_ordinal FROM tbl_episodes WHERE id_movie = ?",
                 { it.int("next_ordinal") },
-                serialId,
+                movieId,
             ) ?: 0
         )
 
@@ -225,9 +225,9 @@ class SerialStore(
     private fun findByName(
         connection: Connection,
         name: String,
-    ): Serial? =
+    ): Movie? =
         connection
-            .prepareStatement("SELECT ${Serial.READ_COLUMNS} FROM serial WHERE name = ?")
+            .prepareStatement("SELECT ${Movie.READ_COLUMNS} FROM tbl_movies WHERE name = ?")
             .use { statement ->
                 statement.setString(1, name)
                 statement.executeQuery().use { resultSet ->
@@ -238,17 +238,17 @@ class SerialStore(
     /** Читает сериал в пределах открытого соединения по идентификатору. */
     private fun readRequired(
         connection: Connection,
-        serial: Serial?,
-    ): Serial =
-        serial
+        movie: Movie?,
+    ): Movie =
+        movie
             ?: throw DomainException(
                 ErrorCode.INTERNAL_ERROR,
                 "сериал записан, но сразу после записи не прочитан: это дефект, а не результат",
             )
 
     /** Строит сериал из готовой строки результата. */
-    private fun read(resultSet: java.sql.ResultSet): Serial =
-        Serial(
+    private fun read(resultSet: java.sql.ResultSet): Movie =
+        Movie(
             id = resultSet.getLong("id"),
             name = resultSet.getString("name"),
             sourceRoot = resultSet.getString("source_root"),
@@ -257,8 +257,8 @@ class SerialStore(
         )
 
     /** Строит сериал из типизированной строки выборки. */
-    private fun readRow(row: Row): Serial =
-        Serial(
+    private fun readRow(row: Row): Movie =
+        Movie(
             id = row.long("id"),
             name = row.string("name"),
             sourceRoot = row.string("source_root"),
@@ -271,12 +271,12 @@ class SerialStore(
 
     private companion object {
         /** Выборка одного сериала по идентификатору. */
-        val SELECT_BY_ID: String = "SELECT ${Serial.READ_COLUMNS} FROM serial WHERE id = ?"
+        val SELECT_BY_ID: String = "SELECT ${Movie.READ_COLUMNS} FROM tbl_movies WHERE id = ?"
 
         /** Выборка сериалов с числом серий каждого. */
         val SELECT_WITH_COUNT: String =
             "SELECT s.id, s.name, s.source_root, s.created_at, s.recordhash, " +
-                "(SELECT count(*) FROM series WHERE serial_id = s.id) AS series_count " +
-                "FROM serial s"
+                "(SELECT count(*) FROM tbl_episodes WHERE id_movie = s.id) AS episode_count " +
+                "FROM tbl_movies s"
     }
 }

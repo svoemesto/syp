@@ -1,8 +1,8 @@
 package ru.svoemesto.syp.admin.analysis
 
-import ru.svoemesto.syp.admin.catalog.SerialSetting
-import ru.svoemesto.syp.admin.catalog.SerialSettings
-import ru.svoemesto.syp.admin.catalog.Series
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.MovieSetting
+import ru.svoemesto.syp.admin.catalog.MovieSettings
 import ru.svoemesto.syp.core.jobs.JobProgress
 import ru.svoemesto.syp.core.jobs.ParamsHash
 import ru.svoemesto.syp.core.media.ExternalProgram
@@ -82,7 +82,7 @@ class SceneDetector(
     /**
      * Находит границы сцен и планов одним проходом.
      *
-     * @param series серия, файл которой разбирается
+     * @param episode серия, файл которой разбирается
      * @param sceneThreshold порог границы сцены: оценка не ниже него считается
      *   границей сцены
      * @param shotThreshold порог границы плана: оценка не ниже него считается
@@ -96,7 +96,7 @@ class SceneDetector(
      *   завершилась с ненулевым кодом
      */
     fun detect(
-        series: Series,
+        episode: Episode,
         sceneThreshold: Double,
         shotThreshold: Double,
         progress: (JobProgress) -> Unit = {},
@@ -117,7 +117,7 @@ class SceneDetector(
                         "-hide_banner",
                         "-nostdin",
                         "-i",
-                        series.sourcePath,
+                        episode.sourcePath,
                         "-vf",
                         "scdet=threshold=" + minOf(sceneThreshold, shotThreshold),
                         "-f",
@@ -132,7 +132,7 @@ class SceneDetector(
                 .ExternalProgramFailed(output, PROGRAM_NAME)
         }
 
-        val scores = parseScores(output.output, series)
+        val scores = parseScores(output.output, episode)
         return DetectionResult(
             sceneBoundaries = scores.filter { it.score >= sceneThreshold }.map { it.frame }.sorted(),
             shotBoundaries = scores.filter { it.score >= shotThreshold }.map { it.frame }.sorted(),
@@ -163,14 +163,14 @@ class SceneDetector(
      * `Double` на длинной серии давало бы расхождение в десятки кадров.
      *
      * @param output объединённый вывод программы
-     * @param series серия, для которой сняты параметры времени
+     * @param episode серия, для которой сняты параметры времени
      * @return оценки с номерами кадров по возрастанию
      */
     private fun parseScores(
         output: String,
-        series: Series,
+        episode: Episode,
     ): List<Score> {
-        val frameDuration = BigDecimal(series.timeBaseNum).divide(BigDecimal(series.timeBaseDen), 12, RoundingMode.HALF_UP)
+        val frameDuration = BigDecimal(episode.timeBaseNum).divide(BigDecimal(episode.timeBaseDen), 12, RoundingMode.HALF_UP)
         val scores = mutableListOf<Score>()
         output.lineSequence().forEach { line ->
             val score = SCORE.find(line) ?: return@forEach
@@ -179,11 +179,11 @@ class SceneDetector(
                 seconds
                     .divide(frameDuration, 0, RoundingMode.HALF_UP)
                     .toInt()
-            if (frame < 0 || frame >= series.frameCount) {
+            if (frame < 0 || frame >= episode.frameCount) {
                 throw IllegalArgumentException(
                     "Отметка границы ${score.groupValues[2]} с сохранённой оценкой " +
                         "${score.groupValues[1]} сходится на кадр $frame, а серия содержит " +
-                        "${series.frameCount} кадров: число кадров и частокадровая база не согласуются",
+                        "${episode.frameCount} кадров: число кадров и частокадровая база не согласуются",
                 )
             }
             scores.add(Score(frame, BigDecimal(score.groupValues[1]).toDouble()))
@@ -228,10 +228,10 @@ class SceneDetector(
          * @param settings настройки сериала
          * @return 64 шестнадцатеричных символов в нижнем регистре
          */
-        fun paramsHashOf(settings: SerialSettings): String =
+        fun paramsHashOf(settings: MovieSettings): String =
             paramsHashOf(
-                settings.number(SerialSetting.SCENE_THRESHOLD),
-                settings.number(SerialSetting.SHOT_THRESHOLD),
+                settings.number(MovieSetting.SCENE_THRESHOLD),
+                settings.number(MovieSetting.SHOT_THRESHOLD),
             )
 
         /** Шаблон строки оценки: `lavfi.scd.score: 12.345, lavfi.scd.time: 5.96`. */

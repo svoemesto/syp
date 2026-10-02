@@ -3,9 +3,9 @@ package ru.svoemesto.syp.admin.config
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.characters.CharactersController
 import ru.svoemesto.syp.admin.characters.Clustering
 import ru.svoemesto.syp.admin.characters.FaceDetector
@@ -97,7 +97,7 @@ class CharactersConfiguration {
     /**
      * Собирает исполнителя задания `FACES`.
      *
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище серий
      * @param runStore хранилище прогонов анализа
      * @param scan проход по кадрам с детектором
      * @param detector детектор лиц: его ключ попадает в прогон анализа
@@ -105,15 +105,15 @@ class CharactersConfiguration {
      */
     @Bean
     fun facesJob(
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         runStore: AnalysisRunStore,
         scan: FaceScan,
         detector: FaceDetector,
         faceSinks: FaceSinkFactory,
-        settingsStore: SerialSettingsStore,
+        settingsStore: MovieSettingsStore,
     ): FacesJob =
         FacesJob(
-            seriesStore = seriesStore,
+            episodeStore = episodeStore,
             runStore = runStore,
             scan = scan,
             detectorKey = detector.key,
@@ -204,8 +204,8 @@ class CharactersConfiguration {
      * @param embeddingStore хранилище эмбеддингов
      * @param clustering кластеризация лиц
      * @param personService сервис персон
-     * @param seriesStore хранилище серий
-     * @param serialStore хранилище сериалов
+     * @param episodeStore хранилище серий
+     * @param movieStore хранилище сериалов
      * @param settingsStore настройки сериала
      * @return контроллер домена персонажей
      */
@@ -215,17 +215,17 @@ class CharactersConfiguration {
         embeddingStore: FaceEmbeddingStore,
         clustering: Clustering,
         personService: PersonService,
-        seriesStore: SeriesStore,
-        serialStore: SerialStore,
-        settingsStore: SerialSettingsStore,
+        episodeStore: EpisodeStore,
+        movieStore: MovieStore,
+        settingsStore: MovieSettingsStore,
     ): CharactersController =
         CharactersController(
             faces = faceStore,
             embeddings = embeddingStore,
             clustering = clustering,
             persons = personService,
-            seriesStore = seriesStore,
-            serials = serialStore,
+            episodeStore = episodeStore,
+            movies = movieStore,
             settingsStore = settingsStore,
             embeddingModelKey = env(ENV_FACE_EMBEDDING_MODEL_KEY, DEFAULT_FACE_EMBEDDING_MODEL_KEY),
         )

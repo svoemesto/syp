@@ -13,8 +13,8 @@ const route = useRoute()
  * Ссылка появляется только на экране серии: с приёма структуру открывать
  * нечего, а пустая ссылка вела бы на пустую страницу.
  */
-const structureSeriesId = computed(() => {
-  const raw = route.params.seriesId
+const structureEpisodeId = computed(() => {
+  const raw = route.params.episodeId
   if (typeof raw === 'string' && raw !== '') {
     return raw
   }
@@ -29,8 +29,8 @@ const structureSeriesId = computed(() => {
       <nav>
         <RouterLink :to="{ name: 'intake' }"> Приём сериалов и серий </RouterLink>
         <RouterLink
-          v-if="structureSeriesId"
-          :to="{ name: 'structure', params: { seriesId: structureSeriesId } }"
+          v-if="structureEpisodeId"
+          :to="{ name: 'structure', params: { episodeId: structureEpisodeId } }"
         >
           Структура серии
         </RouterLink>

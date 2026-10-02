@@ -1,9 +1,9 @@
 package ru.svoemesto.syp.admin.selection
 
-import ru.svoemesto.syp.admin.catalog.SerialSetting
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.MovieSetting
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.admin.integrity.ChecksumRegistry
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
@@ -12,6 +12,7 @@ import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.db.Row
 import ru.svoemesto.syp.core.recipe.BuildRecipe
 import ru.svoemesto.syp.core.recipe.BuildRecipeItem
+import ru.svoemesto.syp.core.recipe.EpisodeParameters
 import ru.svoemesto.syp.core.recipe.RecipeCatalog
 import ru.svoemesto.syp.core.recipe.RecipeCompatibility
 import ru.svoemesto.syp.core.recipe.RecipeDocument
@@ -22,7 +23,6 @@ import ru.svoemesto.syp.core.recipe.RecipeSigner
 import ru.svoemesto.syp.core.recipe.RecipeSlice
 import ru.svoemesto.syp.core.recipe.RecipeState
 import ru.svoemesto.syp.core.recipe.RecipeStore
-import ru.svoemesto.syp.core.recipe.SeriesParameters
 import ru.svoemesto.syp.core.signing.Signer
 import ru.svoemesto.syp.core.storage.ArtifactKind
 import ru.svoemesto.syp.core.storage.ArtifactRegistry
@@ -55,7 +55,7 @@ import java.time.ZoneOffset
  * прохода по видео.
  *
  * @property db доступ к базе сырым JDBC
- * @property seriesStore хранилище серий
+ * @property episodeStore хранилище серий
  * @property checksums справочник эталонных сумм исходников
  * @property settingsStore настройки сериала
  * @property recipes хранилище сценариев
@@ -67,9 +67,9 @@ import java.time.ZoneOffset
  */
 class RecipeBuilder(
     private val db: Db,
-    private val seriesStore: SeriesStore,
+    private val episodeStore: EpisodeStore,
     private val checksums: ChecksumRegistry,
-    private val settingsStore: SerialSettingsStore,
+    private val settingsStore: MovieSettingsStore,
     private val recipes: RecipeStore,
     private val catalog: RecipeCatalog,
     private val artifacts: ArtifactRegistry,
@@ -97,33 +97,33 @@ class RecipeBuilder(
             )
         }
         val scenes = loadScenes(sceneIds)
-        val seriesIds = scenes.values.map { it.seriesId }.distinct()
-        val series = seriesIds.associateWith { readSeries(it) }
-        val serialId = requireSingleSerial(series)
-        val serial = readSerial(serialId)
+        val episodeIds = scenes.values.map { it.episodeId }.distinct()
+        val episode = episodeIds.associateWith { readEpisode(it) }
+        val movieId = requireSingleMovie(episode)
+        val movie = readMovie(movieId)
         val ordered = sceneIds.map { scenes.getValue(it) }
 
-        val settings = settingsStore.read(serialId)
-        val schemaVersion = settings.integer(SerialSetting.RECIPE_SCHEMA_VERSION)
-        val audioTrackCount = settings.integer(SerialSetting.RECIPE_AUDIO_TRACK_COUNT)
+        val settings = settingsStore.read(movieId)
+        val schemaVersion = settings.integer(MovieSetting.RECIPE_SCHEMA_VERSION)
+        val audioTrackCount = settings.integer(MovieSetting.RECIPE_AUDIO_TRACK_COUNT)
 
-        requireAnalyzed(series.keys.toList())
-        requireCompatible(series)
-        val digests = requireChecksums(series.keys.toList())
+        requireAnalyzed(episode.keys.toList())
+        requireCompatible(episode)
+        val digests = requireChecksums(episode.keys.toList())
 
-        val items = buildItems(ordered, series, digests, serial.sourceRoot)
-        val (expectedDurationMs, expectedFrameCount) = RecipeFragmentPlan.expectedTotals(slicesOf(items, series))
+        val items = buildItems(ordered, episode, digests, movie.sourceRoot)
+        val (expectedDurationMs, expectedFrameCount) = RecipeFragmentPlan.expectedTotals(slicesOf(items, episode))
 
         // Помечаются сценарии прежней версии формата **до** создания нового:
         // к моменту, когда пользователь увидит список, актуальность уже
         // известна (FR-090, ADR-0014).
-        catalog.markStaleOnSchemaChange(serialId, schemaVersion)
+        catalog.markStaleOnSchemaChange(movieId, schemaVersion)
 
         val createdAt = now()
         val stored =
             recipes.insert(
                 BuildRecipe(
-                    serialId = serialId,
+                    movieId = movieId,
                     name = recipeName,
                     schemaVersion = schemaVersion,
                     state = RecipeState.CREATING,
@@ -134,7 +134,7 @@ class RecipeBuilder(
                 ),
                 items.mapIndexed { index, item -> item.copy(recipeId = 0L, ordinal = index + 1) },
             )
-        return sign(store = stored, items = items, serialName = serial.name, audioTrackCount = audioTrackCount)
+        return sign(store = stored, items = items, movieName = movie.name, audioTrackCount = audioTrackCount)
     }
 
     /**
@@ -149,7 +149,7 @@ class RecipeBuilder(
     private fun sign(
         store: BuildRecipe,
         items: List<BuildRecipeItem>,
-        serialName: String,
+        movieName: String,
         audioTrackCount: Int,
     ): BuildRecipe {
         val recipeId =
@@ -160,8 +160,8 @@ class RecipeBuilder(
         val document =
             RecipeDocument(
                 schemaVersion = store.schemaVersion,
-                serialId = store.serialId,
-                serialName = serialName,
+                movieId = store.movieId,
+                movieName = movieName,
                 recipeId = recipeId,
                 recipeName = store.name,
                 signingKeyId = signer.signingKeyId,
@@ -172,7 +172,7 @@ class RecipeBuilder(
                 items = items.mapIndexed { index, item -> item.copy(recipeId = recipeId, ordinal = index + 1).toDocumentItem() },
             )
         val (bytes, signed) = RecipeSigner.issue(signer, document)
-        val objectKey = "recipes/${store.serialId}/$recipeId${RecipeFormat.FILE_SUFFIX}"
+        val objectKey = "recipes/${store.movieId}/$recipeId${RecipeFormat.FILE_SUFFIX}"
         return try {
             val artifact =
                 artifacts.begin(
@@ -213,7 +213,7 @@ class RecipeBuilder(
         val placeholders = sceneIds.joinToString(", ") { "?" }
         val rows =
             db.select(
-                "SELECT id, series_id, first_frame, last_frame, location_id, is_stale " +
+                "SELECT id, id_episode, first_frame, last_frame, location_id, is_stale " +
                     "FROM $SCENE_TABLE WHERE id IN ($placeholders)",
                 ::readSelectedScene,
                 *sceneIds.map { it as Any? }.toTypedArray(),
@@ -224,7 +224,7 @@ class RecipeBuilder(
             throw DomainException(
                 ErrorCode.NOT_FOUND,
                 "сценарий не выдан: сцен ${missing.joinToString(", ")} не найдены",
-                missing.map { ErrorItem("scene", it.toString(), "нет такой сцены") },
+                missing.map { ErrorItem("tbl_scenes", it.toString(), "нет такой сцены") },
             )
         }
         val stale = found.values.filter { it.isStale }
@@ -233,7 +233,7 @@ class RecipeBuilder(
                 ErrorCode.STALE_RESULT,
                 "сценарий не выдан: сцены ${stale.joinToString(", ") { it.id.toString() }} помечены " +
                     "устаревшими. Правки и ручная доводка в них на месте, пересчёт запускает оператор (FR-090)",
-                stale.map { ErrorItem("scene", it.id.toString(), "структура устарела") },
+                stale.map { ErrorItem("tbl_scenes", it.id.toString(), "структура устарела") },
             )
         }
         // Порядок берётся из запроса, а не из выборки: сценарий — рецепт с
@@ -242,9 +242,9 @@ class RecipeBuilder(
     }
 
     /** Требует, чтобы все выбранные серии принадлежали одному сериалу. */
-    private fun requireSingleSerial(series: Map<Long, Series>): Long {
-        val serialIds = series.values.map { it.serialId }.distinct()
-        return serialIds.firstOrNull()
+    private fun requireSingleMovie(episode: Map<Long, Episode>): Long {
+        val movieIds = episode.values.map { it.movieId }.distinct()
+        return movieIds.firstOrNull()
             ?: throw DomainException(
                 ErrorCode.BAD_REQUEST,
                 "сценарий не выдан: сцены принадлежат разным сериалам. Подборка собирается " +
@@ -253,28 +253,28 @@ class RecipeBuilder(
     }
 
     /** Читает сериал вместе с корнем каталога. */
-    private fun readSerial(serialId: Long): SerialInfo =
+    private fun readMovie(movieId: Long): MovieInfo =
         db.selectOne(
-            "SELECT name, source_root FROM $SERIAL_TABLE WHERE id = ?",
-            { row: Row -> SerialInfo(row.string("name"), row.string("source_root")) },
-            serialId,
-        ) ?: throw DomainException(ErrorCode.NOT_FOUND, "сериал $serialId не найден")
+            "SELECT name, source_root FROM $MOVIE_TABLE WHERE id = ?",
+            { row: Row -> MovieInfo(row.string("name"), row.string("source_root")) },
+            movieId,
+        ) ?: throw DomainException(ErrorCode.NOT_FOUND, "сериал $movieId не найден")
 
     /** Читает серию подборки. */
-    private fun readSeries(seriesId: Long): Series =
-        seriesStore.find(seriesId)
+    private fun readEpisode(episodeId: Long): Episode =
+        episodeStore.find(episodeId)
             ?: throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "серия $seriesId не найдена",
-                listOf(ErrorItem("series", seriesId.toString(), "нет такой серии")),
+                "серия $episodeId не найдена",
+                listOf(ErrorItem("tbl_episodes", episodeId.toString(), "нет такой серии")),
             )
 
     /** Требует, чтобы у каждой серии были сцены с размеченными границами. */
-    private fun requireAnalyzed(seriesIds: List<Long>) {
+    private fun requireAnalyzed(episodeIds: List<Long>) {
         val unanalyzed =
-            seriesIds.filter {
+            episodeIds.filter {
                 db.selectOne(
-                    "SELECT count(*) AS total FROM $SCENE_TABLE WHERE series_id = ? AND is_stale = FALSE",
+                    "SELECT count(*) AS total FROM $SCENE_TABLE WHERE id_episode = ? AND is_stale = FALSE",
                     { row: Row -> row.int("total") },
                     it,
                 ) ?: 0 == 0
@@ -283,27 +283,27 @@ class RecipeBuilder(
             return
         }
         throw DomainException(
-            ErrorCode.SERIES_NOT_ANALYZED,
+            ErrorCode.EPISODE_NOT_ANALYZED,
             "сценарий не выдан: у серий ${unanalyzed.joinToString(", ")} нет сцен с размеченными " +
                 "границами. Поставьте анализ серии и дождитесь его окончания",
-            unanalyzed.map { ErrorItem("series", it.toString(), "нет размеченных сцен") },
+            unanalyzed.map { ErrorItem("tbl_episodes", it.toString(), "нет размеченных сцен") },
         )
     }
 
     /** Требует, чтобы серии подборки совпадали по параметрам склейки. */
-    private fun requireCompatible(series: Map<Long, Series>) {
-        val report = RecipeCompatibility.check(series.values.map { it.toParameters() })
+    private fun requireCompatible(episode: Map<Long, Episode>) {
+        val report = RecipeCompatibility.check(episode.values.map { it.toParameters() })
         if (report.isCompatible) {
             return
         }
         throw DomainException(
-            ErrorCode.INCOMPATIBLE_SERIES,
+            ErrorCode.INCOMPATIBLE_EPISODE,
             "сценарий не выдан: серии несовместимы для склейки без перекодирования. " +
                 "Различаются признаки ${report.differingAttributes.joinToString(", ")}",
             report.incompatible.map { incompatible ->
                 ErrorItem(
-                    "series",
-                    incompatible.parameters.seriesId.toString(),
+                    "tbl_episodes",
+                    incompatible.parameters.episodeId.toString(),
                     "серия «${incompatible.parameters.name}» отличается: " +
                         incompatible.differingAttributes.joinToString(", "),
                 )
@@ -318,15 +318,15 @@ class RecipeBuilder(
      * этом через час работы на своей машине, а не до неё (ADR-0009,
      * последствие 4).
      */
-    private fun requireChecksums(seriesIds: List<Long>): Map<Long, String> {
+    private fun requireChecksums(episodeIds: List<Long>): Map<Long, String> {
         val digests = mutableMapOf<Long, String>()
         val missing = mutableListOf<Long>()
-        seriesIds.forEach { seriesId ->
-            val entry = checksums.current(seriesId)
+        episodeIds.forEach { episodeId ->
+            val entry = checksums.current(episodeId)
             if (entry == null || !entry.isUsable || entry.digest == null) {
-                missing += seriesId
+                missing += episodeId
             } else {
-                digests[seriesId] = entry.digest
+                digests[episodeId] = entry.digest
             }
         }
         if (missing.isNotEmpty()) {
@@ -335,7 +335,7 @@ class RecipeBuilder(
                 "сценарий не выдан: у серий ${missing.joinToString(", ")} нет актуальной суммы " +
                     "исходника. Сумма считается один раз; поставьте пересчёт и дождитесь его " +
                     "окончания (FR-089)",
-                missing.map { ErrorItem("series", it.toString(), "актуальной суммы нет") },
+                missing.map { ErrorItem("tbl_episodes", it.toString(), "актуальной суммы нет") },
             )
         }
         return digests
@@ -350,20 +350,20 @@ class RecipeBuilder(
      */
     private fun buildItems(
         scenes: List<SelectedScene>,
-        series: Map<Long, Series>,
+        episode: Map<Long, Episode>,
         digests: Map<Long, String>,
         sourceRoot: String,
     ): List<BuildRecipeItem> {
         val items =
             scenes.mapIndexed { index, scene ->
-                val entry = series.getValue(scene.seriesId)
+                val entry = episode.getValue(scene.episodeId)
                 val relativePath =
                     entry.relativePath(sourceRoot)
                         ?: throw DomainException(
                             ErrorCode.SOURCE_UNREADABLE,
                             "сценарий не выдан: файл серии «${entry.name}» лежит вне корня каталога " +
                                 "сериала. Относительный путь выдумывать нельзя (FR-089a)",
-                            listOf(ErrorItem("series", scene.seriesId.toString(), "путь вне корня сериала")),
+                            listOf(ErrorItem("tbl_episodes", scene.episodeId.toString(), "путь вне корня сериала")),
                         )
                 val cut =
                     RecipeFragmentPlan.cutBoundaries(
@@ -375,10 +375,10 @@ class RecipeBuilder(
                     recipeId = 0L,
                     ordinal = index + 1,
                     sceneId = scene.id,
-                    seriesId = scene.seriesId,
-                    seriesName = entry.name,
+                    episodeId = scene.episodeId,
+                    episodeName = entry.name,
                     relativePath = relativePath,
-                    sourceSha256 = digests.getValue(scene.seriesId),
+                    sourceSha256 = digests.getValue(scene.episodeId),
                     firstFrame = scene.firstFrame,
                     lastFrame = scene.lastFrame,
                     cutFirstFrame = cut.cutFirstFrame,
@@ -390,7 +390,7 @@ class RecipeBuilder(
             }
         // Путь проверяется ещё раз при записи фрагмента: ограничение базы и
         // проверка генератора должны говорить одно и то же (FR-089a).
-        items.forEach { RecipePaths.requireInsideSerialTree(it.relativePath) }
+        items.forEach { RecipePaths.requireInsideMovieTree(it.relativePath) }
         return items
     }
 
@@ -432,10 +432,10 @@ class RecipeBuilder(
         db.select(
             "SELECT DISTINCT p.name AS name FROM $FACE_TABLE f " +
                 "JOIN $PERSON_TABLE p ON p.id = f.person_id " +
-                "WHERE f.series_id = ? AND f.frame_number >= ? AND f.frame_number <= ? " +
+                "WHERE f.id_episode = ? AND f.frame_number >= ? AND f.frame_number <= ? " +
                 "AND p.kind = 'PERSON' ORDER BY p.name",
             { row: Row -> row.string("name") },
-            scene.seriesId,
+            scene.episodeId,
             scene.firstFrame,
             scene.lastFrame,
         )
@@ -443,10 +443,10 @@ class RecipeBuilder(
     /** Фрагменты с точки зрения расчётных величин. */
     private fun slicesOf(
         items: List<BuildRecipeItem>,
-        series: Map<Long, Series>,
+        episode: Map<Long, Episode>,
     ): List<RecipeSlice> =
         items.map { item ->
-            val entry = series.getValue(item.seriesId)
+            val entry = episode.getValue(item.episodeId)
             RecipeSlice(
                 frames = item.cutLastFrame - item.cutFirstFrame,
                 timeBaseNum = entry.timeBaseNum,
@@ -459,19 +459,19 @@ class RecipeBuilder(
 
     private companion object {
         /** Имя таблицы сцен. */
-        const val SCENE_TABLE: String = "scene"
+        const val SCENE_TABLE: String = "tbl_scenes"
 
         /** Имя таблицы мест действия. */
-        const val LOCATION_TABLE: String = "location"
+        const val LOCATION_TABLE: String = "tbl_locations"
 
         /** Имя таблицы сериалов. */
-        const val SERIAL_TABLE: String = "serial"
+        const val MOVIE_TABLE: String = "tbl_movies"
 
         /** Имя таблицы лиц. */
-        const val FACE_TABLE: String = "face"
+        const val FACE_TABLE: String = "tbl_faces"
 
         /** Имя таблицы персон. */
-        const val PERSON_TABLE: String = "person"
+        const val PERSON_TABLE: String = "tbl_persons"
     }
 }
 
@@ -483,7 +483,7 @@ class RecipeBuilder(
  * проверяются до выборки, а не после.
  *
  * @property id идентификатор сцены
- * @property seriesId серия-владелец
+ * @property episodeId серия-владелец
  * @property firstFrame первый кадр сцены
  * @property lastFrame последний кадр сцены
  * @property locationId место действия либо `null`
@@ -492,7 +492,7 @@ class RecipeBuilder(
  */
 data class SelectedScene(
     val id: Long,
-    val seriesId: Long,
+    val episodeId: Long,
     val firstFrame: Int,
     val lastFrame: Int,
     val locationId: Long?,
@@ -500,7 +500,7 @@ data class SelectedScene(
 )
 
 /** Сериал, как он нужен генератору сценария: имя и корень каталога. */
-private data class SerialInfo(
+private data class MovieInfo(
     val name: String,
     val sourceRoot: String,
 )
@@ -509,7 +509,7 @@ private data class SerialInfo(
 private fun readSelectedScene(row: Row): SelectedScene =
     SelectedScene(
         id = row.long("id"),
-        seriesId = row.long("series_id"),
+        episodeId = row.long("id_episode"),
         firstFrame = row.int("first_frame"),
         lastFrame = row.int("last_frame"),
         locationId = row.longOrNull("location_id"),
@@ -517,9 +517,9 @@ private fun readSelectedScene(row: Row): SelectedScene =
     )
 
 /** Параметры серии для проверки совместимости: снимок, снятый при регистрации. */
-private fun Series.toParameters(): SeriesParameters =
-    SeriesParameters(
-        seriesId = id!!,
+private fun Episode.toParameters(): EpisodeParameters =
+    EpisodeParameters(
+        episodeId = id!!,
         name = name,
         width = width,
         height = height,

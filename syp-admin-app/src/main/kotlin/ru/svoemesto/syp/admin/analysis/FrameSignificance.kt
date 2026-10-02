@@ -33,7 +33,7 @@ enum class SizeHint {
  * таблица, которой быть не должно.
  *
  * @property id идентификатор кадра в таблице; `null`, пока не записан
- * @property seriesId серия-владелец
+ * @property episodeId серия-владелец
  * @property frameNumber номер кадра, нумерация с нуля (ADR-0001)
  * @property isSceneBoundary начинается ли здесь новая сцена
  * @property isShotBoundary начинается ли здесь новый план
@@ -44,7 +44,7 @@ enum class SizeHint {
  */
 data class FrameSignificance(
     val id: Long? = null,
-    val seriesId: Long,
+    val episodeId: Long,
     val frameNumber: Int,
     val isSceneBoundary: Boolean = false,
     val isShotBoundary: Boolean = false,
@@ -75,7 +75,7 @@ data class FrameSignificance(
             FrameSignificanceStore.COLUMNS,
             {
                 listOf(
-                    seriesId,
+                    episodeId,
                     frameNumber,
                     isSceneBoundary,
                     isShotBoundary,
@@ -89,7 +89,7 @@ data class FrameSignificance(
     companion object {
         /** Столбцы кадра в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, series_id, frame_number, is_scene_boundary, is_shot_boundary, face_count, " +
+            "id, id_episode, frame_number, is_scene_boundary, is_shot_boundary, face_count, " +
                 "size_hint, recordhash"
     }
 }
@@ -130,7 +130,7 @@ class FrameSignificanceStore(
         return db.useTransaction { connection ->
             connection.prepareStatement(UPSERT_SQL).use { statement ->
                 frames.forEach { frame ->
-                    statement.setLong(1, frame.seriesId)
+                    statement.setLong(1, frame.episodeId)
                     statement.setInt(2, frame.frameNumber)
                     statement.setBoolean(3, frame.isSceneBoundary)
                     statement.setBoolean(4, frame.isShotBoundary)
@@ -150,47 +150,47 @@ class FrameSignificanceStore(
      * лицами: те же номера кадров уже лежат в таблице, и их признак надо
      * поднять, а не заводить вторую строку.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @param frameNumbers номера кадров — границ сцен
      * @return число затронутых строк
      */
     fun markSceneBoundaries(
-        seriesId: Long,
+        episodeId: Long,
         frameNumbers: Collection<Int>,
-    ): Int = markBoundaries(seriesId, frameNumbers, SCENE_COLUMN)
+    ): Int = markBoundaries(episodeId, frameNumbers, SCENE_COLUMN)
 
     /**
      * Отмечает кадры как границы планов.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @param frameNumbers номера кадров — границ планов
      * @return число затронутых строк
      */
     fun markShotBoundaries(
-        seriesId: Long,
+        episodeId: Long,
         frameNumbers: Collection<Int>,
-    ): Int = markBoundaries(seriesId, frameNumbers, SHOT_COLUMN)
+    ): Int = markBoundaries(episodeId, frameNumbers, SHOT_COLUMN)
 
     /**
      * Читает значимые кадры диапазона по возрастанию номера.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @param fromFrame первый кадр диапазона включительно
      * @param toFrame последний кадр диапазона включительно
      * @param limit максимум строк в ответе: страницы пагинируются всегда
      * @returns кадры диапазона
      */
     fun listRange(
-        seriesId: Long,
+        episodeId: Long,
         fromFrame: Int,
         toFrame: Int,
         limit: Int = DEFAULT_LIMIT,
     ): List<FrameSignificance> =
         db.select(
-            "$READ_SQL WHERE series_id = ? AND frame_number BETWEEN ? AND ? " +
+            "$READ_SQL WHERE id_episode = ? AND frame_number BETWEEN ? AND ? " +
                 "ORDER BY frame_number LIMIT $limit",
             ::readRow,
-            seriesId,
+            episodeId,
             fromFrame,
             toFrame,
         )
@@ -198,19 +198,19 @@ class FrameSignificanceStore(
     /**
      * Считает значимые кадры серии.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return число значимых кадров
      */
-    fun countBySeries(seriesId: Long): Int =
+    fun countByEpisode(episodeId: Long): Int =
         db.selectOne(
-            "SELECT count(*) AS total FROM $TABLE WHERE series_id = ?",
+            "SELECT count(*) AS total FROM $TABLE WHERE id_episode = ?",
             { it.int("total") },
-            seriesId,
+            episodeId,
         ) ?: 0
 
     /** Поднимает признак границы у перечисленных кадров. */
     private fun markBoundaries(
-        seriesId: Long,
+        episodeId: Long,
         frameNumbers: Collection<Int>,
         column: String,
     ): Int {
@@ -220,11 +220,11 @@ class FrameSignificanceStore(
         return db.useTransaction { connection ->
             connection
                 .prepareStatement(
-                    "INSERT INTO $TABLE (series_id, frame_number, $column) VALUES (?, ?, TRUE) " +
-                        "ON CONFLICT (series_id, frame_number) DO UPDATE SET $column = TRUE",
+                    "INSERT INTO $TABLE (id_episode, frame_number, $column) VALUES (?, ?, TRUE) " +
+                        "ON CONFLICT (id_episode, frame_number) DO UPDATE SET $column = TRUE",
                 ).use { statement ->
                     frameNumbers.forEach { frame ->
-                        statement.setLong(1, seriesId)
+                        statement.setLong(1, episodeId)
                         statement.setInt(2, frame)
                         statement.addBatch()
                     }
@@ -237,7 +237,7 @@ class FrameSignificanceStore(
     private fun readRow(row: Row): FrameSignificance =
         FrameSignificance(
             id = row.long("id"),
-            seriesId = row.long("series_id"),
+            episodeId = row.long("id_episode"),
             frameNumber = row.int("frame_number"),
             isSceneBoundary = row.booleanOrNull("is_scene_boundary") == true,
             isShotBoundary = row.booleanOrNull("is_shot_boundary") == true,
@@ -248,12 +248,12 @@ class FrameSignificanceStore(
 
     companion object {
         /** Имя таблицы значимых кадров. */
-        const val TABLE: String = "frame"
+        const val TABLE: String = "tbl_frames"
 
         /** Записываемые столбцы кадра в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "series_id",
+                "id_episode",
                 "frame_number",
                 "is_scene_boundary",
                 "is_shot_boundary",
@@ -272,9 +272,9 @@ class FrameSignificanceStore(
 
         /** Пакетная вставка с обновлением уже существующих кадров. */
         val UPSERT_SQL: String =
-            "INSERT INTO $TABLE (series_id, frame_number, is_scene_boundary, is_shot_boundary, " +
+            "INSERT INTO $TABLE (id_episode, frame_number, is_scene_boundary, is_shot_boundary, " +
                 "face_count, size_hint) VALUES (?, ?, ?, ?, ?, ?) " +
-                "ON CONFLICT (series_id, frame_number) DO UPDATE SET " +
+                "ON CONFLICT (id_episode, frame_number) DO UPDATE SET " +
                 "is_scene_boundary = $TABLE.is_scene_boundary OR EXCLUDED.is_scene_boundary, " +
                 "is_shot_boundary = $TABLE.is_shot_boundary OR EXCLUDED.is_shot_boundary, " +
                 "face_count = GREATEST($TABLE.face_count, EXCLUDED.face_count), " +

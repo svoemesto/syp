@@ -2,7 +2,7 @@ package ru.svoemesto.syp.admin.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.integrity.ChecksumController
 import ru.svoemesto.syp.admin.integrity.ChecksumEnqueuer
 import ru.svoemesto.syp.admin.integrity.ChecksumRegistry
@@ -53,45 +53,45 @@ class IntegrityConfiguration {
     /**
      * Собирает исполнитель подсчёта суммы.
      *
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище серий
      * @param registry справочник сумм
      * @return исполнитель задания `HASH`
      */
     @Bean
     fun hashJob(
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         registry: ChecksumRegistry,
-    ): HashJob = HashJob(seriesStore, registry)
+    ): HashJob = HashJob(episodeStore, registry)
 
     /**
      * Собирает постановщик пересчёта.
      *
      * @param queue очередь заданий
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище серий
      * @param registry справочник сумм
      * @return постановщик подсчёта
      */
     @Bean
     fun checksumEnqueuer(
         queue: JobQueue,
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         registry: ChecksumRegistry,
-    ): ChecksumEnqueuer = ChecksumEnqueuer(queue, seriesStore, registry)
+    ): ChecksumEnqueuer = ChecksumEnqueuer(queue, episodeStore, registry)
 
     /**
      * Собирает эндпоинты сверки целостности.
      *
      * @param enqueuer постановщик пересчёта
      * @param registry справочник сумм
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище серий
      * @return контроллер суммы
      */
     @Bean
     fun checksumController(
         enqueuer: ChecksumEnqueuer,
         registry: ChecksumRegistry,
-        seriesStore: SeriesStore,
-    ): ChecksumController = ChecksumController(enqueuer, registry, seriesStore)
+        episodeStore: EpisodeStore,
+    ): ChecksumController = ChecksumController(enqueuer, registry, episodeStore)
 
     /**
      * Собирает объектное хранилище артефактов.

@@ -103,11 +103,11 @@ object TestDatabase {
      * @param name название сериала, уникальное внутри прогона
      * @return идентификатор сериала
      */
-    fun insertSerial(name: String): Long =
+    fun insertMovie(name: String): Long =
         connection().use { connection ->
             connection
                 .prepareStatement(
-                    "INSERT INTO serial (name, source_root) VALUES (?, ?) RETURNING id",
+                    "INSERT INTO tbl_movies (name, source_root) VALUES (?, ?) RETURNING id",
                 ).use { statement ->
                     statement.setString(1, "$name ${counter.incrementAndGet()}")
                     statement.setString(2, "/disks/HDD_16Tb_Clouds/GOT")
@@ -121,28 +121,28 @@ object TestDatabase {
     /**
      * Заводит серию для теста с минимальным набором параметров.
      *
-     * @param serialId сериал-владелец
+     * @param movieId сериал-владелец
      * @param name название серии
      * @return идентификатор серии
      */
-    fun insertSeries(
-        serialId: Long,
+    fun insertEpisode(
+        movieId: Long,
         name: String,
     ): Long =
         connection().use { connection ->
             connection
                 .prepareStatement(
                     """
-                    INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime,
+                    INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime,
                                         frame_count, time_base_num, time_base_den, width, height,
                                         duration_num, duration_den, video_codec, pixel_format)
-                    VALUES (?, (SELECT coalesce(max(ordinal), 0) + 1 FROM series WHERE serial_id = ?),
+                    VALUES (?, (SELECT coalesce(max(ordinal), 0) + 1 FROM tbl_episodes WHERE id_movie = ?),
                             ?, ?, 1, now(), 1000, 1001, 24000, 1920, 1080, 1, 1, 'h264', 'yuv420p')
                     RETURNING id
                     """.trimIndent(),
                 ).use { statement ->
-                    statement.setLong(1, serialId)
-                    statement.setLong(2, serialId)
+                    statement.setLong(1, movieId)
+                    statement.setLong(2, movieId)
                     statement.setString(3, name)
                     statement.setString(4, "/disks/HDD_16Tb_Clouds/GOT/$name.mkv")
                     statement.executeQuery().use { resultSet ->
@@ -155,22 +155,22 @@ object TestDatabase {
     /**
      * Заводит сцену для теста.
      *
-     * @param seriesId серия-владелец
+     * @param episodeId серия-владелец
      * @param firstFrame расчётная граница начала
      * @param lastFrame расчётная граница конца
      * @return идентификатор сцены
      */
     fun insertScene(
-        seriesId: Long,
+        episodeId: Long,
         firstFrame: Int,
         lastFrame: Int,
     ): Long =
         connection().use { connection ->
             connection
                 .prepareStatement(
-                    "INSERT INTO scene (series_id, first_frame, last_frame) VALUES (?, ?, ?) RETURNING id",
+                    "INSERT INTO tbl_scenes (id_episode, first_frame, last_frame) VALUES (?, ?, ?) RETURNING id",
                 ).use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.setInt(2, firstFrame)
                     statement.setInt(3, lastFrame)
                     statement.executeQuery().use { resultSet ->
@@ -187,7 +187,7 @@ object TestDatabase {
      * записать обычным путём, а проверить надо именно то, что база его не
      * пропустит.
      *
-     * @param serialId сериал-владелец
+     * @param movieId сериал-владелец
      * @param name название сценария
      * @param state состояние выдачи
      * @param artifactId артефакт
@@ -198,7 +198,7 @@ object TestDatabase {
      * @param finishedAt момент завершения
      */
     fun insertRecipeRow(
-        serialId: Long,
+        movieId: Long,
         name: String,
         state: ru.svoemesto.syp.core.recipe.RecipeState,
         artifactId: Long?,
@@ -212,14 +212,14 @@ object TestDatabase {
             connection
                 .prepareStatement(
                     """
-                    INSERT INTO build_recipe (serial_id, name, schema_version, state, artifact_id,
+                    INSERT INTO tbl_build_recipes (id_movie, name, schema_version, state, artifact_id,
                                               content_sha256, signature, signing_key_id, item_count,
                                               expected_duration_ms, expected_frame_count,
                                               created_at, finished_at)
                     VALUES (?, ?, 1, ?, ?, ?, ?, ?, 1, 100, 100, ?, ?)
                     """.trimIndent(),
                 ).use { statement ->
-                    statement.setLong(1, serialId)
+                    statement.setLong(1, movieId)
                     statement.setString(2, name)
                     statement.setString(3, state.name)
                     statement.setObject(4, artifactId)

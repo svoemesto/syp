@@ -11,9 +11,9 @@ import ru.svoemesto.syp.admin.analysis.Staleness
 import ru.svoemesto.syp.admin.analysis.StructureController
 import ru.svoemesto.syp.admin.analysis.StructureJob
 import ru.svoemesto.syp.admin.analysis.StructureService
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.LocationStore
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.media.ExternalProgram
@@ -111,7 +111,7 @@ class AnalysisConfiguration {
     /**
      * Собирает исполнителя задания `ANALYZE`.
      *
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище серий
      * @param runStore хранилище прогонов
      * @param structure сервис рабочей структуры
      * @param frames хранилище значимых кадров
@@ -125,19 +125,19 @@ class AnalysisConfiguration {
      */
     @Bean
     fun structureJob(
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         runStore: AnalysisRunStore,
         structure: StructureService,
         frames: FrameSignificanceStore,
         detector: SceneDetector,
         program: ExternalProgram,
-        settingsStore: SerialSettingsStore,
+        settingsStore: MovieSettingsStore,
         artifactRegistry: ArtifactRegistry,
         staleness: Staleness,
         storage: ObjectStorage,
     ): StructureJob =
         StructureJob(
-            seriesStore = seriesStore,
+            episodeStore = episodeStore,
             runStore = runStore,
             structure = structure,
             frames = frames,
@@ -161,14 +161,14 @@ class AnalysisConfiguration {
     @Bean
     fun analysisEnqueuer(
         queue: JobQueue,
-        settingsStore: SerialSettingsStore,
+        settingsStore: MovieSettingsStore,
     ): AnalysisEnqueuer = AnalysisEnqueuer(queue, settingsStore)
 
     /**
      * Собирает эндпоинты структуры серии и превью.
      *
      * @param enqueuer постановщик анализа
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище серий
      * @param runStore хранилище прогонов
      * @param structure сервис рабочей структуры
      * @param boundaryStore хранилище сырых границ
@@ -183,20 +183,20 @@ class AnalysisConfiguration {
     @Bean
     fun structureController(
         enqueuer: AnalysisEnqueuer,
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         runStore: AnalysisRunStore,
         structure: StructureService,
         boundaryStore: RawBoundaryStore,
         frameStore: FrameSignificanceStore,
         staleness: Staleness,
-        settingsStore: SerialSettingsStore,
+        settingsStore: MovieSettingsStore,
         artifactRegistry: ArtifactRegistry,
         storage: ObjectStorage,
         locations: LocationStore,
     ): StructureController =
         StructureController(
             enqueuer = enqueuer,
-            seriesStore = seriesStore,
+            episodeStore = episodeStore,
             runStore = runStore,
             structure = structure,
             boundaryStore = boundaryStore,

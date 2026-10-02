@@ -26,7 +26,7 @@ export interface PersonView {
 /** Персоны сериала. */
 export interface PersonsView {
   /** Сериал. */
-  serialId: number
+  movieId: number
   /** Персоны: сначала служебные, затем именованные по имени. */
   persons: PersonView[]
 }
@@ -66,9 +66,9 @@ export interface FaceView {
 /** Страница лиц серии. */
 export interface FacesView {
   /** Серия. */
-  seriesId: number
+  episodeId: number
   /** Сериал-владелец: по нему клиент читает справочник персон. */
-  serialId: number
+  movieId: number
   /** Ширина кадра серии: по ней клиент кладёт рамку на миниатюру. */
   frameWidth: number
   /** Высота кадра серии. */
@@ -98,7 +98,7 @@ export interface FaceClusterView {
 /** Кластеры серии. */
 export interface FaceClustersView {
   /** Серия. */
-  seriesId: number
+  episodeId: number
   /** Ширина кадра серии: по ней клиент кладёт рамку на миниатюру. */
   frameWidth: number
   /** Высота кадра серии. */
@@ -126,23 +126,23 @@ export interface ClusterNamedView {
 /**
  * Читает лица серии.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  * @param offset смещение выборки
  * @param limit размер выборки
  * @returns страница лиц серии
  */
-export function readFaces(seriesId: number, offset = 0, limit = 200): Promise<FacesView> {
-  return request<FacesView>('GET', `/series/${seriesId}/faces?offset=${offset}&limit=${limit}`)
+export function readFaces(episodeId: number, offset = 0, limit = 200): Promise<FacesView> {
+  return request<FacesView>('GET', `/series/${episodeId}/faces?offset=${offset}&limit=${limit}`)
 }
 
 /**
  * Читает кластеры похожих лиц серии без имени.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  * @returns кластеры серии
  */
-export function readClusters(seriesId: number): Promise<FaceClustersView> {
-  return request<FaceClustersView>('GET', `/series/${seriesId}/faces/clusters`)
+export function readClusters(episodeId: number): Promise<FaceClustersView> {
+  return request<FaceClustersView>('GET', `/series/${episodeId}/faces/clusters`)
 }
 
 /**
@@ -170,11 +170,11 @@ export function nameCluster(
 /**
  * Читает персон сериала.
  *
- * @param serialId идентификатор сериала
+ * @param movieId идентификатор сериала
  * @returns персоны сериала
  */
-export function readPersons(serialId: number): Promise<PersonsView> {
-  return request<PersonsView>('GET', `/serials/${serialId}/persons`)
+export function readPersons(movieId: number): Promise<PersonsView> {
+  return request<PersonsView>('GET', `/serials/${movieId}/persons`)
 }
 
 /**
@@ -206,10 +206,10 @@ export function deletePerson(personId: number): Promise<null> {
  * Отдельная функция вместо строки в шаблоне: адрес собирается в одном месте,
  * и переименование пути не потребует правок по экрану.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  * @param frame номер кадра
  * @returns адрес листа превью
  */
-export function facePreviewUrl(seriesId: number, frame: number): string {
-  return `/api/series/${seriesId}/preview-sheets/0?frame=${frame}`
+export function facePreviewUrl(episodeId: number, frame: number): string {
+  return `/api/series/${episodeId}/preview-sheets/0?frame=${frame}`
 }

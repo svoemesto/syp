@@ -3,11 +3,11 @@ package ru.svoemesto.syp.admin.analysis
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.images.PreviewSheet
@@ -41,7 +41,7 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class StructureCoverageTest {
     private lateinit var db: Db
-    private lateinit var seriesStore: SeriesStore
+    private lateinit var episodeStore: EpisodeStore
     private lateinit var structure: StructureService
     private lateinit var workRoot: java.nio.file.Path
 
@@ -64,7 +64,7 @@ class StructureCoverageTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        seriesStore = SeriesStore(db)
+        episodeStore = EpisodeStore(db)
         structure =
             StructureService(
                 db,
@@ -79,8 +79,8 @@ class StructureCoverageTest {
     @Test
     fun `сцены покрывают серию без разрывов и перекрытий`() {
         val frameCount = 600
-        val series = newSeries(frameCount)
-        val run = beginRun(series)
+        val episode = newEpisode(frameCount)
+        val run = beginRun(episode)
         // Границы сцен обязаны быть подмножеством границ планов: порог сцены
         // не ниже порога плана, поэтому любая граница сцены — граница плана
         // (ADR-0005). Проверка этого правила живёт в самом DetectionResult.
@@ -90,7 +90,7 @@ class StructureCoverageTest {
         val (scenes, shots) =
             structure.applyDetection(
                 runId = run,
-                seriesId = series.id!!,
+                episodeId = episode.id!!,
                 detection =
                     DetectionResult(
                         sceneBoundaries = sceneBoundaries,
@@ -101,7 +101,7 @@ class StructureCoverageTest {
         assertTrue(scenes > 0, "структура обязана содержать сцены")
         assertTrue(shots >= scenes, "планов не может быть меньше, чем сцен")
 
-        val storedScenes = structure.listScenes(series.id)
+        val storedScenes = structure.listScenes(episode.id)
         assertEquals(0, storedScenes.first().firstFrame, "структура обязана начинаться с первого кадра серии")
         assertEquals(
             frameCount - 1,
@@ -160,19 +160,19 @@ class StructureCoverageTest {
                 java.nio.file.Path
                     .of(source),
             )
-        val series = newSeriesAt(detected.frameCount, source, detected.byteSize)
+        val episode = newEpisodeAt(detected.frameCount, source, detected.byteSize)
         val detector = SceneDetector(ExternalProgram(), System.getenv("SYP_TEST_FFMPEG") ?: "ffmpeg")
-        val settings = SerialSettingsStore(db).read(series.serialId)
+        val settings = MovieSettingsStore(db).read(episode.movieId)
         val detection =
             detector.detect(
-                series = series,
-                sceneThreshold = settings.number(ru.svoemesto.syp.admin.catalog.SerialSetting.SCENE_THRESHOLD),
-                shotThreshold = settings.number(ru.svoemesto.syp.admin.catalog.SerialSetting.SHOT_THRESHOLD),
+                episode = episode,
+                sceneThreshold = settings.number(ru.svoemesto.syp.admin.catalog.MovieSetting.SCENE_THRESHOLD),
+                shotThreshold = settings.number(ru.svoemesto.syp.admin.catalog.MovieSetting.SHOT_THRESHOLD),
             )
-        val run = beginRun(series)
-        structure.applyDetection(run, series.id!!, detection)
+        val run = beginRun(episode)
+        structure.applyDetection(run, episode.id!!, detection)
 
-        val scenes = structure.listScenes(series.id!!)
+        val scenes = structure.listScenes(episode.id!!)
         assertEquals(0, scenes.first().firstFrame, "первая граница структуры — кадр 0")
         assertEquals(
             detected.frameCount - 1,
@@ -197,7 +197,7 @@ class StructureCoverageTest {
      * @param frameCount число кадров
      * @return записанная серия
      */
-    private fun newSeries(frameCount: Int): Series = newSeriesAt(frameCount, "/srv/got/S1E1-${System.nanoTime()}.mkv", 1000)
+    private fun newEpisode(frameCount: Int): Episode = newEpisodeAt(frameCount, "/srv/got/S1E1-${System.nanoTime()}.mkv", 1000)
 
     /**
      * Заводит серию по указанному пути и размеру файла.
@@ -207,15 +207,15 @@ class StructureCoverageTest {
      * @param byteSize размер файла в байтах
      * @return записанная серия
      */
-    private fun newSeriesAt(
+    private fun newEpisodeAt(
         frameCount: Int,
         sourcePath: String,
         byteSize: Long,
-    ): Series {
-        val serial = SerialStore(db).create("Покрытие ${System.nanoTime()}", "/srv/got")
-        return seriesStore.insert(
-            Series(
-                serialId = serial.id!!,
+    ): Episode {
+        val movie = MovieStore(db).create("Покрытие ${System.nanoTime()}", "/srv/got")
+        return episodeStore.insert(
+            Episode(
+                movieId = movie.id!!,
                 ordinal = 0,
                 name =
                     java.nio.file.Path
@@ -243,14 +243,14 @@ class StructureCoverageTest {
     /**
      * Заводит прогон анализа.
      *
-     * @param series серия
+     * @param episode серия
      * @return идентификатор прогона
      */
-    private fun beginRun(series: Series): Long {
+    private fun beginRun(episode: Episode): Long {
         val run =
             AnalysisRunStore(db).begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = DetectionResult.ALGORITHM_VERSION,
                     paramsHash = "c".repeat(64),

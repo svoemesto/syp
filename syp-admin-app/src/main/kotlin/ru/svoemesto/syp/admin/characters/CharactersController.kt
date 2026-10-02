@@ -10,10 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 
@@ -37,11 +37,11 @@ data class PersonView(
 /**
  * Персоны сериала в ответе.
  *
- * @property serialId сериал
+ * @property movieId сериал
  * @property persons персоны: сначала служебные, затем именованные по имени
  */
 data class PersonsView(
-    val serialId: Long,
+    val movieId: Long,
     val persons: List<PersonView>,
 )
 
@@ -90,8 +90,8 @@ data class FaceView(
  * ответ занял бы мегабайты и положил бы вкладку оператора
  * (`admin-api.md` § 1.5).
  *
- * @property seriesId серия
- * @property serialId сериал-владелец: по нему клиент читает справочник персон
+ * @property episodeId серия
+ * @property movieId сериал-владелец: по нему клиент читает справочник персон
  * @property frameWidth ширина кадра серии: по ней клиент кладёт рамку на миниатюру
  * @property frameHeight высота кадра серии
  * @property facesTotal сколько лиц у серии всего
@@ -100,8 +100,8 @@ data class FaceView(
  * @property faces лица выборки
  */
 data class FacesView(
-    val seriesId: Long,
-    val serialId: Long,
+    val episodeId: Long,
+    val movieId: Long,
     val frameWidth: Int,
     val frameHeight: Int,
     val facesTotal: Int,
@@ -131,7 +131,7 @@ data class FaceClusterView(
  * Отдаются **без имени**: кластер, которому оператор дал имя, стал персоной
  * и в списке кластеров безымянных не показывается (FR-031).
  *
- * @property seriesId серия
+ * @property episodeId серия
  * @property frameWidth ширина кадра серии: по ней клиент кладёт рамку на миниатюру
  * @property frameHeight высота кадра серии
  * @property embeddingModelKey ключ модели эмбеддингов, которой получены векторы
@@ -139,7 +139,7 @@ data class FaceClusterView(
  * @property clusters кластеры по убыванию числа лиц
  */
 data class FaceClustersView(
-    val seriesId: Long,
+    val episodeId: Long,
     val frameWidth: Int,
     val frameHeight: Int,
     val embeddingModelKey: String,
@@ -199,8 +199,8 @@ data class RenamePersonRequest(
  * @property embeddings хранилище эмбеддингов
  * @property clustering кластеризация на холодном старте
  * @property persons сервис персон
- * @property seriesStore хранилище серий
- * @property serials хранилище сериалов
+ * @property episodeStore хранилище серий
+ * @property movies хранилище сериалов
  * @property settingsStore настройки сериала
  * @property embeddingModelKey ключ модели эмбеддингов из конфигурации развёртывания
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -212,37 +212,37 @@ class CharactersController(
     private val embeddings: FaceEmbeddingStore,
     private val clustering: Clustering,
     private val persons: PersonService,
-    private val seriesStore: SeriesStore,
-    private val serials: SerialStore,
-    private val settingsStore: SerialSettingsStore,
+    private val episodeStore: EpisodeStore,
+    private val movies: MovieStore,
+    private val settingsStore: MovieSettingsStore,
     private val embeddingModelKey: String,
 ) {
     /**
      * Отдаёт лица серии.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @param offset смещение выборки
      * @param limit размер выборки
      * @return страница лиц серии
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    @GetMapping("/series/{seriesId}/faces")
+    @GetMapping("/episode/{episodeId}/faces")
     fun readFaces(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
         @RequestParam(defaultValue = "0") offset: Int,
         @RequestParam(defaultValue = "200") limit: Int,
     ): FacesView {
-        val series = requireSeries(seriesId)
+        val episode = requireEpisode(episodeId)
         val start = offset.coerceAtLeast(0)
         val size = limit.coerceIn(1, MAX_PAGE)
-        val page = faces.listBySeries(seriesId, start, size)
+        val page = faces.listByEpisode(episodeId, start, size)
         val byId = namedPersons(page.map { it.personId }.distinct())
         return FacesView(
-            seriesId = seriesId,
-            serialId = series.serialId,
-            frameWidth = series.width,
-            frameHeight = series.height,
-            facesTotal = faces.countBySeries(seriesId),
+            episodeId = episodeId,
+            movieId = episode.movieId,
+            frameWidth = episode.width,
+            frameHeight = episode.height,
+            facesTotal = faces.countByEpisode(episodeId),
             offset = start,
             limit = size,
             faces = page.map { face -> face.toView(byId[face.personId]) },
@@ -260,22 +260,22 @@ class CharactersController(
      * «распознано, имя не подтверждено»: «нет персоны» выражается заглушкой,
      * а не пустой ссылкой (Р-12).
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return кластеры серии
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    @GetMapping("/series/{seriesId}/faces/clusters")
+    @GetMapping("/episode/{episodeId}/faces/clusters")
     fun readClusters(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
     ): FaceClustersView {
-        val series = requireSeries(seriesId)
+        val episode = requireEpisode(episodeId)
         val namedKeys =
-            persons.listBySerial(series.serialId).mapNotNull { it.recognizerKey }.toSet()
-        val unnamed = clustersOf(seriesId).filter { it.id !in namedKeys }
+            persons.listByMovie(episode.movieId).mapNotNull { it.recognizerKey }.toSet()
+        val unnamed = clustersOf(episodeId).filter { it.id !in namedKeys }
         return FaceClustersView(
-            seriesId = seriesId,
-            frameWidth = series.width,
-            frameHeight = series.height,
+            episodeId = episodeId,
+            frameWidth = episode.width,
+            frameHeight = episode.height,
             embeddingModelKey = embeddingModelKey,
             clustersTotal = unnamed.size,
             clusters =
@@ -299,7 +299,7 @@ class CharactersController(
      * увидел бы в справочнике и удалил руками, не понимая, откуда она взялась.
      * Откат не отменяет исходной ошибки — она и есть причина отказа.
      *
-     * @param clusterId ключ кластера из `GET /api/series/{seriesId}/faces/clusters`
+     * @param clusterId ключ кластера из `GET /api/episode/{episodeId}/faces/clusters`
      * @param request имя персоны
      * @return созданная персона с числом назначенных лиц
      * @throws DomainException с кодом `NOT_FOUND`, если кластера нет; с кодом
@@ -319,16 +319,16 @@ class CharactersController(
                         "и ни одного его лица не осталось",
                 )
         val cluster =
-            clustersOf(anchor.seriesId).firstOrNull { it.id == clusterId }
+            clustersOf(anchor.episodeId).firstOrNull { it.id == clusterId }
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
                     "Лицо $anchorId ещё есть, но кластера «$clusterId» уже нет: состав лиц " +
                         "серии изменился, перечитайте список кластеров",
                 )
-        val serialId = requireSeries(anchor.seriesId).serialId
+        val movieId = requireEpisode(anchor.episodeId).movieId
         val person =
             persons.create(
-                serialId = serialId,
+                movieId = movieId,
                 name = request.name,
                 recognizerKey = request.recognizerKey?.takeIf { it.isNotBlank() } ?: clusterId,
             )
@@ -351,18 +351,18 @@ class CharactersController(
     /**
      * Отдаёт персон сериала.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @return персоны сериала
      * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
      */
-    @GetMapping("/serials/{serialId}/persons")
+    @GetMapping("/serials/{movieId}/persons")
     fun readPersons(
-        @PathVariable serialId: Long,
+        @PathVariable movieId: Long,
     ): PersonsView {
-        requireSerial(serialId)
+        requireMovie(movieId)
         return PersonsView(
-            serialId = serialId,
-            persons = persons.listBySerial(serialId).map { it.toView() },
+            movieId = movieId,
+            persons = persons.listByMovie(movieId).map { it.toView() },
         )
     }
 
@@ -407,13 +407,13 @@ class CharactersController(
     /**
      * Кластеры серии по её эмбеддингам.
      *
-     * @param seriesId серия
+     * @param episodeId серия
      * @return кластеры серии
      */
-    private fun clustersOf(seriesId: Long): List<FaceCluster> =
+    private fun clustersOf(episodeId: Long): List<FaceCluster> =
         clustering.cluster(
-            embeddings.listBySeries(seriesId, embeddingModelKey).map { ClusterPoint(it.faceId, it.vector) },
-            settingsStore.read(requireSeries(seriesId).serialId),
+            embeddings.listByEpisode(episodeId, embeddingModelKey).map { ClusterPoint(it.faceId, it.vector) },
+            settingsStore.read(requireEpisode(episodeId).movieId),
         )
 
     /**
@@ -444,23 +444,23 @@ class CharactersController(
     /**
      * Требует серию.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор серии
      * @return серия
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    private fun requireSeries(seriesId: Long): Series =
-        seriesStore.find(seriesId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "Серия $seriesId не зарегистрирована")
+    private fun requireEpisode(episodeId: Long): Episode =
+        episodeStore.find(episodeId)
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "Серия $episodeId не зарегистрирована")
 
     /**
      * Требует сериал.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
      */
-    private fun requireSerial(serialId: Long) {
-        if (serials.find(serialId) == null) {
-            throw DomainException(ErrorCode.NOT_FOUND, "Сериал $serialId не заведён")
+    private fun requireMovie(movieId: Long) {
+        if (movies.find(movieId) == null) {
+            throw DomainException(ErrorCode.NOT_FOUND, "Сериал $movieId не заведён")
         }
     }
 

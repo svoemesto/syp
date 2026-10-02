@@ -10,7 +10,7 @@ import { type PreviewUrlView, previewSheetUrl } from '../api/structure'
 
 const props = defineProps<{
   /** Серия-владелец листа. */
-  seriesId: number
+  episodeId: number
   /** Описание листа с адресом и раскладкой. */
   sheet: PreviewUrlView
   /** Кадр, который нужно подсветить, либо `null`. */
@@ -52,7 +52,7 @@ const highlight = computed(() => {
 
     <div v-else class="canvas">
       <img
-        :src="previewSheetUrl(seriesId, sheet.index)"
+        :src="previewSheetUrl(episodeId, sheet.index)"
         :alt="`Лист превью №${sheet.index}, кадры ${sheet.firstFrame}…${sheet.lastFrame}`"
         :width="sheet.sheetWidth"
         :height="sheet.sheetHeight"

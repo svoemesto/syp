@@ -7,21 +7,21 @@
 
 import { computed, ref } from 'vue'
 import {
-  type SerialDetailView,
-  type SerialView,
-  type SeriesView,
-  createSerial,
-  listSerials,
-  readSerial,
-  registerSeries,
+  type MovieDetailView,
+  type MovieView,
+  type EpisodeView,
+  createMovie,
+  listMovies,
+  readMovie,
+  registerEpisode,
 } from '../api/catalog'
 import { ApiError } from '../api/http'
 
 /** Список сериалов. */
-const serials = ref<SerialView[]>([])
+const movies = ref<MovieView[]>([])
 
 /** Раскрытый сериал с его сериями и настройками. */
-const current = ref<SerialDetailView | null>(null)
+const current = ref<MovieDetailView | null>(null)
 
 /** Идёт ли обращение к бэкенду: показывается работа, а не пустой экран. */
 const loading = ref(false)
@@ -51,10 +51,10 @@ function remember(failure: unknown): void {
 }
 
 /** Серии раскрытого сериала; пустой список, если сериал не выбран. */
-const series = computed<SeriesView[]>(() => current.value?.series ?? [])
+const episode = computed<EpisodeView[]>(() => current.value?.episode ?? [])
 
 /** Можно ли ставить новую серию: сериал должен быть выбран. */
-const canRegisterSeries = computed(() => current.value !== null)
+const canRegisterEpisode = computed(() => current.value !== null)
 
 /**
  * Состояние экрана приёма и действия над ним.
@@ -67,10 +67,10 @@ export function useCatalogStore() {
    *
    * @returns `true`, если список прочитан
    */
-  async function reloadSerials(): Promise<boolean> {
+  async function reloadMovies(): Promise<boolean> {
     loading.value = true
     try {
-      serials.value = await listSerials()
+      movies.value = await listMovies()
       error.value = ''
       errorCode.value = ''
       return true
@@ -89,12 +89,12 @@ export function useCatalogStore() {
    * @param sourceRoot корневой каталог сериала на машине администратора
    * @returns `true`, если сериал создан и показан
    */
-  async function addSerial(name: string, sourceRoot: string): Promise<boolean> {
+  async function addMovie(name: string, sourceRoot: string): Promise<boolean> {
     loading.value = true
     try {
-      const created = await createSerial(name, sourceRoot)
-      await openSerial(created.serial.id)
-      await reloadSerials()
+      const created = await createMovie(name, sourceRoot)
+      await openMovie(created.movie.id)
+      await reloadMovies()
       return true
     } catch (failure) {
       remember(failure)
@@ -107,13 +107,13 @@ export function useCatalogStore() {
   /**
    * Открывает сериал: серии и настройки.
    *
-   * @param serialId идентификатор сериала
+   * @param movieId идентификатор сериала
    * @returns `true`, если сериал прочитан
    */
-  async function openSerial(serialId: number): Promise<boolean> {
+  async function openMovie(movieId: number): Promise<boolean> {
     loading.value = true
     try {
-      current.value = await readSerial(serialId)
+      current.value = await readMovie(movieId)
       error.value = ''
       errorCode.value = ''
       return true
@@ -132,7 +132,7 @@ export function useCatalogStore() {
    * @param name название серии; если не задано, берётся имя файла
    * @returns `true`, если серия зарегистрирована
    */
-  async function addSeries(sourcePath: string, name?: string): Promise<boolean> {
+  async function addEpisode(sourcePath: string, name?: string): Promise<boolean> {
     if (current.value === null) {
       errorCode.value = 'BAD_REQUEST'
       error.value = 'Сначала откройте сериал: серия заводится только в нём'
@@ -140,8 +140,8 @@ export function useCatalogStore() {
     }
     loading.value = true
     try {
-      await registerSeries(current.value.serial.id, sourcePath, name)
-      await openSerial(current.value.serial.id)
+      await registerEpisode(current.value.movie.id, sourcePath, name)
+      await openMovie(current.value.movie.id)
       return true
     } catch (failure) {
       remember(failure)
@@ -158,17 +158,17 @@ export function useCatalogStore() {
   }
 
   return {
-    serials,
+    movies,
     current,
-    series,
+    episode,
     loading,
     error,
     errorCode,
-    canRegisterSeries,
-    reloadSerials,
-    addSerial,
-    openSerial,
-    addSeries,
+    canRegisterEpisode,
+    reloadMovies,
+    addMovie,
+    openMovie,
+    addEpisode,
     clearError,
   }
 }

@@ -61,7 +61,7 @@ const offset = ref(0)
 const limit = 200
 
 /** Идентификатор серии из адреса. */
-const seriesId = computed(() => Number(route.params.seriesId))
+const episodeId = computed(() => Number(route.params.episodeId))
 
 /** Лица текущей страницы. */
 const faceList = computed(() => faces.value?.faces ?? [])
@@ -111,7 +111,7 @@ onMounted(() => {
   void reload()
 })
 
-watch(seriesId, () => {
+watch(episodeId, () => {
   void reload()
 })
 
@@ -124,10 +124,10 @@ async function reload(): Promise<void> {
   loading.value = true
   error.value = null
   try {
-    const loaded = await readFaces(seriesId.value, offset.value, limit)
+    const loaded = await readFaces(episodeId.value, offset.value, limit)
     faces.value = loaded
-    clusters.value = await readClusters(seriesId.value)
-    persons.value = await readPersons(loaded.serialId)
+    clusters.value = await readClusters(episodeId.value)
+    persons.value = await readPersons(loaded.movieId)
   } catch (failure) {
     error.value = failure instanceof Error ? failure.message : String(failure)
   } finally {
@@ -324,7 +324,7 @@ function personKindTitle(kind: string): string {
           <span class="count">на странице: {{ group.faces.length }}</span>
         </h4>
         <FaceThumbnails
-          :series-id="seriesId"
+          :episode-id="episodeId"
           :faces="group.faces"
           :frame-width="faces.frameWidth"
           :frame-height="faces.frameHeight"

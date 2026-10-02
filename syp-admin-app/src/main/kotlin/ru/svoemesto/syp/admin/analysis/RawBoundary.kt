@@ -209,7 +209,7 @@ class RawBoundaryStore(
 
     companion object {
         /** Имя таблицы сырых границ. */
-        const val TABLE: String = "raw_boundary"
+        const val TABLE: String = "tbl_raw_boundaries"
 
         /** Записываемые столбцы границы в порядке значений. */
         val COLUMNS: List<String> = listOf("run_id", "level", "first_frame", "last_frame")

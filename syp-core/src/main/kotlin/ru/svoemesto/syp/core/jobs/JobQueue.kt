@@ -54,7 +54,7 @@ class JobQueue(
             connection
                 .prepareStatement(
                     """
-                    INSERT INTO job (kind, state, subject_type, subject_id, params,
+                    INSERT INTO tbl_jobs (kind, state, subject_type, subject_id, params,
                                      params_hash, algorithm_version, progress_done,
                                      progress_total)
                     VALUES (?, 'WAITING', ?, ?, ?::jsonb, ?, ?, 0, 0)
@@ -100,7 +100,7 @@ class JobQueue(
             // ровно один увидит одну затронутую строку.
             connection
                 .prepareStatement(
-                    "SELECT $JOB_COLUMNS FROM job " +
+                    "SELECT $JOB_COLUMNS FROM tbl_jobs " +
                         "WHERE state = 'WAITING' AND kind IN ($placeholders) " +
                         "ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED",
                 ).use { statement ->
@@ -113,7 +113,7 @@ class JobQueue(
                             val claimed =
                                 connection
                                     .prepareStatement(
-                                        "UPDATE job SET state = 'CREATING', started_at = now() " +
+                                        "UPDATE tbl_jobs SET state = 'CREATING', started_at = now() " +
                                             "WHERE id = ? AND state = 'WAITING'",
                                     ).use { update ->
                                         update.setLong(1, candidate.id)
@@ -190,7 +190,7 @@ class JobQueue(
             progress.requireNotBehind(previous)
             connection
                 .prepareStatement(
-                    "UPDATE job SET progress_done = ?, progress_total = ?, progress_note = ? " +
+                    "UPDATE tbl_jobs SET progress_done = ?, progress_total = ?, progress_note = ? " +
                         "WHERE id = ?",
                 ).use { statement ->
                     statement.setLong(1, progress.done)
@@ -231,7 +231,7 @@ class JobQueue(
             connection
                 .prepareStatement(
                     """
-                    UPDATE job
+                    UPDATE tbl_jobs
                        SET state = 'WAITING',
                            started_at = NULL,
                            finished_at = NULL,
@@ -273,7 +273,7 @@ class JobQueue(
             connection
                 .prepareStatement(
                     """
-                    UPDATE job
+                    UPDATE tbl_jobs
                        SET state = 'WAITING',
                            started_at = NULL,
                            finished_at = NULL,
@@ -298,7 +298,7 @@ class JobQueue(
      */
     fun find(jobId: Long): Job? =
         db.use { connection ->
-            connection.prepareStatement("SELECT $JOB_COLUMNS FROM job WHERE id = ?").use { statement ->
+            connection.prepareStatement("SELECT $JOB_COLUMNS FROM tbl_jobs WHERE id = ?").use { statement ->
                 statement.setLong(1, jobId)
                 statement.executeQuery().use { resultSet ->
                     if (resultSet.next()) readJob(resultSet) else null
@@ -326,7 +326,7 @@ class JobQueue(
                 " WHERE state IN (${states.joinToString(", ") { "?" }})"
             }
         return db.select(
-            "SELECT $JOB_COLUMNS FROM job$condition ORDER BY created_at, id LIMIT $limit",
+            "SELECT $JOB_COLUMNS FROM tbl_jobs$condition ORDER BY created_at, id LIMIT $limit",
             ::readJobRow,
             *states.map { it.name }.toTypedArray(),
         )
@@ -355,8 +355,8 @@ class JobQueue(
                     .prepareStatement(
                         """
                         SELECT count(*)
-                          FROM job
-                          JOIN artifact ON artifact.job_id = job.id
+                          FROM tbl_jobs job
+                          JOIN tbl_artifacts artifact ON tbl_artifacts.job_id = job.id
                          WHERE job.kind = ?
                            AND job.params_hash = ?
                            AND job.state = 'DONE'
@@ -392,7 +392,7 @@ class JobQueue(
     ): Int =
         db.update(
             """
-            UPDATE job
+            UPDATE tbl_jobs
                SET progress_note = COALESCE(progress_note, '') ||
                    ' — результат помечен устаревшим: изменились параметры задания'
              WHERE kind = ?
@@ -424,7 +424,7 @@ class JobQueue(
             val affected =
                 connection
                     .prepareStatement(
-                        "UPDATE job SET state = ?, error_text = ?, finished_at = now() WHERE id = ? AND state = ?",
+                        "UPDATE tbl_jobs SET state = ?, error_text = ?, finished_at = now() WHERE id = ? AND state = ?",
                     ).use { statement ->
                         statement.setString(1, to.name)
                         statement.setString(2, errorText)
@@ -446,7 +446,7 @@ class JobQueue(
         connection: java.sql.Connection,
         jobId: Long,
     ): JobState {
-        connection.prepareStatement("SELECT state FROM job WHERE id = ?").use { statement ->
+        connection.prepareStatement("SELECT state FROM tbl_jobs WHERE id = ?").use { statement ->
             statement.setLong(1, jobId)
             statement.executeQuery().use { resultSet ->
                 if (!resultSet.next()) throw DbException("Задание $jobId не найдено")
@@ -462,7 +462,7 @@ class JobQueue(
     ): JobProgress? {
         connection
             .prepareStatement(
-                "SELECT progress_done, progress_total, progress_note FROM job WHERE id = ?",
+                "SELECT progress_done, progress_total, progress_note FROM tbl_jobs WHERE id = ?",
             ).use { statement ->
                 statement.setLong(1, jobId)
                 statement.executeQuery().use { resultSet ->

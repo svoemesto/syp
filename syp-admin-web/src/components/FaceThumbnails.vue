@@ -13,7 +13,7 @@ import { type FaceView, facePreviewUrl } from '../api/characters'
 
 const props = defineProps<{
   /** Серия-владелец лиц. */
-  seriesId: number
+  episodeId: number
   /** Лица для показа. */
   faces: FaceView[]
   /** Разрешение кадра серии: по нему считается положение рамки. */
@@ -60,7 +60,7 @@ function caption(face: FaceView): string {
     >
       <img
         class="frame"
-        :src="facePreviewUrl(seriesId, face.frameNumber)"
+        :src="facePreviewUrl(episodeId, face.frameNumber)"
         :alt="caption(face)"
         loading="lazy"
       />

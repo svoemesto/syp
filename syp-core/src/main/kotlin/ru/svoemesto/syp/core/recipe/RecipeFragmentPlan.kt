@@ -112,7 +112,7 @@ object RecipeFragmentPlan {
                 ErrorCode.SOURCE_UNREADABLE,
                 "у серии не посчитана карта ключевых кадров, фактические границы фрагмента " +
                     "вычислить нечем; округление на стыке выдумывать нельзя (FR-082)",
-                listOf(ErrorItem("series", "?", "карта ключевых кадров не посчитана")),
+                listOf(ErrorItem("tbl_episodes", "?", "карта ключевых кадров не посчитана")),
             )
         }
         val cutFirst = keyframes.lastKeyframeAtOrBefore(firstFrame) ?: firstFrame

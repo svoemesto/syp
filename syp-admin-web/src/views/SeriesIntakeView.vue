@@ -13,13 +13,13 @@ import { formatBytes, formatDuration } from '../format/values'
 const store = useCatalogStore()
 const router = useRouter()
 
-const serialName = ref('')
-const serialRoot = ref('')
-const seriesPath = ref('')
-const seriesName = ref('')
+const movieName = ref('')
+const movieRoot = ref('')
+const episodePath = ref('')
+const episodeName = ref('')
 
 onMounted(() => {
-  void store.reloadSerials()
+  void store.reloadMovies()
 })
 
 /**
@@ -27,8 +27,8 @@ onMounted(() => {
  *
  * @returns `true`, если сериал создан
  */
-async function submitSerial(): Promise<boolean> {
-  return store.addSerial(serialName.value.trim(), serialRoot.value.trim())
+async function submitMovie(): Promise<boolean> {
+  return store.addMovie(movieName.value.trim(), movieRoot.value.trim())
 }
 
 /**
@@ -36,11 +36,11 @@ async function submitSerial(): Promise<boolean> {
  *
  * @returns `true`, если серия зарегистрирована
  */
-async function submitSeries(): Promise<boolean> {
-  const created = await store.addSeries(seriesPath.value.trim(), seriesName.value.trim())
+async function submitEpisode(): Promise<boolean> {
+  const created = await store.addEpisode(episodePath.value.trim(), episodeName.value.trim())
   if (created) {
-    seriesPath.value = ''
-    seriesName.value = ''
+    episodePath.value = ''
+    episodeName.value = ''
   }
   return created
 }
@@ -48,10 +48,10 @@ async function submitSeries(): Promise<boolean> {
 /**
  * Открывает экран состояния суммы для серии.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор серии
  */
-function openChecksum(seriesId: number): void {
-  void router.push({ name: 'checksum', params: { seriesId: String(seriesId) } })
+function openChecksum(episodeId: number): void {
+  void router.push({ name: 'checksum', params: { episodeId: String(episodeId) } })
 }
 </script>
 
@@ -79,30 +79,30 @@ function openChecksum(seriesId: number): void {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="serial in store.serials.value" :key="serial.id">
-            <td>{{ serial.name }}</td>
+          <tr v-for="movie in store.movies.value" :key="movie.id">
+            <td>{{ movie.name }}</td>
             <td class="path">
-              {{ serial.sourceRoot }}
+              {{ movie.sourceRoot }}
             </td>
-            <td>{{ serial.seriesCount }}</td>
+            <td>{{ movie.episodeCount }}</td>
             <td>
-              <button type="button" @click="store.openSerial(serial.id)">открыть</button>
+              <button type="button" @click="store.openMovie(movie.id)">открыть</button>
             </td>
           </tr>
-          <tr v-if="store.serials.value.length === 0">
+          <tr v-if="store.movies.value.length === 0">
             <td colspan="4" class="note">Сериалов пока нет</td>
           </tr>
         </tbody>
       </table>
 
       <div class="form">
-        <input v-model="serialName" type="text" placeholder="Название сериала" />
+        <input v-model="movieName" type="text" placeholder="Название сериала" />
         <input
-          v-model="serialRoot"
+          v-model="movieRoot"
           type="text"
           placeholder="Корень каталога, например /disks/HDD_16Tb_Clouds/GOT"
         />
-        <button type="button" :disabled="store.loading.value" @click="submitSerial">
+        <button type="button" :disabled="store.loading.value" @click="submitMovie">
           создать сериал
         </button>
       </div>
@@ -113,7 +113,7 @@ function openChecksum(seriesId: number): void {
     </fieldset>
 
     <fieldset v-if="store.current.value">
-      <legend>Серии сериала «{{ store.current.value.serial.name }}»</legend>
+      <legend>Серии сериала «{{ store.current.value.movie.name }}»</legend>
       <table>
         <thead>
           <tr>
@@ -129,22 +129,22 @@ function openChecksum(seriesId: number): void {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="series in store.series.value" :key="series.id">
-            <td>{{ series.name }}</td>
+          <tr v-for="episode in store.episode.value" :key="episode.id">
+            <td>{{ episode.name }}</td>
             <td class="path">
-              {{ series.relativePath ?? series.sourcePath }}
+              {{ episode.relativePath ?? episode.sourcePath }}
             </td>
-            <td>{{ series.frameCount.toLocaleString('ru-RU') }}</td>
-            <td>{{ series.width }}×{{ series.height }}</td>
-            <td>{{ series.frameRate }}</td>
-            <td>{{ formatDuration(series.durationSeconds) }}</td>
-            <td>{{ formatBytes(series.byteSize, 'байт', 0) }}</td>
-            <td>{{ series.keyframeCount }}</td>
+            <td>{{ episode.frameCount.toLocaleString('ru-RU') }}</td>
+            <td>{{ episode.width }}×{{ episode.height }}</td>
+            <td>{{ episode.frameRate }}</td>
+            <td>{{ formatDuration(episode.durationSeconds) }}</td>
+            <td>{{ formatBytes(episode.byteSize, 'байт', 0) }}</td>
+            <td>{{ episode.keyframeCount }}</td>
             <td>
-              <button type="button" @click="openChecksum(series.id)">сумма</button>
+              <button type="button" @click="openChecksum(episode.id)">сумма</button>
             </td>
           </tr>
-          <tr v-if="store.series.value.length === 0">
+          <tr v-if="store.episode.value.length === 0">
             <td colspan="9" class="note">Серий пока нет</td>
           </tr>
         </tbody>
@@ -152,15 +152,15 @@ function openChecksum(seriesId: number): void {
 
       <div class="form">
         <input
-          v-model="seriesPath"
+          v-model="episodePath"
           type="text"
           placeholder="Путь к файлу серии внутри корня сериала"
         />
-        <input v-model="seriesName" type="text" placeholder="Название серии (необязательно)" />
+        <input v-model="episodeName" type="text" placeholder="Название серии (необязательно)" />
         <button
           type="button"
-          :disabled="!store.canRegisterSeries.value || store.loading.value"
-          @click="submitSeries"
+          :disabled="!store.canRegisterEpisode.value || store.loading.value"
+          @click="submitEpisode"
         >
           добавить серию
         </button>

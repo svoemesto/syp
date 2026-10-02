@@ -1,6 +1,6 @@
 package ru.svoemesto.syp.admin.characters
 
-import ru.svoemesto.syp.admin.catalog.Series
+import ru.svoemesto.syp.admin.catalog.Episode
 import ru.svoemesto.syp.core.media.FrameChannel
 import ru.svoemesto.syp.core.media.FrameFormat
 
@@ -33,9 +33,9 @@ data class FaceScanResult(
      *
      * @return пояснение по-русски
      */
-    fun note(seriesName: String): String {
+    fun note(episodeName: String): String {
         val base =
-            "лица серии «$seriesName»: обработано кадров $frames, найдено лиц $faces" +
+            "лица серии «$episodeName»: обработано кадров $frames, найдено лиц $faces" +
                 (if (framesWithFaces > 0) ", кадров с лицами $framesWithFaces" else "") +
                 ", время ${"%.1f".format(elapsedMillis / 1000.0)} с"
         return if (detectorIsStub) {
@@ -108,7 +108,7 @@ class FaceScan(
      * при отказе: оставленный процесс детекции держал бы видеокарту и помешал
      * бы следующему заданию.
      *
-     * @param series серия: берутся путь к файлу, разрешение и число кадров
+     * @param episode серия: берутся путь к файлу, разрешение и число кадров
      * @param maxFrames ограничение числа кадров; `0` — вся серия
      * @param progress приёмник числа обработанных кадров
      * @param sink приёмник найденных рамок; `null` — рамки не сохраняются
@@ -121,7 +121,7 @@ class FaceScan(
      *   ответила на кадр, оборвала ответ или завершилась с ненулевым кодом
      */
     fun scan(
-        series: Series,
+        episode: Episode,
         maxFrames: Int = 0,
         progress: (Int) -> Unit = {},
         sink: FaceSink? = null,
@@ -129,7 +129,7 @@ class FaceScan(
         require(maxFrames >= 0) { "Ограничение числа кадров отрицательно: $maxFrames" }
         var failure: Throwable? = null
         try {
-            return scanSeries(series, maxFrames, progress, sink)
+            return scanEpisode(episode, maxFrames, progress, sink)
         } catch (refused: Throwable) {
             failure = refused
             throw refused
@@ -156,28 +156,28 @@ class FaceScan(
     /**
      * Проводит серию через детектор без управления его жизненным циклом.
      *
-     * @param series серия: берутся путь к файлу, разрешение и число кадров
+     * @param episode серия: берутся путь к файлу, разрешение и число кадров
      * @param maxFrames ограничение числа кадров; `0` — вся серия
      * @param progress приёмник числа обработанных кадров
      * @param sink приёмник найденных рамок; `null` — рамки не сохраняются
      * @return итог прохода
      */
-    private fun scanSeries(
-        series: Series,
+    private fun scanEpisode(
+        episode: Episode,
         maxFrames: Int,
         progress: (Int) -> Unit,
         sink: FaceSink?,
     ): FaceScanResult {
         require(maxFrames >= 0) { "Ограничение числа кадров отрицательно: $maxFrames" }
-        val format = FrameFormat(series.width, series.height)
-        val expected = if (maxFrames > 0) maxFrames else series.frameCount
+        val format = FrameFormat(episode.width, episode.height)
+        val expected = if (maxFrames > 0) maxFrames else episode.frameCount
         var faces = 0
         var framesWithFaces = 0
         var processed = 0
 
         val result =
             channel.scan(
-                sourcePath = series.sourcePath,
+                sourcePath = episode.sourcePath,
                 format = format,
                 maxFrames = maxFrames,
                 onFrame = { frame ->
@@ -213,7 +213,7 @@ class FaceScan(
 
         if (processed != expected) {
             throw ru.svoemesto.syp.core.media.FrameChannelFailed(
-                "Обработано кадров $processed, а в серии «${series.name}» их ${series.frameCount}. " +
+                "Обработано кадров $processed, а в серии «${episode.name}» их ${episode.frameCount}. " +
                     "Кадры не пропускаются: результат неполным быть не может (FR-030, SC-005)",
             )
         }

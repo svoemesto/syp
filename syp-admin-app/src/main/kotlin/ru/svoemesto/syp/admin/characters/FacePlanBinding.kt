@@ -46,11 +46,11 @@ class FacePlanBinding(
      * (FR-034). Так бывает, когда структура серии ещё не построена: лица
      * нашли, а планов ещё нет.
      *
-     * @param seriesId серия
+     * @param episodeId серия
      * @return сколько строк лица изменилось
      * @throws ru.svoemesto.syp.core.db.DbException если пересчёт не удался
      */
-    fun rebindSeries(seriesId: Long): Int = db.useTransaction { connection -> rebindInConnection(connection, seriesId) }
+    fun rebindEpisode(episodeId: Long): Int = db.useTransaction { connection -> rebindInConnection(connection, episodeId) }
 
     /**
      * Пересчитывает принадлежность к планам в уже открытой транзакции.
@@ -60,16 +60,16 @@ class FacePlanBinding(
      * пересчётом появится окно с неверной привязкой (FR-034).
      *
      * @param connection открытое соединение, транзакцией управляет вызывающий
-     * @param seriesId серия
+     * @param episodeId серия
      * @return сколько строк лица изменилось
      * @throws ru.svoemesto.syp.core.db.DbException если пересчёт не удался
      */
     fun rebindInConnection(
         connection: Connection,
-        seriesId: Long,
+        episodeId: Long,
     ): Int {
-        val shots = ShotsByFrame.read(connection, seriesId)
-        return rebind(connection, seriesId, shots)
+        val shots = ShotsByFrame.read(connection, episodeId)
+        return rebind(connection, episodeId, shots)
     }
 
     /**
@@ -102,13 +102,13 @@ class FacePlanBinding(
      * Пересчитывает принадлежность по уже прочитанным планам.
      *
      * @param connection открытое соединение
-     * @param seriesId серия
+     * @param episodeId серия
      * @param shots планы серии
      * @return сколько строк лица изменилось
      */
     private fun rebind(
         connection: Connection,
-        seriesId: Long,
+        episodeId: Long,
         shots: List<ShotRange>,
     ): Int {
         // Первый проход — отвязка: все лица серии теряют прежний план.
@@ -119,9 +119,9 @@ class FacePlanBinding(
             connection
                 .prepareStatement(
                     "UPDATE ${FaceStore.TABLE} SET shot_id = NULL " +
-                        "WHERE series_id = ? AND shot_id IS NOT NULL",
+                        "WHERE id_episode = ? AND shot_id IS NOT NULL",
                 ).use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.executeUpdate()
                 }
 
@@ -131,11 +131,11 @@ class FacePlanBinding(
         connection
             .prepareStatement(
                 "UPDATE ${FaceStore.TABLE} SET shot_id = ? " +
-                    "WHERE series_id = ? AND frame_number >= ? AND frame_number <= ?",
+                    "WHERE id_episode = ? AND frame_number >= ? AND frame_number <= ?",
             ).use { statement ->
                 shots.forEach { shot ->
                     statement.setLong(1, shot.id)
-                    statement.setLong(2, seriesId)
+                    statement.setLong(2, episodeId)
                     statement.setInt(3, shot.firstFrame)
                     statement.setInt(4, shot.lastFrame)
                     changed += statement.executeUpdate()
@@ -176,19 +176,19 @@ object ShotsByFrame {
      * была бы ссылкой на результат, который оператор уже не видит.
      *
      * @param connection открытое соединение
-     * @param seriesId серия
+     * @param episodeId серия
      * @return планы по возрастанию первого кадра
      */
     fun read(
         connection: Connection,
-        seriesId: Long,
+        episodeId: Long,
     ): List<ShotRange> =
         connection
             .prepareStatement(
                 "SELECT id, first_frame, last_frame FROM ${StructureTables.SHOT} " +
-                    "WHERE series_id = ? AND is_stale = FALSE ORDER BY first_frame",
+                    "WHERE id_episode = ? AND is_stale = FALSE ORDER BY first_frame",
             ).use { statement ->
-                statement.setLong(1, seriesId)
+                statement.setLong(1, episodeId)
                 statement.executeQuery().use { resultSet ->
                     val rows = mutableListOf<ShotRange>()
                     while (resultSet.next()) {
@@ -213,5 +213,5 @@ object ShotsByFrame {
  */
 internal object StructureTables {
     /** Имя таблицы рабочих планов. */
-    const val SHOT: String = "shot"
+    const val SHOT: String = "tbl_shots"
 }

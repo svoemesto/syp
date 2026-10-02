@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesRegistration
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeRegistration
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.SourceProbe
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import ru.svoemesto.syp.admin.jobs.AdminJobWorker
@@ -48,7 +48,7 @@ import kotlin.test.assertTrue
 class ChecksumParityTest {
     private lateinit var db: Db
     private lateinit var queue: JobQueue
-    private lateinit var seriesStore: SeriesStore
+    private lateinit var episodeStore: EpisodeStore
     private lateinit var registry: ChecksumRegistry
     private lateinit var enqueuer: ChecksumEnqueuer
     private lateinit var worker: AdminJobWorker
@@ -63,15 +63,15 @@ class ChecksumParityTest {
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
         queue = JobQueue(db)
-        seriesStore = SeriesStore(db)
+        episodeStore = EpisodeStore(db)
         registry = ChecksumRegistry(db)
-        enqueuer = ChecksumEnqueuer(queue, seriesStore, registry)
+        enqueuer = ChecksumEnqueuer(queue, episodeStore, registry)
         probe = SourceProbe(ExternalProgram(), requireProgram("ffprobe"))
         val storageRoot = Files.createTempDirectory("syp-parity-storage")
         worker =
             AdminJobWorker(
                 queue = queue,
-                handlers = mapOf<JobKind, JobHandler>(JobKind.HASH to HashJob(seriesStore, registry)),
+                handlers = mapOf<JobKind, JobHandler>(JobKind.HASH to HashJob(episodeStore, registry)),
                 artifactRegistry = ArtifactRegistry(db, FileSystemStorage(storageRoot)),
                 db = db,
                 concurrency = 1,
@@ -85,10 +85,10 @@ class ChecksumParityTest {
      * @return путь к файлу серии
      * @throws org.opentest4j.TestAbortedException если переменная не задана
      */
-    private fun requireSeries(): Path {
-        val declared = System.getenv(ENV_SERIES)
+    private fun requireEpisode(): Path {
+        val declared = System.getenv(ENV_EPISODE)
         assumeTrue(!declared.isNullOrBlank()) {
-            "Переменная $ENV_SERIES не задана: сверка суммы с внешней пропущена"
+            "Переменная $ENV_EPISODE не задана: сверка суммы с внешней пропущена"
         }
         val path = Paths.get(declared!!)
         assumeTrue(Files.isRegularFile(path)) { "Файла серии $path нет: сверка пропущена" }
@@ -140,27 +140,27 @@ class ChecksumParityTest {
 
     @Test
     fun `сумма системы совпадает с sha256sum файла`() {
-        val seriesPath = requireSeries()
-        val serials = SerialStore(db)
-        val registration = SeriesRegistration(serials, seriesStore, probe)
+        val episodePath = requireEpisode()
+        val movies = MovieStore(db)
+        val registration = EpisodeRegistration(movies, episodeStore, probe)
 
-        println("=== СВЕРКА СУММЫ С ВНЕШНЕЙ: ${seriesPath.fileName} ===")
+        println("=== СВЕРКА СУММЫ С ВНЕШНЕЙ: ${episodePath.fileName} ===")
         val probeStarted = System.nanoTime()
-        val series: Series =
+        val episode: Episode =
             registration.register(
-                serials.create("Сверка ${System.nanoTime()}", seriesPath.parent.toString()).id!!,
-                seriesPath.toString(),
+                movies.create("Сверка ${System.nanoTime()}", episodePath.parent.toString()).id!!,
+                episodePath.toString(),
                 "S1E1",
             )
         println("определение параметров серии: ${elapsedSeconds(probeStarted)} с")
-        println("серия: ${series.frameCount} кадров, ${series.byteSize} байт, карта ключевых ${series.keyframeMap?.keyframeCount()}")
+        println("серия: ${episode.frameCount} кадров, ${episode.byteSize} байт, карта ключевых ${episode.keyframeMap?.keyframeCount()}")
 
-        val external = sha256sumOf(seriesPath)
+        val external = sha256sumOf(episodePath)
         println("sha256sum файла: $external")
 
         val times = mutableListOf<Double>()
         repeat(RUNS) { run ->
-            val enqueued = enqueuer.enqueue(series.id!!, "сверка с внешней суммой, прогон ${run + 1}")
+            val enqueued = enqueuer.enqueue(episode.id!!, "сверка с внешней суммой, прогон ${run + 1}")
             val job =
                 queue.claim(JobKindsForHash)
                     ?: throw IllegalStateException("Задание $enqueued не взято воркером: очередь пуста")
@@ -168,7 +168,7 @@ class ChecksumParityTest {
             val done = worker.runJob(job)
             val seconds = elapsedSeconds(started)
             times.add(seconds)
-            val current = registry.current(series.id!!)
+            val current = registry.current(episode.id!!)
             println(
                 "прогон ${run + 1}: задание " +
                     if (done) {
@@ -176,7 +176,7 @@ class ChecksumParityTest {
                     } else {
                         "не DONE" +
                             ", ${"%.2f".format(seconds)} с, " +
-                            "${"%.1f".format(series.byteSize / seconds / 1_048_576.0)} МБ/с, сумма ${current?.digest}"
+                            "${"%.1f".format(episode.byteSize / seconds / 1_048_576.0)} МБ/с, сумма ${current?.digest}"
                     },
             )
             assertTrue(done, "задание подсчёта обязано завершиться успешно")
@@ -188,7 +188,7 @@ class ChecksumParityTest {
         println("время чтения и подсчёта, с: ${times.joinToString(", ") { "%.2f".format(it) }}")
         println("минимальное: ${"%.2f".format(times.min())} с, максимальное: ${"%.2f".format(times.max())} с")
         val average = times.average()
-        println("среднее: ${"%.2f".format(average)} с, скорость ${"%.1f".format(series.byteSize / average / 1_048_576.0)} МБ/с")
+        println("среднее: ${"%.2f".format(average)} с, скорость ${"%.1f".format(episode.byteSize / average / 1_048_576.0)} МБ/с")
     }
 
     /**
@@ -201,7 +201,7 @@ class ChecksumParityTest {
 
     private companion object {
         /** Имя переменной окружения с путём к файлу серии. */
-        const val ENV_SERIES: String = "SYP_SOURCE_SERIES"
+        const val ENV_EPISODE: String = "SYP_SOURCE_EPISODE"
 
         /** Сколько прогонов измеряется: один прогон — мнение, три — измерение. */
         const val RUNS: Int = 3

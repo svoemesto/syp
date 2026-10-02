@@ -70,8 +70,8 @@ class JobQueueContractTest {
     /** Удаляет задания и артефакты, созданные предыдущими тестами. */
     private fun clearJobTables() {
         val db = TestDb.assumeDatabase()
-        db.update("DELETE FROM artifact")
-        db.update("DELETE FROM job")
+        db.update("DELETE FROM tbl_artifacts")
+        db.update("DELETE FROM tbl_jobs")
     }
 
     /**
@@ -355,22 +355,22 @@ class JobQueueContractTest {
     @DisplayName("Свойство 8: прерванный подсчёт суммы не оставляет DONE")
     fun interruptedChecksumLeavesNoDoneRow() {
         val db = TestDb.assumeDatabase()
-        val seriesId = createSeries(db)
+        val episodeId = createEpisode(db)
         val jobId = enqueue(JobKind.HASH, "свойство-8")
 
         // Подсчёт начат и прерван: запись остаётся не в состоянии DONE.
         db.update(
             """
-            INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state)
+            INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state)
             VALUES (?, 'SHA-256', repeat('a', 64), 100, now(), 'WORKING')
             """.trimIndent(),
-            seriesId,
+            episodeId,
         )
         val row =
             db.selectOne(
-                "SELECT id, state FROM source_file_checksum WHERE series_id = ?",
+                "SELECT id, state FROM tbl_source_file_checksums WHERE id_episode = ?",
                 { it.long("id") to it.string("state") },
-                seriesId,
+                episodeId,
             )
         assertNotNull(row)
         assertEquals("WORKING", row.second, "прерванный подсчёт не должен давать DONE")
@@ -378,19 +378,19 @@ class JobQueueContractTest {
         // Две актуальные суммы в базу не попадают: частичный уникальный индекс.
         db.update(
             """
-            INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at)
+            INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
             VALUES (?, 'SHA-256', repeat('b', 64), 100, now(), 'DONE', now())
             """.trimIndent(),
-            seriesId,
+            episodeId,
         )
         val second =
             runCatching {
                 db.update(
                     """
-                    INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at)
+                    INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
                     VALUES (?, 'SHA-256', repeat('c', 64), 100, now(), 'DONE', now())
                     """.trimIndent(),
-                    seriesId,
+                    episodeId,
                 )
             }
         assertTrue(second.isFailure, "вторая актуальная сумма той же серии должна отклоняться базой")
@@ -398,12 +398,12 @@ class JobQueueContractTest {
         // Первая актуальная сумма на месте, устаревших — сколько угодно.
         val current =
             db.select(
-                "SELECT digest FROM source_file_checksum WHERE series_id = ? AND state = 'DONE' AND is_stale = FALSE",
+                "SELECT digest FROM tbl_source_file_checksums WHERE id_episode = ? AND state = 'DONE' AND is_stale = FALSE",
                 { it.string("digest") },
-                seriesId,
+                episodeId,
             )
         assertEquals(1, current.size, "актуальная сумма должна быть ровно одна")
-        assertTrue(db.update("DELETE FROM series WHERE id = ?", seriesId) >= 0)
+        assertTrue(db.update("DELETE FROM tbl_episodes WHERE id = ?", episodeId) >= 0)
         assertEquals(jobId, jobId)
     }
 
@@ -440,12 +440,12 @@ class JobQueueContractTest {
         )
 
     /** Создаёт серию для проверок справочника сумм. */
-    private fun createSeries(db: ru.svoemesto.syp.core.db.Db): Long {
-        val serialId =
+    private fun createEpisode(db: ru.svoemesto.syp.core.db.Db): Long {
+        val movieId =
             db.use { connection ->
                 connection
                     .prepareStatement(
-                        "INSERT INTO serial (name, source_root) VALUES (?, ?) RETURNING id",
+                        "INSERT INTO tbl_movies (name, source_root) VALUES (?, ?) RETURNING id",
                     ).use { statement ->
                         statement.setString(1, "Контракт ${System.nanoTime()}")
                         statement.setString(2, "/srv/contract")
@@ -459,14 +459,14 @@ class JobQueueContractTest {
             connection
                 .prepareStatement(
                     """
-                    INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime,
+                    INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime,
                                         frame_count, time_base_num, time_base_den, width, height,
                                         duration_num, duration_den, video_codec, pixel_format)
                     VALUES (?, 1, 'S01E01', ?, 100, now(), 88643, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p')
                     RETURNING id
                     """.trimIndent(),
                 ).use { statement ->
-                    statement.setLong(1, serialId)
+                    statement.setLong(1, movieId)
                     statement.setString(2, "/srv/contract/S01E01.mkv")
                     statement.executeQuery().use { resultSet ->
                         resultSet.next()

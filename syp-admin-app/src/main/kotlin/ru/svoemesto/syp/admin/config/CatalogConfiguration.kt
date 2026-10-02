@@ -7,11 +7,11 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.analysis.Staleness
 import ru.svoemesto.syp.admin.catalog.CatalogController
+import ru.svoemesto.syp.admin.catalog.EpisodeRegistration
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.LocationStore
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.SeriesRegistration
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.SourceProbe
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.media.ExternalProgram
@@ -73,7 +73,7 @@ class CatalogConfiguration {
      * @return хранилище сериалов
      */
     @Bean
-    fun serialStore(database: Db): SerialStore = SerialStore(database)
+    fun movieStore(database: Db): MovieStore = MovieStore(database)
 
     /**
      * Собирает хранилище серий.
@@ -82,7 +82,7 @@ class CatalogConfiguration {
      * @return хранилище серий
      */
     @Bean
-    fun seriesStore(database: Db): SeriesStore = SeriesStore(database)
+    fun episodeStore(database: Db): EpisodeStore = EpisodeStore(database)
 
     /**
      * Собирает хранилище настроек сериала.
@@ -91,41 +91,41 @@ class CatalogConfiguration {
      * @return хранилище настроек
      */
     @Bean
-    fun serialSettingsStore(database: Db): SerialSettingsStore = SerialSettingsStore(database)
+    fun movieSettingsStore(database: Db): MovieSettingsStore = MovieSettingsStore(database)
 
     /**
      * Собирает регистрацию серии.
      *
-     * @param serialStore хранилище сериалов
-     * @param seriesStore хранилище серий
+     * @param movieStore хранилище сериалов
+     * @param episodeStore хранилище серий
      * @param sourceProbe опрос файла серии
      * @return регистрация серии
      */
     @Bean
-    fun seriesRegistration(
-        serialStore: SerialStore,
-        seriesStore: SeriesStore,
+    fun episodeRegistration(
+        movieStore: MovieStore,
+        episodeStore: EpisodeStore,
         sourceProbe: SourceProbe,
-    ): SeriesRegistration = SeriesRegistration(serialStore, seriesStore, sourceProbe)
+    ): EpisodeRegistration = EpisodeRegistration(movieStore, episodeStore, sourceProbe)
 
     /**
      * Собирает эндпоинты приёма сериала и серии.
      *
-     * @param serialStore хранилище сериалов
-     * @param seriesStore хранилище серий
+     * @param movieStore хранилище сериалов
+     * @param episodeStore хранилище серий
      * @param settingsStore хранилище настроек
-     * @param seriesRegistration регистрация серии
+     * @param episodeRegistration регистрация серии
      * @param staleness пометка результатов устаревшими при смене настройки
      * @return контроллер приёма
      */
     @Bean
     fun catalogController(
-        serialStore: SerialStore,
-        seriesStore: SeriesStore,
-        settingsStore: SerialSettingsStore,
-        seriesRegistration: SeriesRegistration,
+        movieStore: MovieStore,
+        episodeStore: EpisodeStore,
+        settingsStore: MovieSettingsStore,
+        episodeRegistration: EpisodeRegistration,
         staleness: Staleness,
-    ): CatalogController = CatalogController(serialStore, seriesStore, settingsStore, seriesRegistration, staleness = staleness)
+    ): CatalogController = CatalogController(movieStore, episodeStore, settingsStore, episodeRegistration, staleness = staleness)
 
     /**
      * Собирает справочник мест действия сериала.

@@ -66,14 +66,14 @@ export function useStructureStore() {
   /**
    * Перечитывает оба слоя структуры серии.
    *
-   * @param seriesId идентификатор серии
+   * @param episodeId идентификатор серии
    * @returns `true`, если структура прочитана
    */
-  async function reload(seriesId: number): Promise<boolean> {
+  async function reload(episodeId: number): Promise<boolean> {
     loading.value = true
     try {
-      structure.value = await readStructure(seriesId, offset.value, pageSize)
-      raw.value = await readRawBoundaries(seriesId, undefined, 0, pageSize)
+      structure.value = await readStructure(episodeId, offset.value, pageSize)
+      raw.value = await readRawBoundaries(episodeId, undefined, 0, pageSize)
       error.value = ''
       errorCode.value = ''
       return true
@@ -88,40 +88,40 @@ export function useStructureStore() {
   /**
    * Переходит на следующую страницу сцен.
    *
-   * @param seriesId идентификатор серии
+   * @param episodeId идентификатор серии
    */
-  async function nextPage(seriesId: number): Promise<void> {
+  async function nextPage(episodeId: number): Promise<void> {
     const total = structure.value?.scenesTotal ?? 0
     if (offset.value + pageSize >= total) {
       return
     }
     offset.value += pageSize
-    await reload(seriesId)
+    await reload(episodeId)
   }
 
   /**
    * Возвращается на предыдущую страницу сцен.
    *
-   * @param seriesId идентификатор серии
+   * @param episodeId идентификатор серии
    */
-  async function previousPage(seriesId: number): Promise<void> {
+  async function previousPage(episodeId: number): Promise<void> {
     if (offset.value === 0) {
       return
     }
     offset.value = Math.max(0, offset.value - pageSize)
-    await reload(seriesId)
+    await reload(episodeId)
   }
 
   /**
    * Ставит анализ структуры заново.
    *
-   * @param seriesId идентификатор серии
+   * @param episodeId идентификатор серии
    * @returns `true`, если задание поставлено
    */
-  async function analyse(seriesId: number): Promise<boolean> {
+  async function analyse(episodeId: number): Promise<boolean> {
     loading.value = true
     try {
-      await startAnalysis(seriesId)
+      await startAnalysis(episodeId)
       error.value = ''
       errorCode.value = ''
       return true

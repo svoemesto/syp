@@ -15,13 +15,13 @@ const router = useRouter()
 const store = useChecksumStore()
 
 /** Идентификатор серии из адреса. */
-const seriesId = computed(() => Number(route.params.seriesId))
+const episodeId = computed(() => Number(route.params.episodeId))
 
 onMounted(() => {
-  void store.reload(seriesId.value)
+  void store.reload(episodeId.value)
 })
 
-watch(seriesId, (next) => {
+watch(episodeId, (next) => {
   void store.reload(next)
 })
 
@@ -62,7 +62,7 @@ const isRunning = computed(() => {
  * @returns `true`, если задание поставлено
  */
 async function recalculate(): Promise<boolean> {
-  return store.recalculate(seriesId.value)
+  return store.recalculate(episodeId.value)
 }
 </script>
 

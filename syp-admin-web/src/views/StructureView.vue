@@ -23,7 +23,7 @@ const sheet = ref<PreviewUrlView | null>(null)
 const selectedFrame = ref<number | null>(null)
 
 /** Идентификатор серии из адреса. */
-const seriesId = computed(() => Number(route.params.seriesId))
+const episodeId = computed(() => Number(route.params.episodeId))
 
 /** Сцены текущей страницы. */
 const scenes = computed(() => store.structure.value?.scenes ?? [])
@@ -38,10 +38,10 @@ const hasNextPage = computed(() => {
 })
 
 onMounted(() => {
-  void store.reload(seriesId.value)
+  void store.reload(episodeId.value)
 })
 
-watch(seriesId, (next) => {
+watch(episodeId, (next) => {
   void store.reload(next)
 })
 
@@ -53,7 +53,7 @@ watch(seriesId, (next) => {
 async function showSheet(frame: number | null): Promise<void> {
   selectedFrame.value = frame
   try {
-    sheet.value = await readPreviewUrl(seriesId.value, frame ?? undefined)
+    sheet.value = await readPreviewUrl(episodeId.value, frame ?? undefined)
   } catch (failure) {
     store.clearError()
     sheet.value = null
@@ -104,11 +104,11 @@ function originTitle(origin: string): string {
     <p v-if="store.isStale.value" class="stale" role="status">
       <span class="code">{{ store.staleCode }}</span>
       {{ store.structure.value?.staleReason }}
-      <button type="button" @click="store.analyse(seriesId)">пересчитать</button>
+      <button type="button" @click="store.analyse(episodeId)">пересчитать</button>
     </p>
 
     <p class="actions">
-      <button type="button" :disabled="store.loading.value" @click="store.analyse(seriesId)">
+      <button type="button" :disabled="store.loading.value" @click="store.analyse(episodeId)">
         Разобрать серию заново
       </button>
       <button type="button" @click="store.toggleRaw()">
@@ -121,7 +121,7 @@ function originTitle(origin: string): string {
       <button
         type="button"
         :disabled="store.structure.value.offset === 0"
-        @click="store.previousPage(seriesId)"
+        @click="store.previousPage(episodeId)"
       >
         предыдущие сцены
       </button>
@@ -129,7 +129,7 @@ function originTitle(origin: string): string {
         Показаны сцены с {{ store.structure.value.offset + 1 }} по
         {{ store.structure.value.offset + scenes.length }}
       </span>
-      <button type="button" :disabled="!hasNextPage" @click="store.nextPage(seriesId)">
+      <button type="button" :disabled="!hasNextPage" @click="store.nextPage(episodeId)">
         следующие сцены
       </button>
     </nav>
@@ -197,7 +197,7 @@ function originTitle(origin: string): string {
 
     <PreviewSheetView
       v-if="sheet"
-      :series-id="seriesId"
+      :episode-id="episodeId"
       :sheet="sheet"
       :highlight-frame="selectedFrame"
     />

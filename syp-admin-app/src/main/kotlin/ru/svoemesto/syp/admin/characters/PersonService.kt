@@ -55,7 +55,7 @@ enum class PersonKind {
  * имя (`docs/domains/characters/domain.md`, инвариант 5).
  *
  * @property id идентификатор персоны; `null`, пока не записана
- * @property serialId сериал-владелец
+ * @property movieId сериал-владелец
  * @property name отображаемое имя; уникально в пределах сериала
  * @property recognizerKey ключ класса в модели; пуст у служебных персон
  * @property kind вид персоны
@@ -64,7 +64,7 @@ enum class PersonKind {
  */
 data class Person(
     val id: Long? = null,
-    val serialId: Long,
+    val movieId: Long,
     val name: String,
     val recognizerKey: String?,
     val kind: PersonKind,
@@ -95,7 +95,7 @@ data class Person(
             PersonService.COLUMNS,
             {
                 listOf(
-                    serialId,
+                    movieId,
                     name,
                     recognizerKey,
                     kind.name,
@@ -136,15 +136,15 @@ class PersonService(
      * заглушку того же вида, а `ON CONFLICT` не даёт упасть гонке двух
      * одновременных вызовов.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @return обе служебные персоны в порядке видов: неопознанная, «не лицо»
      * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
      */
-    fun ensureServicePersons(serialId: Long): List<Person> {
-        requireSerial(serialId)
+    fun ensureServicePersons(movieId: Long): List<Person> {
+        requireMovie(movieId)
         return PersonKind.entries
             .filter { it.isService }
-            .map { ensureOne(serialId, it, nameOf(it)) }
+            .map { ensureOne(movieId, it, nameOf(it)) }
     }
 
     /**
@@ -154,19 +154,19 @@ class PersonService(
      * выражается заглушкой, поэтому метод, возвращающий `null`, в домене
      * отсутствует (Р-12).
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @param kind вид служебной персоны
      * @return служебная персона сериала
      * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
      * @throws IllegalArgumentException если запрошен не служебный вид
      */
     fun servicePerson(
-        serialId: Long,
+        movieId: Long,
         kind: PersonKind,
     ): Person {
-        requireSerial(serialId)
+        requireMovie(movieId)
         require(kind.isService) { "Служебной является только персона вида $kind" }
-        return ensureOne(serialId, kind, nameOf(kind))
+        return ensureOne(movieId, kind, nameOf(kind))
     }
 
     /**
@@ -181,20 +181,20 @@ class PersonService(
      * Читает всех персон сериала: сначала служебные, затем именованные по
      * имени.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @return персоны сериала
      */
-    fun listBySerial(serialId: Long): List<Person> =
+    fun listByMovie(movieId: Long): List<Person> =
         db.select(
-            "$SELECT_ALL WHERE serial_id = ? ORDER BY (kind = 'PERSON'), name",
+            "$SELECT_ALL WHERE id_movie = ? ORDER BY (kind = 'PERSON'), name",
             ::readRow,
-            serialId,
+            movieId,
         )
 
     /**
      * Создаёт именованную персону.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @param name отображаемое имя
      * @param recognizerKey ключ класса в модели
      * @return созданная персона
@@ -204,14 +204,14 @@ class PersonService(
      * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
      */
     fun create(
-        serialId: Long,
+        movieId: Long,
         name: String,
         recognizerKey: String,
     ): Person {
-        requireSerial(serialId)
+        requireMovie(movieId)
         val person =
             Person(
-                serialId = serialId,
+                movieId = movieId,
                 name = name.trim(),
                 recognizerKey = recognizerKey.trim(),
                 kind = PersonKind.PERSON,
@@ -224,17 +224,17 @@ class PersonService(
             )
         }
         return db.useTransaction { connection ->
-            val duplicate = nameTaken(connection, serialId, person.name)
+            val duplicate = nameTaken(connection, movieId, person.name)
             if (duplicate) {
                 throw DomainException(
                     ErrorCode.CONFLICT,
-                    "Персона «${person.name}» уже есть в сериале $serialId: имена уникальны",
+                    "Персона «${person.name}» уже есть в сериале $movieId: имена уникальны",
                 )
             }
             Save.insertIfAbsent(connection, person.toTable())
             readRequired(
                 connection,
-                findInConnection(connection, person.serialId, person.name),
+                findInConnection(connection, person.movieId, person.name),
                 "Персона «${person.name}» записана, но не читается",
             )
         }
@@ -275,10 +275,10 @@ class PersonService(
         }
         val renamed = current.copy(name = trimmed)
         return db.useTransaction { connection ->
-            if (nameTaken(connection, current.serialId, trimmed)) {
+            if (nameTaken(connection, current.movieId, trimmed)) {
                 throw DomainException(
                     ErrorCode.CONFLICT,
-                    "Персона «$trimmed» уже есть в сериале ${current.serialId}: имена уникальны",
+                    "Персона «$trimmed» уже есть в сериале ${current.movieId}: имена уникальны",
                 )
             }
             Save.saveIfChanged(
@@ -289,7 +289,7 @@ class PersonService(
             )
             readRequired(
                 connection,
-                findInConnection(connection, current.serialId, trimmed),
+                findInConnection(connection, current.movieId, trimmed),
                 "Персона $personId переименована, но новое имя не читается",
             )
         }
@@ -320,14 +320,14 @@ class PersonService(
         }
         return db.useTransaction { connection ->
             val unrecognized =
-                findInConnection(connection, person.serialId, UNRECOGNIZED_NAME)
+                findInConnection(connection, person.movieId, UNRECOGNIZED_NAME)
                     ?: throw ru.svoemesto.syp.core.db.DbException(
-                        "В сериале ${person.serialId} нет служебной персоны «$UNRECOGNIZED_NAME»: " +
+                        "В сериале ${person.movieId} нет служебной персоны «$UNRECOGNIZED_NAME»: " +
                             "переводить лица некуда. Проверьте миграцию 11_service_persons.sql",
                     )
             connection
                 .prepareStatement(
-                    "UPDATE face SET person_id = ? WHERE person_id = ?",
+                    "UPDATE tbl_faces SET person_id = ? WHERE person_id = ?",
                 ).use { statement ->
                     statement.setLong(1, requireNotNull(unrecognized.id))
                     statement.setLong(2, personId)
@@ -345,27 +345,27 @@ class PersonService(
     /**
      * Заводит одну служебную персону, если её ещё нет.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @param kind вид служебной персоны
      * @param name отображаемое имя заглушки
      * @return служебная персона
      */
     private fun ensureOne(
-        serialId: Long,
+        movieId: Long,
         kind: PersonKind,
         name: String,
     ): Person =
         db.useTransaction { connection ->
-            val existing = findKindInConnection(connection, serialId, kind)
+            val existing = findKindInConnection(connection, movieId, kind)
             if (existing != null) {
                 existing
             } else {
-                val person = Person(serialId = serialId, name = name, recognizerKey = null, kind = kind)
+                val person = Person(movieId = movieId, name = name, recognizerKey = null, kind = kind)
                 Save.insertIfAbsent(connection, person.toTable())
                 readRequired(
                     connection,
-                    findKindInConnection(connection, serialId, kind),
-                    "служебная персона вида $kind сериала $serialId записана, но не читается",
+                    findKindInConnection(connection, movieId, kind),
+                    "служебная персона вида $kind сериала $movieId записана, но не читается",
                 )
             }
         }
@@ -386,13 +386,13 @@ class PersonService(
     /**
      * Проверяет, что сериал заведён.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
      */
-    private fun requireSerial(serialId: Long) {
-        val exists = db.selectOne("SELECT 1 AS present FROM serial WHERE id = ?", { it.int("present") }, serialId)
+    private fun requireMovie(movieId: Long) {
+        val exists = db.selectOne("SELECT 1 AS present FROM tbl_movies WHERE id = ?", { it.int("present") }, movieId)
         if (exists == null) {
-            throw DomainException(ErrorCode.NOT_FOUND, "Сериал $serialId не заведён: персон у него нет")
+            throw DomainException(ErrorCode.NOT_FOUND, "Сериал $movieId не заведён: персон у него нет")
         }
     }
 
@@ -414,15 +414,15 @@ class PersonService(
      * Читает персону по сериалу и имени.
      *
      * @param connection открытое соединение
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @param name имя персоны
      * @return персона или `null`
      */
     private fun findInConnection(
         connection: java.sql.Connection,
-        serialId: Long,
+        movieId: Long,
         name: String,
-    ): Person? = firstRow(connection, "$SELECT_ALL WHERE serial_id = ? AND name = ?", serialId, name)
+    ): Person? = firstRow(connection, "$SELECT_ALL WHERE id_movie = ? AND name = ?", movieId, name)
 
     /**
      * Читает служебную персону по виду.
@@ -432,15 +432,15 @@ class PersonService(
      * снова можно было бы выразить двумя способами.
      *
      * @param connection открытое соединение
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @param kind вид персоны
      * @return персона или `null`
      */
     private fun findKindInConnection(
         connection: java.sql.Connection,
-        serialId: Long,
+        movieId: Long,
         kind: PersonKind,
-    ): Person? = firstRow(connection, "$SELECT_ALL WHERE serial_id = ? AND kind = ?", serialId, kind.name)
+    ): Person? = firstRow(connection, "$SELECT_ALL WHERE id_movie = ? AND kind = ?", movieId, kind.name)
 
     /**
      * Читает первую строку выборки персон.
@@ -466,19 +466,19 @@ class PersonService(
      * Проверяет, занято ли имя в сериале.
      *
      * @param connection открытое соединение
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор сериала
      * @param name имя персоны
      * @return `true`, если имя уже занято
      */
     private fun nameTaken(
         connection: java.sql.Connection,
-        serialId: Long,
+        movieId: Long,
         name: String,
     ): Boolean =
         connection
-            .prepareStatement("SELECT 1 FROM person WHERE serial_id = ? AND name = ?")
+            .prepareStatement("SELECT 1 FROM tbl_persons WHERE id_movie = ? AND name = ?")
             .use { statement ->
-                statement.setLong(1, serialId)
+                statement.setLong(1, movieId)
                 statement.setString(2, name)
                 statement.executeQuery().use { it.next() }
             }
@@ -492,7 +492,7 @@ class PersonService(
     private fun readRow(row: Row): Person =
         Person(
             id = row.long("id"),
-            serialId = row.long("serial_id"),
+            movieId = row.long("id_movie"),
             name = row.string("name"),
             recognizerKey = row.stringOrNull("recognizer_key"),
             kind = PersonKind.of(row.string("kind")),
@@ -520,10 +520,10 @@ class PersonService(
 
     companion object {
         /** Имя таблицы персон. */
-        const val TABLE: String = "person"
+        const val TABLE: String = "tbl_persons"
 
         /** Записываемые столбцы персоны в порядке значений. */
-        val COLUMNS: List<String> = listOf("serial_id", "name", "recognizer_key", "kind")
+        val COLUMNS: List<String> = listOf("id_movie", "name", "recognizer_key", "kind")
 
         /** Имя служебной персоны «распознано, но имя не подтверждено». */
         const val UNRECOGNIZED_NAME: String = "Распознано, имя не подтверждено"
@@ -536,7 +536,7 @@ class PersonService(
 
         /** Столбцы персоны в порядке чтения из базы. */
         private const val READ_COLUMNS: String =
-            "id, serial_id, name, recognizer_key, kind, ${Table.RECORD_HASH_COLUMN}"
+            "id, id_movie, name, recognizer_key, kind, ${Table.RECORD_HASH_COLUMN}"
 
         /** Выборка одной персоны по идентификатору. */
         val SELECT_BY_ID: String = "SELECT $READ_COLUMNS FROM $TABLE WHERE id = ?"

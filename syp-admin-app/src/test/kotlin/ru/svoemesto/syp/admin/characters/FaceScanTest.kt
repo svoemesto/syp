@@ -1,8 +1,8 @@
 package ru.svoemesto.syp.admin.characters
 
 import org.junit.jupiter.api.Test
+import ru.svoemesto.syp.admin.catalog.Episode
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.Series
 import ru.svoemesto.syp.core.media.FrameChannel
 import ru.svoemesto.syp.core.media.FrameChannelFailed
 import ru.svoemesto.syp.core.media.RawFrame
@@ -51,7 +51,7 @@ class FaceScanTest {
         val seen = mutableListOf<Int>()
         val scan = scanOver(decoder, CountingDetector(seen))
 
-        val result = scan.scan(series(frames = 7))
+        val result = scan.scan(episode(frames = 7))
 
         assertEquals((0 until 7).toList(), seen, "детектор обязан получить каждый кадр серии по порядку")
         assertEquals(7, result.frames, "обработано должно быть ровно столько кадров, сколько в серии")
@@ -64,7 +64,7 @@ class FaceScanTest {
         val before = filesUnder(workRoot)
         val scan = scanOver(decoder, StubFaceDetector())
 
-        scan.scan(series(frames = 5))
+        scan.scan(episode(frames = 5))
 
         assertEquals(
             before,
@@ -79,7 +79,7 @@ class FaceScanTest {
         val decoder = FakeDecoder.write(directory, frames = 3)
         val scan = scanOver(decoder, StubFaceDetector())
 
-        val result = scan.scan(series(frames = 3))
+        val result = scan.scan(episode(frames = 3))
 
         assertEquals(StubFaceDetector.KEY, result.detectorKey, "в результате должен стоять ключ детектора")
         assertTrue(result.detectorIsStub, "заглушка обязана объявлять себя заглушкой")
@@ -105,7 +105,7 @@ class FaceScanTest {
 
         val failure =
             assertFailsWith<FrameChannelFailed> {
-                scan.scan(series(frames = 2))
+                scan.scan(episode(frames = 2))
             }
 
         assertTrue(
@@ -130,7 +130,7 @@ class FaceScanTest {
 
         val failure =
             assertFailsWith<FrameChannelFailed> {
-                scan.scan(series(frames = 2))
+                scan.scan(episode(frames = 2))
             }
 
         assertTrue(
@@ -148,7 +148,7 @@ class FaceScanTest {
 
         val failure =
             assertFailsWith<FrameChannelFailed> {
-                scan.scan(series(frames = 4))
+                scan.scan(episode(frames = 4))
             }
 
         assertTrue(
@@ -167,7 +167,7 @@ class FaceScanTest {
 
         val failure =
             assertFailsWith<IllegalArgumentException> {
-                scan.scan(series(frames = 1))
+                scan.scan(episode(frames = 1))
             }
 
         assertTrue(
@@ -185,7 +185,7 @@ class FaceScanTest {
         val perFrame = PerFrameDetector { number -> if (number % 2 == 0) 2 else 0 }
         val scan = scanOver(decoder, perFrame)
 
-        val result = scan.scan(series(frames = 3))
+        val result = scan.scan(episode(frames = 3))
 
         assertEquals(4, result.faces, "всего лиц: два в первом кадре и два в третьем")
         assertEquals(2, result.framesWithFaces, "кадров с лицами: первый и третий")
@@ -198,9 +198,9 @@ class FaceScanTest {
      * @param frames сколько кадров в серии
      * @return серия на вымышленном пути: подставной декодер файл не читает
      */
-    private fun series(frames: Int): Series =
-        Series(
-            serialId = 1,
+    private fun episode(frames: Int): Episode =
+        Episode(
+            movieId = 1,
             ordinal = 0,
             name = "S01E01",
             sourcePath = "/srv/got/S01E01.mkv",

@@ -55,19 +55,19 @@ class RecipeCatalog(
      * версии, так же устарел, как выданный в прошлом году. Версия, по которой
      * сценарий выдан, лежит в самой строке и не переписывается.
      *
-     * @param serialId сериал
+     * @param movieId сериал
      * @param currentSchemaVersion версия формата, действующая сейчас
      * @return число помеченных сценариев
      * @throws ru.svoemesto.syp.core.db.DbException если обновление не удалось
      */
     fun markStaleOnSchemaChange(
-        serialId: Long,
+        movieId: Long,
         currentSchemaVersion: Int,
     ): Int =
         db.update(
             "UPDATE $TABLE SET is_stale = TRUE " +
-                "WHERE serial_id = ? AND is_stale = FALSE AND schema_version <> ?",
-            serialId,
+                "WHERE id_movie = ? AND is_stale = FALSE AND schema_version <> ?",
+            movieId,
             currentSchemaVersion,
         )
 

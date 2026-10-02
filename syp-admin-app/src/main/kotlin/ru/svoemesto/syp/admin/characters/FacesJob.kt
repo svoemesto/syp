@@ -4,8 +4,8 @@ import ru.svoemesto.syp.admin.analysis.AnalysisKind
 import ru.svoemesto.syp.admin.analysis.AnalysisRun
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
 import ru.svoemesto.syp.admin.analysis.MonotonicProgress
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.admin.jobs.JobResult
 import ru.svoemesto.syp.core.contract.DomainException
@@ -43,7 +43,7 @@ import ru.svoemesto.syp.core.media.FrameChannelFailed
  * Прогресс монотонен и переживает перезапуск воркера — тем же счётчиком, что
  * и в задании `ANALYZE` (FR-003).
  *
- * @property seriesStore хранилище серий: из него берётся предмет задания
+ * @property episodeStore хранилище серий: из него берётся предмет задания
  * @property runStore хранилище прогонов анализа
  * @property scan проход по кадрам с детектором
  * @property detectorKey идентификатор детектора для прогона
@@ -52,12 +52,12 @@ import ru.svoemesto.syp.core.media.FrameChannelFailed
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class FacesJob(
-    private val seriesStore: SeriesStore,
+    private val episodeStore: EpisodeStore,
     private val runStore: AnalysisRunStore,
     private val scan: FaceScan,
     private val detectorKey: String,
     private val faceSinks: FaceSinkFactory? = null,
-    private val settingsStore: ru.svoemesto.syp.admin.catalog.SerialSettingsStore? = null,
+    private val settingsStore: ru.svoemesto.syp.admin.catalog.MovieSettingsStore? = null,
 ) : JobHandler {
     /** Вид задания, который обрабатывает исполнитель. */
     override val kind: JobKind = JobKind.FACES
@@ -76,16 +76,16 @@ class FacesJob(
         job: Job,
         progress: (JobProgress) -> Unit,
     ): JobResult {
-        val series = requireSeries(job)
-        val total = series.frameCount.toLong()
+        val episode = requireEpisode(job)
+        val total = episode.frameCount.toLong()
         val report = MonotonicProgress(progress, job.progress, total)
         val run =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.FACES,
                     algorithmVersion = detectorKey,
-                    paramsHash = paramsHashOf(series, detectorKey),
+                    paramsHash = paramsHashOf(episode, detectorKey),
                 ),
             )
         val runId =
@@ -99,7 +99,7 @@ class FacesJob(
         // сериала читаются здесь, а не на каждом из 88 643 кадров.
         val sink =
             if (faceSinks != null && settingsStore != null) {
-                faceSinks.forSeries(series, settingsStore.read(series.serialId))
+                faceSinks.forEpisode(episode, settingsStore.read(episode.movieId))
             } else {
                 null
             }
@@ -107,7 +107,7 @@ class FacesJob(
         return try {
             val result =
                 scan.scan(
-                    series = series,
+                    episode = episode,
                     sink = sink,
                     progress = { done ->
                         // Отчёт идёт пачками: на 88 643 кадрах отчёт по
@@ -116,15 +116,15 @@ class FacesJob(
                         if (done.toLong() == total || done % PROGRESS_STEP == 0) {
                             report.report(
                                 done.toLong(),
-                                "поиск лиц: кадр $done из ${series.frameCount}",
+                                "поиск лиц: кадр $done из ${episode.frameCount}",
                             )
                         }
                     },
                 )
-            report.report(total, result.note(series.name))
+            report.report(total, result.note(episode.name))
             runStore.complete(runId)
             JobResult(
-                note = result.note(series.name),
+                note = result.note(episode.name),
                 progressTotal = total,
             )
         } catch (interrupted: InterruptedException) {
@@ -148,25 +148,25 @@ class FacesJob(
      * @throws DomainException с кодом `NOT_FOUND`, если предмет задания не
      *   серия либо серия не зарегистрирована
      */
-    private fun requireSeries(job: Job): Series {
+    private fun requireEpisode(job: Job): Episode {
         val subject = job.subject
-        val seriesId = subject.identifier
-        if (subject.type != SUBJECT_SERIES || seriesId == null) {
+        val episodeId = subject.identifier
+        if (subject.type != SUBJECT_EPISODE || episodeId == null) {
             throw DomainException(
                 ErrorCode.BAD_REQUEST,
                 "заданию FACES нужен предмет «серия», а у него «${subject.type}»: искать лица не в чем",
             )
         }
-        return seriesStore.find(seriesId)
+        return episodeStore.find(episodeId)
             ?: throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "серия $seriesId не зарегистрирована: искать лица не в чем",
+                "серия $episodeId не зарегистрирована: искать лица не в чем",
             )
     }
 
     companion object {
         /** Тип предмета задания для серии. */
-        const val SUBJECT_SERIES: String = "SERIES"
+        const val SUBJECT_EPISODE: String = "EPISODE"
 
         /** Через сколько кадров задание отчитывается о прогрессе. */
         const val PROGRESS_STEP: Int = 500
@@ -178,13 +178,13 @@ class FacesJob(
          * детектором или в другом разрешении, нельзя выдавать за этот
          * (FR-090, Р-10).
          *
-         * @param series серия
+         * @param episode серия
          * @param detectorKey идентификатор детектора
          * @return 64 шестнадцатеричных символа в нижнем регистре
          */
         fun paramsHashOf(
-            series: Series,
+            episode: Episode,
             detectorKey: String,
-        ): String = ParamsHash.of(detectorKey, series.width, series.height)
+        ): String = ParamsHash.of(detectorKey, episode.width, episode.height)
     }
 }

@@ -26,7 +26,7 @@ object RecipePaths {
      * @param path проверяемый путь
      * @throws IllegalArgumentException если путь непригоден
      */
-    fun requireInsideSerialTree(path: String) {
+    fun requireInsideMovieTree(path: String) {
         require(path.isNotBlank()) { "Путь к файлу серии в сценарии обязателен" }
         require(!path.startsWith("/")) {
             "Путь «$path» в сценарии обязан быть относительным: у пользователя своя " +
@@ -52,7 +52,7 @@ object RecipePaths {
      * @throws IllegalArgumentException если путь непригоден
      */
     fun checked(path: String): String {
-        requireInsideSerialTree(path)
+        requireInsideMovieTree(path)
         return path
     }
 }
