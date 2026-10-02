@@ -15,6 +15,7 @@ import java.time.OffsetDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import ru.svoemesto.syp.core.jobs.JobQueue
 
 /**
  * Проверки эндпоинтов лиц, кластеров и персон (задача T071).
@@ -73,6 +74,7 @@ class CharactersControllerTest {
                 movies = movies,
                 settingsStore = settingsStore,
                 embeddingModelKey = embeddingModelKey,
+                queue = JobQueue(db),
             )
     }
 
