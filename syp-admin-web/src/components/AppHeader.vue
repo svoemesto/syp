@@ -41,13 +41,12 @@ const connectionAttention = computed(() => connectionIsAttention())
 /** Сводка по очереди заданий. */
 const queue = computed(() => currentQueue())
 
-/** Название выбранной серии для показа в шапке. */
-const selectedSeriesLabel = computed(() => {
-  if (catalog.selectedSeriesId.value === null) {
-    return 'серия не выбрана'
+/** Название выбранного фильма для показа в шапке. */
+const selectedEpisodeLabel = computed(() => {
+  if (catalog.current.value === null) {
+    return 'фильм не выбран'
   }
-  const row = catalog.series.value.find((item) => item.id === catalog.selectedSeriesId.value)
-  return row === undefined ? `серия №${catalog.selectedSeriesId.value}` : row.name
+  return catalog.current.value.movie.name
 })
 
 /**
@@ -59,21 +58,24 @@ const selectedSeriesLabel = computed(() => {
  * @param name имя раздела
  * @returns адрес маршрута
  */
-function linkFor(name: string): { name: string; params?: { seriesId: string } } {
-  const perSeries: Record<string, string> = {
+function linkFor(name: string): { name: string; params?: { episodeId: string } } {
+  const perEpisode: Record<string, string> = {
     sums: 'checksum',
-    structure: 'structure-of-series',
-    faces: 'faces-of-series',
+    structure: 'structure',
+    faces: 'faces',
   }
-  const target = perSeries[name]
+  const target = perEpisode[name]
   if (target === undefined) {
     return { name }
   }
-  const seriesId = catalog.selectedSeriesId.value
-  if (seriesId === null) {
+  // Разделы «суммы», «структура» и «лица» живут по эпизоду, и эпизод берётся
+  // из адреса: выбранного эпизода в состоянии нет, а адрес — единственное
+  // место, где он зафиксирован.
+  const episodeId = route.params.episodeId
+  if (typeof episodeId !== 'string' || episodeId === '') {
     return { name }
   }
-  return { name: target, params: { seriesId: String(seriesId) } }
+  return { name: target, params: { episodeId } }
 }
 
 /** Активен ли раздел по адресу. */
@@ -82,7 +84,7 @@ function isActive(name: string): boolean {
     return true
   }
   // Экран серии считается активным вместе со своим разделом: иначе при
-  // переходе на `/series/:seriesId/structure` пункт «структура» гас бы,
+  // переходе на `/episodes/:episodeId/structure` пункт «структура» гас бы,
   // хотя оператор именно в нём.
   const perSeries: Record<string, string> = {
     sums: 'checksum',
@@ -103,7 +105,7 @@ function isActive(name: string): boolean {
         </RouterLink>
 
         <span class="syp-selection text-body-secondary">
-          {{ selectedSeriesLabel }}
+          {{ selectedEpisodeLabel }}
         </span>
 
         <!-- Прогресс-мер заданий: ход работы, а не только то, что кнопку

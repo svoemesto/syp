@@ -58,6 +58,7 @@ class FacesJob(
     private val detectorKey: String,
     private val faceSinks: FaceSinkFactory? = null,
     private val settingsStore: ru.svoemesto.syp.admin.catalog.MovieSettingsStore? = null,
+    private val planBinding: FacePlanBinding? = null,
 ) : JobHandler {
     /** Вид задания, который обрабатывает исполнитель. */
     override val kind: JobKind = JobKind.FACES
@@ -121,7 +122,19 @@ class FacesJob(
                         }
                     },
                 )
-            report.report(total, result.note(episode.name))
+            // Лица записываются по кадрам, а план им соответствует по диапазону
+            // кадров. Если между детекцией и пересчётом границы плана поменялись,
+            // соответствие надо пересчитать здесь же: иначе лица остались бы
+            // привязаны к плану, которого для них уже нет, до следующего
+            // изменения границ — а оно может не наступить неделями.
+            val rebound = planBinding?.rebindEpisode(episode.id!!) ?: 0
+            val note =
+                if (rebound > 0) {
+                    "${result.note(episode.name)}; перепривязано лиц к планам: $rebound"
+                } else {
+                    result.note(episode.name)
+                }
+            report.report(total, note)
             runStore.complete(runId)
             JobResult(
                 note = result.note(episode.name),

@@ -9,7 +9,7 @@
 -- Миграция правит и уже записанные настройки: расхождение было не только в
 -- значении по умолчанию, но и в живых данных. Согласие владельца на смену
 -- порога отмечено в tasks.md рядом с этой миграцией.
-UPDATE analysis_setting
+UPDATE tbl_analysis_settings
 SET value = '0.2'::jsonb
 WHERE key = 'face.detect_threshold'
   AND value <> '0.2'::jsonb;

@@ -111,7 +111,7 @@ function handle(name: string, payload: unknown): void {
       const dto = payload as ChecksumChangedPayload
       checksumRevisions.value = {
         ...checksumRevisions.value,
-        [dto.seriesId]: (checksumRevisions.value[dto.seriesId] ?? 0) + 1,
+        [dto.episodeId]: (checksumRevisions.value[dto.episodeId] ?? 0) + 1,
       }
       const message = toChecksumNotice(dto)
       publish(message.tone, message.title, message.text)
@@ -216,11 +216,11 @@ export function connectionIsAttention(): boolean {
 /**
  * Счётчик изменений суммы указанной серии.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @returns номер изменения, `0`, если изменений не было
  */
-export function checksumRevision(seriesId: number): number {
-  return checksumRevisions.value[seriesId] ?? 0
+export function checksumRevision(episodeId: number): number {
+  return checksumRevisions.value[episodeId] ?? 0
 }
 
 /** Заметка для показа: заголовок и текст последнего уведомления. */

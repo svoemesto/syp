@@ -29,7 +29,7 @@ class NotificationPublisher(
         notifications.publish(
             SseEventType.CHECKSUM_CHANGED,
             ChecksumChangedPayload(
-                seriesId = entry.seriesId,
+                episodeId = entry.episodeId,
                 state = entry.state.name,
                 digest = entry.digest,
                 isStale = entry.isStale,

@@ -235,7 +235,7 @@ class RecipeFormatContractTest {
         // Подписанные байты — ровно те, что отдаются пользователю, и они
         // разбираются обычным разбором JSON: без кавычек воркер файл не прочтёт.
         val json = Json.mapper().readTree(first)
-        assertEquals(1, json["schemaVersion"].asInt())
+        assertEquals(2, json["schemaVersion"].asInt())
         assertEquals("Джейми Ланистер", json["items"][0]["persons"][0].asText())
         assertTrue(verificationKey.verify(first, signer.sign(first)), "подпись проверяется")
     }
