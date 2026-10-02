@@ -1,5 +1,6 @@
 package ru.svoemesto.syp.admin.characters
 
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -10,12 +11,16 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import ru.svoemesto.syp.admin.analysis.DetectionResult
 import ru.svoemesto.syp.admin.catalog.Episode
 import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
+import ru.svoemesto.syp.core.jobs.JobKind
+import ru.svoemesto.syp.core.jobs.JobQueue
+import ru.svoemesto.syp.core.jobs.JobSubject
 
 /**
  * Персона в ответе.
@@ -216,7 +221,42 @@ class CharactersController(
     private val movies: MovieStore,
     private val settingsStore: MovieSettingsStore,
     private val embeddingModelKey: String,
+    private val queue: JobQueue,
 ) {
+    /**
+     * Ставит задание поиска лиц по эпизоду.
+     *
+     * Без этого эндпоинта лица было нечем запустить: задание живёт, а поставить
+     * его было нечем — ни из интерфейса, ни по сети. Обнаружилось на сквозном
+     * прогоне, когда детектор и очередь были готовы, а запустить не вышло.
+     *
+     * Повторная постановка того же задания не плодит дубликаты: очередь
+     * отбрасывает совпадающее по параметрам задание эпизода, которое ещё не
+     * закончено.
+     *
+     * @param episodeId идентификатор эпизода
+     * @return номер задания и его состояние
+     * @throws ru.svoemesto.syp.core.contract.DomainException с кодом `NOT_FOUND`,
+     *   если эпизода нет
+     */
+    @PostMapping("/api/episodes/{episodeId}/faces")
+    fun startFaceScan(
+        @PathVariable episodeId: Long,
+    ): ResponseEntity<FaceScanEnqueuedView> {
+        val episode = requireEpisode(episodeId)
+        val jobId =
+            queue.enqueue(
+                kind = JobKind.FACES,
+                subject = JobSubject.episode(episode.id!!),
+                paramsJson = """{"embeddingModelKey":"$embeddingModelKey"}""",
+                paramsHash = embeddingModelKey,
+                algorithmVersion = DetectionResult.ALGORITHM_VERSION,
+            )
+        return ResponseEntity
+            .status(HttpStatus.ACCEPTED)
+            .body(FaceScanEnqueuedView(jobId = jobId, episodeId = episode.id, embeddingModelKey = embeddingModelKey))
+    }
+
     /**
      * Отдаёт лица эпизода.
      *
@@ -510,3 +550,19 @@ class CharactersController(
         const val MAX_PAGE: Int = 1000
     }
 }
+
+/**
+ * Ответ постановки задания поиска лиц.
+ *
+ * Отдаётся с кодом 202: задание принято, а не выполнено — его ход виден в
+ * шапке по подписке на уведомления.
+ *
+ * @property jobId номер задания в очереди
+ * @property episodeId эпизод, для которого задано задание
+ * @property embeddingModelKey ключ модели эмбеддингов, которой считались вектора
+ */
+data class FaceScanEnqueuedView(
+    val jobId: Long,
+    val episodeId: Long?,
+    val embeddingModelKey: String,
+)

@@ -20,6 +20,7 @@ import ru.svoemesto.syp.admin.characters.NonPersonFilter
 import ru.svoemesto.syp.admin.characters.PersonService
 import ru.svoemesto.syp.admin.characters.StubFaceDetector
 import ru.svoemesto.syp.core.db.Db
+import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.media.FrameChannel
 
 /**
@@ -207,6 +208,7 @@ class CharactersConfiguration {
      * @param episodeStore хранилище эпизодов
      * @param movieStore хранилище фильмов
      * @param settingsStore настройки фильма
+     * @param queue очередь заданий
      * @return контроллер домена персонажей
      */
     @Bean
@@ -218,6 +220,7 @@ class CharactersConfiguration {
         episodeStore: EpisodeStore,
         movieStore: MovieStore,
         settingsStore: MovieSettingsStore,
+        queue: JobQueue,
     ): CharactersController =
         CharactersController(
             faces = faceStore,
@@ -228,6 +231,7 @@ class CharactersConfiguration {
             movies = movieStore,
             settingsStore = settingsStore,
             embeddingModelKey = env(ENV_FACE_EMBEDDING_MODEL_KEY, DEFAULT_FACE_EMBEDDING_MODEL_KEY),
+            queue = queue,
         )
 
     companion object {
