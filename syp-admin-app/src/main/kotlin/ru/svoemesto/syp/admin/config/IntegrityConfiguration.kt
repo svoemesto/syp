@@ -9,8 +9,10 @@ import ru.svoemesto.syp.admin.integrity.ChecksumRegistry
 import ru.svoemesto.syp.admin.integrity.HashJob
 import ru.svoemesto.syp.admin.jobs.AdminJobWorker
 import ru.svoemesto.syp.admin.jobs.JobHandler
+import ru.svoemesto.syp.admin.notify.NotificationPublisher
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
+import ru.svoemesto.syp.core.jobs.JobQueueListener
 import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.FileSystemStorage
 import ru.svoemesto.syp.core.storage.ObjectStorage
@@ -35,11 +37,19 @@ class IntegrityConfiguration {
     /**
      * Собирает очередь заданий.
      *
+     * Подписчик [listener] приходит сюда же: очередь — единственное место,
+     * где меняется состояние задания. Повесь уведомление на воркера, и отмена
+     * задания оператором останется незамеченной.
+     *
      * @param database доступ к базе
+     * @param listener наблюдатель изменений очереди
      * @return очередь заданий
      */
     @Bean
-    fun jobQueue(database: Db): JobQueue = JobQueue(database)
+    fun jobQueue(
+        database: Db,
+        listener: JobQueueListener,
+    ): JobQueue = JobQueue(database, listener)
 
     /**
      * Собирает справочник сумм исходников.
@@ -55,13 +65,15 @@ class IntegrityConfiguration {
      *
      * @param seriesStore хранилище серий
      * @param registry справочник сумм
+     * @param notifications публикация уведомлений о событиях домена
      * @return исполнитель задания `HASH`
      */
     @Bean
     fun hashJob(
         seriesStore: SeriesStore,
         registry: ChecksumRegistry,
-    ): HashJob = HashJob(seriesStore, registry)
+        notifications: NotificationPublisher,
+    ): HashJob = HashJob(seriesStore, registry, notifications)
 
     /**
      * Собирает постановщик пересчёта.

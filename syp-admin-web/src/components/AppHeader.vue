@@ -8,6 +8,13 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useCatalogStore } from '../stores/catalog'
+import {
+  connectionIsAttention,
+  connectionLabel,
+  connectionTone,
+  currentQueue,
+  retryNotifications,
+} from '../stores/notifications'
 import JobProgressMeter from './JobProgressMeter.vue'
 
 const route = useRoute()
@@ -21,6 +28,18 @@ const sections = computed(() => [
   { name: 'faces', title: 'Лица', hint: 'Детекция, кластеры, персоны' },
   { name: 'recipes', title: 'Сценарии', hint: 'Фильтры, выдача, подпись' },
 ])
+
+/** Состояние потока уведомлений словами. */
+const connection = computed(() => connectionLabel())
+
+/** Класс индикатора состояния потока. */
+const connectionBadge = computed(() => connectionTone())
+
+/** Требует ли состояние потока внимания оператора. */
+const connectionAttention = computed(() => connectionIsAttention())
+
+/** Сводка по очереди заданий. */
+const queue = computed(() => currentQueue())
 
 /** Название выбранной серии для показа в шапке. */
 const selectedSeriesLabel = computed(() => {
@@ -87,10 +106,27 @@ function isActive(name: string): boolean {
           {{ selectedSeriesLabel }}
         </span>
 
-        <!-- Прогресс-мер заданий: показывает ход работы, а не только то, что
-             кнопку нажали. Живого канала уведомлений пока нет, поэтому данные
-             обновляются опросом. -->
+        <!-- Прогресс-мер заданий: ход работы, а не только то, что кнопку
+             нажали. -->
         <JobProgressMeter />
+
+        <!-- Состояние живого канала уведомлений и сводка по очереди. Ход
+             задания здесь не повторяется: его уже показывает прогресс-мер, а
+             два показателя об одном задании разойдутся с ним же. -->
+        <div class="syp-live d-flex align-items-center gap-2 flex-wrap">
+          <span v-if="queue !== null" class="syp-queue text-body-secondary">
+            очередь: {{ queue.summary }}
+          </span>
+          <span class="badge" :class="connectionBadge">{{ connection }}</span>
+          <button
+            v-if="connectionAttention"
+            type="button"
+            class="btn btn-sm btn-outline-light"
+            @click="retryNotifications"
+          >
+            подключиться снова
+          </button>
+        </div>
       </div>
 
       <nav class="syp-nav" aria-label="Разделы админки">
@@ -136,6 +172,14 @@ function isActive(name: string): boolean {
 
 .syp-selection {
   font-size: 0.8125rem;
+}
+
+.syp-live {
+  font-size: 0.8125rem;
+}
+
+.syp-queue {
+  font-variant-numeric: tabular-nums;
 }
 
 .syp-nav {
