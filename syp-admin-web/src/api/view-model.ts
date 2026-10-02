@@ -25,7 +25,7 @@ import type {
   PersonView,
 } from './characters'
 import type { PreviewUrlView } from './structure'
-import type { SceneView, ShotView, StructureView } from './structure'
+import type { SceneBoundaryView, SceneView, ShotView, StructureView } from './structure'
 
 /** Сериал на экране: то, что о нём знает оператор. */
 export interface SerialRow {
@@ -107,26 +107,40 @@ export interface ShotRow {
   id: number
   /** Первый кадр плана: по нему открывается лист превью. */
   firstFrame: number
+  /** Последний кадр плана. */
+  lastFrame: number
   /** Границы плана по кадрам. */
   frames: string
   /** Размер плана как строка шкалы. */
   size: string
-  /** Происхождение размера плана словами. */
+  /** Размер плана словами: ступень десятиступенчатой шкалы (ADR-0003). */
   sizeTitle: string
+  /** Происхождение размера плана словами. */
+  sizeOriginTitle: string
   /** Происхождение границы машиночитаемо: значение для класса темы. */
   originClass: string
   /** Происхождение границы словами. */
   originTitle: string
   /** Помечен ли план устаревшим. */
   isStale: boolean
+  /** Показывать ли рамку первого кадра плана. */
+  hasThumb: boolean
 }
 
 /** Сцена с планами на экране. */
 export interface SceneRow {
   /** Идентификатор сцены. */
   id: number
+  /** Порядковый номер сцены в структуре эпизода. */
+  number: string
+  /** Первый кадр сцены. */
+  firstFrame: number
+  /** Последний кадр сцены. */
+  lastFrame: number
   /** Границы сцены по кадрам. */
   frames: string
+  /** Название сцены либо пояснение, что оно не задано. */
+  title: string
   /** Происхождение границы машиночитаемо: значение для класса темы. */
   originClass: string
   /** Происхождение границы словами. */
@@ -135,6 +149,8 @@ export interface SceneRow {
   location: string
   /** Планы сцены. */
   shots: ShotRow[]
+  /** Сколько планов в сцене словами. */
+  shotCount: string
   /** Помечена ли сцена устаревшей. */
   isStale: boolean
 }
@@ -163,6 +179,8 @@ export interface StructureRow {
   staleReason: string | null
   /** Всего сцен у серии. */
   scenesTotal: number
+  /** Число кадров эпизода: им ограничивается ввод номера кадра. */
+  frameCount: number
   /** Смещение выборки. */
   offset: number
   /** Сценарии выборки. */
@@ -173,6 +191,80 @@ export interface StructureRow {
   visibleTo: number
   /** Есть ли следующая страница сцен. */
   hasNextPage: boolean
+}
+
+/** Лист превью на экране: всё, что нужно компоненту показа. */
+export interface PreviewSheetFrameRow {
+  /** Номер листа, с нуля. */
+  index: number
+  /** Подпись листа: номер, кадры, размер ячейки. */
+  caption: string
+  /** Описание листа для программ чтения с экрана. */
+  alt: string
+  /** Адрес картинки листа. */
+  url: string
+  /** Ширина листа в пикселях. */
+  sheetWidth: number
+  /** Высота листа в пикселях. */
+  sheetHeight: number
+  /** Ячеек по горизонтали. */
+  columns: number
+  /** Ячеек по вертикали. */
+  rows: number
+  /** Первый кадр листа: с него считаются ячейки. */
+  firstFrame: number
+  /** Последний кадр листа: за ним ячеек на листе нет. */
+  lastFrame: number
+  /** Готово ли содержимое листа. */
+  isReady: boolean
+  /** Положение выделенной ячейки в процентах листа либо `null`. */
+  highlight: { left: string; top: string; width: string; height: string } | null
+}
+
+/** Рамка первого кадра плана на экране. */
+export interface ShotThumbRow {
+  /** Адрес картинки листа, из которого вырезан кадр. */
+  url: string
+  /** Ширина рамки. */
+  width: string
+  /** Высота рамки. */
+  height: string
+  /** Размер листа: по нему рамка выравнивается внутри картинки. */
+  backgroundSize: string
+  /** Смещение рамки внутри листа. */
+  backgroundPosition: string
+}
+
+/** Навигация по листам превью на экране. */
+export interface PreviewSheetNavRow {
+  /** Номер листа, с нуля. */
+  index: number
+  /** Номер листа для оператора, с единицы. */
+  number: string
+  /** Сколько листов у эпизода. */
+  total: number
+  /** Человекочитаемая строка «лист N из M». */
+  position: string
+  /** Кадры листа словами. */
+  frames: string
+  /** Есть ли предыдущий лист. */
+  hasPrevious: boolean
+  /** Есть ли следующий лист. */
+  hasNext: boolean
+  /** Готово ли содержимое листа. */
+  isReady: boolean
+  /** Размер листа словами либо прочерк, пока лист не готов. */
+  byteSize: string
+}
+
+/** Ответ на правку границы сцены на экране. */
+export interface SceneBoundaryRow {
+  /** Что именно изменилось, словами. */
+  title: string
+  /** Сцены затронутого участка после операции. */
+  scenes: SceneRow[]
+  /** Сколько рабочих сцен у эпизода после операции. */
+  scenesTotal: number
 }
 
 /**
@@ -206,6 +298,44 @@ function describeOrigin(origin: string): { originClass: string; originTitle: str
  */
 function describeSizeOrigin(sizeOrigin: string): string {
   return sizeOrigin === 'OPERATOR' ? 'выбрано оператором' : 'вычислено автоматически'
+}
+
+/**
+ * Поясняет ступень шкалы размера плана словами.
+ *
+ * Шкала десятиступенчатая и выбрана не на глаз: она сверена с эталонной
+ * шкалой старого проекта (ADR-0003). Поэтому на экране рядом со значением
+ * стоит и расшифровка ступени — читать `MCU` без подписи умеет не всякий,
+ * а решение о размере принимает человек.
+ *
+ * @param size ступень шкалы из ответа бэкенда
+ * @returns текст для оператора
+ */
+export function describeShotSize(size: string): string {
+  switch (size) {
+    case 'NONE':
+      return 'размер не определён: в плане нет лиц'
+    case 'ECU':
+      return 'очень крупный план'
+    case 'BCU':
+      return 'большой крупный план'
+    case 'CU':
+      return 'крупный план'
+    case 'MCU':
+      return 'средний крупный план'
+    case 'MS':
+      return 'средний план'
+    case 'MLS':
+      return 'средний общий план'
+    case 'LS':
+      return 'общий план'
+    case 'VLS':
+      return 'общий план с верхними точками съёмки'
+    case 'XLS':
+      return 'очень общий план'
+    default:
+      return size
+  }
 }
 
 /**
@@ -317,20 +447,31 @@ export function toChecksumRow(dto: ChecksumView): ChecksumRow {
 /**
  * Приводит план к строке экрана.
  *
+ * Размер показывается и ступенью шкалы, и словами: десять ступеней шкалы
+ * размера сверены с эталонной старого проекта, и решение принимает человек
+ * (ADR-0003). Одно значение без расшифровки заставляет держать шкалу в голове.
+ *
+ * Поле `hasThumb` выставляется экраном: рамку первого кадра плана показывают
+ * у планов выбранной сцены, а не у всех восьмисот — иначе один лист превью
+ * скачивался бы сотни раз.
+ *
  * @param dto план из ответа бэкенда
  * @returns строка экрана
  */
-export function toShotRow(dto: ShotView): ShotRow {
+export function toShotRow(dto: ShotView, hasThumb = false): ShotRow {
   const origin = describeOrigin(dto.origin)
   return {
     id: dto.id,
     firstFrame: dto.firstFrame,
+    lastFrame: dto.lastFrame,
     frames: `${formatNumber(dto.firstFrame)}…${formatNumber(dto.lastFrame)}`,
     size: dto.size,
-    sizeTitle: describeSizeOrigin(dto.sizeOrigin),
+    sizeTitle: describeShotSize(dto.size),
+    sizeOriginTitle: describeSizeOrigin(dto.sizeOrigin),
     originClass: origin.originClass,
     originTitle: origin.originTitle,
     isStale: dto.isStale,
+    hasThumb,
   }
 }
 
@@ -338,19 +479,46 @@ export function toShotRow(dto: ShotView): ShotRow {
  * Приводит сцену к строке экрана.
  *
  * @param dto сцена из ответа бэкенда
+ * @param number порядковый номер сцены в структуре эпизода
  * @returns строка экрана
  */
-export function toSceneRow(dto: SceneView): SceneRow {
+export function toSceneRow(dto: SceneView, number: number): SceneRow {
   const origin = describeOrigin(dto.origin)
   return {
     id: dto.id,
+    number: formatNumber(number),
+    firstFrame: dto.firstFrame,
+    lastFrame: dto.lastFrame,
     frames: `${formatNumber(dto.firstFrame)}…${formatNumber(dto.lastFrame)}`,
+    title: dto.title ?? '',
     originClass: origin.originClass,
     originTitle: origin.originTitle,
     location: dto.location?.name ?? 'не назначено',
-    shots: dto.shots.map(toShotRow),
+    shots: dto.shots.map((shot) => toShotRow(shot)),
+    shotCount: `${dto.shots.length} ${shotWord(dto.shots.length)}`,
     isStale: dto.isStale,
   }
+}
+
+/**
+ * Склоняет слово «план» по числу.
+ *
+ * @param count число планов
+ * @returns слово в нужной форме
+ */
+function shotWord(count: number): string {
+  const mod100 = Math.abs(count) % 100
+  const mod10 = mod100 % 10
+  if (mod100 >= 11 && mod100 <= 14) {
+    return 'планов'
+  }
+  if (mod10 === 1) {
+    return 'план'
+  }
+  if (mod10 >= 2 && mod10 <= 4) {
+    return 'плана'
+  }
+  return 'планов'
 }
 
 /**
@@ -379,7 +547,7 @@ export function toRawBoundaryRow(
  * @returns строка экрана
  */
 export function toStructureRow(dto: StructureView): StructureRow {
-  const scenes = dto.scenes.map(toSceneRow)
+  const scenes = dto.scenes.map((scene, position) => toSceneRow(scene, dto.offset + position + 1))
   return {
     seriesId: dto.episodeId,
     summary:
@@ -390,11 +558,52 @@ export function toStructureRow(dto: StructureView): StructureRow {
     staleCode: dto.staleResultCode ?? '',
     staleReason: dto.staleReason,
     scenesTotal: dto.scenesTotal,
+    frameCount: dto.frameCount,
     offset: dto.offset,
     scenes,
     visibleFrom: dto.offset + 1,
     visibleTo: dto.offset + scenes.length,
     hasNextPage: dto.offset + dto.limit < dto.scenesTotal,
+  }
+}
+
+/**
+ * Приводит навигацию по листам превью к строке экрана.
+ *
+ * Номер листа оператор считает с единицы, а сервер — с нуля. Обе величины
+ * остаются в строке: с нуля нужен адрес, с единицы — то, что видит человек.
+ * Число листов приходит с сервера: оно вычисляется из числа кадров эпизода и
+ * раскладки, а раскладка принадлежит серверу.
+ *
+ * @param dto лист из ответа бэкенда
+ * @returns строка экрана
+ */
+export function toPreviewSheetNavRow(dto: PreviewUrlView): PreviewSheetNavRow {
+  const sheets = dto.sheetCount
+  return {
+    index: dto.index,
+    number: formatNumber(dto.index + 1),
+    total: sheets,
+    position: `лист ${formatNumber(dto.index + 1)} из ${formatNumber(sheets)}`,
+    frames: `кадры ${formatNumber(dto.firstFrame)}…${formatNumber(dto.lastFrame)}`,
+    hasPrevious: dto.index > 0,
+    hasNext: dto.index + 1 < sheets,
+    isReady: dto.isReady,
+    byteSize: dto.byteSize === null ? '—' : formatBytes(dto.byteSize),
+  }
+}
+
+/**
+ * Приводит ответ на правку границы сцены к строке экрана.
+ *
+ * @param dto ответ из ответа бэкенда
+ * @returns строка экрана
+ */
+export function toSceneBoundaryRow(dto: SceneBoundaryView): SceneBoundaryRow {
+  return {
+    title: dto.actionTitle,
+    scenes: dto.scenes.map((scene, position) => toSceneRow(scene, position + 1)),
+    scenesTotal: dto.scenesTotal,
   }
 }
 
@@ -624,6 +833,74 @@ export function toPersonFaceGroups(faces: FaceRow[]): PersonFaceGroup[] {
       kindTitle: describePersonKind(group.kind),
       faces: group.faces,
     }))
+}
+
+/**
+ * Приводит лист превью к строке экрана.
+ *
+ * Область выделенной ячейки пересчитывается в проценты здесь: компонент не
+ * должен знать ни про пиксели листа, ни про то, как сервер считал область
+ * кадрирования (FR-022).
+ *
+ * @param dto лист из ответа бэкенда
+ * @param episodeId эпизод-владелец листа: нужен для адреса картинки
+ * @param highlightFrame кадр для подсветки либо `null`
+ * @returns строка экрана
+ */
+export function toPreviewSheetFrameRow(
+  dto: PreviewUrlView,
+  episodeId: number,
+  highlightFrame: number | null,
+): PreviewSheetFrameRow {
+  const crop = dto.crop
+  return {
+    index: dto.index,
+    caption: toPreviewSheetCaption(dto),
+    alt: toPreviewSheetAlt(dto),
+    url: `/api/episodes/${episodeId}/preview-sheets/${dto.index}`,
+    sheetWidth: dto.sheetWidth,
+    sheetHeight: dto.sheetHeight,
+    columns: dto.columns,
+    rows: dto.rows,
+    firstFrame: dto.firstFrame,
+    lastFrame: dto.lastFrame,
+    isReady: dto.isReady,
+    highlight:
+      crop === null || highlightFrame === null || crop.x + crop.width > dto.sheetWidth
+        ? null
+        : {
+            left: `${((crop.x / dto.sheetWidth) * 100).toFixed(4)}%`,
+            top: `${((crop.y / dto.sheetHeight) * 100).toFixed(4)}%`,
+            width: `${((crop.width / dto.sheetWidth) * 100).toFixed(4)}%`,
+            height: `${((crop.height / dto.sheetHeight) * 100).toFixed(4)}%`,
+          },
+  }
+}
+
+/**
+ * Приводит область кадрирования кадра к рамке плана.
+ *
+ * @param episodeId эпизод-владелец листа
+ * @param sheetIndex номер листа, на котором лежит кадр
+ * @param sheetWidth ширина листа в пикселях
+ * @param sheetHeight высота листа в пикселях
+ * @param crop область кадрирования кадра
+ * @returns строка экрана
+ */
+export function toShotThumbRow(
+  episodeId: number,
+  sheetIndex: number,
+  sheetWidth: number,
+  sheetHeight: number,
+  crop: { x: number; y: number; width: number; height: number },
+): ShotThumbRow {
+  return {
+    url: `/api/episodes/${episodeId}/preview-sheets/${sheetIndex}`,
+    width: `${crop.width}px`,
+    height: `${crop.height}px`,
+    backgroundSize: `${sheetWidth}px ${sheetHeight}px`,
+    backgroundPosition: `-${crop.x}px -${crop.y}px`,
+  }
 }
 
 /**

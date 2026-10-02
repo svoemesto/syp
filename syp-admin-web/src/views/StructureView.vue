@@ -1,210 +1,408 @@
-// Экран структуры эпизода (задача T054). // // Экран показывает результат автоматики в двух слоях:
-рабочую структуру — // сцены и планы с их происхождением — и, по кнопке, сырой результат //
-автоматики последнего прогона. Второй слой нужен для сравнения: без него // нельзя увидеть, что
-машина предложила и что человек с этим сделал // (FR-093). // // Цвет происхождения задан один раз в
-CSS: красный — алгоритм, зелёный — // оператор, оранжевый — отменено решение алгоритма (FR-015,
-FR-016).
+// Экран структуры эпизода. // // Экран отвечает на вопросы «что система нашла» и «где в эпизоде //
+находится этот кадр». Первый закрывает таблица сцен с их планами, второй — // лист превью: у эпизода
+88 643 кадра и 347 листов, и без листов превью // «найти сцену» означало бы пересчитывать номера
+кадров в уме. // // Третий слой — сырой результат автоматики последнего прогона. Он нужен для //
+сравнения: без него нельзя увидеть, что машина предложила и что человек с // этим сделал (FR-093).
+Правка границ — часть этого же экрана: без неё // «контролировать разбивку на сцены» нечем. // //
+Цвет происхождения задан один раз в теме: красный — алгоритм, зелёный — // оператор, оранжевый —
+отменено решение алгоритма (FR-015, FR-016).
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PreviewSheetView from '../components/PreviewSheetView.vue'
-import { type PreviewUrlView, readPreviewUrl } from '../api/structure'
-import { formatBytes } from '../format/values'
+import SceneDetailPanel from '../components/SceneDetailPanel.vue'
+import StateBlock from '../components/StateBlock.vue'
+import { analysisRevision } from '../stores/notifications'
 import { useStructureStore } from '../stores/structure'
 
 const route = useRoute()
 const store = useStructureStore()
 
-/** Описание листа превью, показанного рядом со структурой. */
-const sheet = ref<PreviewUrlView | null>(null)
+/** Кадр, введённый в поле перехода. */
+const frameInput = ref<number | null>(null)
 
-/** Кадр, выбранный для показа превью. */
-const selectedFrame = ref<number | null>(null)
+/** Показывается ли раздел с отказом последней операции. */
+const editNotice = ref('')
 
 /** Идентификатор эпизода из адреса. */
 const episodeId = computed(() => Number(route.params.episodeId))
 
-/** Сцены текущей страницы. */
-const scenes = computed(() => store.structure.value?.scenes ?? [])
+/** Сцены текущей страницы для показа. */
+const scenes = computed(() => store.visibleScenes.value)
+
+/** Выбранная сцена с её планами. */
+const selected = computed(() => store.selectedScene.value)
+
+/** Число кадров эпизода: им ограничивается ввод номера кадра. */
+const frameCount = computed(() => store.row.value?.frameCount ?? 0)
+
+/** Открытый лист превью приведённый к строке экрана. */
+const sheetFrame = computed(() => store.sheetFrameRow(episodeId.value))
 
 /** Есть ли следующая страница сцен. */
-const hasNextPage = computed(() => {
-  const value = store.structure.value
-  if (value === null) {
-    return false
+const hasNextPage = computed(() => store.row.value?.hasNextPage === true)
+
+/** Есть ли предыдущая страница сцен. */
+const hasPreviousPage = computed(() => (store.row.value?.offset ?? 0) > 0)
+
+/** Сколько сцен помечено устаревшим на странице. */
+const staleOnPage = computed(
+  () => store.row.value?.scenes.filter((scene) => scene.isStale).length ?? 0,
+)
+
+/**
+ * Перечитывает структуру и открывает первый лист превью.
+ *
+ * Открытие листа здесь, а не по кнопке: владелец после разбора должен увидеть
+ * результат, а не пустой экран с одним заголовком.
+ */
+function reloadAll(): void {
+  void store.reload(episodeId.value)
+  void store.openFirstSheet(episodeId.value)
+}
+
+/**
+ * Переходит к кадру: открывает его лист и выбирает сцену.
+ */
+function goToFrame(): void {
+  if (frameInput.value !== null) {
+    void store.goToFrame(episodeId.value, frameInput.value)
   }
-  return value.offset + value.limit < value.scenesTotal
-})
+}
+
+/**
+ * Обрабатывает выбор кадра на листе превью.
+ *
+ * @param frame номер кадра
+ */
+function pickFrame(frame: number): void {
+  frameInput.value = frame
+  void store.goToFrame(episodeId.value, frame)
+}
+
+/**
+ * Выбирает сцену и открывает её планы.
+ *
+ * @param sceneId идентификатор сцены
+ */
+function selectScene(sceneId: number): void {
+  void store.selectScene(episodeId.value, sceneId)
+}
+
+/**
+ * Выполняет правку границы и записывает, чем она закончилась.
+ *
+ * @param operation операция правки
+ * @param description что именно нажал оператор
+ */
+async function applyEdit(operation: () => Promise<boolean>, description: string): Promise<void> {
+  const done = await operation()
+  editNotice.value = done
+    ? `${description}: ${store.lastEdit.value?.title ?? 'структура изменена'}`
+    : `${description}: не выполнено`
+}
+
+/**
+ * Листает превью по клавишам.
+ *
+ * Влево и вправо — обязательны: триста сорок семь листов мышью листать
+ * невозможно. Обработчик снимается при уходе с экрана, иначе стрелки продолжали
+ * бы листать превью на другом экране.
+ *
+ * @param event клавиатурное событие
+ */
+function onKeydown(event: KeyboardEvent): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+    return
+  }
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    void store.stepSheet(episodeId.value, -1)
+  }
+  if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    void store.stepSheet(episodeId.value, 1)
+  }
+}
+
+/** Номер изменения структуры: по нему экран перечитывает данные сам. */
+const revision = computed(() => analysisRevision(episodeId.value))
 
 onMounted(() => {
-  void store.reload(episodeId.value)
+  window.addEventListener('keydown', onKeydown)
+  reloadAll()
 })
 
-watch(episodeId, (next) => {
-  void store.reload(next)
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
 })
 
-/**
- * Показывает лист превью для выбранного кадра.
- *
- * @param frame номер кадра либо `null`, чтобы показать первый лист
- */
-async function showSheet(frame: number | null): Promise<void> {
-  selectedFrame.value = frame
-  try {
-    sheet.value = await readPreviewUrl(episodeId.value, frame ?? undefined)
-  } catch (failure) {
-    store.clearError()
-    sheet.value = null
-    store.error.value = failure instanceof Error ? failure.message : String(failure)
-  }
-}
+watch(episodeId, () => {
+  reloadAll()
+})
 
-/**
- * Пояснение цвета происхождения словами.
- *
- * @param origin происхождение границы
- * @returns текст для оператора
- */
-function originTitle(origin: string): string {
-  switch (origin) {
-    case 'AUTO':
-      return 'решение алгоритма'
-    case 'OPERATOR':
-      return 'сделано оператором'
-    case 'CANCELLED':
-      return 'решение алгоритма отменено оператором'
-    default:
-      return origin
-  }
-}
+watch(revision, () => {
+  reloadAll()
+})
 </script>
 
 <template>
   <section class="structure">
-    <h2>Структура эпизода</h2>
+    <header class="syp-page-head">
+      <div>
+        <h1 class="syp-page-title">Структура эпизода</h1>
+        <p class="syp-page-lead">
+          Сцены и планы, найденные разбором, и листы превью, по которым видно, где в эпизоде каждая
+          из них. Границу сцены можно сдвинуть, сцену — разделить или объединить с соседней; правка
+          сохраняется сразу.
+        </p>
+      </div>
+      <div class="head-actions">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          :disabled="store.loading.value"
+          @click="reloadAll"
+        >
+          обновить
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-primary"
+          :disabled="store.loading.value"
+          @click="store.analyse(episodeId)"
+        >
+          Разобрать эпизод заново
+        </button>
+      </div>
+    </header>
 
-    <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
-
-    <p v-if="store.error.value" class="error" role="alert">
-      <span v-if="store.errorCode.value" class="code">{{ store.errorCode.value }}</span>
-      {{ store.error.value }}
-      <button type="button" @click="store.clearError()">скрыть</button>
-    </p>
-
-    <p v-if="store.structure.value" class="state">
-      Сцен: {{ store.structure.value.scenesTotal }}, планов: {{ store.structure.value.shotsTotal }},
-      кадров: {{ store.structure.value.frameCount }}.
-      <span v-if="store.structure.value.algorithmVersion">
-        Версия алгоритма: {{ store.structure.value.algorithmVersion }}.
-      </span>
-    </p>
-
-    <p v-if="store.isStale.value" class="stale" role="status">
-      <span class="code">{{ store.staleCode }}</span>
-      {{ store.structure.value?.staleReason }}
-      <button type="button" @click="store.analyse(episodeId)">пересчитать</button>
-    </p>
-
-    <p class="actions">
-      <button type="button" :disabled="store.loading.value" @click="store.analyse(episodeId)">
-        Разобрать эпизод заново
-      </button>
-      <button type="button" @click="store.toggleRaw()">
-        {{ store.rawVisible.value ? 'Скрыть сырой результат' : 'Показать сырой результат' }}
-      </button>
-      <button type="button" @click="showSheet(null)">Показать лист превью</button>
-    </p>
-
-    <nav v-if="store.structure.value" class="pager">
-      <button
-        type="button"
-        :disabled="store.structure.value.offset === 0"
-        @click="store.previousPage(episodeId)"
-      >
-        предыдущие сцены
-      </button>
-      <span>
-        Показаны сцены с {{ store.structure.value.offset + 1 }} по
-        {{ store.structure.value.offset + scenes.length }}
-      </span>
-      <button type="button" :disabled="!hasNextPage" @click="store.nextPage(episodeId)">
-        следующие сцены
-      </button>
-    </nav>
-
-    <table v-if="scenes.length > 0" class="scenes">
-      <thead>
-        <tr>
-          <th>Сцена</th>
-          <th>Кадры</th>
-          <th>Место действия</th>
-          <th>Планы</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="scene in scenes" :key="scene.id">
-          <td :class="['origin', scene.origin.toLowerCase()]">{{ originTitle(scene.origin) }}</td>
-          <td>
-            {{ scene.firstFrame }}…{{ scene.lastFrame }}
-            <span v-if="scene.isStale" class="stale-mark">устарела</span>
-          </td>
-          <td>{{ scene.location?.name ?? 'не назначено' }}</td>
-          <td>
-            <ul class="shots">
-              <li v-for="shot in scene.shots" :key="shot.id">
-                <span :class="['origin', shot.origin.toLowerCase()]">{{ shot.origin }}</span>
-                {{ shot.firstFrame }}…{{ shot.lastFrame }} — {{ shot.size }}
-                <em>({{ shot.sizeOrigin }})</em>
-                <button type="button" @click="showSheet(shot.firstFrame)">превью</button>
-              </li>
-            </ul>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p v-else-if="!store.loading.value" class="note">
-      Сцен нет: анализ эпизода ещё не выполнялся или не завершён.
-    </p>
-
-    <section v-if="store.rawVisible.value" class="raw">
-      <h3>Сырой результат автоматики</h3>
-      <p class="note">
-        Границы, которые выдал алгоритм, до ручных правок. Рабочая структура выше — то, что осталось
-        после правок; сравнивать их нужно рядом (FR-093).
-      </p>
-      <p v-if="store.raw.value" class="note">
-        Прогон №{{ store.raw.value.runId }}, границ всего: {{ store.raw.value.total }}, показано:
-        {{ store.raw.value.boundaries.length }}.
-      </p>
-      <table v-if="store.raw.value && store.raw.value.boundaries.length > 0">
-        <thead>
-          <tr>
-            <th>Уровень</th>
-            <th>Кадры</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(boundary, position) in store.raw.value.boundaries" :key="position">
-            <td>{{ boundary.level }}</td>
-            <td>{{ boundary.firstFrame }}…{{ boundary.lastFrame }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <PreviewSheetView
-      v-if="sheet"
-      :episode-id="episodeId"
-      :sheet="sheet"
-      :highlight-frame="selectedFrame"
+    <StateBlock
+      :loading="store.loading.value && store.structure.value === null"
+      :error="store.error.value"
+      :error-code="store.errorCode.value"
+      :empty-title="store.row.value === null ? '' : ''"
+      empty-text=""
+      @dismiss="store.clearError()"
     />
-    <p v-if="sheet && sheet.isReady" class="note">
-      Размер листа: {{ formatBytes(sheet.byteSize ?? 0) }}, тип содержимого:
-      {{ sheet.contentType }}.
+
+    <p v-if="store.row.value" class="counters">
+      {{ store.row.value.summary }}.
+      <span v-if="store.row.value.algorithmVersion !== '—'">
+        Версия алгоритма: {{ store.row.value.algorithmVersion }}.
+      </span>
     </p>
+
+    <p v-if="store.isStale.value" class="syp-stale">
+      <span class="syp-mono">{{ store.staleCode }}</span>
+      {{ store.row.value?.staleReason }}
+      — прежние ручные правки сохранены, пересчёт запускает оператор.
+    </p>
+
+    <p v-if="editNotice" class="notice" role="status">{{ editNotice }}</p>
+
+    <div class="columns">
+      <div class="card column-main">
+        <div class="card-body">
+          <div class="syp-card-title">Сцены</div>
+
+          <nav class="pager">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              :disabled="!hasPreviousPage"
+              @click="store.previousPage(episodeId)"
+            >
+              предыдущие
+            </button>
+            <span class="syp-unit">
+              Показаны сцены с {{ store.row.value?.visibleFrom ?? 0 }} по
+              {{ store.row.value?.visibleTo ?? 0 }} из {{ store.row.value?.scenesTotal ?? 0 }}.
+              Номера считаются по полному списку.
+            </span>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              :disabled="!hasNextPage"
+              @click="store.nextPage(episodeId)"
+            >
+              следующие
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-link"
+              :disabled="store.loading.value"
+              @click="store.toggleStale()"
+            >
+              {{
+                store.staleVisible.value
+                  ? 'скрыть устаревшие сцены'
+                  : `показать устаревшие сцены (${staleOnPage})`
+              }}
+            </button>
+          </nav>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle scenes">
+              <thead>
+                <tr>
+                  <th>№</th>
+                  <th>Кадры</th>
+                  <th>Название</th>
+                  <th>Происхождение</th>
+                  <th>Место действия</th>
+                  <th>Планов</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="scene in scenes"
+                  :key="scene.id"
+                  class="scene-row"
+                  :class="{ selected: scene.id === selected?.id }"
+                  tabindex="0"
+                  @click="selectScene(scene.id)"
+                  @keydown.enter="selectScene(scene.id)"
+                >
+                  <td class="syp-number">{{ scene.number }}</td>
+                  <td class="syp-number">
+                    {{ scene.frames }}
+                    <span v-if="scene.isStale" class="text-bg-warning syp-origin">устарела</span>
+                  </td>
+                  <td>{{ scene.title || '—' }}</td>
+                  <td>
+                    <span :class="['syp-origin', `syp-origin-${scene.originClass}`]">
+                      {{ scene.originTitle }}
+                    </span>
+                  </td>
+                  <td>{{ scene.location }}</td>
+                  <td class="syp-number">{{ scene.shots.length }}</td>
+                </tr>
+                <tr v-if="scenes.length === 0">
+                  <td colspan="6" class="syp-empty">
+                    <div class="syp-empty-title">На этой странице сцен нет</div>
+                    <div>Перейдите на другую страницу или включите показ устаревших сцен.</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="selected" class="card-body selected-scene">
+          <SceneDetailPanel
+            :scene="selected"
+            :thumbs="store.thumbs.value"
+            :frame-count="frameCount"
+            :busy="store.editing.value"
+            @pick="pickFrame"
+            @split="
+              (frame: number) =>
+                applyEdit(() => store.split(episodeId, frame), `Разделение на кадре ${frame}`)
+            "
+            @merge="
+              (frame: number) =>
+                applyEdit(() => store.merge(episodeId, frame), `Объединение с кадра ${frame}`)
+            "
+            @move="
+              (from: number, to: number) =>
+                applyEdit(
+                  () => store.moveBoundary(episodeId, from, to),
+                  `Сдвиг границы с ${from} на ${to}`,
+                )
+            "
+          />
+        </div>
+      </div>
+
+      <div class="card column-sheet">
+        <div class="card-body">
+          <div class="syp-card-title">Лист превью</div>
+          <p v-if="store.sheetNav.value" class="syp-unit">
+            {{ store.sheetNav.value.position }}. {{ store.sheetNav.value.frames }}.
+            <template v-if="store.sheetNav.value.isReady">
+              Размер: {{ store.sheetNav.value.byteSize }}.
+            </template>
+            <template v-else> Лист ещё не готов.</template>
+          </p>
+
+          <div class="sheet-nav">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              :disabled="store.loading.value || !store.sheetNav.value?.hasPrevious"
+              @click="store.stepSheet(episodeId, -1)"
+            >
+              предыдущий лист
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              :disabled="store.loading.value || !store.sheetNav.value?.hasNext"
+              @click="store.stepSheet(episodeId, 1)"
+            >
+              следующий лист
+            </button>
+          </div>
+
+          <form class="jump" @submit.prevent="goToFrame">
+            <label class="form-label" for="frame-jump">Перейти к кадру</label>
+            <div class="jump-row">
+              <input
+                id="frame-jump"
+                v-model.number="frameInput"
+                type="number"
+                class="form-control form-control-sm syp-number"
+                min="0"
+              />
+              <button type="submit" class="btn btn-sm btn-primary" :disabled="store.loading.value">
+                перейти
+              </button>
+            </div>
+            <div class="form-text">
+              Клавиши ← и → листают превью. Клик по ячейке листа показывает сцену этого кадра.
+            </div>
+          </form>
+
+          <PreviewSheetView v-if="sheetFrame" :sheet="sheetFrame" @pick="pickFrame" />
+        </div>
+      </div>
+    </div>
+
+    <section v-if="store.rawVisible.value" class="card">
+      <div class="card-body">
+        <div class="syp-card-title">Сырой результат автоматики</div>
+        <p class="syp-unit">
+          Границы, которые выдал алгоритм, до ручных правок. Рабочая структура выше — то, что
+          осталось после правок; сравнивать их нужно рядом (FR-093).
+        </p>
+        <p v-if="store.raw.value" class="syp-unit">
+          Прогон №{{ store.raw.value.runId }}, границ всего: {{ store.raw.value.total }}, показано:
+          {{ store.rawRows.value.length }}.
+        </p>
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Уровень</th>
+                <th>Кадры</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(boundary, position) in store.rawRows.value" :key="position">
+                <td>{{ boundary.level }}</td>
+                <td class="syp-number">{{ boundary.frames }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="store.toggleRaw()">
+          скрыть сырой результат
+        </button>
+      </div>
+    </section>
   </section>
 </template>
 
@@ -212,75 +410,77 @@ function originTitle(origin: string): string {
 .structure {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
-.actions,
-.pager {
-  align-items: center;
+.head-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.error {
-  color: #8a1f1f;
+.counters,
+.notice {
+  color: var(--syp-text-muted);
+  font-size: 0.875rem;
+  margin: 0;
 }
 
-.code {
-  font-family: ui-monospace, monospace;
-  font-weight: 600;
+.notice {
+  color: var(--syp-success);
 }
 
-.stale {
-  background: #fff4e0;
-  border-left: 4px solid #d06000;
-  padding: 0.4rem 0.6rem;
+.columns {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.stale-mark {
-  color: #d06000;
-  font-size: 0.85rem;
+.column-main {
+  flex: 3 1 34rem;
 }
 
-.note {
-  color: #444;
-  font-size: 0.9rem;
+.column-sheet {
+  flex: 1 1 22rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.pager {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .scenes {
-  border-collapse: collapse;
-  width: 100%;
+  cursor: pointer;
 }
 
-.scenes th,
-.scenes td {
-  border-bottom: 1px solid #ddd;
-  padding: 0.3rem 0.5rem;
-  text-align: left;
-  vertical-align: top;
+.scene-row.selected td {
+  background-color: var(--syp-raised);
 }
 
-.shots {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.selected-scene {
+  border-top: 1px solid var(--syp-border);
 }
 
-.shots li {
-  font-size: 0.9rem;
+.sheet-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
-/* Цвет происхождения границы: алгоритм, оператор, отмена. */
-.origin.auto {
-  color: #b02020;
+.jump {
+  margin-bottom: 0.75rem;
+  max-width: 18rem;
 }
 
-.origin.operator {
-  color: #1f7a35;
-}
-
-.origin.cancelled {
-  color: #d06000;
+.jump-row {
+  display: flex;
+  gap: 0.5rem;
 }
 </style>

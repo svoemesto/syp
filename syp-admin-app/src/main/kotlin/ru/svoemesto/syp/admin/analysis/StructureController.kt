@@ -282,6 +282,10 @@ data class CellCropView(
  * @property firstFrame первый кадр листа
  * @property lastFrame последний кадр листа
  * @property frameNumbers сколько кадров на листе
+ * @property sheetCount сколько листов превью у эпизода всего: оператор
+ *   листает их по номерам, и «лист 12 из 347» нельзя собрать на клиенте —
+ *   число листов вычисляется из числа кадров эпизода и раскладки, а раскладка
+ *   принадлежит серверу
  * @property columns ячеек по горизонтали
  * @property rows ячеек по вертикали
  * @property cellWidth ширина ячейки, пикселей
@@ -302,6 +306,7 @@ data class PreviewUrlView(
     val firstFrame: Int,
     val lastFrame: Int,
     val frameNumbers: Int,
+    val sheetCount: Int,
     val columns: Int,
     val rows: Int,
     val cellWidth: Int,
@@ -748,6 +753,7 @@ class StructureController(
             firstFrame = sheet.firstFrame,
             lastFrame = sheet.lastFrame,
             frameNumbers = sheet.frameNumbersCount,
+            sheetCount = PreviewSheet.sheetCount(episode.frameCount, layout),
             columns = layout.columns,
             rows = layout.rows,
             cellWidth = layout.cellWidth,
