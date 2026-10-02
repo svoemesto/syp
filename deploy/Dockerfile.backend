@@ -82,7 +82,7 @@ RUN apt-get update && \
 # Размер образа растёт на несколько гигабайт: это цена детектора на
 # видеокарте внутри контейнера. Вес зафиксирован в том же отчёте.
 # ---------------------------------------------------------------------------
-ARG ONNXRUNTIME_VERSION=1.29.0
+ARG ONNXRUNTIME_VERSION=1.22.0
 ARG NUMPY_VERSION=2.5.3
 ARG CUBLAS_VERSION=12.8.4.1
 ARG CUDNN_VERSION=9.19.0.56
@@ -98,7 +98,11 @@ ARG CUDA_NVRTC_VERSION=12.8.93
 # попадает в образ — mount не является слоем.
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pip install --break-system-packages \
-        --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/ \
+# Индекс Microsoft отдаёт 401 (проверено 2026-10-02: HTTP 401 за 0,5 с).
+# Версии 1.29/1.30 с PyPI собраны под CUDA 13 — при нашем драйвере они
+# молча уходят на CPU, и get_available_providers() этого не показывает.
+# Рабочая связка под CUDA 12: 1.22.0 и колёса ниже; проверено фактически,
+# session.get_providers() отдаёт CUDAExecutionProvider.
         "numpy==${NUMPY_VERSION}" \
         "onnxruntime-gpu==${ONNXRUNTIME_VERSION}" \
         "nvidia-cublas-cu12==${CUBLAS_VERSION}" \

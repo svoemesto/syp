@@ -114,12 +114,14 @@ cmd_build_public_app() {
 
 cmd_build_admin_web() {
     build_frontend syp-admin-web
-    docker build --tag svoemesto/syp-admin-web:local "${ROOT_DIR}/syp-admin-web"
+    docker build --file "${DEPLOY_DIR}/Dockerfile.frontend" \
+        --tag svoemesto/syp-admin-web:local "${ROOT_DIR}/syp-admin-web"
 }
 
 cmd_build_public_web() {
     build_frontend syp-public-web
-    docker build --tag svoemesto/syp-public-web:local "${ROOT_DIR}/syp-public-web"
+    docker build --file "${DEPLOY_DIR}/Dockerfile.frontend" \
+        --tag svoemesto/syp-public-web:local "${ROOT_DIR}/syp-public-web"
 }
 
 cmd_build() {

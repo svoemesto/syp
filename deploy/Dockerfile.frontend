@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # SYP — образ фронтенда.
 #
 # Собирается из каталога фронтенда: контекст сборки — сам каталог
@@ -10,7 +11,13 @@ FROM node:22-alpine AS builder
 WORKDIR /build
 
 COPY package.json package-lock.json* ./
-RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+# Кеш npm в слое BuildKit, как и кеш pip в образе бэкенда: без него каждая
+# пересборка фронтенда тянет все пакеты заново и упирается в таймаут сети.
+# Плюс увеличенные таймауты: с машины сеть медленная, и стандартных 5 минут
+# на чтение не хватает (наблюдалось ETIMEDOUT при exit code 146).
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    npm ci --no-audit --no-fund --fetch-timeout=600000 \
+    || npm install --no-audit --no-fund --fetch-timeout=600000
 
 COPY . .
 RUN npm run build
