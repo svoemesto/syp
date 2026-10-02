@@ -301,4 +301,26 @@ class Row(
 
     /** Двоичное значение столбца. */
     fun bytesOrNull(name: String): ByteArray? = resultSet.getBytes(name)
+
+    /**
+     * Значение столбца типа массива вещественных чисел.
+     *
+     * Драйвер отдаёт такой столбец **по-разному в зависимости от способа
+     * чтения**: по имени он возвращает обёртку `java.sql.Array`, а при чтении
+     * всего столбца — обычный массив объектов. Приводить оба случая в одном
+     * методе приходится не из удобства: `ClassCastException` посреди чтения
+     * выборки означал бы «данные есть, а прочитать их нечем», и выглядело бы
+     * как дефект базы.
+     *
+     * @param name имя столбца
+     * @return массив вещественных чисел
+     * @throws DbException если столбец не массив вещественных чисел
+     */
+    fun floatArray(name: String): FloatArray =
+        when (val value = raw(name)) {
+            is Array<*> -> value.map { (it as Number).toFloat() }.toFloatArray()
+            is java.sql.Array ->
+                (value.array as Array<*>).map { (it as Number).toFloat() }.toFloatArray()
+            else -> throw DbException("Столбец «$name» — не массив вещественных чисел: ${value?.javaClass}")
+        }
 }

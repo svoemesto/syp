@@ -39,6 +39,12 @@ code_to_docs:
   - docs/features/first-vertical-slice.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/characters:
   - docs/domains/characters/domain.md
+  - docs/domains/characters/components/face-detection.md
+  - docs/domains/characters/components/face-storage.md
+  - docs/domains/characters/components/face-embedding.md
+  - docs/domains/characters/components/face-clustering.md
+  - docs/domains/characters/components/persons.md
+  - docs/domains/characters/components/model-training.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/annotation:
   - docs/domains/annotation/domain.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/selection:
@@ -67,6 +73,7 @@ code_to_docs:
   - specs/001-first-vertical-slice/contracts/public-api.md
   syp-admin-web/src:
   - docs/domains/analysis/domain.md
+  - docs/domains/characters/domain.md
   - docs/features/first-vertical-slice.md
   syp-public-web/src:
   - docs/domains/showcase/domain.md

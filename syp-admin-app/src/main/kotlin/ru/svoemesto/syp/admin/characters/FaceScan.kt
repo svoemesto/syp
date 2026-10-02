@@ -48,6 +48,34 @@ data class FaceScanResult(
 }
 
 /**
+ * Приёмник рамок кадра.
+ *
+ * Проход по кадрам **не знает**, что будет с рамками: он их находит и
+ * передаёт. Что с ними будет — запись в базу (T064), проверка пропорций
+ * (T067), эмбеддинг (T066) — решает вызывающий. Разделение это не
+ * украшение: проход по 88 643 кадрам не должен знать про персон, а запись
+ * лиц не должна знать про канал кадров.
+ *
+ * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+fun interface FaceSink {
+    /**
+     * Принимает найденные лица одного кадра.
+     *
+     * @param frameNumber номер кадра
+     * @param width ширина кадра
+     * @param height высота кадра
+     * @param found найденные лица в порядке отдачи детектором
+     */
+    fun accept(
+        frameNumber: Int,
+        width: Int,
+        height: Int,
+        found: List<DetectedFace>,
+    )
+}
+
+/**
  * Проход по кадрам серии: канал кадров плюс детектор.
  *
  * Класс делает ровно одну работу и не делает трёх:
@@ -83,6 +111,7 @@ class FaceScan(
      * @param series серия: берутся путь к файлу, разрешение и число кадров
      * @param maxFrames ограничение числа кадров; `0` — вся серия
      * @param progress приёмник числа обработанных кадров
+     * @param sink приёмник найденных рамок; `null` — рамки не сохраняются
      * @return итог прохода
      * @throws ru.svoemesto.syp.core.media.FrameChannelFailed если поток кадров
      *   оборвался, декодер вернул ненулевой код либо число обработанных
@@ -95,11 +124,12 @@ class FaceScan(
         series: Series,
         maxFrames: Int = 0,
         progress: (Int) -> Unit = {},
+        sink: FaceSink? = null,
     ): FaceScanResult {
         require(maxFrames >= 0) { "Ограничение числа кадров отрицательно: $maxFrames" }
         var failure: Throwable? = null
         try {
-            return scanSeries(series, maxFrames, progress)
+            return scanSeries(series, maxFrames, progress, sink)
         } catch (refused: Throwable) {
             failure = refused
             throw refused
@@ -129,12 +159,14 @@ class FaceScan(
      * @param series серия: берутся путь к файлу, разрешение и число кадров
      * @param maxFrames ограничение числа кадров; `0` — вся серия
      * @param progress приёмник числа обработанных кадров
+     * @param sink приёмник найденных рамок; `null` — рамки не сохраняются
      * @return итог прохода
      */
     private fun scanSeries(
         series: Series,
         maxFrames: Int,
         progress: (Int) -> Unit,
+        sink: FaceSink?,
     ): FaceScanResult {
         require(maxFrames >= 0) { "Ограничение числа кадров отрицательно: $maxFrames" }
         val format = FrameFormat(series.width, series.height)
@@ -155,6 +187,10 @@ class FaceScan(
                         faces += found.size
                         framesWithFaces++
                     }
+                    // Приёмник вызывается на каждом кадре, в том числе на
+                    // кадре без лиц: иначе проход по кадрам серии, где лиц
+                    // почти нет, выглядел бы как «кадров нет вообще».
+                    sink?.accept(frame.number, format.width, format.height, found)
                     processed = frame.number + 1
                     progress(processed)
                 },
