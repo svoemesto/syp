@@ -60,7 +60,8 @@ class SeriesRegistration(
         serialId: Long,
         sourcePath: String,
         name: String? = null,
-        season: Int? = null,
+        seasonId: Long? = null,
+        episodeOrdinal: Int = 0,
     ): Series {
         val serial =
             serials.find(serialId)
@@ -75,14 +76,16 @@ class SeriesRegistration(
                 serialId = serial.id!!,
                 ordinal = serials.nextSeriesOrdinal(serialId),
                 name = (name?.takeIf { it.isNotBlank() }) ?: file.fileName.toString().substringBeforeLast('.'),
-                season =
-                    season?.let { value ->
-                        if (value > 0) {
+                seasonId = seasonId,
+                episodeOrdinal =
+                    episodeOrdinal.let { value ->
+                        if (value >= 0) {
                             value
                         } else {
                             throw DomainException(
                                 ErrorCode.BAD_REQUEST,
-                                "номер сезона должен быть больше нуля, а нулевой или отрицательный «сезон» — это опечатка",
+                                "номер эпизода не может быть отрицательным: у фильма он равен нулю," +
+                                    " а отрицательный — это опечатка",
                             )
                         }
                     },
