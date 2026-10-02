@@ -167,17 +167,42 @@ class SigningTest {
 
         assertEquals("key-1", response.keyId)
         assertEquals("Ed25519", response.algorithm)
-        assertEquals(Signer.encodeBase64(pair.public), response.publicKey)
+        assertEquals(key.publicKeyPem(), response.publicKeyPem)
         // Закрытой половины в классе ответа нет по построению: перечисляем
-        // поля класса и убеждаемся, что среди них ровно три и все известные.
+        // поля класса и убеждаемся, что среди них ровно четыре и все известные.
         val fields =
             response::class.java.declaredFields
                 .map { it.name }
                 .toSet()
         assertEquals(
-            setOf("keyId", "algorithm", "publicKey"),
+            setOf("keyId", "algorithm", "publicKeyPem", "notBefore"),
             fields,
-            "ответ содержит только идентификатор, алгоритм и открытый ключ",
+            "ответ содержит только идентификатор, алгоритм, открытый ключ и момент начала",
+        )
+    }
+
+    @Test
+    @DisplayName("Открытый ключ отдаётся в виде PEM, пригодном для openssl")
+    fun publicKeyIsPem() {
+        val pair = Signer.generateKeyPair()
+        val key = VerificationKey.of("key-1", Signer.encodeBase64(pair.public))
+        val pem = key.publicKeyPem()
+
+        assertTrue(pem.startsWith("-----BEGIN PUBLIC KEY-----\n"), "PEM начинается с заголовка: $pem")
+        assertTrue(pem.endsWith("-----END PUBLIC KEY-----\n"), "PEM заканчивается подписью и переводом строки")
+        pem.trim().lines().drop(1).dropLast(1).forEach { line ->
+            assertTrue(line.length <= 64, "строка base64 не длиннее 64 символов, получено ${line.length}")
+        }
+        // Материал ключа внутри PEM обязан разбираться тем же разборщиком,
+        // которым ключ приходит из окружения: иначе файл пришлось бы править
+        // на стороне пользователя, а это уже не «готовый ключ».
+        val recovered = Signer.publicKeyFromBase64(pem)
+        assertEquals(
+            key.publicKeyBase64,
+            java.util.Base64
+                .getEncoder()
+                .encodeToString(recovered.encoded),
+            "ключ из PEM совпадает с ключом из base64",
         )
     }
 

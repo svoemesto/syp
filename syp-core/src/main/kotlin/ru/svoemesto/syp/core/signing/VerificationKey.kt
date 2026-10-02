@@ -19,8 +19,10 @@ import java.util.Base64
  *
  * @property keyId идентификатор пары ключей
  * @property publicKey сам открытый ключ
- * @property publicKeyBase64 открытый ключ в base64: так он отдаётся наружу
+ * @property publicKeyBase64 открытый ключ в base64: так он приходит из окружения
  * @property algorithm имя алгоритма подписи
+ * @property notBefore момент, с которого ключ считается доверенным: смена ключа
+ *   даёт новый идентификатор, и по этому моменту видно, какой ключ новее
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class VerificationKey(
@@ -28,6 +30,7 @@ data class VerificationKey(
     val publicKey: PublicKey,
     val publicKeyBase64: String,
     val algorithm: String = Signer.ALGORITHM,
+    val notBefore: String = DEFAULT_NOT_BEFORE,
 ) {
     /**
      * Проверяет подпись над каноническими байтами.
@@ -64,6 +67,18 @@ data class VerificationKey(
     }
 
     /**
+     * Открытый ключ в виде PEM.
+     *
+     * Именно PEM, а не голый base64: воркер проверяет подпись командой
+     * `openssl`, и `openssl pkeyutl` с файлом открытого ключа читает PEM. Отдав
+     * base64 без обрамления, пришлось бы собирать файл на стороне пользователя,
+     * то есть отдавать не готовый ключ, а заготовку ключа.
+     *
+     * @return текст PEM с переводами строк по 64 символа
+     */
+    fun publicKeyPem(): String = toPem(publicKeyBase64)
+
+    /**
      * Отдаёт ключ в виде, пригодном для ответа HTTP.
      *
      * Закрытая половина сюда не попадает по построению: в классе её просто
@@ -75,21 +90,54 @@ data class VerificationKey(
         VerificationKeyResponse(
             keyId = keyId,
             algorithm = algorithm,
-            publicKey = publicKeyBase64,
+            publicKeyPem = publicKeyPem(),
+            notBefore = notBefore,
         )
 
     companion object {
+        /**
+         * Момент «ключ доверен с самого начала».
+         *
+         * Значение по умолчанию нужно только для ключей, созданных до появления
+         * поля в контракте; у ключа, выпущенного развёртыванием, момент
+         * задаётся явно.
+         */
+        const val DEFAULT_NOT_BEFORE: String = "1970-01-01T00:00:00Z"
+
+        /**
+         * Оборачивает base64 в текст PEM.
+         *
+         * @param base64 материал ключа в base64, без обрамления
+         * @return текст PEM с переводами строк по 64 символа
+         */
+        fun toPem(base64: String): String {
+            val material = base64.filterNot { it.isWhitespace() }
+            val lines = material.chunked(PEM_LINE_LENGTH).joinToString("\n")
+            return "$PEM_HEADER\n$lines\n$PEM_FOOTER\n"
+        }
+
+        /** Заголовок блока PEM с открытым ключом. */
+        const val PEM_HEADER: String = "-----BEGIN PUBLIC KEY-----"
+
+        /** Конец блока PEM с открытым ключом. */
+        const val PEM_FOOTER: String = "-----END PUBLIC KEY-----"
+
+        /** Длина строки base64 внутри блока PEM. */
+        const val PEM_LINE_LENGTH: Int = 64
+
         /**
          * Собирает ключ проверки из строки переменной окружения.
          *
          * @param keyId идентификатор пары ключей
          * @param base64PublicKey открытый ключ в base64
+         * @param notBefore момент, с которого ключ считается доверенным
          * @return ключ проверки
          * @throws SigningException если ключ не распознан
          */
         fun of(
             keyId: String,
             base64PublicKey: String,
+            notBefore: String = DEFAULT_NOT_BEFORE,
         ): VerificationKey {
             require(keyId.isNotBlank()) {
                 "Идентификатор ключа обязателен: воркер должен знать, каким ключом " +
@@ -99,6 +147,7 @@ data class VerificationKey(
                 keyId = keyId,
                 publicKey = Signer.publicKeyFromBase64(base64PublicKey),
                 publicKeyBase64 = base64PublicKey.trim(),
+                notBefore = notBefore,
             )
         }
 
@@ -107,16 +156,19 @@ data class VerificationKey(
          *
          * @param keyId идентификатор пары ключей
          * @param publicKey открытый ключ
+         * @param notBefore момент, с которого ключ считается доверенным
          * @return ключ проверки
          */
         fun of(
             keyId: String,
             publicKey: PublicKey,
+            notBefore: String = DEFAULT_NOT_BEFORE,
         ): VerificationKey =
             VerificationKey(
                 keyId = keyId,
                 publicKey = publicKey,
                 publicKeyBase64 = Base64.getEncoder().encodeToString(publicKey.encoded),
+                notBefore = notBefore,
             )
     }
 }
@@ -125,17 +177,20 @@ data class VerificationKey(
  * Ответ с открытым ключом проверки.
  *
  * Форма ответа — часть контракта публичного API: воркер читает её, а не
- * догадывается о полях.
+ * догадывается о полях. Ключ отдаётся **в PEM**, потому что проверяется
+ * командой `openssl`, а не кодом на стороне пользователя.
  *
  * @property keyId идентификатор пары ключей
  * @property algorithm имя алгоритма подписи
- * @property publicKey открытый ключ в base64
+ * @property publicKeyPem открытый ключ в виде текста PEM
+ * @property notBefore момент, с которого ключ считается доверенным
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class VerificationKeyResponse(
     val keyId: String,
     val algorithm: String,
-    val publicKey: String,
+    val publicKeyPem: String,
+    val notBefore: String,
 )
 
 /**

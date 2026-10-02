@@ -100,6 +100,7 @@ services:
       SYP_SIGNING_KEY_ID: ${SYP_SIGNING_KEY_ID:?задайте SYP_SIGNING_KEY_ID в deploy/.env}
       SYP_SIGNING_PRIVATE_KEY: ${SYP_SIGNING_PRIVATE_KEY:?задайте SYP_SIGNING_PRIVATE_KEY в deploy/.env}
       SYP_SIGNING_PUBLIC_KEY: ${SYP_SIGNING_PUBLIC_KEY:?задайте SYP_SIGNING_PUBLIC_KEY в deploy/.env}
+      SYP_SIGNING_KEY_NOT_BEFORE: ${SYP_SIGNING_KEY_NOT_BEFORE:-}
       SYP_WORKER_CONCURRENCY: ${SYP_WORKER_CONCURRENCY:-2}
       SYP_GPU_CONCURRENCY: ${SYP_GPU_CONCURRENCY:-1}
       # Путь к программе фиксирован настройкой развёртывания: он не приходит
@@ -184,6 +185,7 @@ services:
       SYP_STORAGE_BUCKET: ${SYP_STORAGE_BUCKET:-syp-artifacts}
       SYP_SIGNING_KEY_ID: ${SYP_SIGNING_KEY_ID:?задайте SYP_SIGNING_KEY_ID в deploy/.env}
       SYP_SIGNING_PUBLIC_KEY: ${SYP_SIGNING_PUBLIC_KEY:?задайте SYP_SIGNING_PUBLIC_KEY в deploy/.env}
+      SYP_SIGNING_KEY_NOT_BEFORE: ${SYP_SIGNING_KEY_NOT_BEFORE:-}
     ports:
       - "${SYP_PUBLIC_APP_HOST_PORT:-7913}:7913"
     depends_on:

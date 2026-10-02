@@ -9,7 +9,8 @@
 # Контейнеры SYP при этом не создаются и не трогаются.
 #
 # Прогоняются модули с проверками, требующими живой базы: `syp-core`
-# (контрактные тесты очереди) и `syp-admin-app` (домен каталога). Модуль без
+# (контрактные тесты очереди), `syp-admin-app` (домен каталога) и
+# `syp-public-app` (ограничения формата сценария и выдача файла). Модуль без
 # таких проверок в список не попадает, иначе прогон молчал бы о пропущенном.
 #
 # Использование:
@@ -90,16 +91,17 @@ fi
 # задания — и получают отказ по внешнему ключу на задании, которого уже нет.
 # Это не «медленнее», а неверно: чужой тест не должен ломать свой.
 #
-# База `syp` достаётся админскому модулю, `syp_core` — общему. Миграции
-# применяются в обе: схема у них одна и та же.
+# База `syp` достаётся админскому модулю, `syp_core` — общему, `syp_public` —
+# публичной части. Миграции применяются во все: схема у них одна и та же.
 # ---------------------------------------------------------------------------
 CORE_DB="syp_core"
+PUBLIC_DB="syp_public"
 
 printf '%s\n' "применяю миграции"
 # Ошибка применения повторяется один раз: на холодном старте одноразовый
 # контейнер может оборвать соединение, и без повтора прогон падал бы на
 # собственном окружении, а не на коде.
-for database in syp "${CORE_DB}"; do
+for database in syp "${CORE_DB}" "${PUBLIC_DB}"; do
     docker exec "${NAME}" psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
         -c "CREATE DATABASE ${database}" >/dev/null 2>&1
     for file in deploy/syp-db/[0-9][0-9]_*.sql; do
@@ -125,10 +127,12 @@ export SYP_TEST_DB_USER="postgres"
 export SYP_TEST_DB_PASSWORD="${DB_PASSWORD}"
 ADMIN_URL="jdbc:postgresql://127.0.0.1:${PORT_NUMBER}/syp"
 CORE_URL="jdbc:postgresql://127.0.0.1:${PORT_NUMBER}/${CORE_DB}"
+PUBLIC_URL="jdbc:postgresql://127.0.0.1:${PORT_NUMBER}/${PUBLIC_DB}"
 
 printf '%s\n' "подключения:"
 printf '%s\n' "  syp-core     ${CORE_URL}"
 printf '%s\n' "  syp-admin-app ${ADMIN_URL}"
+printf '%s\n' "  syp-public-app ${PUBLIC_URL}"
 printf '%s\n' "запускаю тесты модулей по очереди: у каждого своя база"
 
 # Модули перечислены явно: молчаливый пропуск модуля с проверками против базы
@@ -141,6 +145,9 @@ SYP_TEST_DB_URL="${CORE_URL}" ./gradlew :syp-core:test --rerun-tasks "$@" || sta
 
 printf '%s\n' "--- syp-admin-app ---"
 SYP_TEST_DB_URL="${ADMIN_URL}" ./gradlew :syp-admin-app:test --rerun-tasks "$@" || status=$?
+
+printf '%s\n' "--- syp-public-app ---"
+SYP_TEST_DB_URL="${PUBLIC_URL}" ./gradlew :syp-public-app:test --rerun-tasks "$@" || status=$?
 
 printf '%s\n' "============================================================"
 if [[ ${status} -eq 0 ]]; then

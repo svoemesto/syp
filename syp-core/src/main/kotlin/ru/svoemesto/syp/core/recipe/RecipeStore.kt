@@ -313,7 +313,10 @@ class RecipeStore(
         return db.useTransaction { connection ->
             val identifier = insertRecipe(connection, recipe)
             items.forEach { Save.insertIfAbsent(connection, it.copy(recipeId = identifier).toTable()) }
-            find(identifier)
+            // Чтение идёт **тем же** соединением: строка ещё не зафиксирована и
+            // через другое соединение не видна. Чтение после коммита вернуло бы
+            // `null` на первом же сценарии.
+            readWithin(connection, identifier)
                 ?: throw IllegalStateException(
                     "Сценарий записан под идентификатором $identifier, но сразу после " +
                         "записи не прочитан: это дефект, а не результат",
@@ -370,7 +373,15 @@ class RecipeStore(
             }
     }
 
-    /** Подставляет значения строки и её хеш в подготовленный запрос. */
+    /**
+     * Подставляет значения строки и её хеш в подготовленный запрос.
+     *
+     * Значения передаются **своими типами**, а не строками: `timestamptz` не
+     * принимает текстовое представление момента, и подстановка строкой дала бы
+     * отказ базы на самом первом же сценарии. Поведение совпадает с общим
+     * механизмом сохранения — различается только то, что этот запрос
+     * возвращает выданный базой идентификатор.
+     */
     private fun bindRow(
         statement: java.sql.PreparedStatement,
         table: Table,
@@ -381,14 +392,35 @@ class RecipeStore(
             val column = table.columns[index]
             when {
                 value == null -> statement.setObject(position, null)
-                column == "person_names" -> statement.setString(position, value as String)
+                column == BuildRecipeItem.PERSON_NAMES_COLUMN ->
+                    // `jsonb` отклоняет строку без явного приведения: драйвер
+                    // отправляет её как `character varying`, и база отвечает отказом.
+                    statement.setObject(position, value, java.sql.Types.OTHER)
+                value is Boolean -> statement.setBoolean(position, value)
                 value is Int -> statement.setInt(position, value)
                 value is Long -> statement.setLong(position, value)
-                else -> statement.setString(position, value.toString())
+                value is OffsetDateTime -> statement.setObject(position, value)
+                value is java.sql.Timestamp -> statement.setTimestamp(position, value)
+                value is String -> statement.setString(position, value)
+                else -> statement.setObject(position, value)
             }
         }
         statement.setString(table.values.size + 1, recordHash)
     }
+
+    /** Читает сценарий по идентификатору в пределах открытого соединения. */
+    private fun readWithin(
+        connection: Connection,
+        recipeId: Long,
+    ): BuildRecipe? =
+        connection
+            .prepareStatement("SELECT ${BuildRecipe.READ_COLUMNS} FROM $TABLE WHERE id = ?")
+            .use { statement ->
+                statement.setLong(1, recipeId)
+                statement.executeQuery().use { resultSet ->
+                    if (resultSet.next()) readRow(Row(resultSet)) else null
+                }
+            }
 
     /** Строит сценарий из типизированной строки выборки. */
     private fun readRow(row: Row): BuildRecipe =
