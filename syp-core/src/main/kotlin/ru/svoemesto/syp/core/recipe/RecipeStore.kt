@@ -72,6 +72,8 @@ enum class RecipeState {
  * @property createdAt момент выдачи
  * @property finishedAt момент завершения выдачи
  * @property errorText текст ошибки при [RecipeState.ERROR]
+ * @property isStale сценарий создан при другой версии формата: помечается при
+ *   выдаче, ничего не удаляет (FR-090, ADR-0014)
  * @property recordHash хеш значений строки, прочитанный при загрузке
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
@@ -91,6 +93,7 @@ data class BuildRecipe(
     val createdAt: OffsetDateTime,
     val finishedAt: OffsetDateTime? = null,
     val errorText: String? = null,
+    val isStale: Boolean = false,
     val recordHash: String? = null,
 ) {
     /** Сценарий готов к выдаче: подписан, содержимое однозначно, ключ назван. */
@@ -122,6 +125,7 @@ data class BuildRecipe(
                     createdAt,
                     finishedAt,
                     errorText,
+                    isStale,
                 )
             },
             recordHash,
@@ -132,7 +136,7 @@ data class BuildRecipe(
         val READ_COLUMNS: String =
             "id, serial_id, name, schema_version, state, artifact_id, content_sha256, " +
                 "signature, signing_key_id, item_count, expected_duration_ms, " +
-                "expected_frame_count, created_at, finished_at, error_text, recordhash"
+                "expected_frame_count, created_at, finished_at, error_text, is_stale, recordhash"
     }
 }
 
@@ -440,6 +444,7 @@ class RecipeStore(
             createdAt = readTimestamp(row, "created_at"),
             finishedAt = readOptionalTimestamp(row, "finished_at"),
             errorText = row.stringOrNull("error_text"),
+            isStale = row.booleanOrNull("is_stale") == true,
             recordHash = row.stringOrNull("recordhash"),
         )
 
@@ -503,6 +508,7 @@ class RecipeStore(
                 "created_at",
                 "finished_at",
                 "error_text",
+                "is_stale",
             )
 
         /** Записываемые столбцы фрагмента в порядке значений. */
