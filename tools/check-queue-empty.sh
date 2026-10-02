@@ -21,13 +21,13 @@ fi
 
 # Сначала сам факт связи: пустой вывод из-за неверного столбца нельзя
 # отличить от пустой таблицы, поэтому запрос проверяется на двух этапах.
-if ! docker exec "$DB" psql -U syp -d syp -tAc "select 1 from job limit 1" >/dev/null 2>&1; then
+if ! docker exec "$DB" psql -U syp -d syp -tAc "select 1 from tbl_jobs limit 1" >/dev/null 2>&1; then
     echo "ПРОВАЛ: таблица job недоступна — состояние очереди неизвестно"
     exit 2
 fi
 
 active=$(docker exec "$DB" psql -U syp -d syp -tAc \
-    "select count(*) from job where state in ('CREATING','WORKING','WAITING')" 2>/dev/null)
+    "select count(*) from tbl_jobs where state in ('CREATING','WORKING','WAITING')" 2>/dev/null)
 
 if [ -z "$active" ]; then
     echo "ПРОВАЛ: запрос к очереди вернул пусто — это ошибка проверки, а не пустая очередь"
@@ -35,7 +35,7 @@ if [ -z "$active" ]; then
 fi
 
 by_state=$(docker exec "$DB" psql -U syp -d syp -tAc \
-    "select state, count(*) from job group by state order by state" 2>/dev/null)
+    "select state, count(*) from tbl_jobs group by state order by state" 2>/dev/null)
 
 if [ "$active" != "0" ]; then
     echo "ПРОВАЛ: в очереди ${active} заданий в работе"
