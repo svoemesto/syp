@@ -13,10 +13,11 @@ import java.security.MessageDigest
  * (порядок полей при разборе JSON не гарантирован), и проверка подписи стала
  * бы лотереей (research.md Т-23, ADR-0011).
  *
- * Правила канонизации, все четыре обязательные:
+ * Правила канонизации, все обязательные:
  *
  * 1. **Порядок полей фиксирован** объявлением типа, а не порядком в карте.
- * 2. **Незначащие пробелы отсутствуют** во всех строках и числах.
+ * 2. **Результат — JSON**: строковые значения заключены в кавычки и
+ *    экранированы, без них воркер не разобрал бы файл сценария.
  * 3. **Перевод строки — только LF**, BOM не пишется.
  * 4. **Числа приведены к одному виду**: целые без дробной части, дробные —
  *    через десятичную запятую без хвостовых нулей.
@@ -29,6 +30,11 @@ object Canonicalizer {
     /**
      * Приводит значение к каноническому виду и возвращает его байты.
      *
+     * Возвращается **JSON**, а не «что-то похожее на JSON»: сценарий читает
+     * воркер на машине пользователя обычным разбором JSON, и текст без кавычек
+     * вокруг строк он не прочитает вовсе. Подписывать имеет смысл тот текст,
+     * который получатель действительно разберёт.
+     *
      * @param value значение любого поддерживаемого типа
      * @return канонические байты в UTF-8 без BOM
      * @throws CanonicalizationException если тип значения не поддерживается
@@ -37,7 +43,7 @@ object Canonicalizer {
         when (value) {
             null -> "null".toByteArray(StandardCharsets.UTF_8)
             is Boolean -> value.toString().toByteArray(StandardCharsets.UTF_8)
-            is String -> canonicalString(value).toByteArray(StandardCharsets.UTF_8)
+            is String -> quoted(canonicalString(value)).toByteArray(StandardCharsets.UTF_8)
             is Int, is Long, is Short, is Byte -> value.toString().toByteArray(StandardCharsets.UTF_8)
             is BigDecimal -> canonicalNumber(value).toByteArray(StandardCharsets.UTF_8)
             is Double -> canonicalNumber(BigDecimal.valueOf(value)).toByteArray(StandardCharsets.UTF_8)
@@ -54,12 +60,43 @@ object Canonicalizer {
         }
 
     /**
+     * Заключает канонизированную строку в кавычки JSON.
+     *
+     * @param value канонизированная строка без кавычек-обрамления
+     * @return строка в виде элемента JSON
+     */
+    fun quoted(value: String): String = "\"" + value + "\""
+
+    /**
      * Канонизирует строку.
      *
+     * Строка приводится к виду, пригодному для JSON: перевод строки — только
+     * `LF`, BOM выбрасывается, а кавычка, обратный слэш и управляющие символы
+     * экранируются. Без экранирования название сцены с кавычкой дало бы файл,
+     * который воркер не разберёт, а подпись была бы подписью над текстом,
+     * который не является сценарием.
+     *
      * @param value исходная строка
-     * @return строка без BOM и с переводом строки только LF
+     * @return каноническая строка без BOM и кавычек-обрамления
      */
-    fun canonicalString(value: String): String = value.removePrefix("").replace("\r\n", "\n").replace('\r', '\n')
+    fun canonicalString(value: String): String {
+        val normalized = value.replace("\r\n", "\n").replace('\r', '\n')
+        if (normalized.none { it == '"' || it == '\\' || it < ' ' }) return normalized
+        val out = StringBuilder(normalized.length + 8)
+        normalized.forEach { character ->
+            when {
+                character == '"' -> out.append("\\\"")
+                character == '\\' -> out.append("\\\\")
+                character == '\n' -> out.append("\\n")
+                character == '\t' -> out.append("\\t")
+                character == '\b' -> out.append("\\b")
+                character == '\u000C' -> out.append("\\f")
+                character < ' ' -> out.append(String.format("\\u%04x", character.code))
+                else -> out.append(character)
+            }
+        }
+        return out.toString()
+    }
 
     /**
      * Канонизирует объект с фиксированным порядком полей.
@@ -73,7 +110,7 @@ object Canonicalizer {
         out.write("{\n".toByteArray(StandardCharsets.UTF_8))
         `object`.fields.forEachIndexed { index, (name, value) ->
             out.write("  ".toByteArray(StandardCharsets.UTF_8))
-            out.write(canonicalString(name).toByteArray(StandardCharsets.UTF_8))
+            out.write(quoted(canonicalString(name)).toByteArray(StandardCharsets.UTF_8))
             out.write(": ".toByteArray(StandardCharsets.UTF_8))
             out.write(canonicalBytes(value))
             if (index != `object`.fields.size - 1) {
@@ -129,7 +166,7 @@ object Canonicalizer {
             if (index > 0) {
                 out.write(", ".toByteArray(StandardCharsets.UTF_8))
             }
-            out.write(canonicalString(key).toByteArray(StandardCharsets.UTF_8))
+            out.write(quoted(canonicalString(key)).toByteArray(StandardCharsets.UTF_8))
             out.write(": ".toByteArray(StandardCharsets.UTF_8))
             out.write(canonicalBytes(value))
         }

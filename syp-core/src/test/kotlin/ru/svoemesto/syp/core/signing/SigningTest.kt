@@ -79,11 +79,18 @@ class SigningTest {
     }
 
     @Test
-    @DisplayName("Перевод строки приводится к LF, BOM выбрасывается")
+    @DisplayName("Перевод строки приводится к LF и экранируется по правилам JSON")
     fun lineEndingsAreNormalized() {
         val crlf = Canonicalizer.canonicalString("первая\r\nвторая\rтретья")
-        assertEquals("первая\nвторая\nтретья", crlf)
+        assertEquals("первая\\nвторая\\nтретья", crlf)
         assertEquals("первая", Canonicalizer.canonicalString("первая"))
+    }
+
+    @Test
+    @DisplayName("Кавычка и обратный слэш экранируются")
+    fun specialCharactersAreEscaped() {
+        assertEquals("\"ворота \\\"северные\\\"\"", Canonicalizer.quoted(Canonicalizer.canonicalString("ворота \"северные\"")))
+        assertEquals("\"путь\\\\в\\\\\"", Canonicalizer.quoted(Canonicalizer.canonicalString("путь\\в\\")))
     }
 
     @Test
