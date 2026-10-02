@@ -154,6 +154,44 @@ def main(argv: list[str]) -> int:
                     "detections": detections,
                 }
             )
+    # Рабочий порог 0,30 меряется отдельным прогоном: в развёртке его нет,
+    # и подставлять его «примерно между 0,2 и 0,4» нельзя — это было бы
+    # выдуманным числом.
+    for path in sorted(Path(args.results).glob("*-t0.3.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        model = path.stem.rsplit("-t", 1)[0]
+        by_number = {frame["n"]: frame for frame in data["runs"][0]["frames"]}
+        found = set()
+        false_positives = 0
+        undecidable = 0
+        detections = 0
+        for number, label in labels.items():
+            face_regions = faces_by_frame[int(number)]
+            for face in by_number.get(int(number), {}).get("faces", []):
+                detections += 1
+                centre = ((face[0] + face[2]) / 2.0, (face[1] + face[3]) / 2.0)
+                hits = [i for i, region in enumerate(face_regions) if inside(centre, region)]
+                if hits:
+                    for hit in hits:
+                        found.add((int(number), hit))
+                    continue
+                if any(inside(centre, region) for region in undecidable_by_frame[int(number)]):
+                    undecidable += 1
+                    continue
+                false_positives += 1
+        rows.append(
+            {
+                "model": model,
+                "threshold": 0.3,
+                "faces_total": total_faces,
+                "faces_found": len(found),
+                "recall": round(len(found) / total_faces, 4) if total_faces else 0.0,
+                "false_positives": false_positives,
+                "on_undecidable": undecidable,
+                "detections": detections,
+            }
+        )
+
     summary = {
         "labelled_frames": truth["viewed_frames"],
         "faces_in_truth": total_faces,

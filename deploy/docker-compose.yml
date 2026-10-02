@@ -112,7 +112,9 @@ services:
       SYP_FACE_PROVIDER: ${SYP_FACE_PROVIDER:-CUDAExecutionProvider}
       SYP_FACE_INPUT_WIDTH: ${SYP_FACE_INPUT_WIDTH:-640}
       SYP_FACE_INPUT_HEIGHT: ${SYP_FACE_INPUT_HEIGHT:-640}
-      SYP_FACE_SCORE_THRESHOLD: ${SYP_FACE_SCORE_THRESHOLD:-0.6}
+      # Порог подобран замером М-02 на размеченной выборке серии,
+      # а не взят из примера репозитория модели.
+      SYP_FACE_SCORE_THRESHOLD: ${SYP_FACE_SCORE_THRESHOLD:-0.2}
       SYP_FACE_NMS_THRESHOLD: ${SYP_FACE_NMS_THRESHOLD:-0.3}
     ports:
       - "${SYP_ADMIN_APP_HOST_PORT:-7911}:7911"
