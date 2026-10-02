@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import ru.svoemesto.syp.admin.analysis.Staleness
 import ru.svoemesto.syp.admin.catalog.CatalogController
 import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
 import ru.svoemesto.syp.admin.catalog.SerialStore
@@ -112,6 +113,7 @@ class CatalogConfiguration {
      * @param seriesStore хранилище серий
      * @param settingsStore хранилище настроек
      * @param seriesRegistration регистрация серии
+     * @param staleness пометка результатов устаревшими при смене настройки
      * @return контроллер приёма
      */
     @Bean
@@ -120,7 +122,8 @@ class CatalogConfiguration {
         seriesStore: SeriesStore,
         settingsStore: SerialSettingsStore,
         seriesRegistration: SeriesRegistration,
-    ): CatalogController = CatalogController(serialStore, seriesStore, settingsStore, seriesRegistration)
+        staleness: Staleness,
+    ): CatalogController = CatalogController(serialStore, seriesStore, settingsStore, seriesRegistration, staleness = staleness)
 
     /**
      * Собирает разбор значений настроек.
