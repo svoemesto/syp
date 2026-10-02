@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # SYP — образ бэкенда.
 #
 # Один файл на оба бэкенда: различаются они только содержимым модуля,
@@ -90,7 +91,13 @@ ARG CURAND_VERSION=10.3.9.90
 ARG CUDA_RUNTIME_VERSION=12.8.90
 ARG CUDA_NVRTC_VERSION=12.8.93
 
-RUN pip install --no-cache-dir --break-system-packages \
+# Кеш pip живёт в слое BuildKit, а не в образе: колёса CUDA весят около
+# двух гигабайт, и без кеша каждая пересборка тянула бы их заново из сети.
+# Флаг --no-cache-dir здесь недопустим: он отключает кеш, а `rm -rf
+# /root/.cache` вычищал бы его из mount-точки. Кеш переживает пересборки и не
+# попадает в образ — mount не является слоем.
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    pip install --break-system-packages \
         --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/ \
         "numpy==${NUMPY_VERSION}" \
         "onnxruntime-gpu==${ONNXRUNTIME_VERSION}" \
@@ -100,8 +107,7 @@ RUN pip install --no-cache-dir --break-system-packages \
         "nvidia-curand-cu12==${CURAND_VERSION}" \
         "nvidia-cuda-runtime-cu12==${CUDA_RUNTIME_VERSION}" \
         "nvidia-cuda-nvrtc-cu12==${CUDA_NVRTC_VERSION}" \
-        "nvidia-nvjitlink-cu12==${CUDA_NVRTC_VERSION}" \
-    && rm -rf /root/.cache
+        "nvidia-nvjitlink-cu12==${CUDA_NVRTC_VERSION}"
 
 # Программа детектора и модель кладутся в образ: путь к ним фиксирован и не
 # приходит из данных задания (ADR-0010, ограничение 2). Модель в git не
