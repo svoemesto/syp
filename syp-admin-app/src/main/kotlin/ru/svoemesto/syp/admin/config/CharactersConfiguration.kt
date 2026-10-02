@@ -63,6 +63,7 @@ class CharactersConfiguration {
         return GpuFaceDetector(
             program = program,
             modelPath = model,
+            modelKind = env(ENV_FACE_MODEL_KIND, GpuFaceDetector.DEFAULT_MODEL_KIND),
             provider = env(ENV_FACE_PROVIDER, GpuFaceDetector.DEFAULT_PROVIDER),
             inputWidth = env(ENV_FACE_INPUT_WIDTH, GpuFaceDetector.DEFAULT_INPUT_SIZE.toString()).toInt(),
             inputHeight = env(ENV_FACE_INPUT_HEIGHT, GpuFaceDetector.DEFAULT_INPUT_SIZE.toString()).toInt(),
@@ -122,6 +123,16 @@ class CharactersConfiguration {
 
         /** Имя переменной окружения с путём к файлу модели детектора. */
         const val ENV_FACE_MODEL_PATH: String = "SYP_FACE_MODEL_PATH"
+
+        /**
+         * Имя переменной окружения с видом модели детектора.
+         *
+         * Вид модели — то, как программа готовит кадр и разбирает выход
+         * сети. Он приходит из конфигурации развёртывания вместе с путём к
+         * файлу веса: смена модели не должна требовать правки кода и
+         * пересборки образа (ADR-0010, ограничение 2).
+         */
+        const val ENV_FACE_MODEL_KIND: String = "SYP_FACE_MODEL_KIND"
 
         /** Имя переменной окружения с провайдером вычислений. */
         const val ENV_FACE_PROVIDER: String = "SYP_FACE_PROVIDER"

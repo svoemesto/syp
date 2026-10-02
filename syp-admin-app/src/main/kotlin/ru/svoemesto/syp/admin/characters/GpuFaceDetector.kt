@@ -32,6 +32,7 @@ import java.time.Duration
  *
  * @property program путь к программе детектора
  * @property modelPath путь к файлу модели
+ * @property modelKind вид модели: как готовится кадр и как разбирается выход
  * @property provider провайдер вычислений
  * @property inputWidth ширина входа сети
  * @property inputHeight высота входа сети
@@ -43,6 +44,7 @@ import java.time.Duration
 class GpuFaceDetector(
     private val program: String,
     private val modelPath: String,
+    private val modelKind: String = DEFAULT_MODEL_KIND,
     private val provider: String = DEFAULT_PROVIDER,
     private val inputWidth: Int = DEFAULT_INPUT_SIZE,
     private val inputHeight: Int = DEFAULT_INPUT_SIZE,
@@ -58,6 +60,8 @@ class GpuFaceDetector(
                 listOf(
                     "--model",
                     modelPath,
+                    "--model-kind",
+                    modelKind,
                     "--provider",
                     provider,
                     "--input-width",
@@ -161,18 +165,33 @@ class GpuFaceDetector(
         /** Провайдер вычислений по умолчанию. */
         const val DEFAULT_PROVIDER: String = "CUDAExecutionProvider"
 
+        /**
+         * Вид модели по умолчанию.
+         *
+         * YuNet — историческая модель проекта, на ней написан первый замер
+         * (М-02). Остальные виды выбираются конфигурацией развёртывания: вид
+         * модели не зашит в код, иначе смена модели требовала бы пересборки
+         * образа (ADR-0010, ограничение 2).
+         */
+        const val DEFAULT_MODEL_KIND: String = "yunet"
+
         /** Размер входа сети по умолчанию. */
         const val DEFAULT_INPUT_SIZE: Int = 640
 
         /**
          * Порог уверенности по умолчанию.
          *
-         * Значение 0,6 — исходное из репозитория модели. На двадцати кадрах
-         * `GOT.S01E01` при 0,9 не находится ни одного лица, при 0,6 — на 12
-         * кадрах из 20; подбор порога по серии и проверка на 200 кадрах —
-         * задача T076 (М-02), здесь зафиксировано лишь рабочее значение.
+         * Значение по умолчанию — **не то, что в примере репозитория модели**.
+         * Порог подобран замером М-02 на размеченной выборке `GOT.S01E01`:
+         * при 0,9 на наших данных не находится ни одного лица, при 0,2
+         * полнота 70,2 % и 9 ложных срабатываний на 50 кадрах. Критерий,
+         * таблица и проверка монотонности — в
+         * `specs/001-first-vertical-slice/measurements/m-02-models.md`.
+         *
+         * Это значение по умолчанию, а не зашитый порог: рабочее значение
+         * приходит из конфигурации развёртывания (ADR-0004, ADR-0010).
          */
-        const val DEFAULT_SCORE_THRESHOLD: Double = 0.6
+        const val DEFAULT_SCORE_THRESHOLD: Double = 0.2
 
         /** Порог перекрытия рамок по умолчанию. */
         const val DEFAULT_NMS_THRESHOLD: Double = 0.3
@@ -184,20 +203,30 @@ class GpuFaceDetector(
          * поднялось: модель, провайдер, версии среды и пороги берутся из неё,
          * а не из предположений конфигурации.
          *
+         * Ключ детектора.
+         *
+         * Вид модели входит в ключ отдельным полем: один и тот же файл веса,
+         * прочитанный как другая архитектура, даёт другие рамки, и результат
+         * одного вида нельзя выдать за результат другого (FR-090).
+         *
          * @param greeting строка приветствия в формате JSON
          * @param modelPath путь к модели, если строка не разобралась
+         * @param modelKind вид модели из конфигурации, если строка не разобралась
          * @return ключ детектора для прогона анализа
          */
+        @Suppress("LongParameterList")
         fun keyOf(
             greeting: String,
             modelPath: String,
+            modelKind: String = DEFAULT_MODEL_KIND,
         ): String {
             val values = parseGreeting(greeting)
             val model = values["model"]?.let(::fileName) ?: fileName(modelPath)
+            val kind = values["model_kind"] ?: modelKind
             val provider = values["provider"] ?: "провайдер-не-сообщён"
             val input = values["input"] ?: "${DEFAULT_INPUT_SIZE}x$DEFAULT_INPUT_SIZE"
             val threshold = values["score_threshold"] ?: DEFAULT_SCORE_THRESHOLD
-            return "$KEY_PREFIX:$model:$provider:$input@$threshold"
+            return "$KEY_PREFIX:$model:$kind:$provider:$input@$threshold"
         }
 
         /**
