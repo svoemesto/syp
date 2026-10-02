@@ -524,3 +524,12 @@ if [[ ${failed} -gt 0 ]]; then
 fi
 printf '%s\n' "ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ"
 exit 0
+# Сезон серии: необязателен, но положителен.
+check "серия без сезона (фильм) — принят" ok \
+    "UPDATE series SET season = NULL WHERE source_path LIKE '%S01E01%';"
+check "серия сезона 1 — принят" ok \
+    "UPDATE series SET season = 1 WHERE source_path LIKE '%S01E01%';"
+check "нулевой сезон — отказ" fail \
+    "UPDATE series SET season = 0 WHERE source_path LIKE '%S01E01%';"
+check "отрицательный сезон — отказ" fail \
+    "UPDATE series SET season = -1 WHERE source_path LIKE '%S01E01%';"

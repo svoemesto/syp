@@ -52,6 +52,7 @@ data class Series(
     val serialId: Long,
     val ordinal: Int,
     val name: String,
+    val season: Int? = null,
     val sourcePath: String,
     val byteSize: Long,
     val fileMtime: OffsetDateTime,
@@ -127,6 +128,7 @@ data class Series(
                     serialId,
                     ordinal,
                     name,
+                    season,
                     sourcePath,
                     byteSize,
                     fileMtime,
@@ -160,6 +162,7 @@ data class Series(
                 "serial_id",
                 "ordinal",
                 "name",
+                "season",
                 "source_path",
                 "file_size",
                 "file_mtime",
@@ -183,7 +186,7 @@ data class Series(
         /** Столбцы серии в порядке чтения из базы. */
         val READ_COLUMNS: String =
             (
-                "id, serial_id, ordinal, name, source_path, file_size, file_mtime, " +
+                "id, serial_id, ordinal, name, season, source_path, file_size, file_mtime, " +
                     "frame_count, time_base_num, time_base_den, width, height, " +
                     "duration_num, duration_den, video_codec, video_profile, pixel_format, " +
                     "audio_codec, audio_channels, audio_sample_rate, keyframe_bitmap, " +
@@ -196,6 +199,7 @@ data class Series(
          * @param serialId сериал-владелец
          * @param ordinal порядковый номер в сериале
          * @param name название серии
+         * @param season номер сезона; не задан — у серий вне сезонов
          * @param sourcePath абсолютный путь к файлу
          * @param parameters параметры, снятые с файла опросом
          * @return готовая к записи серия
@@ -204,6 +208,7 @@ data class Series(
             serialId: Long,
             ordinal: Int,
             name: String,
+            season: Int?,
             sourcePath: String,
             parameters: SourceParameters,
         ): Series =
@@ -211,6 +216,7 @@ data class Series(
                 serialId = serialId,
                 ordinal = ordinal,
                 name = name,
+                season = season,
                 sourcePath = sourcePath,
                 byteSize = parameters.byteSize,
                 fileMtime = parameters.fileMtime.atOffset(java.time.ZoneOffset.UTC),
@@ -415,6 +421,7 @@ class SeriesStore(
             serialId = row.long("serial_id"),
             ordinal = row.int("ordinal"),
             name = row.string("name"),
+            season = row.intOrNull("season"),
             sourcePath = row.string("source_path"),
             byteSize = row.long("file_size"),
             fileMtime =
