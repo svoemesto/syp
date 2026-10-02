@@ -1,6 +1,5 @@
 package ru.svoemesto.syp.admin.catalog
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.DoubleNode
 import com.fasterxml.jackson.databind.node.IntNode
 import com.fasterxml.jackson.databind.node.TextNode
@@ -11,6 +10,7 @@ import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.db.Row
+import ru.svoemesto.syp.core.json.Json
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SerialSettingsTest {
-    private val mapper = ObjectMapper()
+    private val mapper = Json.mapper()
     private lateinit var db: Db
     private lateinit var settings: SerialSettingsStore
     private var serialId: Long = 0

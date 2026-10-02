@@ -12,10 +12,10 @@ import {
   connectionIsAttention,
   connectionLabel,
   connectionTone,
-  currentJob,
   currentQueue,
   retryNotifications,
 } from '../stores/notifications'
+import JobProgressMeter from './JobProgressMeter.vue'
 
 const route = useRoute()
 const catalog = useCatalogStore()
@@ -40,16 +40,6 @@ const connectionAttention = computed(() => connectionIsAttention())
 
 /** Сводка по очереди заданий. */
 const queue = computed(() => currentQueue())
-
-/** Ход последнего задания одной строкой. */
-const jobCaption = computed(() => {
-  const row = currentJob()
-  if (row === null) {
-    return null
-  }
-  const done = row.percent === null ? row.done : `${row.percent}%`
-  return `${row.kindTitle}: ${row.stateTitle} (${done})`
-})
 
 /** Название выбранной серии для показа в шапке. */
 const selectedSeriesLabel = computed(() => {
@@ -116,12 +106,16 @@ function isActive(name: string): boolean {
           {{ selectedSeriesLabel }}
         </span>
 
+        <!-- Прогресс-мер заданий: ход работы, а не только то, что кнопку
+             нажали. -->
+        <JobProgressMeter />
+
+        <!-- Состояние живого канала уведомлений и сводка по очереди. Ход
+             задания здесь не повторяется: его уже показывает прогресс-мер, а
+             два показателя об одном задании разойдутся с ним же. -->
         <div class="syp-live d-flex align-items-center gap-2 flex-wrap">
           <span v-if="queue !== null" class="syp-queue text-body-secondary">
             очередь: {{ queue.summary }}
-          </span>
-          <span v-if="jobCaption !== null" class="syp-job text-body-secondary">
-            {{ jobCaption }}
           </span>
           <span class="badge" :class="connectionBadge">{{ connection }}</span>
           <button
@@ -184,8 +178,7 @@ function isActive(name: string): boolean {
   font-size: 0.8125rem;
 }
 
-.syp-queue,
-.syp-job {
+.syp-queue {
   font-variant-numeric: tabular-nums;
 }
 
