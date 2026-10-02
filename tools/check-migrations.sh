@@ -19,6 +19,9 @@
 #      что границы фрагментов считаются по не тем кадрам (миграция 09);
 #   7a. у незавершённого подсчёта суммы нет, а готовая сумма обязана быть, и
 #      запись справочника ссылается на существующее задание (миграция 10);
+#   7b. у каждого сериала ровно две служебные персоны, вторая того же вида не
+#      заводится, удаление заглушки при живом сериале отвергается базой, а
+#      удаление сериала уносит заглушки каскадом (миграция 11);
 #   8. удаление сериала каскадом уносит серии, лица, персоны, версии моделей,
 #      сценарии сборки, справочник сумм и настройки, не оставляя сирот.
 #
@@ -330,6 +333,59 @@ if [[ "${settings}" == "11" ]]; then
     report_ok "новый сериал получил 11 настроек по умолчанию"
 else
     report_fail "новый сериал получил ${settings} настроек, ожидалось 11"
+fi
+
+# --- служебные персоны сериала -------------------------------------------
+# Правила живут в базе, а не в коде контроллера (миграция 11): заглушки
+# заводит триггер на вставку сериала, уникальный индекс не даёт завести
+# вторую заглушку того же вида, триггер на удаление запрещает убирать
+# заглушку, пока жив сериал. Код сервиса персон эти правила повторяет, но
+# проверяется именно база.
+printf '\n%s\n' "3a. Служебные персоны сериала"
+service_persons=$(psql_run <<< "SELECT count(*) FROM person WHERE serial_id = 901 AND kind <> 'PERSON';")
+if [[ "${service_persons}" == "2" ]]; then
+    report_ok "у сериала две служебные персоны: неопознанное лицо и «не лицо»"
+else
+    report_fail "служебных персон у сериала ${service_persons}, ожидалось 2"
+fi
+
+service_names=$(psql_run <<< "SELECT count(*) FROM person WHERE serial_id = 901 AND kind <> 'PERSON' AND recognizer_key IS NULL;")
+if [[ "${service_names}" == "2" ]]; then
+    report_ok "у служебных персон нет ключа распознавателя: это заглушки, а не классы модели"
+else
+    report_fail "служебных персон с ключом распознавателя: ${service_names} из 2"
+fi
+
+check "вторая заглушка того же вида — отказ" fail \
+    "INSERT INTO person (serial_id, name, kind) VALUES (901, 'Вторая заглушка', 'UNRECOGNIZED');"
+check "вторая заглушка вида «не лицо» — отказ" fail \
+    "INSERT INTO person (serial_id, name, kind) VALUES (901, 'Вторая заглушка', 'NONPERSON');"
+check_writes "вторая именованная персона того же сериала — принята" \
+    "INSERT INTO person (serial_id, name, recognizer_key, kind) VALUES (901, 'Джейми', 'jamie', 'PERSON');"
+check "у именованной персоны без ключа распознавателя — отказ" fail \
+    "INSERT INTO person (serial_id, name, kind) VALUES (901, 'Джейми', 'PERSON');"
+check "у служебной персоны с ключом распознавателя — отказ" fail \
+    "INSERT INTO person (serial_id, name, recognizer_key, kind) VALUES (901, 'С ключом', 'x', 'NONPERSON');"
+check "неизвестный вид персоны — отказ" fail \
+    "INSERT INTO person (serial_id, name, kind) VALUES (901, 'Непонятная', 'SOMEBODY');"
+check "удаление служебной персоны при живом сериале — отказ" fail \
+    "DELETE FROM person WHERE serial_id = 901 AND kind = 'UNRECOGNIZED';"
+check "удаление именованной персоны — принят" ok \
+    "INSERT INTO person (serial_id, name, recognizer_key, kind) VALUES (901, 'Джейми', 'jamie', 'PERSON');
+     DELETE FROM person WHERE serial_id = 901 AND name = 'Джейми';"
+# Сериал удаляется каскадом вместе с заглушками: запрет удаления не должен
+# делать удаление сериала невозможным.
+cascade_persons=$(psql_run <<'SQL' | tail -1
+BEGIN;
+DELETE FROM serial WHERE id = 901;
+SELECT count(*) FROM person WHERE serial_id = 901;
+ROLLBACK;
+SQL
+)
+if [[ "${cascade_persons}" == "0" ]]; then
+    report_ok "удаление сериала уносит служебные персоны каскадом"
+else
+    report_fail "после удаления сериала осталось служебных персон: ${cascade_persons}"
 fi
 
 # --- повторное применение применённой миграции -----------------------------

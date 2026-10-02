@@ -7,11 +7,13 @@ import ru.svoemesto.syp.admin.catalog.SeriesStore
 import ru.svoemesto.syp.admin.characters.FaceDetector
 import ru.svoemesto.syp.admin.characters.FaceScan
 import ru.svoemesto.syp.admin.characters.FacesJob
+import ru.svoemesto.syp.admin.characters.PersonService
 import ru.svoemesto.syp.admin.characters.StubFaceDetector
+import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.media.FrameChannel
 
 /**
- * Сборка домена персонажей: проход по кадрам и задание `FACES`.
+ * Сборка домена персонажей: проход по кадрам, задание `FACES`, персоны.
  *
  * **Детектор в этой сборке — заглушка.** Настоящий детектор работает на
  * видеокарте и требует среды исполнения, которой на машине нет: карта есть,
@@ -77,4 +79,13 @@ class CharactersConfiguration {
             scan = scan,
             detectorKey = detector.key,
         )
+
+    /**
+     * Собирает сервис персон сериала.
+     *
+     * @param database доступ к базе
+     * @return сервис персон со служебными заглушками
+     */
+    @Bean
+    fun personService(database: Db): PersonService = PersonService(database)
 }
