@@ -69,4 +69,4 @@
 - [ADR-0009: сервер отдаёт рецепт, а не видеофайл](../../../adr/ADR-0009-server-gives-recipe.md)
 - [ADR-0010: запасной путь исполнения — внешний ffmpeg с ограничениями](../../../adr/ADR-0010-fallback-external-ffmpeg.md)
 - [ADR-0011: сборка и подпись сценария живут в общем модуле `syp-core`](../../../adr/ADR-0011-shared-recipe-core.md)
-- [ADR-0016: нотификации интерфейса — один поток SSE по образцу админки Karaoke](../../../adr/ADR-0016-sse-notifications-karaoke-style.md)
+- [ADR-0017: нотификации интерфейса — один поток SSE по образцу админки Karaoke](../../../adr/ADR-0017-sse-notifications-karaoke-style.md)

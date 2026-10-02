@@ -6,7 +6,7 @@
 
 Контракт — раздел 11
 [`specs/001-first-vertical-slice/contracts/admin-api.md`](../../specs/001-first-vertical-slice/contracts/admin-api.md).
-Решение о подходе — [ADR-0016](../adr/ADR-0016-sse-notifications-karaoke-style.md).
+Решение о подходе — [ADR-0017](../adr/ADR-0017-sse-notifications-karaoke-style.md).
 
 ## Ответственность
 
@@ -75,5 +75,5 @@
 
 ## Связанные ADR
 
-- [ADR-0016: нотификации интерфейса — один поток SSE по образцу админки Karaoke](../adr/ADR-0016-sse-notifications-karaoke-style.md)
+- [ADR-0017: нотификации интерфейса — один поток SSE по образцу админки Karaoke](../adr/ADR-0017-sse-notifications-karaoke-style.md)
 - [ADR-0014: сценарий выдаёт и подписывает админский бэкенд](../adr/ADR-0014-signing-in-admin-backend.md)

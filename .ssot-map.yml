@@ -64,7 +64,7 @@ code_to_docs:
   - docs/guidelines/sse-notifications.md
   - docs/domains/analysis/components/job-queue.md
   - docs/features/first-vertical-slice.md
-  - docs/adr/ADR-0016-sse-notifications-karaoke-style.md
+  - docs/adr/ADR-0017-sse-notifications-karaoke-style.md
   - specs/001-first-vertical-slice/contracts/admin-api.md
   syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/config:
   - docs/features/first-vertical-slice.md
@@ -82,7 +82,7 @@ code_to_docs:
   - docs/domains/characters/domain.md
   - docs/guidelines/sse-notifications.md
   - docs/features/first-vertical-slice.md
-  - docs/adr/ADR-0016-sse-notifications-karaoke-style.md
+  - docs/adr/ADR-0017-sse-notifications-karaoke-style.md
   - specs/001-first-vertical-slice/contracts/admin-api.md
   syp-public-web/src:
   - docs/domains/showcase/domain.md
