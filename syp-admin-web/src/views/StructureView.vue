@@ -12,6 +12,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PreviewSheetView from '../components/PreviewSheetView.vue'
 import SceneDetailPanel from '../components/SceneDetailPanel.vue'
+import ShotDetailPanel from '../components/ShotDetailPanel.vue'
 import StateBlock from '../components/StateBlock.vue'
 import { analysisRevision } from '../stores/notifications'
 import { useStructureStore } from '../stores/structure'
@@ -25,6 +26,9 @@ const frameInput = ref<number | null>(null)
 /** Показывается ли раздел с отказом последней операции. */
 const editNotice = ref('')
 
+/** Выбранный план: у него своя карточка с доводкой границы. */
+const selectedShotId = ref<number | null>(null)
+
 /** Идентификатор эпизода из адреса. */
 const episodeId = computed(() => Number(route.params.episodeId))
 
@@ -33,6 +37,21 @@ const scenes = computed(() => store.visibleScenes.value)
 
 /** Выбранная сцена с её планами. */
 const selected = computed(() => store.selectedScene.value)
+
+/**
+ * Выбранный план выбранной сцены.
+ *
+ * Пусто, пока план не выбран: молча выбирать первый план значило бы править
+ * не то, что оператор открыл, а показывать блок доводки над чужим планом —
+ * ещё хуже.
+ */
+const selectedShot = computed(() => {
+  const scene = selected.value
+  if (scene === null) {
+    return null
+  }
+  return scene.shots.find((shot) => shot.id === selectedShotId.value) ?? null
+})
 
 /** Число кадров эпизода: им ограничивается ввод номера кадра. */
 const frameCount = computed(() => store.row.value?.frameCount ?? 0)
@@ -101,6 +120,31 @@ async function applyEdit(operation: () => Promise<boolean>, description: string)
   editNotice.value = done
     ? `${description}: ${store.lastEdit.value?.title ?? 'структура изменена'}`
     : `${description}: не выполнено`
+}
+
+/**
+ * Выполняет правку границы плана и показывает, что именно изменилось.
+ *
+ * В подпись входит число пересчитанных размеров: размер плана меняется
+ * вместе с границей, и без этого числа правка выглядит как «ничего не
+ * сделал», хотя размер стал другим.
+ *
+ * @param operation операция правки
+ * @param description что делала операция, словами
+ */
+async function applyShotEdit(
+  operation: () => Promise<boolean>,
+  description: string,
+): Promise<void> {
+  const done = await operation()
+  if (!done) {
+    editNotice.value = `${description}: не выполнено`
+    return
+  }
+  const sizes = store.lastShotEdit.value?.sizesRecomputed ?? 0
+  editNotice.value =
+    `${description}: ${store.lastShotEdit.value?.title ?? 'структура изменена'}` +
+    (sizes > 0 ? `; размер пересчитан у ${sizes} планов` : '')
 }
 
 /**
@@ -298,6 +342,7 @@ watch(revision, () => {
             :frame-count="frameCount"
             :busy="store.editing.value"
             @pick="pickFrame"
+            @select="(shotId: number) => (selectedShotId = shotId)"
             @split="
               (frame: number) =>
                 applyEdit(() => store.split(episodeId, frame), `Разделение на кадре ${frame}`)
@@ -311,6 +356,36 @@ watch(revision, () => {
                 applyEdit(
                   () => store.moveBoundary(episodeId, from, to),
                   `Сдвиг границы с ${from} на ${to}`,
+                )
+            "
+          />
+        </div>
+
+        <div v-if="selectedShot" class="card-body selected-scene">
+          <ShotDetailPanel
+            :shot="selectedShot"
+            :neighbours="selected?.shots ?? []"
+            :frame-count="frameCount"
+            :busy="store.editing.value"
+            @split="
+              (frame: number) =>
+                applyShotEdit(
+                  () => store.splitShotAt(episodeId, frame),
+                  `Разделение плана на кадре ${frame}`,
+                )
+            "
+            @merge="
+              (frame: number) =>
+                applyShotEdit(
+                  () => store.mergeShotAt(episodeId, frame),
+                  `Объединение плана с кадра ${frame}`,
+                )
+            "
+            @move="
+              (from: number, to: number) =>
+                applyShotEdit(
+                  () => store.moveShotEdge(episodeId, from, to),
+                  `Сдвиг границы плана с ${from} на ${to}`,
                 )
             "
           />

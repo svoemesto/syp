@@ -386,6 +386,84 @@ export function mergeScenes(episodeId: number, frame: number): Promise<SceneBoun
 }
 
 /**
+ * Ответ на правку границы плана.
+ *
+ * Планы едут с уже пересчитанным размером: пересчёт выполняется в той же
+ * операции, что и правка границы, и перечитывать структуру ради размера —
+ * значит показывать оператору устаревшее значение.
+ *
+ * @interface ShotBoundaryView
+ */
+export interface ShotBoundaryView {
+  /** Эпизод. */
+  episodeId: number
+  /** Кадр, по которому выполнена операция. */
+  frame: number
+  /** Вид операции: `MOVE`, `SPLIT` или `MERGE`. */
+  action: string
+  /** Вид операции словами для оператора. */
+  actionTitle: string
+  /** Рабочие планы затронутого участка после операции. */
+  shots: ShotView[]
+  /** Строки планов, выведенные из рабочей структуры. */
+  supersededShotIds: number[]
+  /** Сцены, в которые легли затронутые планы. */
+  scenes: SceneView[]
+  /** Сколько строк лица переведено на новые планы. */
+  facesRebound: number
+  /** Сколько планов получило пересчитанный размер. */
+  sizesRecomputed: number
+  /** Сколько планов у эпизода после операции. */
+  shotsTotal: number
+  /** Число кадров эпизода. */
+  frameCount: number
+}
+
+/**
+ * Сдвигает границу между двумя соседними планами.
+ *
+ * Границы передаются номерами кадров, а не идентификаторами планов: оператор
+ * видит кадры, и требовать от него знания внутренних ключей незачем (ADR-0001).
+ *
+ * @param episodeId идентификатор эпизода
+ * @param fromFrame кадр, на котором граница стоит сейчас
+ * @param toFrame кадр, на который её ставят
+ * @returns изменённый участок структуры с пересчитанными размерами
+ */
+export function moveShotBoundary(
+  episodeId: number,
+  fromFrame: number,
+  toFrame: number,
+): Promise<ShotBoundaryView> {
+  return request<ShotBoundaryView>('POST', `/episodes/${episodeId}/shots/boundary/move`, {
+    fromFrame,
+    toFrame,
+  })
+}
+
+/**
+ * Разделяет план по номеру кадра.
+ *
+ * @param episodeId идентификатор эпизода
+ * @param frame первый кадр второго из получившихся планов
+ * @returns изменённый участок структуры с пересчитанными размерами
+ */
+export function splitShot(episodeId: number, frame: number): Promise<ShotBoundaryView> {
+  return request<ShotBoundaryView>('POST', `/episodes/${episodeId}/shots/${frame}/split`)
+}
+
+/**
+ * Объединяет план, начинающийся с указанного кадра, с предыдущим.
+ *
+ * @param episodeId идентификатор эпизода
+ * @param frame первый кадр поглощаемого плана
+ * @returns изменённый участок структуры с пересчитанными размерами
+ */
+export function mergeShots(episodeId: number, frame: number): Promise<ShotBoundaryView> {
+  return request<ShotBoundaryView>('POST', `/episodes/${episodeId}/shots/${frame}/merge`)
+}
+
+/**
  * Адрес листа превью для прямой загрузки изображением.
  *
  * Отдельная функция вместо строки в шаблоне: адрес собирается в одном месте,

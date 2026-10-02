@@ -25,7 +25,13 @@ import type {
   PersonView,
 } from './characters'
 import type { PreviewUrlView } from './structure'
-import type { SceneBoundaryView, SceneView, ShotView, StructureView } from './structure'
+import type {
+  SceneBoundaryView,
+  SceneView,
+  ShotBoundaryView,
+  ShotView,
+  StructureView,
+} from './structure'
 
 /** Сериал на экране: то, что о нём знает оператор. */
 export interface SerialRow {
@@ -605,6 +611,46 @@ export function toSceneBoundaryRow(dto: SceneBoundaryView): SceneBoundaryRow {
     scenes: dto.scenes.map((scene, position) => toSceneRow(scene, position + 1)),
     scenesTotal: dto.scenesTotal,
   }
+}
+
+/**
+ * Приводит ответ на правку границы плана к строке экрана.
+ *
+ * Сцены получают номера по порядку в ответе, а не по порядку во всём
+ * эпизоде: правка отвечает изменённым участком, и сквозная нумерация здесь
+ * была бы выдуманной — сосчитать её без всей структуры нельзя.
+ *
+ * @param dto ответ из ответа бэкенда
+ * @returns строка экрана
+ */
+export function toShotBoundaryRow(dto: ShotBoundaryView): ShotBoundaryRow {
+  return {
+    title: dto.actionTitle,
+    shots: dto.shots.map((shot) => toShotRow(shot)),
+    scenes: dto.scenes.map((scene, position) => toSceneRow(scene, position + 1)),
+    sizesRecomputed: dto.sizesRecomputed,
+    facesRebound: dto.facesRebound,
+  }
+}
+
+/**
+ * Ответ на правку границы плана в терминах экрана.
+ *
+ * Размер едет вместе с границей и словами: пересчёт выполнен в той же
+ * операции, поэтому показывать оператору прежний размер значило бы показывать
+ * то, чего уже нет.
+ */
+export interface ShotBoundaryRow {
+  /** Что именно изменилось, словами. */
+  title: string
+  /** Планы затронутого участка после операции. */
+  shots: ShotRow[]
+  /** Сцены, в которые легли затронутые планы. */
+  scenes: SceneRow[]
+  /** Сколько планов получил пересчитанный размер, словами. */
+  sizesRecomputed: number
+  /** Сколько строк лица переведено на новые планы, словами. */
+  facesRebound: number
 }
 
 /** Лицо на экране: то, что показывается оператору. */
