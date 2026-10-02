@@ -53,6 +53,9 @@ object FakeFaceDetector {
      * @param faceX2 правая граница выдаваемой рамки
      * @param faceY2 нижняя граница выдаваемой рамки
      * @param confidence уверенность выдаваемой рамки
+     * @param shiftByKind на сколько пикселей сдвинуть рамку у всех видов
+     *   модели, кроме первого: так подставная программа отвечает на ту же
+     *   серию по-разному в зависимости от того, какая модель поднята
      * @param exit код завершения при сбое
      * @param stderrText текст, который программа пишет в поток ошибок
      * @return путь к исполняемому сценарию
@@ -67,6 +70,7 @@ object FakeFaceDetector {
         faceX2: Int = 3,
         faceY2: Int = 1,
         confidence: Double = 0.9,
+        shiftByKind: Int = 0,
         exit: Int = 3,
         stderrText: String = "подставной детектор: сценарий $mode на кадре $failAt",
     ): Path {
@@ -81,6 +85,7 @@ object FakeFaceDetector {
             x2=$faceX2
             y2=$faceY2
             confidence=$confidence
+            shift_by_kind=$shiftByKind
             exit=$exit
             text=$stderrText
             """.trimIndent() + "\n",
@@ -113,10 +118,23 @@ object FakeFaceDetector {
                 key, value = line.split("=", 1)
                 settings[key] = value
 
+        # Вид и путь модели приходят аргументами командной строки — так же,
+        # как у настоящей программы: проверка переключения модели обязана
+        # видеть то, что передаёт бэкенд.
+        argv = sys.argv[1:]
+        given = dict(zip(argv[0::2], argv[1::2]))
+        model_kind = given.get("--model-kind", "yunet")
+        model_path = given.get("--model", "/opt/syp/models/fake.onnx")
+
+        # Ответ зависит от вида модели: сдвиг на applying_shift пикселей.
+        applying_shift = int(settings.get("shift_by_kind", "0"))
+        shift = 0 if model_kind == "yunet" else applying_shift
+
         out = sys.stdout.buffer
         out.write(json.dumps({
             "status": "ready",
-            "model": os.environ.get("FAKE_MODEL", "/opt/syp/models/fake.onnx"),
+            "model": model_path,
+            "model_kind": model_kind,
             "provider": "CPUExecutionProvider",
             "onnxruntime": "0.0.0",
             "numpy": "0.0.0",
@@ -168,7 +186,8 @@ object FakeFaceDetector {
                     out.flush()
                     raise SystemExit(int(settings.get("exit", "4")))
             reported = number + 1000 if (mode == "wrong-number" and number == fail_at) else number
-            out.write(answer_header.pack(reported, 1.5, 1) + answer_face.pack(*face))
+            shifted = (face[0] + shift, face[1], face[2] + shift, face[3], face[4])
+            out.write(answer_header.pack(reported, 1.5, 1) + answer_face.pack(*shifted))
             out.flush()
         """.trimIndent() + "\n"
 }

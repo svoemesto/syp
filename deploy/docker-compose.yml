@@ -106,6 +106,9 @@ services:
       # её заглушкой, а не выдаёт пустой результат за детекцию.
       SYP_FACE_DETECTOR_PATH: ${SYP_FACE_DETECTOR_PATH:-/opt/syp/face-detector/bin/syp-face-detector}
       SYP_FACE_MODEL_PATH: ${SYP_FACE_MODEL_PATH:-/opt/syp/face-detector/models/face_detection_yunet_2023mar.onnx}
+      # Вид модели: как программа готовит кадр и разбирает выход сети.
+      # Меняется конфигурацией, а не пересборкой образа (ADR-0010).
+      SYP_FACE_MODEL_KIND: ${SYP_FACE_MODEL_KIND:-yunet}
       SYP_FACE_PROVIDER: ${SYP_FACE_PROVIDER:-CUDAExecutionProvider}
       SYP_FACE_INPUT_WIDTH: ${SYP_FACE_INPUT_WIDTH:-640}
       SYP_FACE_INPUT_HEIGHT: ${SYP_FACE_INPUT_HEIGHT:-640}
