@@ -147,21 +147,29 @@ class IntegrityConfiguration {
         handlers: List<JobHandler>,
         artifactRegistry: ArtifactRegistry,
         database: Db,
-        concurrency: Int = DEFAULT_CONCURRENCY,
-        gpuConcurrency: Int = DEFAULT_GPU_CONCURRENCY,
     ): AdminJobWorker =
         AdminJobWorker(
             queue = queue,
             handlers = handlers.associateBy { it.kind },
             artifactRegistry = artifactRegistry,
             db = database,
-            concurrency = concurrency,
-            gpuConcurrency = gpuConcurrency,
+            // Значения по умолчанию у методов @Bean недопустимы: Spring ищет
+            // фабричный метод без аргументов, и параметр со значением по
+            // умолчанию превращает бин в «фабричный метод не найден» — весь
+            // контекст не поднимается. Поэтому значения читаются здесь.
+            concurrency = optional(ENV_WORKER_CONCURRENCY)?.toInt() ?: DEFAULT_CONCURRENCY,
+            gpuConcurrency = optional(ENV_GPU_CONCURRENCY)?.toInt() ?: DEFAULT_GPU_CONCURRENCY,
         )
 
     companion object {
         /** Имя переменной окружения с каталогом артефактов на SSD. */
         const val ENV_STORAGE_ROOT: String = "SYP_STORAGE_ROOT"
+
+        /** Имя переменной окружения со сколько заданий выполняется одновременно. */
+        const val ENV_WORKER_CONCURRENCY: String = "SYP_WORKER_CONCURRENCY"
+
+        /** Имя переменной окружения со сколько заданий используют видеокарту. */
+        const val ENV_GPU_CONCURRENCY: String = "SYP_GPU_CONCURRENCY"
 
         /** Каталог артефактов, если переменная окружения не задана. */
         const val DEFAULT_STORAGE_ROOT: String = "/data/syp-storage"
