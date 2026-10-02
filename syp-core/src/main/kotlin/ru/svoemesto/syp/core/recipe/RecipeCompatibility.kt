@@ -1,18 +1,18 @@
 package ru.svoemesto.syp.core.recipe
 
 /**
- * Параметры серии, по которым решается, можно ли собрать подборку без
+ * Параметры эпизода, по которым решается, можно ли собрать подборку без
  * перекодирования.
  *
- * Это **снимок того, что снято с файла при регистрации серии**, а не повторный
+ * Это **снимок того, что снято с файла при регистрации эпизода**, а не повторный
  * опрос: дополнительные проходы по видео не нужны, и отказ приходит сразу, а
  * не через полчаса ожидания на машине пользователя (FR-087).
  *
  * Ни одна величина здесь не вводится оператором: она снята с файла и
- * принадлежит серии, а не подборке.
+ * принадлежит эпизоду, а не подборке.
  *
- * @property seriesId идентификатор серии
- * @property name название серии
+ * @property episodeId идентификатор эпизода
+ * @property name название эпизода
  * @property width ширина кадра в пикселях
  * @property height высота кадра в пикселях
  * @property videoCodec кодек видео
@@ -20,13 +20,13 @@ package ru.svoemesto.syp.core.recipe
  * @property pixelFormat формат пикселей
  * @property timeBaseNum числитель частокадровой базы
  * @property timeBaseDen знаменатель частокадровой базы
- * @property audioCodec кодек аудио; `null` у серии без звука
- * @property audioChannels число аудиоканалов; `null` у серии без звука
- * @property audioSampleRate частота дискретизации; `null` у серии без звука
+ * @property audioCodec кодек аудио; `null` у эпизода без звука
+ * @property audioChannels число аудиоканалов; `null` у эпизода без звука
+ * @property audioSampleRate частота дискретизации; `null` у эпизода без звука
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class SeriesParameters(
-    val seriesId: Long,
+data class EpisodeParameters(
+    val episodeId: Long,
     val name: String,
     val width: Int,
     val height: Int,
@@ -40,10 +40,10 @@ data class SeriesParameters(
     val audioSampleRate: Int? = null,
 ) {
     init {
-        require(width > 0 && height > 0) { "Разрешение серии «$name» должно быть положительным" }
-        require(videoCodec.isNotBlank()) { "Кодек видео серии «$name» обязателен" }
+        require(width > 0 && height > 0) { "Разрешение эпизода «$name» должно быть положительным" }
+        require(videoCodec.isNotBlank()) { "Кодек видео эпизода «$name» обязателен" }
         require(timeBaseNum > 0 && timeBaseDen > 0) {
-            "Частокадровая база серии «$name» должна быть положительной"
+            "Частокадровый база эпизода «$name» должна быть положительной"
         }
     }
 
@@ -53,53 +53,53 @@ data class SeriesParameters(
 }
 
 /**
- * Одна серия в отчёте о несовместимости.
+ * Один эпизод в отчёте о несовместимости.
  *
- * В ответе перечисляются серии **и те признаки, по которым они различаются**:
+ * В ответе перечисляются эпизоды **и те признаки, по которым они различаются**:
  * «сценарий не выдан» без указания причины бесполезно, а молча ухудшить
  * качество нельзя (FR-087, FR-092).
  *
- * @property parameters параметры серии
- * @property differingAttributes имена признаков, по которым серия отличается
+ * @property parameters параметры эпизода
+ * @property differingAttributes имена признаков, по которым эпизод отличается
  *   от опорной
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class IncompatibleSeries(
-    val parameters: SeriesParameters,
+data class IncompatibleEpisode(
+    val parameters: EpisodeParameters,
     val differingAttributes: List<String>,
 )
 
 /**
- * Результат проверки совместимости серий подборки.
+ * Результат проверки совместимости эпизодов подборки.
  *
- * @property reference опорная серия, с которой сравнивались остальные
- * @property incompatible серии, не совпадающие с опорной
- * @property differingAttributes все признаки, по которым разошлись серии
+ * @property reference опорный эпизод, с которой сравнивались остальные
+ * @property incompatible эпизоды, не совпадающие с опорной
+ * @property differingAttributes все признаки, по которым разошлись эпизода
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class CompatibilityReport(
-    val reference: SeriesParameters,
-    val incompatible: List<IncompatibleSeries>,
+    val reference: EpisodeParameters,
+    val incompatible: List<IncompatibleEpisode>,
 ) {
-    /** Все серии совпадают: подборку можно выдавать. */
+    /** Все эпизоды совпадают: подборку можно выдавать. */
     val isCompatible: Boolean
         get() = incompatible.isEmpty()
 
-    /** Все признаки, по которым разошлись серии, без повторов и по алфавиту. */
+    /** Все признаки, по которым разошлись эпизода, без повторов и по алфавиту. */
     val differingAttributes: List<String>
         get() = incompatible.flatMap { it.differingAttributes }.distinct().sorted()
 }
 
 /**
- * Проверка совместимости серий **до** выдачи сценария.
+ * Проверка совместимости эпизодов **до** выдачи сценария.
  *
- * Сборка идёт без перекодирования (ADR-0006), поэтому файлы разных серий
+ * Сборка идёт без перекодирования (ADR-0006), поэтому файлы разных эпизодов
  * склеиваются потоковым копированием — и склеиваются только если совпадают
- * параметры, по которым ffmpeg различает потоки. Подборка из разных серий
- * сериала **разрешена** (FR-086): запрет не на различие серий, а на различие
+ * параметры, по которым ffmpeg различает потоки. Подборка из разных эпизодов
+ * фильма **разрешена** (FR-086): запрет не на различие эпизодов, а на различие
  * параметров склейки.
  *
- * Проверка идёт по сохранённым параметрам серии, а не по повторному опросу
+ * Проверка идёт по сохранённым параметрам эпизода, а не по повторному опросу
  * файлов: лишнего прохода по видео нет, отказ приходит мгновенно, и до него
  * пользователь не успевает потратить время (FR-087).
  *
@@ -107,41 +107,41 @@ data class CompatibilityReport(
  */
 object RecipeCompatibility {
     /**
-     * Сравнивает серии подборки.
+     * Сравнивает эпизоды подборки.
      *
-     * Опорной считается первая серия списка: порядок определяется выдачей, а не
-     * сортировкой, иначе отчёт зависел бы от того, как отсортировали серии.
+     * Опорный считается первый эпизод списка: порядок определяется выдачей, а не
+     * сортировкой, иначе отчёт зависел бы от того, как отсортировали эпизода.
      *
-     * @param series серии подборки
+     * @param episode эпизода подборки
      * @return отчёт; при пустом списке — отказ, а не «всё совместимо»
-     * @throws IllegalArgumentException если список серий пуст
+     * @throws IllegalArgumentException если список эпизодов пуст
      */
-    fun check(series: List<SeriesParameters>): CompatibilityReport {
-        require(series.isNotEmpty()) {
-            "Проверять совместимость нечего: список серий подборки пуст"
+    fun check(episode: List<EpisodeParameters>): CompatibilityReport {
+        require(episode.isNotEmpty()) {
+            "Проверять совместимость нечего: список эпизодов подборки пуст"
         }
-        val reference = series.first()
+        val reference = episode.first()
         val incompatible =
-            series
+            episode
                 .drop(1)
-                .map { candidate -> IncompatibleSeries(candidate, differences(reference, candidate)) }
+                .map { candidate -> IncompatibleEpisode(candidate, differences(reference, candidate)) }
                 .filter { it.differingAttributes.isNotEmpty() }
         return CompatibilityReport(reference, incompatible)
     }
 
     /**
-     * Перечисляет признаки, по которым серии различаются.
+     * Перечисляет признаки, по которым эпизода различаются.
      *
      * Порядок признаков зафиксирован объявлением: он попадает в ответ и
      * должен быть одинаковым от запуска к запуску.
      *
-     * @param reference опорная серия
-     * @param candidate сравниваемая серия
+     * @param reference опорный эпизод
+     * @param candidate сравниваемый эпизод
      * @return имена различающихся признаков
      */
     fun differences(
-        reference: SeriesParameters,
-        candidate: SeriesParameters,
+        reference: EpisodeParameters,
+        candidate: EpisodeParameters,
     ): List<String> =
         buildList {
             if (reference.width != candidate.width) add("width")

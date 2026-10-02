@@ -2,7 +2,7 @@
 # SYP — сверка посчитанной суммы исходника с внешней (задача T045, замер М-11).
 #
 # Поднимает одноразовый контейнер `postgres:16`, применяет миграции и
-# запускает проверку `ChecksumParityTest` на настоящем файле серии: система
+# запускает проверку `ChecksumParityTest` на настоящем файле эпизода: система
 # считает сумму заданием `HASH` через воркер, а результат сверяется с выводом
 # `sha256sum` — той самой программой, которой воспользуется воркер на машине
 # пользователя.
@@ -11,8 +11,8 @@
 # одноразовый и удаляется при выходе.
 #
 # Использование:
-#   bash tools/run-checksum-parity.sh                       файл серии по умолчанию
-#   bash tools/run-checksum-parity.sh /path/to/series.mkv   свой файл
+#   bash tools/run-checksum-parity.sh                       файл эпизода по умолчанию
+#   bash tools/run-checksum-parity.sh /path/to/episode.mkv   свой файл
 #
 # Код возврата: 0 — суммы совпали, иначе — код Gradle.
 
@@ -27,7 +27,7 @@ export DOCKER_CONFIG="${DOCKER_CONFIG:-/home/nsa/syp/.docker}"
 SERIES="${1:-/disks/HDD_16Tb_Clouds/GOT/GOT.S01/GOT.S01E01.BDRip.1080p.mkv}"
 
 if [[ ! -f "${SERIES}" ]]; then
-    printf 'ФАЙЛА СЕРИИ НЕТ: %s\n' "${SERIES}" >&2
+    printf 'ФАЙЛА ЭПИЗОДА НЕТ: %s\n' "${SERIES}" >&2
     printf 'Укажите путь к файлу первым аргументом\n' >&2
     exit 1
 fi
@@ -48,7 +48,7 @@ cleanup() {
 trap cleanup EXIT
 
 printf '%s\n' "=== SYP: сверка суммы исходника с внешней ==="
-printf 'файл серии: %s\n' "${SERIES}"
+printf 'файл эпизода: %s\n' "${SERIES}"
 printf 'размер: %s байт\n' "$(stat -c '%s' "${SERIES}")"
 printf 'контейнер: %s (postgres:16, одноразовый)\n' "${NAME}"
 

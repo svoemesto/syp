@@ -2,8 +2,8 @@ package ru.svoemesto.syp.admin.characters
 
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import ru.svoemesto.syp.admin.catalog.Episode
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.Series
 import ru.svoemesto.syp.core.media.FrameChannel
 import ru.svoemesto.syp.core.media.FrameFormat
 import ru.svoemesto.syp.core.media.RawFrame
@@ -53,9 +53,9 @@ class GpuFaceDetectorTest {
         val detector = detector(program)
         val scan = FaceScan(FrameChannel(decoder.toString()), detector)
 
-        val result = scan.scan(series(frames = 3))
+        val result = scan.scan(episode(frames = 3))
 
-        assertEquals(3, result.frames, "обработано должно быть ровно столько кадров, сколько в серии")
+        assertEquals(3, result.frames, "обработано должно быть ровно столько кадров, сколько в эпизоде")
         assertEquals(3, result.faces, "программа выдаёт по одной рамке на кадр")
         assertEquals(3, result.framesWithFaces, "кадров с лицами: все три")
         assertFalse(result.detectorIsStub, "настоящий детектор заглушкой не является")
@@ -73,7 +73,7 @@ class GpuFaceDetectorTest {
         val detector = detector(program)
         val scan = FaceScan(FrameChannel(decoder.toString()), detector)
 
-        val result = scan.scan(series(frames = 1))
+        val result = scan.scan(episode(frames = 1))
 
         assertTrue(
             result.detectorKey.startsWith("${GpuFaceDetector.KEY_PREFIX}:"),
@@ -103,7 +103,7 @@ class GpuFaceDetectorTest {
             )
         val scan = FaceScan(FrameChannel(decoder.toString()), detector(program))
 
-        val failure = assertFailsWith<FaceDetectorFailed> { scan.scan(series(frames = 4)) }
+        val failure = assertFailsWith<FaceDetectorFailed> { scan.scan(episode(frames = 4)) }
 
         assertTrue(
             failure.message.orEmpty().contains("подставленный сбой детектора"),
@@ -124,7 +124,7 @@ class GpuFaceDetectorTest {
             )
         val scan = FaceScan(FrameChannel(decoder.toString()), detector(program))
 
-        val failure = assertFailsWith<FaceDetectorFailed> { scan.scan(series(frames = 4)) }
+        val failure = assertFailsWith<FaceDetectorFailed> { scan.scan(episode(frames = 4)) }
 
         assertTrue(
             failure.message.orEmpty().contains("кадры потеряли порядок"),
@@ -151,7 +151,7 @@ class GpuFaceDetectorTest {
             )
         val scan = FaceScan(FrameChannel(decoder.toString()), detector)
 
-        val failure = assertFailsWith<FaceDetectorFailed> { scan.scan(series(frames = 4)) }
+        val failure = assertFailsWith<FaceDetectorFailed> { scan.scan(episode(frames = 4)) }
 
         assertTrue(
             failure.message.orEmpty().contains("не ответила на кадр"),
@@ -177,7 +177,7 @@ class GpuFaceDetectorTest {
             )
         val scan = FaceScan(FrameChannel(decoder.toString()), detector)
 
-        val failure = assertFailsWith<FaceDetectorFailed> { scan.scan(series(frames = 4)) }
+        val failure = assertFailsWith<FaceDetectorFailed> { scan.scan(episode(frames = 4)) }
 
         assertTrue(
             failure.message.orEmpty().contains("Ответ на кадр") &&
@@ -222,8 +222,8 @@ class GpuFaceDetectorTest {
         val detector = detector(program)
         val scan = FaceScan(FrameChannel(decoder.toString()), detector)
 
-        val first = scan.scan(series(frames = 2))
-        val second = scan.scan(series(frames = 2))
+        val first = scan.scan(episode(frames = 2))
+        val second = scan.scan(episode(frames = 2))
 
         assertEquals(2, first.faces, "первый проход обязан получить рамки")
         assertEquals(2, second.faces, "второй проход обязан поднять программу заново и получить рамки")
@@ -283,14 +283,14 @@ class GpuFaceDetectorTest {
         )
 
     /**
-     * Собирает серию нужного размера.
+     * Собирает эпизод нужного размера.
      *
-     * @param frames сколько кадров в серии
-     * @return серия на вымышленном пути: подставной декодер файл не читает
+     * @param frames сколько кадров в эпизоде
+     * @return эпизод на вымышленном пути: подставной декодер файл не читает
      */
-    private fun series(frames: Int): Series =
-        Series(
-            serialId = 1,
+    private fun episode(frames: Int): Episode =
+        Episode(
+            movieId = 1,
             ordinal = 0,
             name = "S01E01",
             sourcePath = "/srv/got/S01E01.mkv",

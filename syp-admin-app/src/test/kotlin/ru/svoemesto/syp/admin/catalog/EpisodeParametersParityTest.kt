@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Сверка параметров серии с измеренными (задача T038).
+ * Сверка параметров эпизода с измеренными (задача T038).
  *
  * Что здесь проверяется. Опрос файла [SourceProbe] снимает параметры тремя
  * проходами `ffprobe`. Каждый проход — отдельное решение: счётчик кадров
@@ -20,11 +20,11 @@ import kotlin.test.assertTrue
  * сверяются не со «значением в задаче», а с **прямым замером того же файла
  * тем же `ffprobe`**: так видно, чьё расхождение — системы или измерения.
  *
- * Проверка требует файла серии и `ffprobe`. Без них она **пропускается**,
+ * Проверка требует файла эпизода и `ffprobe`. Без них она **пропускается**,
  * а не падает: без архива юнит-проверки домена должны оставаться
  * работоспособными.
  *
- * Файл серии задаётся переменной окружения [ENV_SERIES]. Для серии
+ * Файл эпизода задаётся переменный окружения [ENV_EPISODE]. Для эпизода
  * `GOT.S01E01` дополнительно сверяются зафиксированные числа спецификации:
  * 88 643 кадра, 1920×1080, 24000/1001, 5 598 286 865 байт и 792 ключевых
  * кадра. Сверка с ними выполняется только когда базовое имя файла совпадает,
@@ -32,26 +32,26 @@ import kotlin.test.assertTrue
  *
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class SeriesParametersParityTest {
+class EpisodeParametersParityTest {
     /**
      * Сверяет параметры определённые системой с прямым замером файла.
      *
-     * @throws org.opentest4j.TestAbortedException если файл серии или
+     * @throws org.opentest4j.TestAbortedException если файл эпизода или
      *   программа `ffprobe` недоступны: проверка пропускается
      */
     @Test
-    fun `параметры серии совпадают с измеренными`() {
-        val seriesPath = requireSeries()
+    fun `параметры эпизода совпадают с измеренными`() {
+        val episodePath = requireEpisode()
         val ffprobe = requireProgram("ffprobe")
         val probe = SourceProbe(ExternalProgram(), ffprobe)
 
         val measured =
             probe.probe(
-                seriesPath,
+                episodePath,
             )
-        val direct = directMeasurements(ffprobe, seriesPath)
+        val direct = directMeasurements(ffprobe, episodePath)
 
-        println("=== СВЕРКА ПАРАМЕТРОВ СЕРИИ: ${seriesPath.fileName} ===")
+        println("=== СВЕРКА ПАРАМЕТРОВ ЭПИЗОДА: ${episodePath.fileName} ===")
         println("--- измерение ffprobe напрямую ---")
         println("  число видеопакетов (count_packets): ${direct.packets}")
         println("  ключевых кадров (skip_frame nokey): ${direct.keyframes}")
@@ -76,7 +76,7 @@ class SeriesParametersParityTest {
         assertEquals(direct.size, measured.byteSize, "размер файла разошся с измерением")
         assertEquals(KeyframeMap.requiredLength(measured.frameCount), measured.keyframes.byteLength)
 
-        if (seriesPath.fileName.toString().startsWith(EXPECTED_S1E1_PREFIX)) {
+        if (episodePath.fileName.toString().startsWith(EXPECTED_S1E1_PREFIX)) {
             println("--- сверка с числами спецификации для $EXPECTED_S1E1_PREFIX ---")
             assertEquals(EXPECTED_FRAMES, measured.frameCount, "число кадров $EXPECTED_S1E1_PREFIX разошлось со спецификацией")
             assertEquals(EXPECTED_WIDTH, measured.width)
@@ -113,12 +113,12 @@ class SeriesParametersParityTest {
      * Снимает параметры файла напрямую, без участия системы.
      *
      * @param ffprobe путь к программе
-     * @param seriesPath путь к файлу серии
+     * @param episodePath путь к файлу эпизода
      * @return прямые измерения
      */
     private fun directMeasurements(
         ffprobe: String,
-        seriesPath: Path,
+        episodePath: Path,
     ): DirectMeasurements {
         val program = ExternalProgram()
         val packets =
@@ -135,7 +135,7 @@ class SeriesParametersParityTest {
                         "stream=nb_read_packets",
                         "-of",
                         "csv=p=0",
-                        seriesPath.toString(),
+                        episodePath.toString(),
                     ),
                 ).output
                 .trim()
@@ -158,7 +158,7 @@ class SeriesParametersParityTest {
                         "frame=best_effort_timestamp",
                         "-of",
                         "csv=p=0",
-                        seriesPath.toString(),
+                        episodePath.toString(),
                     ),
                 ).output
                 .lineSequence()
@@ -167,7 +167,7 @@ class SeriesParametersParityTest {
             program
                 .runOrFail(
                     ffprobe,
-                    listOf("-v", "error", "-show_entries", "format=size", "-of", "csv=p=0", seriesPath.toString()),
+                    listOf("-v", "error", "-show_entries", "format=size", "-of", "csv=p=0", episodePath.toString()),
                 ).output
                 .trim()
                 .toLong()
@@ -175,20 +175,20 @@ class SeriesParametersParityTest {
     }
 
     /**
-     * Путь к проверяемому файлу серии из окружения.
+     * Путь к проверяемому файлу эпизода из окружения.
      *
-     * @return путь к файлу серии
-     * @throws org.opentest4j.TestAbortedException если переменная не задана или
+     * @return путь к файлу эпизода
+     * @throws org.opentest4j.TestAbortedException если переменный не задана или
      *   файла нет: сверять не с чем, и это не повод падать
      */
-    private fun requireSeries(): Path {
-        val declared = System.getenv(ENV_SERIES)
+    private fun requireEpisode(): Path {
+        val declared = System.getenv(ENV_EPISODE)
         assumeTrue(!declared.isNullOrBlank()) {
-            "Переменная $ENV_SERIES не задана: сверка параметров серии с измеренными пропущена. " +
-                "Укажите путь к файлу серии, например $EXAMPLE_SERIES"
+            "Переменная $ENV_EPISODE не задана: сверка параметров эпизода с измеренными пропущена. " +
+                "Укажите путь к файлу эпизода, например $EXAMPLE_EPISODE"
         }
         val path = Paths.get(declared!!)
-        assumeTrue(Files.isRegularFile(path)) { "Файла серии $path нет: сверка пропущена" }
+        assumeTrue(Files.isRegularFile(path)) { "Файла эпизода $path нет: сверка пропущена" }
         return path
     }
 
@@ -207,18 +207,18 @@ class SeriesParametersParityTest {
                 .map { Paths.get(it, name) }
                 .firstOrNull { Files.isExecutable(it) }
                 ?.toString()
-        assumeTrue(found != null) { "Программа $name не найдена в PATH: сверка параметров серии пропущена" }
+        assumeTrue(found != null) { "Программа $name не найдена в PATH: сверка параметров эпизода пропущена" }
         return found!!
     }
 
     private companion object {
-        /** Имя переменной окружения с путём к файлу серии. */
-        const val ENV_SERIES: String = "SYP_SOURCE_SERIES"
+        /** Имя переменной окружения с путём к файлу эпизода. */
+        const val ENV_EPISODE: String = "SYP_SOURCE_EPISODE"
 
-        /** Пример значения переменной — путь к файлу серии в архиве. */
-        const val EXAMPLE_SERIES: String = "/disks/HDD_16Tb_Clouds/GOT/GOT.S01/GOT.S01E01.BDRip.1080p.mkv"
+        /** Пример значения переменной — путь к файлу эпизода в архиве. */
+        const val EXAMPLE_EPISODE: String = "/disks/HDD_16Tb_Clouds/GOT/GOT.S01/GOT.S01E01.BDRip.1080p.mkv"
 
-        /** Начало имени файла серии, для которой зафиксированы числа спецификации. */
+        /** Начало имени файла эпизода, для которой зафиксированы числа спецификации. */
         const val EXPECTED_S1E1_PREFIX: String = "GOT.S01E01"
 
         /** Число кадров `GOT.S01E01` по спецификации. */

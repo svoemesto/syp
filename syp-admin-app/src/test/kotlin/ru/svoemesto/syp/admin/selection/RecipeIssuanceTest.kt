@@ -3,17 +3,18 @@ package ru.svoemesto.syp.admin.selection
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import ru.svoemesto.syp.admin.integrity.ChecksumRegistry
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.recipe.RecipeCatalog
+import ru.svoemesto.syp.core.recipe.RecipeFormat
 import ru.svoemesto.syp.core.recipe.RecipeStore
 import ru.svoemesto.syp.core.signing.Canonicalizer
 import ru.svoemesto.syp.core.signing.Signer
@@ -55,8 +56,8 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RecipeIssuanceTest {
     private lateinit var db: Db
-    private lateinit var serials: SerialStore
-    private lateinit var seriesStore: SeriesStore
+    private lateinit var movies: MovieStore
+    private lateinit var episodeStore: EpisodeStore
     private lateinit var checksums: ChecksumRegistry
     private lateinit var recipes: RecipeStore
     private lateinit var catalog: RecipeCatalog
@@ -74,8 +75,8 @@ class RecipeIssuanceTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        serials = SerialStore(db)
-        seriesStore = SeriesStore(db)
+        movies = MovieStore(db)
+        episodeStore = EpisodeStore(db)
         checksums = ChecksumRegistry(db)
         recipes = RecipeStore(db)
         catalog = RecipeCatalog(db)
@@ -134,11 +135,11 @@ class RecipeIssuanceTest {
             items[0].personNames.contains("Не лицо"),
             "служебная персона не является персонажем сцены (Р-12)",
         )
-        assertEquals(fixture.relativePath, items[0].relativePath, "путь относителен корню сериала (FR-089a)")
+        assertEquals(fixture.relativePath, items[0].relativePath, "путь относителен корню фильма (FR-089a)")
 
         // Правка справочника после выдачи не «слепит» уже скачанный сценарий.
-        db.update("UPDATE location SET name = ? WHERE id = ?", "Лагерь Хуттон", fixture.locationId)
-        db.update("UPDATE person SET name = ? WHERE serial_id = ? AND name = ?", "Джейми Тарл", fixture.serialId, "Джейми Ланистер")
+        db.update("UPDATE tbl_locations SET name = ? WHERE id = ?", "Лагерь Хуттон", fixture.locationId)
+        db.update("UPDATE tbl_persons SET name = ? WHERE id_movie = ? AND name = ?", "Джейми Тарл", fixture.movieId, "Джейми Ланистер")
         val after = recipes.items(issued.id!!)
         assertEquals("Лагерь Джейми", after[0].locationName, "снимок не должен меняться вместе со справочником")
         assertTrue(after[0].personNames.contains("Джейми Ланистер"), "снимок имён не меняется вместе со справочником")
@@ -156,32 +157,48 @@ class RecipeIssuanceTest {
     }
 
     @Test
-    fun `несовместимые серии не выдаются с перечнем различающихся признаков`() {
+    fun `несовместимые эпизоды не выдаются с перечнем различающихся признаков`() {
         val fixture = fixture(profile = "High")
-        val other = newSeries(fixture.serialId, "S1E2", ordinal = 1, profile = "Main")
+        val other = newEpisode(fixture.movieId, "S1E2", ordinal = 1, profile = "Main")
         val scene = newScene(other.id!!, 20, 60)
-        // Актуальная сумма есть, но серии несовместимы по профилю видео.
+        // Актуальная сумма есть, но эпизода несовместимы по профилю видео.
         checksums.begin(other, null).let { entry ->
             checksums.complete(entry.id!!, digest(7), other.byteSize, other.fileMtime)
         }
 
         val failure =
             assertFailsWith<DomainException> {
-                builder().issue("Разные серии", fixture.sceneIds + scene)
+                builder().issue("Разные эпизоды", fixture.sceneIds + scene)
             }
-        assertEquals(ErrorCode.INCOMPATIBLE_SERIES, failure.code)
+        assertEquals(ErrorCode.INCOMPATIBLE_EPISODE, failure.code)
         assertEquals(422, failure.code.httpStatus)
-        assertTrue(failure.items.isNotEmpty(), "отказ перечисляет проблемные серии")
+        assertTrue(failure.items.isNotEmpty(), "отказ перечисляет проблемные эпизода")
     }
 
     @Test
     fun `пустой выбор даёт EMPTY_SELECTION и ничего не записывает`() {
-        val before = db.selectOne("SELECT count(*) AS total FROM build_recipe", { it.int("total") }) ?: 0
+        val before = db.selectOne("SELECT count(*) AS total FROM tbl_build_recipes", { it.int("total") }) ?: 0
         val failure = assertFailsWith<DomainException> { builder().issue("Пусто", emptyList()) }
         assertEquals(ErrorCode.EMPTY_SELECTION, failure.code)
         assertEquals(400, failure.code.httpStatus)
-        val after = db.selectOne("SELECT count(*) AS total FROM build_recipe", { it.int("total") }) ?: 0
+        val after = db.selectOne("SELECT count(*) AS total FROM tbl_build_recipes", { it.int("total") }) ?: 0
         assertEquals(before, after, "пустой выбор не должен оставлять записи")
+    }
+
+    @Test
+    fun `выданный сценарий несёт текущую версию формата`() {
+        val fixture = fixture(profile = "High")
+        val issued = builder().issue("Текущая версия", fixture.sceneIds)
+
+        assertEquals(
+            RecipeFormat.SCHEMA_VERSION,
+            issued.schemaVersion,
+            "сценарий должен собираться с той версией формата, которую объявляет код",
+        )
+        assertFalse(
+            recipes.find(issued.id!!)!!.isStale,
+            "сценарий текущей версии не помечается устаревшим сразу после выдачи",
+        )
     }
 
     @Test
@@ -189,7 +206,7 @@ class RecipeIssuanceTest {
         val fixture = fixture(profile = "High")
         val issued = builder().issue("До смены версии", fixture.sceneIds)
 
-        val marked = catalog.markStaleOnSchemaChange(fixture.serialId, issued.schemaVersion + 1)
+        val marked = catalog.markStaleOnSchemaChange(fixture.movieId, issued.schemaVersion + 1)
         assertEquals(1, marked, "сценарий прежней версии формата обязан быть помечен")
 
         val stored = recipes.find(issued.id!!)!!
@@ -208,9 +225,9 @@ class RecipeIssuanceTest {
     private fun builder(): RecipeBuilder =
         RecipeBuilder(
             db = db,
-            seriesStore = seriesStore,
+            episodeStore = episodeStore,
             checksums = checksums,
-            settingsStore = SerialSettingsStore(db),
+            settingsStore = MovieSettingsStore(db),
             recipes = recipes,
             catalog = catalog,
             artifacts = artifacts,
@@ -218,47 +235,47 @@ class RecipeIssuanceTest {
             clock = clock,
         )
 
-    /** Данные для одной выдачи: сериал, серия с суммой, сцена, локация, персона, лицо. */
+    /** Данные для одной выдачи: фильм, эпизод с суммой, сцена, локация, персона, лицо. */
     private fun fixture(
         profile: String,
         withChecksum: Boolean = true,
     ): RecipeFixture {
-        val serial = serials.create("Выдача ${System.nanoTime()}", SOURCE_ROOT)
-        val series = newSeries(serial.id!!, "S1E1", ordinal = 0, profile = profile)
+        val movie = movies.create("Выдача ${System.nanoTime()}", SOURCE_ROOT)
+        val episode = newEpisode(movie.id!!, "S1E1", ordinal = 0, profile = profile)
         if (withChecksum) {
-            checksums.begin(series, null).let { entry ->
-                checksums.complete(entry.id!!, digest(1), series.byteSize, series.fileMtime)
+            checksums.begin(episode, null).let { entry ->
+                checksums.complete(entry.id!!, digest(1), episode.byteSize, episode.fileMtime)
             }
         }
-        val locationId = insertLocation(serial.id!!, "Лагерь Джейми")
-        val jamieId = insertPerson(serial.id!!, "Джейми Ланистер")
-        val sansaId = insertPerson(serial.id!!, "Санса Старк")
-        insertFace(series.id!!, 15, jamieId)
-        insertFace(series.id!!, 40, sansaId)
-        val scene = newScene(series.id!!, 10, 90)
-        db.update("UPDATE scene SET location_id = ? WHERE id = ?", locationId, scene)
+        val locationId = insertLocation(movie.id!!, "Лагерь Джейми")
+        val jamieId = insertPerson(movie.id!!, "Джейми Ланистер")
+        val sansaId = insertPerson(movie.id!!, "Санса Старк")
+        insertFace(episode.id!!, 15, jamieId)
+        insertFace(episode.id!!, 40, sansaId)
+        val scene = newScene(episode.id!!, 10, 90)
+        db.update("UPDATE tbl_scenes SET location_id = ? WHERE id = ?", locationId, scene)
         return RecipeFixture(
-            serialId = serial.id!!,
-            seriesId = series.id!!,
+            movieId = movie.id!!,
+            episodeId = episode.id!!,
             sceneIds = listOf(scene),
             locationId = locationId,
-            relativePath = series.relativePath(SOURCE_ROOT)!!,
+            relativePath = episode.relativePath(SOURCE_ROOT)!!,
         )
     }
 
-    /** Создаёт серию с картой ключевых кадров. */
-    private fun newSeries(
-        serialId: Long,
+    /** Создаёт эпизод с картой ключевых кадров. */
+    private fun newEpisode(
+        movieId: Long,
         name: String,
         ordinal: Int,
         profile: String,
-    ): Series =
-        seriesStore.insert(
-            Series(
-                serialId = serialId,
+    ): Episode =
+        episodeStore.insert(
+            Episode(
+                movieId = movieId,
                 ordinal = ordinal,
                 name = name,
-                // Путь уникален во всей базе: одна серия на один файл, поэтому
+                // Путь уникален во всей базе: один эпизод на один файл, поэтому
                 // повторный прогон набора проверок не должен натыкаться на
                 // прежний ряд.
                 sourcePath = SOURCE_ROOT + "/" + name + "-" + System.nanoTime() + ".mkv",
@@ -280,17 +297,17 @@ class RecipeIssuanceTest {
 
     /** Вставляет сцену и отдаёт её идентификатор. */
     private fun newScene(
-        seriesId: Long,
+        episodeId: Long,
         firstFrame: Int,
         lastFrame: Int,
     ): Long =
         db.use { connection ->
             connection
                 .prepareStatement(
-                    "INSERT INTO scene (series_id, first_frame, last_frame, origin) " +
+                    "INSERT INTO tbl_scenes (id_episode, first_frame, last_frame, origin) " +
                         "VALUES (?, ?, ?, 'AUTO') RETURNING id",
                 ).use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.setInt(2, firstFrame)
                     statement.setInt(3, lastFrame)
                     statement.executeQuery().use { resultSet ->
@@ -300,16 +317,16 @@ class RecipeIssuanceTest {
                 }
         }
 
-    /** Вставляет место действия сериала. */
+    /** Вставляет место действия фильма. */
     private fun insertLocation(
-        serialId: Long,
+        movieId: Long,
         name: String,
     ): Long =
         db.use { connection ->
             connection
-                .prepareStatement("INSERT INTO location (serial_id, name) VALUES (?, ?) RETURNING id")
+                .prepareStatement("INSERT INTO tbl_locations (id_movie, name) VALUES (?, ?) RETURNING id")
                 .use { statement ->
-                    statement.setLong(1, serialId)
+                    statement.setLong(1, movieId)
                     statement.setString(2, name)
                     statement.executeQuery().use { resultSet ->
                         resultSet.next()
@@ -318,18 +335,18 @@ class RecipeIssuanceTest {
                 }
         }
 
-    /** Вставляет обычную персону сериала. */
+    /** Вставляет обычную персону фильма. */
     private fun insertPerson(
-        serialId: Long,
+        movieId: Long,
         name: String,
     ): Long =
         db.use { connection ->
             connection
                 .prepareStatement(
-                    "INSERT INTO person (serial_id, name, recognizer_key, kind) " +
+                    "INSERT INTO tbl_persons (id_movie, name, recognizer_key, kind) " +
                         "VALUES (?, ?, ?, 'PERSON') RETURNING id",
                 ).use { statement ->
-                    statement.setLong(1, serialId)
+                    statement.setLong(1, movieId)
                     statement.setString(2, name)
                     statement.setString(3, name)
                     statement.executeQuery().use { resultSet ->
@@ -341,17 +358,17 @@ class RecipeIssuanceTest {
 
     /** Вставляет лицо, опознанное как персона. */
     private fun insertFace(
-        seriesId: Long,
+        episodeId: Long,
         frameNumber: Int,
         personId: Long,
     ) {
         db.use { connection ->
             connection
                 .prepareStatement(
-                    "INSERT INTO face (series_id, frame_number, face_index, x1, y1, x2, y2, " +
+                    "INSERT INTO tbl_faces (id_episode, frame_number, face_index, x1, y1, x2, y2, " +
                         "person_id, origin) VALUES (?, ?, 0, 10, 10, 40, 40, ?, 'AUTO')",
                 ).use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.setInt(2, frameNumber)
                     statement.setLong(3, personId)
                     statement.executeUpdate()
@@ -364,24 +381,24 @@ class RecipeIssuanceTest {
 
     /** Данные одной выдачи. */
     private data class RecipeFixture(
-        val serialId: Long,
-        val seriesId: Long,
+        val movieId: Long,
+        val episodeId: Long,
         val sceneIds: List<Long>,
         val locationId: Long,
         val relativePath: String,
     )
 
     private companion object {
-        /** Корень каталога сериала на тестовой машине. */
-        const val SOURCE_ROOT: String = "/tmp/syp-test-serial"
+        /** Корень каталога фильма на тестовой машине. */
+        const val SOURCE_ROOT: String = "/tmp/syp-test-movie"
 
         /** Идентификатор тестовой пары ключей. */
         const val TEST_KEY_ID: String = "syp-test-2026-10"
 
-        /** Число кадров тестовой серии. */
+        /** Число кадров тестового эпизода. */
         const val FRAME_COUNT: Int = 100
 
-        /** Ключевые кадры тестовой серии: округление границ идёт к ним. */
+        /** Ключевые кадры тестового эпизода: округление границ идёт к ним. */
         val KEYFRAMES: List<Int> = listOf(0, 25, 50, 75, 99)
     }
 }

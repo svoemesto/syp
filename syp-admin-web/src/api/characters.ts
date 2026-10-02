@@ -3,13 +3,13 @@
 // Соответствует разделу 5 контракта
 // `specs/001-first-vertical-slice/contracts/admin-api.md`. Время в ответах не
 // приходит: номер кадра — единственный источник правды, клиент пересчитывает
-// время от `time_base` серии (ADR-0001).
+// время от `time_base` эпизода (ADR-0001).
 //
 // Документация публичных функций — по правилам проекта (FR-006).
 
 import { request } from './http'
 
-/** Персона сериала. */
+/** Персона фильма. */
 export interface PersonView {
   /** Идентификатор персоны. */
   id: number
@@ -23,15 +23,15 @@ export interface PersonView {
   recognizerKey: string | null
 }
 
-/** Персоны сериала. */
+/** Персоны фильма. */
 export interface PersonsView {
-  /** Сериал. */
-  serialId: number
+  /** Фильм. */
+  movieId: number
   /** Персоны: сначала служебные, затем именованные по имени. */
   persons: PersonView[]
 }
 
-/** Лицо серии. */
+/** Лицо эпизода. */
 export interface FaceView {
   /** Идентификатор лица. */
   id: number
@@ -63,17 +63,17 @@ export interface FaceView {
   detectConfidence: number | null
 }
 
-/** Страница лиц серии. */
+/** Страница лиц эпизода. */
 export interface FacesView {
-  /** Серия. */
-  seriesId: number
-  /** Сериал-владелец: по нему клиент читает справочник персон. */
-  serialId: number
-  /** Ширина кадра серии: по ней клиент кладёт рамку на миниатюру. */
+  /** Эпизод. */
+  episodeId: number
+  /** Фильм-владелец: по нему клиент читает справочник персон. */
+  movieId: number
+  /** Ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру. */
   frameWidth: number
-  /** Высота кадра серии. */
+  /** Высота кадра эпизода. */
   frameHeight: number
-  /** Сколько лиц у серии всего. */
+  /** Сколько лиц у эпизода всего. */
   facesTotal: number
   /** Смещение выборки. */
   offset: number
@@ -95,17 +95,17 @@ export interface FaceClusterView {
   thumbnailFaceId: number
 }
 
-/** Кластеры серии. */
+/** Кластеры эпизода. */
 export interface FaceClustersView {
-  /** Серия. */
-  seriesId: number
-  /** Ширина кадра серии: по ней клиент кладёт рамку на миниатюру. */
+  /** Эпизод. */
+  episodeId: number
+  /** Ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру. */
   frameWidth: number
-  /** Высота кадра серии. */
+  /** Высота кадра эпизода. */
   frameHeight: number
   /** Ключ модели эмбеддингов, которой получены векторы. */
   embeddingModelKey: string
-  /** Сколько кластеров без имени у серии. */
+  /** Сколько кластеров без имени у эпизода. */
   clustersTotal: number
   /** Кластеры по убыванию числа лиц. */
   clusters: FaceClusterView[]
@@ -124,25 +124,25 @@ export interface ClusterNamedView {
 }
 
 /**
- * Читает лица серии.
+ * Читает лица эпизода.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @param offset смещение выборки
  * @param limit размер выборки
- * @returns страница лиц серии
+ * @returns страница лиц эпизода
  */
-export function readFaces(seriesId: number, offset = 0, limit = 200): Promise<FacesView> {
-  return request<FacesView>('GET', `/series/${seriesId}/faces?offset=${offset}&limit=${limit}`)
+export function readFaces(episodeId: number, offset = 0, limit = 200): Promise<FacesView> {
+  return request<FacesView>('GET', `/episodes/${episodeId}/faces?offset=${offset}&limit=${limit}`)
 }
 
 /**
- * Читает кластеры похожих лиц серии без имени.
+ * Читает кластеры похожих лиц эпизода без имени.
  *
- * @param seriesId идентификатор серии
- * @returns кластеры серии
+ * @param episodeId идентификатор эпизода
+ * @returns кластеры эпизода
  */
-export function readClusters(seriesId: number): Promise<FaceClustersView> {
-  return request<FaceClustersView>('GET', `/series/${seriesId}/faces/clusters`)
+export function readClusters(episodeId: number): Promise<FaceClustersView> {
+  return request<FaceClustersView>('GET', `/episodes/${episodeId}/faces/clusters`)
 }
 
 /**
@@ -168,13 +168,13 @@ export function nameCluster(
 }
 
 /**
- * Читает персон сериала.
+ * Читает персон фильма.
  *
- * @param serialId идентификатор сериала
- * @returns персоны сериала
+ * @param movieId идентификатор фильма
+ * @returns персоны фильма
  */
-export function readPersons(serialId: number): Promise<PersonsView> {
-  return request<PersonsView>('GET', `/serials/${serialId}/persons`)
+export function readPersons(movieId: number): Promise<PersonsView> {
+  return request<PersonsView>('GET', `/movies/${movieId}/persons`)
 }
 
 /**
@@ -206,10 +206,10 @@ export function deletePerson(personId: number): Promise<null> {
  * Отдельная функция вместо строки в шаблоне: адрес собирается в одном месте,
  * и переименование пути не потребует правок по экрану.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @param frame номер кадра
  * @returns адрес листа превью
  */
-export function facePreviewUrl(seriesId: number, frame: number): string {
-  return `/api/series/${seriesId}/preview-sheets/0?frame=${frame}`
+export function facePreviewUrl(episodeId: number, frame: number): string {
+  return `/api/episodes/${episodeId}/preview-sheets/0?frame=${frame}`
 }

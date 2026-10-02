@@ -1,29 +1,26 @@
-// Состояние экрана структуры серии.
+// Состояние экрана структуры эпизода.
 //
 // Экран отвечает на два вопроса оператора: «что система нашла» и «что из
 // этого человек принял». Поэтому в состоянии лежат **два** слоя: рабочая
 // структура с её планами и отдельно сырой результат автоматики. Смешивать их
 // в одну таблицу нельзя — тогда исчезла бы сама возможность сравнить, и
 // расхождение накапливалось бы незаметно (FR-093).
-//
-// На экране лежат строки из `api/view-model.ts`, а не ответы бэкенда: поля
-// ответа читаются в одном месте (см. `api/view-model.ts`).
 
-import { ref } from 'vue'
-import { readRawBoundaries, readStructure, startAnalysis } from '../api/structure'
-import { ApiError } from '../api/http'
+import { computed, ref } from 'vue'
 import {
-  type RawBoundaryRow,
-  type StructureRow,
-  toRawBoundaryRow,
-  toStructureRow,
-} from '../api/view-model'
+  type RawBoundariesView,
+  type StructureView,
+  readRawBoundaries,
+  readStructure,
+  startAnalysis,
+} from '../api/structure'
+import { ApiError } from '../api/http'
 
-/** Рабочая структура серии на экране. */
-const structure = ref<StructureRow | null>(null)
+/** Рабочего структура эпизода. */
+const structure = ref<StructureView | null>(null)
 
-/** Сырые границы автоматики последнего прогона на экране. */
-const raw = ref<RawBoundaryRow[]>([])
+/** Сырой результат автоматики последнего прогона. */
+const raw = ref<RawBoundariesView | null>(null)
 
 /** Идёт ли обращение к бэкенду. */
 const loading = ref(false)
@@ -37,26 +34,28 @@ const errorCode = ref('')
 /** Показывается ли сырой результат автоматики. */
 const rawVisible = ref(false)
 
-/** Номер последнего прогона структуры либо `null`. */
-const rawRunId = ref<number | null>(null)
-
-/** Сколько границ автоматики у прогона всего. */
-const rawTotal = ref(0)
-
-/** Помечен ли результат устаревшим. */
-const isStale = ref(false)
-
-/** Машинный код устаревания. */
-const staleCode = ref('')
-
-/** Чем именно результат устарел. */
-const staleReason = ref<string | null>(null)
-
 /** Страница сцен, с которой начат просмотр. */
 const offset = ref(0)
 
 /** Размер страницы сцен. */
 const pageSize = 200
+
+/**
+ * Помечен ли результат устаревшим.
+ *
+ * Отдельное вычисление, а не чтение поля: экран показывает пометку в шапке и
+ * у каждой границы, и обе надписи должны говорить об одном и том же.
+ *
+ * @returns `true`, если результат устарел
+ */
+const isStale = computed(() => structure.value?.isStale === true)
+
+/**
+ * Показывается ли результат устаревшим.
+ *
+ * @returns `true`, если у результата есть машинный код устаревания
+ */
+const staleCode = computed(() => structure.value?.staleResultCode ?? '')
 
 /**
  * Состояние экрана структуры и действия над ним.
@@ -65,26 +64,16 @@ const pageSize = 200
  */
 export function useStructureStore() {
   /**
-   * Перечитывает оба слоя структуры серии.
+   * Перечитывает оба слоя структуры эпизода.
    *
-   * @param seriesId идентификатор серии
+   * @param episodeId идентификатор эпизода
    * @returns `true`, если структура прочитана
    */
-  async function reload(seriesId: number): Promise<boolean> {
+  async function reload(episodeId: number): Promise<boolean> {
     loading.value = true
     try {
-      const dto = await readStructure(seriesId, offset.value, pageSize)
-      const row = toStructureRow(dto)
-      structure.value = row
-      isStale.value = row.isStale
-      staleCode.value = row.staleCode
-      staleReason.value = row.staleReason
-      const boundaries = await readRawBoundaries(seriesId, undefined, 0, pageSize)
-      raw.value = boundaries.boundaries.map((item) =>
-        toRawBoundaryRow(item.level, item.firstFrame, item.lastFrame),
-      )
-      rawRunId.value = boundaries.runId
-      rawTotal.value = boundaries.total
+      structure.value = await readStructure(episodeId, offset.value, pageSize)
+      raw.value = await readRawBoundaries(episodeId, undefined, 0, pageSize)
       error.value = ''
       errorCode.value = ''
       return true
@@ -99,40 +88,40 @@ export function useStructureStore() {
   /**
    * Переходит на следующую страницу сцен.
    *
-   * @param seriesId идентификатор серии
+   * @param episodeId идентификатор эпизода
    */
-  async function nextPage(seriesId: number): Promise<void> {
+  async function nextPage(episodeId: number): Promise<void> {
     const total = structure.value?.scenesTotal ?? 0
     if (offset.value + pageSize >= total) {
       return
     }
     offset.value += pageSize
-    await reload(seriesId)
+    await reload(episodeId)
   }
 
   /**
    * Возвращается на предыдущую страницу сцен.
    *
-   * @param seriesId идентификатор серии
+   * @param episodeId идентификатор эпизода
    */
-  async function previousPage(seriesId: number): Promise<void> {
+  async function previousPage(episodeId: number): Promise<void> {
     if (offset.value === 0) {
       return
     }
     offset.value = Math.max(0, offset.value - pageSize)
-    await reload(seriesId)
+    await reload(episodeId)
   }
 
   /**
    * Ставит анализ структуры заново.
    *
-   * @param seriesId идентификатор серии
+   * @param episodeId идентификатор эпизода
    * @returns `true`, если задание поставлено
    */
-  async function analyse(seriesId: number): Promise<boolean> {
+  async function analyse(episodeId: number): Promise<boolean> {
     loading.value = true
     try {
-      await startAnalysis(seriesId)
+      await startAnalysis(episodeId)
       error.value = ''
       errorCode.value = ''
       return true
@@ -177,15 +166,12 @@ export function useStructureStore() {
   return {
     structure,
     raw,
-    rawRunId,
-    rawTotal,
     loading,
     error,
     errorCode,
     rawVisible,
     isStale,
     staleCode,
-    staleReason,
     reload,
     nextPage,
     previousPage,

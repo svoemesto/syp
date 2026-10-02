@@ -10,7 +10,7 @@ import java.security.MessageDigest
  *
  * Реестр даёт атомарность (FR-091): пока состояние не [ArtifactState.READY],
  * артефакт не считается готовым и не может быть использован ни сборкой, ни
- * показом, ни проверкой готовности серии.
+ * показом, ни проверкой готовности эпизода.
  *
  * Порядок записи задан контрактом очереди § 3.2 и нарушать его нельзя:
  *
@@ -59,7 +59,7 @@ class ArtifactRegistry(
             connection
                 .prepareStatement(
                     """
-                    INSERT INTO artifact (job_id, kind, placement, object_key, content_type, state)
+                    INSERT INTO tbl_artifacts (job_id, kind, placement, object_key, content_type, state)
                     VALUES (?, ?, 'SSD', ?, ?, 'WRITING')
                     RETURNING id
                     """.trimIndent(),
@@ -139,7 +139,7 @@ class ArtifactRegistry(
                 connection
                     .prepareStatement(
                         """
-                        UPDATE artifact
+                        UPDATE tbl_artifacts
                            SET state = 'READY', checksum = ?, byte_size = ?
                          WHERE id = ? AND state = 'WRITING'
                         """.trimIndent(),
@@ -179,7 +179,7 @@ class ArtifactRegistry(
         db.useTransaction { connection ->
             connection
                 .prepareStatement(
-                    "UPDATE artifact SET state = 'FAILED' WHERE id = ?",
+                    "UPDATE tbl_artifacts SET state = 'FAILED' WHERE id = ?",
                 ).use { statement ->
                     statement.setLong(1, artifact.id)
                     statement.executeUpdate()
@@ -255,7 +255,7 @@ class ArtifactRegistry(
             connection
                 .prepareStatement(
                     """
-                    INSERT INTO artifact (job_id, kind, placement, object_key, content_type,
+                    INSERT INTO tbl_artifacts (job_id, kind, placement, object_key, content_type,
                                           byte_size, checksum, state)
                     VALUES (?, ?, 'SSD', ?, ?, ?, ?, 'READY')
                     ON CONFLICT (kind, object_key) DO UPDATE
@@ -301,7 +301,7 @@ class ArtifactRegistry(
     fun find(artifactId: Long): Artifact? =
         db.selectOne(
             "SELECT id, job_id, kind, object_key, content_type, byte_size, checksum, state " +
-                "FROM artifact WHERE id = ?",
+                "FROM tbl_artifacts WHERE id = ?",
             ::readRow,
             artifactId,
         )
@@ -323,7 +323,7 @@ class ArtifactRegistry(
     ): Artifact? =
         db.selectOne(
             "SELECT id, job_id, kind, object_key, content_type, byte_size, checksum, state " +
-                "FROM artifact WHERE kind = ? AND object_key = ? AND state = 'READY'",
+                "FROM tbl_artifacts WHERE kind = ? AND object_key = ? AND state = 'READY'",
             ::readRow,
             kind.name,
             objectKey,
@@ -349,7 +349,7 @@ class ArtifactRegistry(
             }
         return db.select(
             "SELECT id, job_id, kind, object_key, content_type, byte_size, checksum, state " +
-                "FROM artifact WHERE job_id = ?$condition ORDER BY id",
+                "FROM tbl_artifacts WHERE job_id = ?$condition ORDER BY id",
             ::readRow,
             jobId,
             *states.map { it.name }.toTypedArray(),

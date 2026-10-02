@@ -9,14 +9,14 @@ import java.time.format.DateTimeFormatter
 /**
  * Один фрагмент сценария сборки в том виде, в каком он попадает в файл.
  *
- * Фрагмент **самодостаточен**: кроме границ и пути к файлу серии он несёт
+ * Фрагмент **самодостаточен**: кроме границ и пути к файлу эпизода он несёт
  * снимок данных сцены — название, место действия и имена персонажей. Снимком,
  * а не ссылкой: правка справочника после выдачи не должна «слепить» уже
  * скачанный сценарий, а локальный показ работает без сервера (FR-089d).
  *
  * **Обе пары границ обязательны.** Расчётные [firstFrame] и [lastFrame] взяты
  * из разметки, фактические [cutFirstFrame] и [cutLastFrame] — округлены до
- * ключевых кадров серии. Пользователь видит округление заранее, а не после
+ * ключевых кадров эпизода. Пользователь видит округление заранее, а не после
  * работы (ADR-0006, FR-082).
  *
  * @property ordinal порядковый номер фрагмента в сценарии, с единицы
@@ -24,10 +24,10 @@ import java.time.format.DateTimeFormatter
  * @property sceneTitle название сцены-снимок; `null` — у сцены названия нет
  * @property location место действия-снимок; `null` — место не назначено
  * @property persons имена персонажей-снимок в алфавитном порядке
- * @property seriesId серия-источник фрагмента
- * @property seriesName название серии
- * @property relativePath путь к файлу серии **относительно корня сериала**
- * @property sourceSha256 снимок эталонной суммы файла серии на момент выдачи
+ * @property episodeId эпизод-источник фрагмента
+ * @property episodeName название эпизода
+ * @property relativePath путь к файлу эпизода **относительно корня фильма**
+ * @property sourceSha256 снимок эталонной суммы файла эпизода на момент выдачи
  * @property firstFrame расчётная граница начала по размеченному плану
  * @property lastFrame расчётная граница конца по размеченному плану
  * @property cutFirstFrame фактическая граница начала: не позже расчётной
@@ -41,8 +41,8 @@ data class RecipeItemDocument(
     val sceneTitle: String?,
     val location: String?,
     val persons: List<String>,
-    val seriesId: Long,
-    val seriesName: String,
+    val episodeId: Long,
+    val episodeName: String,
     val relativePath: String,
     val sourceSha256: String,
     val firstFrame: Int,
@@ -52,7 +52,7 @@ data class RecipeItemDocument(
 ) {
     init {
         require(ordinal > 0) { "Порядковый номер фрагмента должен начинаться с единицы, задано $ordinal" }
-        require(seriesName.isNotBlank()) { "Название серии фрагмента обязательно" }
+        require(episodeName.isNotBlank()) { "Название эпизода фрагмента обязательно" }
         require(sourceSha256.matches(HEX_64)) {
             "Сумма источника «$sourceSha256» не является SHA-256 в виде 64 " +
                 "шестнадцатеричных символов в нижнем регистре (FR-089)"
@@ -65,7 +65,7 @@ data class RecipeItemDocument(
                 "получено $cutFirstFrame…$cutLastFrame при расчётных $firstFrame…$lastFrame. " +
                 "Обратное направление округления запрещено (ADR-0006, FR-082)"
         }
-        RecipePaths.requireInsideSerialTree(relativePath)
+        RecipePaths.requireInsideMovieTree(relativePath)
     }
 
     /** Число кадров фрагмента по **фактическим** границам. */
@@ -81,10 +81,10 @@ data class RecipeItemDocument(
                 // Отсутствующее необязательное значение не пишется вовсе, а не
                 // пишется как `null` (контракт рецепта, правило 5 раздела 2.1).
                 if (sceneTitle != null) add("sceneTitle" to sceneTitle)
-                if (location != null) add("location" to location)
+                if (location != null) add("tbl_locations" to location)
                 if (persons.isNotEmpty()) add("persons" to persons)
-                add("seriesId" to seriesId)
-                add("seriesName" to seriesName)
+                add("episodeId" to episodeId)
+                add("episodeName" to episodeName)
                 add("relativePath" to relativePath)
                 add("sourceSha256" to sourceSha256)
                 add("firstFrame" to firstFrame)
@@ -114,13 +114,13 @@ data class RecipeItemDocument(
  * (FR-083).
  *
  * @property schemaVersion версия формата; воркер отвергает незнакомую версию
- * @property serialId сериал-владелец
- * @property serialName название сериала
+ * @property movieId фильм-владелец
+ * @property movieName название фильма
  * @property recipeId идентификатор сценария в базе
  * @property recipeName название сценария
  * @property signingKeyId идентификатор пары ключей, которой подписан файл
  * @property createdAt момент выдачи; в файл попадает с точностью до секунд
- * @property rootLayout как устроены пути; см. [RecipeFormat.ROOT_LAYOUT_SERIAL_TREE]
+ * @property rootLayout как устроены пути; см. [RecipeFormat.ROOT_LAYOUT_MOVIE_TREE]
  * @property audioTrackCount число аудиодорожек в готовом файле
  * @property expectedDurationMs расчётная длительность подборки в миллисекундах
  * @property expectedFrameCount расчётное число кадров подборки
@@ -130,20 +130,20 @@ data class RecipeItemDocument(
  */
 data class RecipeDocument(
     val schemaVersion: Int = RecipeFormat.SCHEMA_VERSION,
-    val serialId: Long,
-    val serialName: String,
+    val movieId: Long,
+    val movieName: String,
     val recipeId: Long,
     val recipeName: String,
     val signingKeyId: String,
     val createdAt: OffsetDateTime,
-    val rootLayout: String = RecipeFormat.ROOT_LAYOUT_SERIAL_TREE,
+    val rootLayout: String = RecipeFormat.ROOT_LAYOUT_MOVIE_TREE,
     val audioTrackCount: Int,
     val expectedDurationMs: Long,
     val expectedFrameCount: Long,
     val items: List<RecipeItemDocument>,
 ) {
     init {
-        require(serialName.isNotBlank()) { "Название сериала обязательно" }
+        require(movieName.isNotBlank()) { "Название фильма обязательно" }
         require(recipeName.isNotBlank()) { "Название сценария обязательно" }
         require(signingKeyId.isNotBlank()) {
             "Идентификатор ключа подписи обязателен: без него сценарий нельзя " +
@@ -168,8 +168,8 @@ data class RecipeDocument(
         CanonicalObject(
             listOf(
                 "schemaVersion" to schemaVersion,
-                "serialId" to serialId,
-                "serialName" to serialName,
+                "movieId" to movieId,
+                "movieName" to movieName,
                 "recipeId" to recipeId,
                 "recipeName" to recipeName,
                 // Идентификатор ключа входит в подписываемый файл: по нему
@@ -212,17 +212,27 @@ data class RecipeDocument(
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 object RecipeFormat {
-    /** Версия формата, которую понимает этот код. */
-    const val SCHEMA_VERSION: Int = 1
+    /**
+     * Версия формата, которую понимает этот код.
+     *
+     * Версия 2 — после решения владельца 2026-10-03 об именах сущностей:
+     * в сценарии `movieId`, `movieName`, `episodeId`, `episodeName` и
+     * `rootLayout: MOVIE_TREE` вместо прежних имён. Подпись считается по
+     * байтам целиком, поэтому переименование поля меняет подпись, и воркер,
+     * читающий версию 1, разобрал бы сценарий новой версии наугад.
+     * Прежние сценарии не удаляются и не отзываются: они помечаются
+     * устаревшими и по-прежнему проверяемы своим ключом (ADR-0016, FR-090).
+     */
+    const val SCHEMA_VERSION: Int = 2
 
     /**
-     * Раскладка путей: пути в сценарии относительны корню сериала.
+     * Раскладка путей: пути в сценарии относительны корню фильма.
      *
-     * У пользователя своя копия дерева сериала под своим корнем, поэтому
+     * У пользователя своя копия дерева фильма под своим корнем, поэтому
      * абсолютный путь с машины администратора в сценарий не попадает
      * (FR-089a).
      */
-    const val ROOT_LAYOUT_SERIAL_TREE: String = "SERIAL_TREE"
+    const val ROOT_LAYOUT_MOVIE_TREE: String = "MOVIE_TREE"
 
     /** Тип содержимого файла сценария при выдаче. */
     const val CONTENT_TYPE: String = "application/json"

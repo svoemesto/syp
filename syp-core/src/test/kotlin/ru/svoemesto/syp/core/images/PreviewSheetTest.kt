@@ -30,7 +30,7 @@ import kotlin.test.assertTrue
  * @see <a href="../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class PreviewSheetTest {
-    /** Число кадров серии S1E1: число из спецификации, не оценка. */
+    /** Число кадров эпизода S1E1: число из спецификации, не оценка. */
     private val s1e1Frames = 88_643
 
     @Test
@@ -47,7 +47,7 @@ class PreviewSheetTest {
     }
 
     @Test
-    fun `на серии S1E1 создаётся 347 листов`() {
+    fun `на эпизоде S1E1 создаётся 347 листов`() {
         assertEquals(347, PreviewSheet.sheetCount(s1e1Frames))
         assertEquals(347 * 256, 88_832, "347 листов покрывают 88 832 кадра")
         assertTrue(347 * 256 > s1e1Frames, "последний лист неполный, но он всё равно нужен")
@@ -55,7 +55,7 @@ class PreviewSheetTest {
 
     @Test
     fun `листы идут подряд без пропусков и перекрытий`() {
-        val sheets = PreviewSheet.all(seriesId = 7, frameCount = s1e1Frames)
+        val sheets = PreviewSheet.all(episodeId = 7, frameCount = s1e1Frames)
 
         assertEquals(347, sheets.size)
         assertEquals(0, sheets.first().firstFrame)
@@ -67,14 +67,14 @@ class PreviewSheetTest {
                 "листы ${previous.index} и ${next.index} идут подряд: между ними нет щели и наложения",
             )
         }
-        // Каждый кадр серии принадлежит ровно одному листу.
+        // Каждый кадр эпизода принадлежит ровно одному листу.
         val covered = sheets.sumOf { it.frameNumbersCount }
-        assertEquals(s1e1Frames, covered, "все кадры серии покрыты листами ровно по одному разу")
+        assertEquals(s1e1Frames, covered, "все кадры эпизода покрыты листами ровно по одному разу")
     }
 
     @Test
     fun `последний лист урезан по числу кадров`() {
-        val sheets = PreviewSheet.all(seriesId = 7, frameCount = s1e1Frames)
+        val sheets = PreviewSheet.all(episodeId = 7, frameCount = s1e1Frames)
         val last = sheets.last()
 
         assertEquals(88_576, last.firstFrame, "88 576 — начало 347-го листа при 256 кадрах на лист")
@@ -84,7 +84,7 @@ class PreviewSheetTest {
 
     @Test
     fun `положение кадра в раскладке считается по порядку кадров`() {
-        val sheet = PreviewSheet.of(seriesId = 7, index = 1, frameCount = s1e1Frames)
+        val sheet = PreviewSheet.of(episodeId = 7, index = 1, frameCount = s1e1Frames)
 
         assertEquals(256, sheet.firstFrame)
         assertEquals(511, sheet.lastFrame)
@@ -96,12 +96,12 @@ class PreviewSheetTest {
     }
 
     @Test
-    fun `ключи листа отражают серию и номер листа`(
+    fun `ключи листа отражают эпизод и номер листа`(
         @TempDir root: Path,
     ) {
-        val sheet = PreviewSheet.of(seriesId = 42, index = 3, frameCount = s1e1Frames)
+        val sheet = PreviewSheet.of(episodeId = 42, index = 3, frameCount = s1e1Frames)
 
-        assertTrue(sheet.finalKey().contains("/42/"), "ключ содержит серию: ${sheet.finalKey()}")
+        assertTrue(sheet.finalKey().contains("/42/"), "ключ содержит эпизод: ${sheet.finalKey()}")
         assertTrue(
             sheet.finalKey().endsWith("000003.png") || sheet.finalKey().endsWith("000003"),
             "ключ заканчивается номером листа с ведущими нулями: ${sheet.finalKey()}",
@@ -116,7 +116,7 @@ class PreviewSheetTest {
     ) {
         val storage = FileSystemStorage(root)
         val builder = PreviewSheetBuilder(storage)
-        val sheet = PreviewSheet.of(seriesId = 42, index = 0, frameCount = 600)
+        val sheet = PreviewSheet.of(episodeId = 42, index = 0, frameCount = 600)
         val expected = sheet.layout.framesPerSheet
         val built = mutableListOf<Int>()
 
@@ -146,7 +146,7 @@ class PreviewSheetTest {
     ) {
         val storage = FileSystemStorage(root)
         val builder = PreviewSheetBuilder(storage)
-        val sheet = PreviewSheet.of(seriesId = 42, index = 0, frameCount = 600)
+        val sheet = PreviewSheet.of(episodeId = 42, index = 0, frameCount = 600)
 
         val failure =
             assertFailsWith<java.io.IOException> {

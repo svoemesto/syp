@@ -18,30 +18,30 @@ import ru.svoemesto.syp.core.contract.ErrorCode
 import java.time.Instant
 
 /**
- * Тело запроса создания сериала.
+ * Тело запроса создания фильма.
  *
- * @property name название сериала
- * @property sourceRoot корень каталога сериала на машине администратора.
- *   Обязателен: без него не вычислить относительный путь к файлу серии,
+ * @property name название фильма
+ * @property sourceRoot корень каталога фильма на машине администратора.
+ *   Обязателен: без него не вычислить относительный путь к файлу эпизода,
  *   который попадёт в сценарий сборки (FR-089a)
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class CreateSerialRequest(
+data class CreateMovieRequest(
     val name: String,
     val sourceRoot: String,
 )
 
 /**
- * Тело запроса регистрации серии.
+ * Тело запроса регистрации эпизода.
  *
- * @property sourcePath путь к исходному видеофайлу внутри корня сериала
- * @property name название серии; если не задано, берётся имя файла
+ * @property sourcePath путь к исходному видеофайлу внутри корня фильма
+ * @property name название эпизода; если не задано, берётся имя файла
  * @property seasonId сезон-владелец; не задан — у фильма, у которого
  *   сезонов нет
  * @property episodeOrdinal номер эпизода внутри сезона; 0 — у фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class RegisterSeriesRequest(
+data class RegisterEpisodeRequest(
     val sourcePath: String,
     val name: String? = null,
     val seasonId: Long? = null,
@@ -49,18 +49,18 @@ data class RegisterSeriesRequest(
 )
 
 /**
- * Описание сериала в ответе.
+ * Описание фильма в ответе.
  *
  * Время отдаётся производной величиной — `durationSeconds` и `timeBase` — и
  * ни одним полем ответа не является вторым источником правды: все они
  * вычислены от номера кадра и частокадровой базы (ADR-0001).
  *
- * @property id идентификатор серии
- * @property serialId сериал-владелец
- * @property ordinal порядковый номер в сериале
- * @property name название серии
+ * @property id идентификатор эпизода
+ * @property movieId фильм-владелец
+ * @property ordinal порядковый номер в фильме
+ * @property name название эпизода
  * @property sourcePath абсолютный путь к файлу
- * @property relativePath путь относительно корня сериала: он и попадёт в
+ * @property relativePath путь относительно корня фильма: он и попадёт в
  *   сценарий сборки
  * @property byteSize размер файла в байтах
  * @property fileMtime время изменения файла
@@ -70,21 +70,21 @@ data class RegisterSeriesRequest(
  * @property frameRate частокадровая база в виде `кадров/секунду`
  * @property width ширина кадра
  * @property height высота кадра
- * @property durationSeconds длительность серии, вычисленная по кадрам
+ * @property durationSeconds длительность эпизода, вычисленная по кадрам
  * @property videoCodec кодек видео
  * @property videoProfile профиль видео
  * @property pixelFormat формат пикселей
  * @property audioCodec кодек аудио
  * @property audioChannels число аудиоканалов
  * @property audioSampleRate частота дискретизации аудио
- * @property keyframeCount сколько ключевых кадров в серии
+ * @property keyframeCount сколько ключевых кадров в эпизоде
  * @property keyframeMapBytes длина карты ключевых кадров в байтах
- * @property ready готова ли серия к работе: карта ключевых кадров посчитана
+ * @property ready готова ли эпизод к работе: карта ключевых кадров посчитана
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class SeriesView(
+data class EpisodeView(
     val id: Long,
-    val serialId: Long,
+    val movieId: Long,
     val ordinal: Int,
     val name: String,
     val seasonId: Long?,
@@ -114,50 +114,50 @@ data class SeriesView(
 )
 
 /**
- * Описание сериала в ответе.
+ * Описание фильма в ответе.
  *
- * @property id идентификатор сериала
- * @property name название сериала
- * @property sourceRoot корень каталога сериала
+ * @property id идентификатор фильма
+ * @property name название фильма
+ * @property sourceRoot корень каталога фильма
  * @property createdAt дата создания
- * @property seriesCount сколько серий заведено
+ * @property episodeCount сколько эпизодов заведено
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class SerialView(
+data class MovieView(
     val id: Long,
     val name: String,
     val sourceRoot: String,
     val createdAt: Instant?,
-    val seriesCount: Int,
+    val episodeCount: Int,
 )
 
 /**
- * Ответ на создание сериала.
+ * Ответ на создание фильма.
  *
- * Настройки идут вместе с сериалом: они создаются автоматически, и оператор
+ * Настройки идут вместе с фильмом: они создаются автоматически, и оператор
  * правит их сразу же. Отдельный запрос за ними был бы лишним обращением: у
- * только что созданного сериала настроек не может не быть.
+ * только что созданного фильма настроек не может не быть.
  *
- * @property serial созданный сериал
+ * @property movie созданный фильм
  * @property settings значения настроек по умолчанию
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class CreatedSerialView(
-    val serial: SerialView,
+data class CreatedMovieView(
+    val movie: MovieView,
     val settings: List<SettingView>,
 )
 
 /**
- * Ответ на чтение сериала.
+ * Ответ на чтение фильма.
  *
- * @property serial сериал
- * @property series серии сериала
- * @property settings настройки сериала
+ * @property movie фильм
+ * @property episode эпизода фильма
+ * @property settings настройки фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class SerialDetailView(
-    val serial: SerialView,
-    val series: List<SeriesView>,
+data class MovieDetailView(
+    val movie: MovieView,
+    val episode: List<EpisodeView>,
     val settings: List<SettingView>,
 )
 
@@ -193,143 +193,143 @@ data class SettingsUpdateView(
 )
 
 /**
- * Эндпоинты приёма сериала и серии.
+ * Эндпоинты приёма фильма и эпизода.
  *
- * Здесь только приём: создать сериал, завести серию, прочитать параметры,
+ * Здесь только приём: создать фильм, завести эпизод, прочитать параметры,
  * снять с учёта и настроить пороги. Всё, что требует чтения всего файла
- * целиком, живёт в заданиях очереди, а не в HTTP-запросе: иначе одна
- * регистрация серии занимала бы соединение интерфейса на минуты.
+ * целиком, живёт в заданиях очереди, а не в HTTP-запросе: иначе одного
+ * регистрация эпизода занимала бы соединение интерфейса на минуты.
  *
  * Ответы содержат те же поля, что и контракт
  * [`admin-api.md`](../../../../../specs/001-first-vertical-slice/contracts/admin-api.md),
  * раздел 3. Коды ошибок общие с публичной частью и приходят из
  * `ErrorCode`: интерфейс принимает решение по коду, человек читает текст.
  *
- * @property serials хранилище сериалов
- * @property seriesStore хранилище серий
+ * @property movies хранилище фильмов
+ * @property episodeStore хранилище эпизодов
  * @property settingsStore хранилище настроек
- * @property registration регистрация серии с проверкой пути
- * @property checksums постановщик подсчёта суммы: при регистрации серии
+ * @property registration регистрация эпизода с проверкой пути
+ * @property checksums постановщик подсчёта суммы: при регистрации эпизода
  *   подсчёт ставится автоматически, без актуальной суммы сценарий отдать
  *   нельзя (FR-089)
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 @RestController
 class CatalogController(
-    private val serials: SerialStore,
-    private val seriesStore: SeriesStore,
-    private val settingsStore: SerialSettingsStore,
-    private val registration: SeriesRegistration,
+    private val movies: MovieStore,
+    private val episodeStore: EpisodeStore,
+    private val settingsStore: MovieSettingsStore,
+    private val registration: EpisodeRegistration,
     private val checksums: ChecksumEnqueuer? = null,
     private val staleness: Staleness? = null,
 ) {
     /**
-     * Перечисляет сериалы с числом серий каждого.
+     * Перечисляет фильмы с числом эпизодов каждого.
      *
-     * @return список сериалов
+     * @return список фильмов
      */
-    @GetMapping("/api/serials")
-    fun listSerials(): List<SerialView> = serials.listWithSeriesCount().map { it.serial.toView(it.seriesCount) }
+    @GetMapping("/api/movies")
+    fun listMovies(): List<MovieView> = movies.listWithEpisodeCount().map { it.movie.toView(it.episodeCount) }
 
     /**
-     * Создаёт сериал.
+     * Создаёт фильм.
      *
      * Ответ содержит значения настроек по умолчанию: они создаются триггером
      * базы, и оператор правит их сразу (ADR-0003).
      *
      * @param request название и корень каталога
-     * @return созданный сериал с настройками, код `201`
+     * @return созданный фильм с настройками, код `201`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `CONFLICT`, если название занято
      */
-    @PostMapping("/api/serials")
-    fun createSerial(
-        @RequestBody request: CreateSerialRequest,
-    ): ResponseEntity<CreatedSerialView> {
-        val serial = serials.create(request.name, request.sourceRoot)
-        val body = CreatedSerialView(serial.toView(0), settingsView(serial.id!!))
+    @PostMapping("/api/movies")
+    fun createMovie(
+        @RequestBody request: CreateMovieRequest,
+    ): ResponseEntity<CreatedMovieView> {
+        val movie = movies.create(request.name, request.sourceRoot)
+        val body = CreatedMovieView(movie.toView(0), settingsView(movie.id!!))
         return ResponseEntity.status(HttpStatus.CREATED).body(body)
     }
 
     /**
-     * Читает сериал, его серии и настройки.
+     * Читает фильм, его эпизодов и настройки.
      *
-     * @param serialId идентификатор сериала
-     * @return сериал с сериями и настройками
+     * @param movieId идентификатор фильма
+     * @return фильм с эпизодами и настройками
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если сериала нет
+     *   `NOT_FOUND`, если фильма нет
      */
-    @GetMapping("/api/serials/{serialId}")
-    fun readSerial(
-        @PathVariable serialId: Long,
-    ): SerialDetailView {
-        val serial = requireSerial(serialId)
-        return SerialDetailView(
-            serial = serial.toView(seriesStore.countBySerial(serialId)),
-            series = seriesStore.listBySerial(serialId).map { it.toView(serial) },
-            settings = settingsView(serialId),
+    @GetMapping("/api/movies/{movieId}")
+    fun readMovie(
+        @PathVariable movieId: Long,
+    ): MovieDetailView {
+        val movie = requireMovie(movieId)
+        return MovieDetailView(
+            movie = movie.toView(episodeStore.countByMovie(movieId)),
+            episode = episodeStore.listByMovie(movieId).map { it.toView(movie) },
+            settings = settingsView(movieId),
         )
     }
 
     /**
-     * Удаляет сериал вместе со всеми производными данными.
+     * Удаляет фильм вместе со всеми производными данными.
      *
      * Файлы архива при этом не трогаются: они принадлежат не системе.
      * Операция необратима и подтверждается оператором.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @return пустой ответ, код `204`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если сериала нет
+     *   `NOT_FOUND`, если фильма нет
      */
-    @DeleteMapping("/api/serials/{serialId}")
-    fun deleteSerial(
-        @PathVariable serialId: Long,
+    @DeleteMapping("/api/movies/{movieId}")
+    fun deleteMovie(
+        @PathVariable movieId: Long,
     ): ResponseEntity<Void> {
-        requireSerial(serialId)
-        serials.delete(serialId)
+        requireMovie(movieId)
+        movies.delete(movieId)
         return ResponseEntity.noContent().build()
     }
 
     /**
-     * Перечисляет серии сериала.
+     * Перечисляет эпизоды фильма.
      *
-     * @param serialId идентификатор сериала
-     * @return серии в порядке порядковых номеров
+     * @param movieId идентификатор фильма
+     * @return эпизода в порядке порядковых номеров
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если сериала нет
+     *   `NOT_FOUND`, если фильма нет
      */
-    @GetMapping("/api/serials/{serialId}/series")
-    fun listSeries(
-        @PathVariable serialId: Long,
-    ): List<SeriesView> {
-        val serial = requireSerial(serialId)
-        return seriesStore.listBySerial(serialId).map { it.toView(serial) }
+    @GetMapping("/api/movies/{movieId}/episodes")
+    fun listEpisode(
+        @PathVariable movieId: Long,
+    ): List<EpisodeView> {
+        val movie = requireMovie(movieId)
+        return episodeStore.listByMovie(movieId).map { it.toView(movie) }
     }
 
     /**
-     * Регистрирует серию в сериале.
+     * Регистрирует эпизод в фильме.
      *
-     * Путь обязан лежать внутри корня каталога сериала, а файл обязан
+     * Путь обязан лежать внутри корня каталога фильма, а файл обязан
      * существовать и читаться: иначе ответ — ошибка `SOURCE_UNREADABLE`, а не
      * «успех с пустым результатом» (FR-092). Параметры снимаются с самого
      * файла, оператором не вводятся (FR-002).
      *
-     * @param serialId идентификатор сериала
-     * @param request путь к файлу и, по желанию, название серии
-     * @return зарегистрированная серия с определёнными параметрами, код `201`
+     * @param movieId идентификатор фильма
+     * @param request путь к файлу и, по желанию, название эпизода
+     * @return зарегистрированный эпизод с определёнными параметрами, код `201`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `SOURCE_UNREADABLE`, если путь вне корня или файл недоступен
      */
-    @PostMapping("/api/serials/{serialId}/series")
-    fun registerSeries(
-        @PathVariable serialId: Long,
-        @RequestBody request: RegisterSeriesRequest,
-    ): ResponseEntity<SeriesView> {
-        val serial = requireSerial(serialId)
+    @PostMapping("/api/movies/{movieId}/episodes")
+    fun registerEpisode(
+        @PathVariable movieId: Long,
+        @RequestBody request: RegisterEpisodeRequest,
+    ): ResponseEntity<EpisodeView> {
+        val movie = requireMovie(movieId)
         val registered =
             registration.register(
-                serialId,
+                movieId,
                 request.sourcePath,
                 request.name,
                 request.seasonId,
@@ -337,62 +337,62 @@ class CatalogController(
             )
         // Подсчёт суммы ставится сразу: он считается заданием и идёт в фоне,
         // а ждать его в этом запросе нельзя — это нарушало бы constitution
-        // IV.1 (FR-003). Отказ постановки не отменяет регистрацию: серия уже
+        // IV.1 (FR-003). Отказ постановки не отменяет регистрацию: эпизод уже
         // заведена, а пересчёт можно поставить кнопкой.
         runCatching { checksums?.enqueueAutomatic(registered) }
-        return ResponseEntity.status(HttpStatus.CREATED).body(registered.toView(serial))
+        return ResponseEntity.status(HttpStatus.CREATED).body(registered.toView(movie))
     }
 
     /**
-     * Читает параметры серии и состояние готовности.
+     * Читает параметры эпизода и состояние готовности.
      *
-     * @param seriesId идентификатор серии
-     * @return параметры серии
+     * @param episodeId идентификатор эпизода
+     * @return параметры эпизода
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если серии нет
+     *   `NOT_FOUND`, если эпизода нет
      */
-    @GetMapping("/api/series/{seriesId}")
-    fun readSeries(
-        @PathVariable seriesId: Long,
-    ): SeriesView {
-        val series = requireSeries(seriesId)
-        return series.toView(requireSerial(series.serialId))
+    @GetMapping("/api/episodes/{episodeId}")
+    fun readEpisode(
+        @PathVariable episodeId: Long,
+    ): EpisodeView {
+        val episode = requireEpisode(episodeId)
+        return episode.toView(requireMovie(episode.movieId))
     }
 
     /**
-     * Снимает серию с учёта.
+     * Снимает эпизод с учёта.
      *
      * Файл источника не трогается — он лежит в архиве и принадлежит не
-     * системе. Удаляются записи о серии и производные от них данные.
+     * системе. Удаляются записи о эпизоде и производные от них данные.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return пустой ответ, код `204`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если серии нет
+     *   `NOT_FOUND`, если эпизода нет
      */
-    @DeleteMapping("/api/series/{seriesId}")
-    fun deleteSeries(
-        @PathVariable seriesId: Long,
+    @DeleteMapping("/api/episodes/{episodeId}")
+    fun deleteEpisode(
+        @PathVariable episodeId: Long,
     ): ResponseEntity<Void> {
-        requireSeries(seriesId)
-        seriesStore.delete(seriesId)
+        requireEpisode(episodeId)
+        episodeStore.delete(episodeId)
         return ResponseEntity.noContent().build()
     }
 
     /**
      * Читает настройки анализа и выдачи сценария.
      *
-     * @param serialId идентификатор сериала
-     * @return настройки сериала
+     * @param movieId идентификатор фильма
+     * @return настройки фильма
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
-     *   `NOT_FOUND`, если сериала нет
+     *   `NOT_FOUND`, если фильма нет
      */
-    @GetMapping("/api/serials/{serialId}/settings")
+    @GetMapping("/api/movies/{movieId}/settings")
     fun readSettings(
-        @PathVariable serialId: Long,
+        @PathVariable movieId: Long,
     ): List<SettingView> {
-        requireSerial(serialId)
-        return settingsView(serialId)
+        requireMovie(movieId)
+        return settingsView(movieId)
     }
 
     /**
@@ -407,96 +407,96 @@ class CatalogController(
      * запускается: он уничтожил бы ручные правки оператора, которые
      * накапливаются месяцами. Решение о пересчёте принимает человек.
      *
-     * @param serialId идентификатор сериала
+     * @param movieId идентификатор фильма
      * @param changes новые значения по именам настроек
      * @return настройки после изменения и список действительно изменившихся
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `BAD_REQUEST`, если ключ неизвестен или значение не подходит
      */
-    @PutMapping("/api/serials/{serialId}/settings")
+    @PutMapping("/api/movies/{movieId}/settings")
     fun updateSettings(
-        @PathVariable serialId: Long,
+        @PathVariable movieId: Long,
         @RequestBody changes: Map<String, JsonNode>,
     ): SettingsUpdateView {
-        requireSerial(serialId)
-        val changed = settingsStore.update(serialId, changes)
+        requireMovie(movieId)
+        val changed = settingsStore.update(movieId, changes)
         if (changed.isNotEmpty()) {
-            staleness?.markStaleForSerial(serialId, SceneDetector.paramsHashOf(settingsStore.read(serialId)))
+            staleness?.markStaleForMovie(movieId, SceneDetector.paramsHashOf(settingsStore.read(movieId)))
         }
-        return SettingsUpdateView(settingsView(serialId), changed)
+        return SettingsUpdateView(settingsView(movieId), changed)
     }
 
     /**
-     * Читает сериал или отказывает.
+     * Читает фильм или отказывает.
      *
-     * Отказ `NOT_FOUND`, а не пустой список: пустой ответ на «сериала нет»
-     * выглядел бы как «у сериала нет серий», и интерфейс показал бы пустую
-     * страницу вместо того, чтобы сказать, что сериал не заведён.
+     * Отказ `NOT_FOUND`, а не пустой список: пустой ответ на «фильма нет»
+     * выглядел бы как «у фильма нет эпизодов», и интерфейс показал бы пустую
+     * страницу вместо того, чтобы сказать, что фильм не заведён.
      *
-     * @param serialId идентификатор сериала
-     * @return сериал
-     * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
+     * @param movieId идентификатор фильма
+     * @return фильм
+     * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
-    private fun requireSerial(serialId: Long): Serial =
-        serials.find(serialId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "сериал $serialId не заведён")
+    private fun requireMovie(movieId: Long): Movie =
+        movies.find(movieId)
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "фильм $movieId не заведён")
 
     /**
-     * Читает серию или отказывает.
+     * Читает эпизод или отказывает.
      *
-     * @param seriesId идентификатор серии
-     * @return серия
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @param episodeId идентификатор эпизода
+     * @return эпизод
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    private fun requireSeries(seriesId: Long): Series =
-        seriesStore.find(seriesId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "серия $seriesId не зарегистрирована")
+    private fun requireEpisode(episodeId: Long): Episode =
+        episodeStore.find(episodeId)
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $episodeId не зарегистрирована")
 
-    /** Собирает список настроек сериала для ответа. */
-    private fun settingsView(serialId: Long): List<SettingView> {
-        val read = settingsStore.read(serialId)
-        return SerialSetting.entries.map { setting ->
+    /** Собирает список настроек фильма для ответа. */
+    private fun settingsView(movieId: Long): List<SettingView> {
+        val read = settingsStore.read(movieId)
+        return MovieSetting.entries.map { setting ->
             SettingView(
                 key = setting.key,
                 title = setting.title,
                 kind = setting.kind.name,
                 value = read.node(setting),
-                updatedAt = settingsStore.updatedAt(serialId, setting)?.toInstant(),
+                updatedAt = settingsStore.updatedAt(movieId, setting)?.toInstant(),
             )
         }
     }
 }
 
 /**
- * Описание сериала для ответа.
+ * Описание фильма для ответа.
  *
- * @param seriesCount сколько серий заведено
- * @return описание сериала
+ * @param episodeCount сколько эпизодов заведено
+ * @return описание фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-internal fun Serial.toView(seriesCount: Int): SerialView =
-    SerialView(
+internal fun Movie.toView(episodeCount: Int): MovieView =
+    MovieView(
         id = id!!,
         name = name,
         sourceRoot = sourceRoot,
         createdAt = createdAt?.toInstant(),
-        seriesCount = seriesCount,
+        episodeCount = episodeCount,
     )
 
 /**
- * Описание серии для ответа.
+ * Описание эпизода для ответа.
  *
- * @param serial сериал-владелец: из него берётся корень для относительного пути
- * @return описание серии
+ * @param movie фильм-владелец: из него берётся корень для относительного пути
+ * @return описание эпизода
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-internal fun Series.toView(
-    serial: Serial,
+internal fun Episode.toView(
+    movie: Movie,
     seasonOrdinal: Int? = null,
-): SeriesView =
-    SeriesView(
+): EpisodeView =
+    EpisodeView(
         id = id!!,
-        serialId = serialId,
+        movieId = movieId,
         ordinal = ordinal,
         name = name,
         seasonId = seasonId,
@@ -504,7 +504,7 @@ internal fun Series.toView(
         episodeOrdinal = episodeOrdinal,
         designation = "S%02dE%02d".format(seasonOrdinal ?: 0, episodeOrdinal),
         sourcePath = sourcePath,
-        relativePath = relativePath(serial.sourceRoot),
+        relativePath = relativePath(movie.sourceRoot),
         byteSize = byteSize,
         fileMtime = fileMtime.toInstant(),
         frameCount = frameCount,
@@ -526,10 +526,10 @@ internal fun Series.toView(
     )
 
 /** Числитель частоты кадров: знаменатель длительности кадра. */
-private fun Series.frameRateNumerator(): Long = timeBaseDen.toLong() / gcdOf(timeBaseNum, timeBaseDen)
+private fun Episode.frameRateNumerator(): Long = timeBaseDen.toLong() / gcdOf(timeBaseNum, timeBaseDen)
 
 /** Знаменатель частоты кадров: числитель длительности кадра. */
-private fun Series.frameRateDenominator(): Long = timeBaseNum.toLong() / gcdOf(timeBaseNum, timeBaseDen)
+private fun Episode.frameRateDenominator(): Long = timeBaseNum.toLong() / gcdOf(timeBaseNum, timeBaseDen)
 
 /** НОД двух чисел. */
 private fun gcdOf(

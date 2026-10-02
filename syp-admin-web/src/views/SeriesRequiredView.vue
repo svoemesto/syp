@@ -27,11 +27,11 @@ const catalog = useCatalogStore()
     <div class="card">
       <div class="card-body">
         <p class="mb-3">
-          Сейчас выбрана: <strong>{{ catalog.currentName.value || '—' }}</strong
-          ><span v-if="!catalog.hasSeries.value"> — серий в нём нет.</span>
+          Сейчас выбран: <strong>{{ catalog.current.value?.movie.name || '—' }}</strong
+          ><span v-if="!catalog.episode.value.length"> — эпизодов в нём нет.</span>
         </p>
         <RouterLink class="btn btn-primary" :to="{ name: 'intake' }">
-          Перейти к приёму сериалов
+          Перейти к приёму фильмов
         </RouterLink>
         <p class="form-text mt-3 mb-0">
           У каждой серии в таблице приёма есть кнопки «сумма» и «структура» — они выбирают серию и

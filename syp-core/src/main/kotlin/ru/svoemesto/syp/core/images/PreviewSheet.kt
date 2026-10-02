@@ -11,7 +11,7 @@ import javax.imageio.ImageIO
 /**
  * Раскладка листа превью.
  *
- * Размеры листа — **настройка**, а не константа кода: объём превью на серию
+ * Размеры листа — **настройка**, а не константа кода: объём превью на эпизод
  * зависит от того, сколько места осталось на SSD, и пороги подбираются
  * замером М-07 (ADR-0003, FR-021). Поэтому раскладка приходит параметром и
  * проверяется на непротиворечивость, а не зашита.
@@ -78,10 +78,10 @@ data class PreviewLayout(
 }
 
 /**
- * Лист превью серии.
+ * Лист превью эпизода.
  *
  * Лист, а не отдельные файлы: поштучное хранение превью означало бы десятки
- * тысяч запросов на одну серию и не давало бы атомарности на уровне страницы
+ * тысяч запросов на одну эпизод и не давало бы атомарности на уровне страницы
  * матрицы кадров (research.md Т-03, FR-091).
  *
  * **Ключи листов отражают последовательность кадров без пропусков.** Лист `n`
@@ -89,17 +89,17 @@ data class PreviewLayout(
  * frameCount - 1)`, нумерация с нуля (ADR-0001): между листами нет щели и нет
  * наложения, иначе один кадр показывался бы дважды, а другой — ни разу.
  *
- * @property seriesId серия-владелец
+ * @property episodeId эпизод-владелец
  * @property index номер листа, с нуля
  * @property firstFrame первый кадр листа
  * @property lastFrame последний кадр листа
  * @property layout раскладка листа
- * @property sheetCount сколько листов у серии всего
- * @property frameCount сколько кадров у серии всего
+ * @property sheetCount сколько листов у эпизода всего
+ * @property frameCount сколько кадров у эпизода всего
  * @see <a href="../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class PreviewSheet(
-    val seriesId: Long,
+    val episodeId: Long,
     val index: Int,
     val firstFrame: Int,
     val lastFrame: Int,
@@ -140,12 +140,12 @@ class PreviewSheet(
     /**
      * Окончательный ключ листа в хранилище.
      *
-     * Ключ содержит идентификатор серии и номер листа: по нему лист находится
+     * Ключ содержит идентификатор эпизода и номер листа: по нему лист находится
      * однозначно, а по номеру листа — какие кадры он содержит.
      *
      * @return ключ объекта
      */
-    fun finalKey(): String = "series/$seriesId/preview-sheets/${KEY_PREFIX}/%06d".format(index)
+    fun finalKey(): String = "episode/$episodeId/preview-sheets/${KEY_PREFIX}/%06d".format(index)
 
     /**
      * Временный ключ листа, в который он пишется до переноса.
@@ -156,21 +156,21 @@ class PreviewSheet(
      *
      * @return временный ключ объекта
      */
-    fun temporaryKey(): String = "series/$seriesId/preview-sheets/tmp/${KEY_PREFIX}/%06d.part".format(index)
+    fun temporaryKey(): String = "episode/$episodeId/preview-sheets/tmp/${KEY_PREFIX}/%06d.part".format(index)
 
-    override fun toString(): String = "PreviewSheet(series=$seriesId, index=$index, frames=$firstFrame..$lastFrame)"
+    override fun toString(): String = "PreviewSheet(episode=$episodeId, index=$index, frames=$firstFrame..$lastFrame)"
 
     companion object {
         /** Префикс ключа листа: версия раскладки входит в ключ намеренно. */
         const val KEY_PREFIX: String = "v1"
 
         /**
-         * Сколько листов нужно серии с указанным числом кадров.
+         * Сколько листов нужно эпизода с указанным числом кадров.
          *
-         * @param frameCount число кадров серии
+         * @param frameCount число кадров эпизода
          * @param layout раскладка листа
          * @return число листов: округление вверх, последний лист может быть
-         *   неполным, но он всё равно нужен — иначе последние кадры серии не
+         *   неполным, но он всё равно нужен — иначе последние кадры эпизода не
          *   было бы видно
          * @throws IllegalArgumentException если число кадров неположительно
          */
@@ -178,48 +178,48 @@ class PreviewSheet(
             frameCount: Int,
             layout: PreviewLayout = PreviewLayout.STANDARD,
         ): Int {
-            require(frameCount > 0) { "Число кадров серии должно быть положительным, задано $frameCount" }
+            require(frameCount > 0) { "Число кадров эпизода должно быть положительным, задано $frameCount" }
             return (frameCount + layout.framesPerSheet - 1) / layout.framesPerSheet
         }
 
         /**
-         * Собирает лист серии по его номеру.
+         * Собирает лист эпизода по его номеру.
          *
-         * @param seriesId серия-владелец
+         * @param episodeId эпизод-владелец
          * @param index номер листа, с нуля
-         * @param frameCount число кадров серии
+         * @param frameCount число кадров эпизода
          * @param layout раскладка листа
          * @return лист с вычисленным диапазоном кадров
          * @throws IllegalArgumentException если номера листа нет
          */
         fun of(
-            seriesId: Long,
+            episodeId: Long,
             index: Int,
             frameCount: Int,
             layout: PreviewLayout = PreviewLayout.STANDARD,
         ): PreviewSheet {
             val count = sheetCount(frameCount, layout)
             require(index in 0 until count) {
-                "Листа $index у серии из $frameCount кадров нет: листов $count (нумерация с нуля)"
+                "Листа $index у эпизода из $frameCount кадров нет: листов $count (нумерация с нуля)"
             }
             val first = index * layout.framesPerSheet
             val last = minOf(first + layout.framesPerSheet - 1, frameCount - 1)
-            return PreviewSheet(seriesId, index, first, last, layout, count, frameCount)
+            return PreviewSheet(episodeId, index, first, last, layout, count, frameCount)
         }
 
         /**
-         * Разбивает серию на листы.
+         * Разбивает эпизод на листы.
          *
-         * @param seriesId серия-владелец
-         * @param frameCount число кадров серии
+         * @param episodeId эпизод-владелец
+         * @param frameCount число кадров эпизода
          * @param layout раскладка листа
-         * @return все листы серии в порядке номеров
+         * @return все листы эпизода в порядке номеров
          */
         fun all(
-            seriesId: Long,
+            episodeId: Long,
             frameCount: Int,
             layout: PreviewLayout = PreviewLayout.STANDARD,
-        ): List<PreviewSheet> = (0 until sheetCount(frameCount, layout)).map { of(seriesId, it, frameCount, layout) }
+        ): List<PreviewSheet> = (0 until sheetCount(frameCount, layout)).map { of(episodeId, it, frameCount, layout) }
     }
 }
 
@@ -240,7 +240,7 @@ data class CellPosition(
  *
  * Собиратель **не декодирует видео**: превью кадров уже нарезаны заданием
  * анализа, здесь они только укладываются в сетку. Это разделение выбрано
- * потому, что переделывать один лист дешевле, чем прогонять всю серию
+ * потому, что переделывать один лист дешевле, чем прогонять весь эпизод
  * заново (research.md Т-03).
  *
  * Лист пишется **во временный ключ** и переносится на окончательный после
@@ -275,7 +275,7 @@ class PreviewSheetBuilder(
                 val preview =
                     frameImage(frame)
                         ?: throw IOException(
-                            "Превью кадра $frame для листа ${sheet.index} серии ${sheet.seriesId} недоступно",
+                            "Превью кадра $frame для листа ${sheet.index} эпизода ${sheet.episodeId} недоступно",
                         )
                 preview.use { stream ->
                     val cell =

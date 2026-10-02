@@ -3,11 +3,11 @@ package ru.svoemesto.syp.admin.analysis
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.images.PreviewSheet
@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Проверки покрытия серии и числа листов превью (задача T055).
+ * Проверки покрытия эпизода и числа листов превью (задача T055).
  *
  * Требование задачи — на `GOT.S01E01`: сцены покрывают все 88 643 кадра без
  * разрывов и перекрытий, число листов равно 347, первая граница — кадр 0,
@@ -24,15 +24,15 @@ import kotlin.test.assertTrue
  *
  * Проверка идёт в двух видах:
  *
- * 1. **на уменьшенной серии** — всегда, на подставной внешней программе. Она
+ * 1. **на уменьшенном эпизоде** — всегда, на подставной внешней программе. Она
  *    ловит сам дефект: дыру в покрытии, перекрытие соседних участков или
  *    неверное число листов;
  * 2. **на настоящем файле** — только если он доступен и явно разрешён
- *    переменной `SYP_TEST_SOURCE`. Файл серии лежит на архиве 5,6 ГБ, и его
+ *    переменного `SYP_TEST_SOURCE`. Файл эпизода лежит на архиве 5,6 ГБ, и его
  *    прогон занимает минуты; молча пропустить такую проверку нельзя, поэтому
  *    пропуск виден в отчёте и не выдаётся за выполненную.
  *
- * Дыра в покрытии на экране выглядит нормально — просто часть серии не
+ * Дыра в покрытии на экране выглядит нормально — просто часть эпизода не
  * показана, — и заметить её можно только сравнением с числом кадров (FR-011).
  * Именно это сравнение и делает проверка.
  *
@@ -41,18 +41,18 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class StructureCoverageTest {
     private lateinit var db: Db
-    private lateinit var seriesStore: SeriesStore
+    private lateinit var episodeStore: EpisodeStore
     private lateinit var structure: StructureService
     private lateinit var workRoot: java.nio.file.Path
 
     private companion object {
-        /** Число кадров первой серии архива. */
+        /** Число кадров первого эпизода архива. */
         const val S1E1_FRAMES: Int = 88_643
 
         /** Число листов превью на 88 643 кадра при 256 кадрах на лист. */
         const val S1E1_SHEETS: Int = 347
 
-        /** Имя переменной окружения с путём к настоящему файлу серии. */
+        /** Имя переменной окружения с путём к настоящему файлу эпизода. */
         const val ENV_SOURCE: String = "SYP_TEST_SOURCE"
     }
 
@@ -64,7 +64,7 @@ class StructureCoverageTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        seriesStore = SeriesStore(db)
+        episodeStore = EpisodeStore(db)
         structure =
             StructureService(
                 db,
@@ -77,10 +77,10 @@ class StructureCoverageTest {
     }
 
     @Test
-    fun `сцены покрывают серию без разрывов и перекрытий`() {
+    fun `сцены покрывают эпизод без разрывов и перекрытий`() {
         val frameCount = 600
-        val series = newSeries(frameCount)
-        val run = beginRun(series)
+        val episode = newEpisode(frameCount)
+        val run = beginRun(episode)
         // Границы сцен обязаны быть подмножеством границ планов: порог сцены
         // не ниже порога плана, поэтому любая граница сцены — граница плана
         // (ADR-0005). Проверка этого правила живёт в самом DetectionResult.
@@ -90,7 +90,7 @@ class StructureCoverageTest {
         val (scenes, shots) =
             structure.applyDetection(
                 runId = run,
-                seriesId = series.id!!,
+                episodeId = episode.id!!,
                 detection =
                     DetectionResult(
                         sceneBoundaries = sceneBoundaries,
@@ -101,12 +101,12 @@ class StructureCoverageTest {
         assertTrue(scenes > 0, "структура обязана содержать сцены")
         assertTrue(shots >= scenes, "планов не может быть меньше, чем сцен")
 
-        val storedScenes = structure.listScenes(series.id)
-        assertEquals(0, storedScenes.first().firstFrame, "структура обязана начинаться с первого кадра серии")
+        val storedScenes = structure.listScenes(episode.id)
+        assertEquals(0, storedScenes.first().firstFrame, "структура обязана начинаться с первого кадра эпизода")
         assertEquals(
             frameCount - 1,
             storedScenes.last().lastFrame,
-            "структура обязана заканчиваться последним кадром серии",
+            "структура обязана заканчиваться последним кадром эпизода",
         )
         storedScenes.forEachIndexed { index, scene ->
             val next = storedScenes.getOrNull(index + 1)
@@ -133,24 +133,24 @@ class StructureCoverageTest {
         assertEquals(
             S1E1_FRAMES - 1,
             last.lastFrame,
-            "последний лист заканчивается последним кадром серии",
+            "последний лист заканчивается последним кадром эпизода",
         )
         assertEquals(
             S1E1_FRAMES,
             PreviewSheet.all(1, S1E1_FRAMES).sumOf { it.frameNumbersCount },
-            "листы обязаны покрывать кадры серии без пропусков и наложений",
+            "листы обязаны покрывать кадры эпизода без пропусков и наложений",
         )
     }
 
     @Test
-    fun `настоящая серия разбирается без дыр в покрытии`() {
+    fun `настоящий эпизод разбирается без дыр в покрытии`() {
         // Пропуск объявляется штатным средствомJUnit, а не тихим `return`:
         // прогон проверок обязан показать этот случай как пропущенный, иначе
-        // «разбор настоящей серии выполнен» окажется неправдой.
+        // «разбор настоящего эпизода выполнен» окажется неправдой.
         val source = System.getenv(ENV_SOURCE)
         org.junit.jupiter.api.Assumptions.assumeTrue(!source.isNullOrBlank()) {
-            "переменная $ENV_SOURCE не задана: разбор настоящей серии (${S1E1_FRAMES} кадра) " +
-                "не выполнялся. Проверка покрытия на уменьшенной серии выполнена"
+            "переменная $ENV_SOURCE не задана: разбор настоящего эпизода (${S1E1_FRAMES} кадра) " +
+                "не выполнялся. Проверка покрытия на уменьшенном эпизоде выполнена"
         }
         val probe =
             ru.svoemesto.syp.admin.catalog
@@ -160,20 +160,20 @@ class StructureCoverageTest {
                 java.nio.file.Path
                     .of(source),
             )
-        val series = newSeriesAt(detected.frameCount, source, detected.byteSize)
+        val episode = newEpisodeAt(detected.frameCount, source, detected.byteSize)
         val detector = SceneDetector(ExternalProgram(), System.getenv("SYP_TEST_FFMPEG") ?: "ffmpeg")
-        val settings = SerialSettingsStore(db).read(series.serialId)
+        val settings = MovieSettingsStore(db).read(episode.movieId)
         val detection =
             detector.detect(
-                series = series,
-                sceneThreshold = settings.number(ru.svoemesto.syp.admin.catalog.SerialSetting.SCENE_THRESHOLD),
-                shotThreshold = settings.number(ru.svoemesto.syp.admin.catalog.SerialSetting.SHOT_THRESHOLD),
+                episode = episode,
+                sceneThreshold = settings.number(ru.svoemesto.syp.admin.catalog.MovieSetting.SCENE_THRESHOLD),
+                shotThreshold = settings.number(ru.svoemesto.syp.admin.catalog.MovieSetting.SHOT_THRESHOLD),
             )
-        val run = beginRun(series)
-        structure.applyDetection(run, series.id!!, detection)
+        val run = beginRun(episode)
+        structure.applyDetection(run, episode.id!!, detection)
 
-        val scenes = structure.listScenes(series.id!!)
-        assertEquals(0, scenes.first().firstFrame, "первая граница структуры — кадр 0")
+        val scenes = structure.listScenes(episode.id!!)
+        assertEquals(0, scenes.first().firstFrame, "первый граница структуры — кадр 0")
         assertEquals(
             detected.frameCount - 1,
             scenes.last().lastFrame,
@@ -192,30 +192,30 @@ class StructureCoverageTest {
     }
 
     /**
-     * Заводит серию с указанным числом кадров на вымышленном пути.
+     * Заводит эпизод с указанным числом кадров на вымышленном пути.
      *
      * @param frameCount число кадров
-     * @return записанная серия
+     * @return записанный эпизод
      */
-    private fun newSeries(frameCount: Int): Series = newSeriesAt(frameCount, "/srv/got/S1E1-${System.nanoTime()}.mkv", 1000)
+    private fun newEpisode(frameCount: Int): Episode = newEpisodeAt(frameCount, "/srv/got/S1E1-${System.nanoTime()}.mkv", 1000)
 
     /**
-     * Заводит серию по указанному пути и размеру файла.
+     * Заводит эпизод по указанному пути и размеру файла.
      *
      * @param frameCount число кадров
-     * @param sourcePath путь к файлу серии
+     * @param sourcePath путь к файлу эпизода
      * @param byteSize размер файла в байтах
-     * @return записанная серия
+     * @return записанный эпизод
      */
-    private fun newSeriesAt(
+    private fun newEpisodeAt(
         frameCount: Int,
         sourcePath: String,
         byteSize: Long,
-    ): Series {
-        val serial = SerialStore(db).create("Покрытие ${System.nanoTime()}", "/srv/got")
-        return seriesStore.insert(
-            Series(
-                serialId = serial.id!!,
+    ): Episode {
+        val movie = MovieStore(db).create("Покрытие ${System.nanoTime()}", "/srv/got")
+        return episodeStore.insert(
+            Episode(
+                movieId = movie.id!!,
                 ordinal = 0,
                 name =
                     java.nio.file.Path
@@ -243,14 +243,14 @@ class StructureCoverageTest {
     /**
      * Заводит прогон анализа.
      *
-     * @param series серия
+     * @param episode эпизод
      * @return идентификатор прогона
      */
-    private fun beginRun(series: Series): Long {
+    private fun beginRun(episode: Episode): Long {
         val run =
             AnalysisRunStore(db).begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = DetectionResult.ALGORITHM_VERSION,
                     paramsHash = "c".repeat(64),

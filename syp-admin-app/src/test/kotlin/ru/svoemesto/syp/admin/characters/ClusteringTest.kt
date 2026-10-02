@@ -1,7 +1,7 @@
 package ru.svoemesto.syp.admin.characters
 
 import org.junit.jupiter.api.Test
-import ru.svoemesto.syp.admin.catalog.SerialSetting
+import ru.svoemesto.syp.admin.catalog.MovieSetting
 import kotlin.math.cos
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -11,13 +11,13 @@ import kotlin.test.assertTrue
  * Проверки кластеризации на холодном старте (задача T068).
  *
  * Кластеризация — **чистая функция** от векторов и двух чисел, поэтому
- * проверки идут без базы: подставлять настоящие настройки сериала здесь
+ * проверки идут без базы: подставлять настоящие настройки фильма здесь
  * незачем, а вот проверить, что разбиение не зависит от порядка данных,
  * обязательно.
  *
  * Требования задачи: избыточное разбиение векторов на центры со слиянием
  * близких по порогу косинусной близости; число центров и порог слияния —
- * настройки сериала; кластеры строятся **до** появления обученной модели.
+ * настройки фильма; кластеры строятся **до** появления обученной модели.
  *
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
@@ -25,12 +25,12 @@ class ClusteringTest {
     private val clustering = Clustering()
 
     private val settings =
-        ru.svoemesto.syp.admin.catalog.SerialSettings(
+        ru.svoemesto.syp.admin.catalog.MovieSettings(
             mapOf(
-                SerialSetting.CLUSTER_COUNT.key to
+                MovieSetting.CLUSTER_COUNT.key to
                     com.fasterxml.jackson.databind.node.IntNode
                         .valueOf(64),
-                SerialSetting.CLUSTER_MERGE_THRESHOLD.key to
+                MovieSetting.CLUSTER_MERGE_THRESHOLD.key to
                     com.fasterxml.jackson.databind.node.DoubleNode
                         .valueOf(0.9),
             ),
@@ -109,7 +109,7 @@ class ClusteringTest {
     }
 
     @Test
-    fun `число центров и порог слияния берутся у сериала`() {
+    fun `число центров и порог слияния берутся у фильма`() {
         val points = listOf(face(1, 0.0), face(2, 5.0), face(3, 180.0))
 
         val fromSettings = clustering.cluster(points, settings)
@@ -120,7 +120,7 @@ class ClusteringTest {
                 .map { it.faceIds.sorted() }
                 .sortedBy { it.first() },
             fromSettings.map { it.faceIds.sorted() }.sortedBy { it.first() },
-            "разбиение по настройкам сериала совпадает с разбиением по этим же числам",
+            "разбиение по настройкам фильма совпадает с разбиением по этим же числам",
         )
     }
 

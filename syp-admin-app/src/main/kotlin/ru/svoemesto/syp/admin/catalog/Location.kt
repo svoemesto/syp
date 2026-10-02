@@ -8,25 +8,25 @@ import ru.svoemesto.syp.core.db.Save
 import ru.svoemesto.syp.core.db.Table
 
 /**
- * Место действия — элемент справочника сериала.
+ * Место действия — элемент справочника фильма.
  *
  * Справочник ведётся вручную и назначается сцене только из него:
  * автоматического определения места действия в проекте нет и не будет
  * (FR-050, FR-052, constitution). Поэтому здесь нет ни вычисления, ни
  * сопоставления — только заведённые человеком названия.
  *
- * Название уникально в пределах сериала: две одинаковые локации в одном
- * сериале означали бы две правды об одном месте действия.
+ * Название уникально в пределах фильма: две одинаковые локации в одном
+ * фильме означали бы две правды об одном месте действия.
  *
  * @property id идентификатор; `null`, пока локация не записана
- * @property serialId сериал-владелец
+ * @property movieId фильм-владелец
  * @property name название места действия
  * @property recordHash хеш значений строки, прочитанный при загрузке
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class Location(
     val id: Long? = null,
-    val serialId: Long,
+    val movieId: Long,
     val name: String,
     val recordHash: String? = null,
 ) {
@@ -41,17 +41,17 @@ data class Location(
      *
      * @return таблица с записываемыми столбцами локации
      */
-    fun toTable(): Table = Table(NAME, COLUMNS, { listOf(serialId, name) }, recordHash)
+    fun toTable(): Table = Table(NAME, COLUMNS, { listOf(movieId, name) }, recordHash)
 
     companion object {
         /** Имя таблицы мест действия. */
-        const val NAME: String = "location"
+        const val NAME: String = "tbl_locations"
 
         /** Записываемые столбцы локации в порядке значений. */
-        val COLUMNS: List<String> = listOf("serial_id", "name")
+        val COLUMNS: List<String> = listOf("id_movie", "name")
 
         /** Столбцы локации в порядке чтения из базы. */
-        const val READ_COLUMNS: String = "id, serial_id, name, recordhash"
+        const val READ_COLUMNS: String = "id, id_movie, name, recordhash"
     }
 }
 
@@ -65,42 +65,42 @@ class LocationStore(
     private val db: Db,
 ) {
     /**
-     * Добавляет место действия в справочник сериала.
+     * Добавляет место действия в справочник фильма.
      *
-     * @param serialId сериал-владелец
+     * @param movieId фильм-владелец
      * @param name название места действия
      * @return записанная локация с идентификатором
      * @throws DomainException с кодом `CONFLICT`, если название уже занято
      */
     fun add(
-        serialId: Long,
+        movieId: Long,
         name: String,
     ): Location {
-        val location = Location(serialId = serialId, name = name.trim())
-        val existing = findByName(serialId, location.name)
+        val location = Location(movieId = movieId, name = name.trim())
+        val existing = findByName(movieId, location.name)
         if (existing != null) {
             throw DomainException(
                 ErrorCode.CONFLICT,
-                "место действия «${location.name}» уже есть в справочнике сериала",
+                "место действия «${location.name}» уже есть в справочнике фильма",
             )
         }
         return db.useTransaction { connection ->
             Save.insertIfAbsent(connection, location.toTable())
-            readRequired(connection, findByName(connection, serialId, location.name))
+            readRequired(connection, findByName(connection, movieId, location.name))
         }
     }
 
     /**
-     * Перечисляет места действия сериала.
+     * Перечисляет места действия фильма.
      *
-     * @param serialId сериал-владелец
+     * @param movieId фильм-владелец
      * @return локации по алфавиту
      */
-    fun listBySerial(serialId: Long): List<Location> =
+    fun listByMovie(movieId: Long): List<Location> =
         db.select(
-            "SELECT ${Location.READ_COLUMNS} FROM location WHERE serial_id = ? ORDER BY name",
+            "SELECT ${Location.READ_COLUMNS} FROM tbl_locations WHERE id_movie = ? ORDER BY name",
             ::readRow,
-            serialId,
+            movieId,
         )
 
     /**
@@ -114,30 +114,30 @@ class LocationStore(
      * @param locationId идентификатор локации
      * @return `true`, если локация была удалена
      */
-    fun delete(locationId: Long): Boolean = db.update("DELETE FROM location WHERE id = ?", locationId) > 0
+    fun delete(locationId: Long): Boolean = db.update("DELETE FROM tbl_locations WHERE id = ?", locationId) > 0
 
     /** Ищет место действия по названию. */
     private fun findByName(
-        serialId: Long,
+        movieId: Long,
         name: String,
     ): Location? =
         db.selectOne(
-            "SELECT ${Location.READ_COLUMNS} FROM location WHERE serial_id = ? AND name = ?",
+            "SELECT ${Location.READ_COLUMNS} FROM tbl_locations WHERE id_movie = ? AND name = ?",
             ::readRow,
-            serialId,
+            movieId,
             name,
         )
 
     /** Ищет место действия по названию в пределах открытого соединения. */
     private fun findByName(
         connection: java.sql.Connection,
-        serialId: Long,
+        movieId: Long,
         name: String,
     ): Location? =
         connection
-            .prepareStatement("SELECT ${Location.READ_COLUMNS} FROM location WHERE serial_id = ? AND name = ?")
+            .prepareStatement("SELECT ${Location.READ_COLUMNS} FROM tbl_locations WHERE id_movie = ? AND name = ?")
             .use { statement ->
-                statement.setLong(1, serialId)
+                statement.setLong(1, movieId)
                 statement.setString(2, name)
                 statement.executeQuery().use { resultSet ->
                     if (resultSet.next()) read(resultSet) else null
@@ -159,7 +159,7 @@ class LocationStore(
     private fun read(resultSet: java.sql.ResultSet): Location =
         Location(
             id = resultSet.getLong("id"),
-            serialId = resultSet.getLong("serial_id"),
+            movieId = resultSet.getLong("id_movie"),
             name = resultSet.getString("name"),
             recordHash = resultSet.getString("recordhash"),
         )
@@ -168,7 +168,7 @@ class LocationStore(
     private fun readRow(row: Row): Location =
         Location(
             id = row.long("id"),
-            serialId = row.long("serial_id"),
+            movieId = row.long("id_movie"),
             name = row.string("name"),
             recordHash = row.stringOrNull("recordhash"),
         )

@@ -12,10 +12,10 @@ say() { printf '\n=== %s ===\n' "$*"; }
 field() { python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('$1', d))" 2>/dev/null; }
 
 say "0. Исходное состояние"
-curl -s "$API/serials" | head -c 120; echo
+curl -s "$API/movies" | head -c 120; echo
 
 say "1. Создать сериал (если уже есть — берём существующий)"
-SER=$(curl -s "$API/serials" | python3 -c "
+SER=$(curl -s "$API/movies" | python3 -c "
 import json,sys
 try:
     d=json.load(sys.stdin); items=d if isinstance(d,list) else d.get('items',[])
@@ -23,7 +23,7 @@ try:
 except Exception: print('')
 ")
 if [ -z "$SER" ]; then
-  R=$(curl -s -X POST "$API/serials" -H 'Content-Type: application/json' \
+  R=$(curl -s -X POST "$API/movies" -H 'Content-Type: application/json' \
       -d '{"name":"Игра престолов","sourceRoot":"/sources"}')
   echo "ответ: $(echo "$R" | head -c 200)"
   SER=$(echo "$R" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
@@ -34,7 +34,7 @@ fi
 echo "serialId=$SER"
 
 say "2. Зарегистрировать серию S01E01"
-SR=$(curl -s -X POST "$API/serials/$SER/series" -H 'Content-Type: application/json' \
+SR=$(curl -s -X POST "$API/movies/$SER/episodes" -H 'Content-Type: application/json' \
      -d '{"sourcePath":"/sources/GOT.S01/GOT.S01E01.BDRip.1080p.mkv"}')
 echo "ответ: $(echo "$SR" | head -c 300)"
 SID=$(echo "$SR" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
@@ -42,25 +42,25 @@ SID=$(echo "$SR" | python3 -c "import json,sys;print(json.load(sys.stdin).get('i
 echo "seriesId=$SID"
 
 say "3. Параметры серии, определённые сервером"
-curl -s "$API/series/$SID" | head -c 600; echo
+curl -s "$API/episodes/$SID" | head -c 600; echo
 
 say "4. Сумма исходника (HASH) — сверка с эталоном"
-curl -s -X POST "$API/series/$SID/checksum" -H 'Content-Type: application/json' -d '{}' | head -c 200; echo
+curl -s -X POST "$API/episodes/$SID/checksum" -H 'Content-Type: application/json' -d '{}' | head -c 200; echo
 echo "ожидание 60 с (файл 5,6 ГиБ, замер субагента — около 32 с)…"
 sleep 60
-curl -s "$API/series/$SID" | head -c 700; echo
+curl -s "$API/episodes/$SID" | head -c 700; echo
 
 say "5. Анализ структуры"
-curl -s -X POST "$API/series/$SID/analysis" -H 'Content-Type: application/json' -d '{}' | head -c 200; echo
+curl -s -X POST "$API/episodes/$SID/analysis" -H 'Content-Type: application/json' -d '{}' | head -c 200; echo
 echo "ожидание 240 с (замер субагента: 152 с на детекцию границ)…"
 sleep 240
 
 say "6. Результат"
-curl -s "$API/series/$SID" | head -c 900; echo
+curl -s "$API/episodes/$SID" | head -c 900; echo
 
 say "7. Сцены и листы превью"
-curl -s "$API/series/$SID/scenes" 2>&1 | head -c 300; echo
-curl -s "$API/series/$SID/preview-sheets/count" 2>&1 | head -c 200; echo
+curl -s "$API/episodes/$SID/scenes" 2>&1 | head -c 300; echo
+curl -s "$API/episodes/$SID/preview-sheets/count" 2>&1 | head -c 200; echo
 
 say "8. Задания в очереди"
 docker exec syp-db psql -U syp -d syp -tAc \

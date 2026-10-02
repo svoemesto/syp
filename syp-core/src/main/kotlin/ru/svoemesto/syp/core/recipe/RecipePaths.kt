@@ -3,8 +3,8 @@ package ru.svoemesto.syp.core.recipe
 /**
  * Правила относительных путей сценария.
  *
- * Путь в сценарии указывает на файл **внутри копии сериала** у пользователя
- * (FR-089a). Сценарий, уводящий воркер за пределы копии сериала, — не
+ * Путь в сценарии указывает на файл **внутри копии фильма** у пользователя
+ * (FR-089a). Сценарий, уводящий воркер за пределы копии фильма, — не
  * подборка, а ошибка выдачи: воркер режет файлы по указанным путям, и путь
  * `../../etc/passwd` там не подборка, а чтение чужого файла.
  *
@@ -26,18 +26,18 @@ object RecipePaths {
      * @param path проверяемый путь
      * @throws IllegalArgumentException если путь непригоден
      */
-    fun requireInsideSerialTree(path: String) {
-        require(path.isNotBlank()) { "Путь к файлу серии в сценарии обязателен" }
+    fun requireInsideMovieTree(path: String) {
+        require(path.isNotBlank()) { "Путь к файлу эпизода в сценарии обязателен" }
         require(!path.startsWith("/")) {
             "Путь «$path» в сценарии обязан быть относительным: у пользователя своя " +
-                "копия дерева сериала под своим корнем (FR-089a)"
+                "копия дерева фильма под своим корнем (FR-089a)"
         }
         require('\\' !in path) {
             "Путь «$path» не должен содержать обратного слэша: разделитель в сценарии один"
         }
         val segments = path.split('/')
         require(segments.none { it == ".." }) {
-            "Путь «$path» выходит за пределы копии сериала: сегмент «..» запрещён (FR-089a)"
+            "Путь «$path» выходит за пределы копии фильма: сегмент «..» запрещён (FR-089a)"
         }
         require(segments.none { it.isEmpty() }) {
             "Путь «$path» содержит пустой сегмент: два разделителя подряд или слэш в конце"
@@ -52,7 +52,7 @@ object RecipePaths {
      * @throws IllegalArgumentException если путь непригоден
      */
     fun checked(path: String): String {
-        requireInsideSerialTree(path)
+        requireInsideMovieTree(path)
         return path
     }
 }

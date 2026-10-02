@@ -7,22 +7,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { type PreviewUrlView, previewSheetUrl } from '../api/structure'
-import { toPreviewSheetAlt, toPreviewSheetCaption } from '../api/view-model'
 
 const props = defineProps<{
-  /** Серия-владелец листа. */
-  seriesId: number
+  /** Эпизод-владелец листа. */
+  episodeId: number
   /** Описание листа с адресом и раскладкой. */
   sheet: PreviewUrlView
   /** Кадр, который нужно подсветить, либо `null`. */
   highlightFrame: number | null
 }>()
-
-/** Описание листа для подписи под ним. */
-const caption = computed(() => toPreviewSheetCaption(props.sheet))
-
-/** То же самое для `alt` у изображения. */
-const alt = computed(() => toPreviewSheetAlt(props.sheet))
 
 /**
  * Положение подсвеченной ячейки в процентах листа.
@@ -45,24 +38,28 @@ const highlight = computed(() => {
 </script>
 
 <template>
-  <figure class="syp-sheet mb-0">
-    <figcaption class="text-body-secondary mb-2">{{ caption }}</figcaption>
+  <figure class="sheet">
+    <figcaption>
+      Лист №{{ sheet.index }}: кадры {{ sheet.firstFrame }}…{{ sheet.lastFrame }},
+      {{ sheet.frameNumbers }} шт., {{ sheet.columns }}×{{ sheet.rows }} ячеек по
+      {{ sheet.cellWidth }}×{{ sheet.cellHeight }}
+    </figcaption>
 
-    <p v-if="!sheet.isReady" class="syp-stale mb-0">
+    <p v-if="!sheet.isReady" class="note">
       Лист не готов: анализ не завершён или оборвался. Незавершённый лист не выдаётся — иначе
-      оператор увидел бы половину серии и решил, что второй половины нет.
+      оператор увидел бы половину эпизода и решил, что второй половины нет.
     </p>
 
-    <div v-else class="syp-sheet-canvas">
+    <div v-else class="canvas">
       <img
-        :src="previewSheetUrl(seriesId, sheet.index)"
-        :alt="alt"
+        :src="previewSheetUrl(episodeId, sheet.index)"
+        :alt="`Лист превью №${sheet.index}, кадры ${sheet.firstFrame}…${sheet.lastFrame}`"
         :width="sheet.sheetWidth"
         :height="sheet.sheetHeight"
       />
       <span
         v-if="highlight"
-        class="syp-sheet-cell"
+        class="cell"
         :style="{
           left: highlight.left,
           top: highlight.top,
@@ -75,20 +72,32 @@ const highlight = computed(() => {
 </template>
 
 <style scoped>
-.syp-sheet-canvas {
+.sheet {
+  margin: 0;
+}
+
+figcaption {
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+}
+
+.canvas {
   display: inline-block;
   line-height: 0;
-  max-width: 100%;
   position: relative;
 }
 
-.syp-sheet-canvas img {
-  height: auto;
+img {
   max-width: 100%;
+  height: auto;
 }
 
-.syp-sheet-cell {
-  border: 2px solid var(--syp-origin-cancelled);
+.cell {
+  border: 2px solid #d06000;
   position: absolute;
+}
+
+.note {
+  font-size: 0.9rem;
 }
 </style>

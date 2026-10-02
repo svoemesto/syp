@@ -25,21 +25,11 @@ import ru.svoemesto.syp.core.db.DbException
  * 'WAITING'`: два воркера не могут взять одно задание, потому что второй
  * увидит ноль затронутых строк.
  *
- * Четвёртое правило — **изменения видны без опроса**. Очередь сообщает
- * подписчику о каждой смене состояния и о каждом движении прогресса
- * ([JobQueueListener]); без этого интерфейс узнаёт о завершении работы только
- * по собственному повторному запросу. Уведомление уходит **после** фиксации
- * транзакции, и ошибка подписчика не отменяет запись: потерянное уведомление —
- * это молчащий экран, а не испорченные данные.
- *
  * @property db доступ к базе сырым JDBC
- * @property listener наблюдатель изменений очереди; по умолчанию никто не
- *   слушает, и очередь работает как раньше
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class JobQueue(
     private val db: Db,
-    private val listener: JobQueueListener = JobQueueListener.NONE,
 ) {
     /**
      * Ставит задание в очередь.
@@ -59,37 +49,30 @@ class JobQueue(
         paramsJson: String,
         paramsHash: String,
         algorithmVersion: String? = null,
-    ): Long {
-        val created =
-            db.use { connection ->
-                connection
-                    .prepareStatement(
-                        """
-                        INSERT INTO job (kind, state, subject_type, subject_id, params,
-                                         params_hash, algorithm_version, progress_done,
-                                         progress_total)
-                        VALUES (?, 'WAITING', ?, ?, ?::jsonb, ?, ?, 0, 0)
-                        RETURNING id
-                        """.trimIndent(),
-                    ).use { statement ->
-                        statement.setString(1, kind.name)
-                        statement.setString(2, subject.type)
-                        statement.setObject(3, subject.identifier)
-                        statement.setString(4, paramsJson)
-                        statement.setString(5, paramsHash)
-                        statement.setString(6, algorithmVersion)
-                        statement.executeQuery().use { resultSet ->
-                            resultSet.next()
-                            resultSet.getLong(1)
-                        }
+    ): Long =
+        db.use { connection ->
+            connection
+                .prepareStatement(
+                    """
+                    INSERT INTO tbl_jobs (kind, state, subject_type, subject_id, params,
+                                     params_hash, algorithm_version, progress_done,
+                                     progress_total)
+                    VALUES (?, 'WAITING', ?, ?, ?::jsonb, ?, ?, 0, 0)
+                    RETURNING id
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setString(1, kind.name)
+                    statement.setString(2, subject.type)
+                    statement.setObject(3, subject.identifier)
+                    statement.setString(4, paramsJson)
+                    statement.setString(5, paramsHash)
+                    statement.setString(6, algorithmVersion)
+                    statement.executeQuery().use { resultSet ->
+                        resultSet.next()
+                        resultSet.getLong(1)
                     }
-            }
-        // Задание появилось в очереди — интерфейс обязан узнать об этом сразу,
-        // а не через pollInterval, когда до него дотянется воркер.
-        val queued = db.use { connection -> readSignal(connection, created) }
-        queued?.let { signal -> notify { listener.onStateChanged(signal) } }
-        return created
-    }
+                }
+        }
 
     /**
      * Берёт задание в работу.
@@ -111,57 +94,37 @@ class JobQueue(
         }
         val placeholders = kinds.joinToString(", ") { "?" }
 
-        val claimed =
-            db.useTransaction { connection ->
-                // Сначала находим кандидата, затем захватываем его условным UPDATE.
-                // Условие по состоянию делает захват атомарным: из двух воркеров
-                // ровно один увидит одну затронутую строку.
-                connection
-                    .prepareStatement(
-                        "SELECT $JOB_COLUMNS FROM job " +
-                            "WHERE state = 'WAITING' AND kind IN ($placeholders) " +
-                            "ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED",
-                    ).use { statement ->
-                        kinds.forEachIndexed { index, kind -> statement.setString(index + 1, kind.name) }
-                        statement.executeQuery().use { resultSet ->
-                            if (!resultSet.next()) {
-                                null
-                            } else {
-                                val candidate = readJob(resultSet)
-                                val updated =
-                                    connection
-                                        .prepareStatement(
-                                            "UPDATE job SET state = 'CREATING', started_at = now() " +
-                                                "WHERE id = ? AND state = 'WAITING'",
-                                        ).use { update ->
-                                            update.setLong(1, candidate.id)
-                                            update.executeUpdate()
-                                        }
-                                if (updated > 0) candidate.copy(state = JobState.CREATING) else null
-                            }
+        return db.useTransaction { connection ->
+            // Сначала находим кандидата, затем захватываем его условным UPDATE.
+            // Условие по состоянию делает захват атомарным: из двух воркеров
+            // ровно один увидит одну затронутую строку.
+            connection
+                .prepareStatement(
+                    "SELECT $JOB_COLUMNS FROM tbl_jobs " +
+                        "WHERE state = 'WAITING' AND kind IN ($placeholders) " +
+                        "ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED",
+                ).use { statement ->
+                    kinds.forEachIndexed { index, kind -> statement.setString(index + 1, kind.name) }
+                    statement.executeQuery().use { resultSet ->
+                        if (!resultSet.next()) {
+                            null
+                        } else {
+                            val candidate = readJob(resultSet)
+                            val claimed =
+                                connection
+                                    .prepareStatement(
+                                        "UPDATE tbl_jobs SET state = 'CREATING', started_at = now() " +
+                                            "WHERE id = ? AND state = 'WAITING'",
+                                    ).use { update ->
+                                        update.setLong(1, candidate.id)
+                                        update.executeUpdate()
+                                    }
+                            if (claimed > 0) candidate.copy(state = JobState.CREATING) else null
                         }
                     }
-            }
-        // Транзакция к этому месту уже зафиксирована: уведомление не может
-        // опередить запись, на которую ссылается.
-        claimed?.let { job -> notify { listener.onStateChanged(job.toSignal()) } }
-        return claimed
+                }
+        }
     }
-
-    /**
-     * Строит снимок изменения из прочитанного задания.
-     *
-     * @return снимок с тем же состоянием, прогрессом и текстом ошибки
-     */
-    private fun Job.toSignal(): JobSignal =
-        JobSignal(
-            id = id,
-            kind = kind,
-            state = state,
-            subject = subject,
-            progress = progress,
-            errorText = errorText,
-        )
 
     /**
      * Переводит взятое задание в состояние работы.
@@ -220,26 +183,23 @@ class JobQueue(
         jobId: Long,
         progress: JobProgress,
     ) {
-        val updated =
-            db.useTransaction { connection ->
-                val current =
-                    readSignal(connection, jobId)
-                        ?: throw DbException("Задание $jobId не найдено")
-                progress.requireNotBehind(current.progress)
-                connection
-                    .prepareStatement(
-                        "UPDATE job SET progress_done = ?, progress_total = ?, progress_note = ? " +
-                            "WHERE id = ?",
-                    ).use { statement ->
-                        statement.setLong(1, progress.done)
-                        statement.setLong(2, progress.total)
-                        statement.setString(3, progress.note)
-                        statement.setLong(4, jobId)
-                        statement.executeUpdate()
-                    }
-                current.copy(progress = progress)
-            }
-        notify { listener.onProgressChanged(updated) }
+        db.useTransaction { connection ->
+            val previous =
+                readProgress(connection, jobId)
+                    ?: throw DbException("Задание $jobId не найдено")
+            progress.requireNotBehind(previous)
+            connection
+                .prepareStatement(
+                    "UPDATE tbl_jobs SET progress_done = ?, progress_total = ?, progress_note = ? " +
+                        "WHERE id = ?",
+                ).use { statement ->
+                    statement.setLong(1, progress.done)
+                    statement.setLong(2, progress.total)
+                    statement.setString(3, progress.note)
+                    statement.setLong(4, jobId)
+                    statement.executeUpdate()
+                }
+        }
     }
 
     /**
@@ -260,37 +220,33 @@ class JobQueue(
         require(reason.isNotBlank()) {
             "Отмена задания $jobId без причины невозможна: без причины отмена неотличима от сбоя"
         }
-        val cancelled =
-            db.useTransaction { connection ->
-                val current = readSignal(connection, jobId)
-                requireNotNull(current) { "Задание $jobId не найдено" }
-                if (current.state.isTerminal) {
-                    throw DbException(
-                        "Задание $jobId уже в состоянии ${current.state.name}: отменить его нельзя. " +
-                            "Возврат из ERROR в очередь делается только явной повторной постановкой",
-                    )
-                }
-                connection
-                    .prepareStatement(
-                        """
-                        UPDATE job
-                           SET state = 'WAITING',
-                               started_at = NULL,
-                               finished_at = NULL,
-                               error_text = NULL,
-                               progress_note = ?
-                         WHERE id = ?
-                        """.trimIndent(),
-                    ).use { statement ->
-                        // Сохранённый прогресс не трогается: он и есть признак того,
-                        // что работа не начинается заново.
-                        statement.setString(1, "отменено оператором: $reason")
-                        statement.setLong(2, jobId)
-                        statement.executeUpdate()
-                    }
-                current.copy(state = JobState.WAITING, errorText = null)
+        db.useTransaction { connection ->
+            val current = readState(connection, jobId)
+            if (current.isTerminal) {
+                throw DbException(
+                    "Задание $jobId уже в состоянии ${current.name}: отменить его нельзя. " +
+                        "Возврат из ERROR в очередь делается только явной повторной постановкой",
+                )
             }
-        notify { listener.onStateChanged(cancelled) }
+            connection
+                .prepareStatement(
+                    """
+                    UPDATE tbl_jobs
+                       SET state = 'WAITING',
+                           started_at = NULL,
+                           finished_at = NULL,
+                           error_text = NULL,
+                           progress_note = ?
+                     WHERE id = ?
+                    """.trimIndent(),
+                ).use { statement ->
+                    // Сохранённый прогресс не трогается: он и есть признак того,
+                    // что работа не начинается заново.
+                    statement.setString(1, "отменено оператором: $reason")
+                    statement.setLong(2, jobId)
+                    statement.executeUpdate()
+                }
+        }
     }
 
     /**
@@ -307,37 +263,30 @@ class JobQueue(
         jobId: Long,
         reason: String,
     ) {
-        val requeued =
-            db.useTransaction { connection ->
-                val current =
-                    readSignal(connection, jobId)
-                        ?: throw DbException(
-                            "Задание $jobId не найдено: возвращать его некуда",
-                        )
-                if (current.state.isTerminal) {
-                    throw DbException(
-                        "Задание $jobId уже в состоянии ${current.state.name}: возвращать его некуда",
-                    )
-                }
-                connection
-                    .prepareStatement(
-                        """
-                        UPDATE job
-                           SET state = 'WAITING',
-                               started_at = NULL,
-                               finished_at = NULL,
-                               error_text = NULL,
-                               progress_note = ?
-                         WHERE id = ?
-                        """.trimIndent(),
-                    ).use { statement ->
-                        statement.setString(1, "прервано: $reason")
-                        statement.setLong(2, jobId)
-                        statement.executeUpdate()
-                    }
-                current.copy(state = JobState.WAITING, errorText = null)
+        db.useTransaction { connection ->
+            val current = readState(connection, jobId)
+            if (current.isTerminal) {
+                throw DbException(
+                    "Задание $jobId уже в состоянии ${current.name}: возвращать его некуда",
+                )
             }
-        notify { listener.onStateChanged(requeued) }
+            connection
+                .prepareStatement(
+                    """
+                    UPDATE tbl_jobs
+                       SET state = 'WAITING',
+                           started_at = NULL,
+                           finished_at = NULL,
+                           error_text = NULL,
+                           progress_note = ?
+                     WHERE id = ?
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setString(1, "прервано: $reason")
+                    statement.setLong(2, jobId)
+                    statement.executeUpdate()
+                }
+        }
     }
 
     /**
@@ -349,7 +298,7 @@ class JobQueue(
      */
     fun find(jobId: Long): Job? =
         db.use { connection ->
-            connection.prepareStatement("SELECT $JOB_COLUMNS FROM job WHERE id = ?").use { statement ->
+            connection.prepareStatement("SELECT $JOB_COLUMNS FROM tbl_jobs WHERE id = ?").use { statement ->
                 statement.setLong(1, jobId)
                 statement.executeQuery().use { resultSet ->
                     if (resultSet.next()) readJob(resultSet) else null
@@ -377,7 +326,7 @@ class JobQueue(
                 " WHERE state IN (${states.joinToString(", ") { "?" }})"
             }
         return db.select(
-            "SELECT $JOB_COLUMNS FROM job$condition ORDER BY created_at, id LIMIT $limit",
+            "SELECT $JOB_COLUMNS FROM tbl_jobs$condition ORDER BY created_at, id LIMIT $limit",
             ::readJobRow,
             *states.map { it.name }.toTypedArray(),
         )
@@ -406,8 +355,8 @@ class JobQueue(
                     .prepareStatement(
                         """
                         SELECT count(*)
-                          FROM job
-                          JOIN artifact ON artifact.job_id = job.id
+                          FROM tbl_jobs job
+                          JOIN tbl_artifacts artifact ON artifact.job_id = job.id
                          WHERE job.kind = ?
                            AND job.params_hash = ?
                            AND job.state = 'DONE'
@@ -443,7 +392,7 @@ class JobQueue(
     ): Int =
         db.update(
             """
-            UPDATE job
+            UPDATE tbl_jobs
                SET progress_note = COALESCE(progress_note, '') ||
                    ' — результат помечен устаревшим: изменились параметры задания'
              WHERE kind = ?
@@ -469,94 +418,63 @@ class JobQueue(
         to: JobState,
         errorText: String? = null,
     ) {
-        val changed =
-            db.useTransaction { connection ->
-                val current = readSignal(connection, jobId)
-                requireNotNull(current) { "Задание $jobId не найдено" }
-                JobTransitions.require(current.state, to)
-                val affected =
-                    connection
-                        .prepareStatement(
-                            "UPDATE job SET state = ?, error_text = ?, finished_at = now() WHERE id = ? AND state = ?",
-                        ).use { statement ->
-                            statement.setString(1, to.name)
-                            statement.setString(2, errorText)
-                            statement.setLong(3, jobId)
-                            statement.setString(4, current.state.name)
-                            statement.executeUpdate()
-                        }
-                if (affected == 0) {
-                    throw DbException(
-                        "Задание $jobId изменилось под рукой: состояние было ${current.state.name}, " +
-                            "а к моменту записи — уже другое. Повторите чтение",
-                    )
-                }
-                current.copy(state = to, errorText = errorText)
+        db.useTransaction { connection ->
+            val current = readState(connection, jobId)
+            JobTransitions.require(current, to)
+            val affected =
+                connection
+                    .prepareStatement(
+                        "UPDATE tbl_jobs SET state = ?, error_text = ?, finished_at = now() WHERE id = ? AND state = ?",
+                    ).use { statement ->
+                        statement.setString(1, to.name)
+                        statement.setString(2, errorText)
+                        statement.setLong(3, jobId)
+                        statement.setString(4, current.name)
+                        statement.executeUpdate()
+                    }
+            if (affected == 0) {
+                throw DbException(
+                    "Задание $jobId изменилось под рукой: состояние было ${current.name}, " +
+                        "а к моменту записи — уже другое. Повторите чтение",
+                )
             }
-        notify { listener.onStateChanged(changed) }
-    }
-
-    /**
-     * Передаёт изменение подписчику, не позволяя ему сорвать саму работу.
-     *
-     * Очередь к этому моменту уже записана, и повторять её запись из-за
-     * упавшего уведомления нельзя: подписчик — наблюдатель, а не участник
-     * отказа. Причина сбоя пишется в журнал записи и не поднимается наружу.
-     *
-     * @param block вызов подписчика
-     */
-    private fun notify(block: () -> Unit) {
-        runCatching(block).onFailure { failure ->
-            java.util.logging.Logger
-                .getLogger("ru.svoemesto.syp.core.jobs.JobQueue")
-                .warning("Подписчик очереди заданий не принял уведомление: ${failure.message}")
         }
     }
 
-    /**
-     * Читает снимок изменений задания.
-     *
-     * @param connection открытое соединение
-     * @param jobId идентификатор задания
-     * @return снимок либо `null`, если задания нет
-     */
-    private fun readSignal(
+    /** Читает состояние задания. */
+    private fun readState(
         connection: java.sql.Connection,
         jobId: Long,
-    ): JobSignal? =
+    ): JobState {
+        connection.prepareStatement("SELECT state FROM tbl_jobs WHERE id = ?").use { statement ->
+            statement.setLong(1, jobId)
+            statement.executeQuery().use { resultSet ->
+                if (!resultSet.next()) throw DbException("Задание $jobId не найдено")
+                return JobState.parse(resultSet.getString(1))
+            }
+        }
+    }
+
+    /** Читает сохранённый прогресс задания. */
+    private fun readProgress(
+        connection: java.sql.Connection,
+        jobId: Long,
+    ): JobProgress? {
         connection
             .prepareStatement(
-                "SELECT id, kind, state, subject_type, subject_id, progress_done, progress_total, " +
-                    "progress_note, error_text FROM job WHERE id = ?",
+                "SELECT progress_done, progress_total, progress_note FROM tbl_jobs WHERE id = ?",
             ).use { statement ->
                 statement.setLong(1, jobId)
                 statement.executeQuery().use { resultSet ->
-                    if (!resultSet.next()) {
-                        null
-                    } else {
-                        JobSignal(
-                            id = resultSet.getLong("id"),
-                            kind = JobKind.parse(resultSet.getString("kind")),
-                            state = JobState.parse(resultSet.getString("state")),
-                            subject =
-                                JobSubject(
-                                    type = resultSet.getString("subject_type"),
-                                    identifier =
-                                        resultSet
-                                            .getLong("subject_id")
-                                            .let { if (resultSet.wasNull()) null else it },
-                                ),
-                            progress =
-                                JobProgress(
-                                    done = resultSet.getLong("progress_done"),
-                                    total = resultSet.getLong("progress_total"),
-                                    note = resultSet.getString("progress_note") ?: "",
-                                ),
-                            errorText = resultSet.getString("error_text"),
-                        )
-                    }
+                    if (!resultSet.next()) return null
+                    return JobProgress(
+                        done = resultSet.getLong(1),
+                        total = resultSet.getLong(2),
+                        note = resultSet.getString(3) ?: "",
+                    )
                 }
             }
+    }
 
     /** Строит задание из строки результата запроса. */
     private fun readJob(resultSet: java.sql.ResultSet): Job {

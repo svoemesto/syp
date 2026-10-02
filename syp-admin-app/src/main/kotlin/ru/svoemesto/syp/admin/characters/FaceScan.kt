@@ -1,11 +1,11 @@
 package ru.svoemesto.syp.admin.characters
 
-import ru.svoemesto.syp.admin.catalog.Series
+import ru.svoemesto.syp.admin.catalog.Episode
 import ru.svoemesto.syp.core.media.FrameChannel
 import ru.svoemesto.syp.core.media.FrameFormat
 
 /**
- * Итог прохода по кадрам серии.
+ * Итог прохода по кадрам эпизода.
  *
  * @property frames сколько кадров прочитано и передано детектору
  * @property framesWithFaces сколько кадров дали хотя бы одно лицо
@@ -33,9 +33,9 @@ data class FaceScanResult(
      *
      * @return пояснение по-русски
      */
-    fun note(seriesName: String): String {
+    fun note(episodeName: String): String {
         val base =
-            "лица серии «$seriesName»: обработано кадров $frames, найдено лиц $faces" +
+            "лица эпизода «$episodeName»: обработано кадров $frames, найдено лиц $faces" +
                 (if (framesWithFaces > 0) ", кадров с лицами $framesWithFaces" else "") +
                 ", время ${"%.1f".format(elapsedMillis / 1000.0)} с"
         return if (detectorIsStub) {
@@ -76,17 +76,17 @@ fun interface FaceSink {
 }
 
 /**
- * Проход по кадрам серии: канал кадров плюс детектор.
+ * Проход по кадрам эпизода: канал кадров плюс детектор.
  *
  * Класс делает ровно одну работу и не делает трёх:
  *
  * 1. **не пишет кадры** — ни одного файла, ни одной записи в объектное
  *    хранилище: кадр живёт в переиспользуемом буфере от поступления до
  *    возврата от детектора (FR-024, ADR-0002);
- * 2. **не пропускает кадры** — каждый кадр серии доходит до детектора,
+ * 2. **не пропускает кадры** — каждый кадр эпизода доходит до детектора,
  *    адаптивного шага нет (ADR-0002);
  * 3. **не выдаёт частичный результат за полный** — число обработанных
- *    кадров обязано совпасть с числом кадров серии, иначе проход падает с
+ *    кадров обязано совпасть с числом кадров эпизода, иначе проход падает с
  *    текстом (SC-005, T073).
  *
  * Рамки на этом шаге проверяются на попадание в кадр, но **не сохраняются**:
@@ -102,26 +102,26 @@ class FaceScan(
     private val detector: FaceDetector,
 ) {
     /**
-     * Проводит серию через детектор.
+     * Проводит эпизод через детектор.
      *
      * Детектор, который умеет закрываться, закрывается здесь же — в том числе
      * при отказе: оставленный процесс детекции держал бы видеокарту и помешал
      * бы следующему заданию.
      *
-     * @param series серия: берутся путь к файлу, разрешение и число кадров
-     * @param maxFrames ограничение числа кадров; `0` — вся серия
+     * @param episode эпизод: берутся путь к файлу, разрешение и число кадров
+     * @param maxFrames ограничение числа кадров; `0` — весь эпизод
      * @param progress приёмник числа обработанных кадров
      * @param sink приёмник найденных рамок; `null` — рамки не сохраняются
      * @return итог прохода
      * @throws ru.svoemesto.syp.core.media.FrameChannelFailed если поток кадров
      *   оборвался, декодер вернул ненулевой код либо число обработанных
-     *   кадров не совпало с числом кадров серии
+     *   кадров не совпало с числом кадров эпизода
      * @throws IllegalArgumentException если детектор вернул рамку вне кадра
      * @throws FaceDetectorFailed если программа детектора не поднялась, не
      *   ответила на кадр, оборвала ответ или завершилась с ненулевым кодом
      */
     fun scan(
-        series: Series,
+        episode: Episode,
         maxFrames: Int = 0,
         progress: (Int) -> Unit = {},
         sink: FaceSink? = null,
@@ -129,7 +129,7 @@ class FaceScan(
         require(maxFrames >= 0) { "Ограничение числа кадров отрицательно: $maxFrames" }
         var failure: Throwable? = null
         try {
-            return scanSeries(series, maxFrames, progress, sink)
+            return scanEpisode(episode, maxFrames, progress, sink)
         } catch (refused: Throwable) {
             failure = refused
             throw refused
@@ -154,30 +154,30 @@ class FaceScan(
     }
 
     /**
-     * Проводит серию через детектор без управления его жизненным циклом.
+     * Проводит эпизод через детектор без управления его жизненным циклом.
      *
-     * @param series серия: берутся путь к файлу, разрешение и число кадров
-     * @param maxFrames ограничение числа кадров; `0` — вся серия
+     * @param episode эпизод: берутся путь к файлу, разрешение и число кадров
+     * @param maxFrames ограничение числа кадров; `0` — весь эпизод
      * @param progress приёмник числа обработанных кадров
      * @param sink приёмник найденных рамок; `null` — рамки не сохраняются
      * @return итог прохода
      */
-    private fun scanSeries(
-        series: Series,
+    private fun scanEpisode(
+        episode: Episode,
         maxFrames: Int,
         progress: (Int) -> Unit,
         sink: FaceSink?,
     ): FaceScanResult {
         require(maxFrames >= 0) { "Ограничение числа кадров отрицательно: $maxFrames" }
-        val format = FrameFormat(series.width, series.height)
-        val expected = if (maxFrames > 0) maxFrames else series.frameCount
+        val format = FrameFormat(episode.width, episode.height)
+        val expected = if (maxFrames > 0) maxFrames else episode.frameCount
         var faces = 0
         var framesWithFaces = 0
         var processed = 0
 
         val result =
             channel.scan(
-                sourcePath = series.sourcePath,
+                sourcePath = episode.sourcePath,
                 format = format,
                 maxFrames = maxFrames,
                 onFrame = { frame ->
@@ -188,7 +188,7 @@ class FaceScan(
                         framesWithFaces++
                     }
                     // Приёмник вызывается на каждом кадре, в том числе на
-                    // кадре без лиц: иначе проход по кадрам серии, где лиц
+                    // кадре без лиц: иначе проход по кадрам эпизода, где лиц
                     // почти нет, выглядел бы как «кадров нет вообще».
                     sink?.accept(frame.number, format.width, format.height, found)
                     processed = frame.number + 1
@@ -199,7 +199,7 @@ class FaceScan(
         if (result.stoppedEarly) {
             // Ограничение кадров — приём замеров на префиксе. Для задания
             // FACES оно не используруется, но вызывающий должен знать, что
-            // прогон неполон: иначе его приняли бы за полный охват серии.
+            // прогон неполон: иначе его приняли бы за полный охват эпизода.
             return FaceScanResult(
                 frames = result.frames,
                 framesWithFaces = framesWithFaces,
@@ -213,7 +213,7 @@ class FaceScan(
 
         if (processed != expected) {
             throw ru.svoemesto.syp.core.media.FrameChannelFailed(
-                "Обработано кадров $processed, а в серии «${series.name}» их ${series.frameCount}. " +
+                "Обработано кадров $processed, а в эпизоде «${episode.name}» их ${episode.frameCount}. " +
                     "Кадры не пропускаются: результат неполным быть не может (FR-030, SC-005)",
             )
         }

@@ -2,17 +2,15 @@ package ru.svoemesto.syp.admin.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.integrity.ChecksumController
 import ru.svoemesto.syp.admin.integrity.ChecksumEnqueuer
 import ru.svoemesto.syp.admin.integrity.ChecksumRegistry
 import ru.svoemesto.syp.admin.integrity.HashJob
 import ru.svoemesto.syp.admin.jobs.AdminJobWorker
 import ru.svoemesto.syp.admin.jobs.JobHandler
-import ru.svoemesto.syp.admin.notify.NotificationPublisher
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
-import ru.svoemesto.syp.core.jobs.JobQueueListener
 import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.FileSystemStorage
 import ru.svoemesto.syp.core.storage.ObjectStorage
@@ -37,19 +35,11 @@ class IntegrityConfiguration {
     /**
      * Собирает очередь заданий.
      *
-     * Подписчик [listener] приходит сюда же: очередь — единственное место,
-     * где меняется состояние задания. Повесь уведомление на воркера, и отмена
-     * задания оператором останется незамеченной.
-     *
      * @param database доступ к базе
-     * @param listener наблюдатель изменений очереди
      * @return очередь заданий
      */
     @Bean
-    fun jobQueue(
-        database: Db,
-        listener: JobQueueListener,
-    ): JobQueue = JobQueue(database, listener)
+    fun jobQueue(database: Db): JobQueue = JobQueue(database)
 
     /**
      * Собирает справочник сумм исходников.
@@ -63,47 +53,45 @@ class IntegrityConfiguration {
     /**
      * Собирает исполнитель подсчёта суммы.
      *
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @param registry справочник сумм
-     * @param notifications публикация уведомлений о событиях домена
      * @return исполнитель задания `HASH`
      */
     @Bean
     fun hashJob(
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         registry: ChecksumRegistry,
-        notifications: NotificationPublisher,
-    ): HashJob = HashJob(seriesStore, registry, notifications)
+    ): HashJob = HashJob(episodeStore, registry)
 
     /**
      * Собирает постановщик пересчёта.
      *
      * @param queue очередь заданий
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @param registry справочник сумм
      * @return постановщик подсчёта
      */
     @Bean
     fun checksumEnqueuer(
         queue: JobQueue,
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         registry: ChecksumRegistry,
-    ): ChecksumEnqueuer = ChecksumEnqueuer(queue, seriesStore, registry)
+    ): ChecksumEnqueuer = ChecksumEnqueuer(queue, episodeStore, registry)
 
     /**
      * Собирает эндпоинты сверки целостности.
      *
      * @param enqueuer постановщик пересчёта
      * @param registry справочник сумм
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @return контроллер суммы
      */
     @Bean
     fun checksumController(
         enqueuer: ChecksumEnqueuer,
         registry: ChecksumRegistry,
-        seriesStore: SeriesStore,
-    ): ChecksumController = ChecksumController(enqueuer, registry, seriesStore)
+        episodeStore: EpisodeStore,
+    ): ChecksumController = ChecksumController(enqueuer, registry, episodeStore)
 
     /**
      * Собирает объектное хранилище артефактов.

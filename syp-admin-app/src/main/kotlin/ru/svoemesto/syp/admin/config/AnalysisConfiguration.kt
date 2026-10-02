@@ -11,9 +11,9 @@ import ru.svoemesto.syp.admin.analysis.Staleness
 import ru.svoemesto.syp.admin.analysis.StructureController
 import ru.svoemesto.syp.admin.analysis.StructureJob
 import ru.svoemesto.syp.admin.analysis.StructureService
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.LocationStore
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.media.ExternalProgram
@@ -67,7 +67,7 @@ class AnalysisConfiguration {
     fun frameSignificanceStore(database: Db): FrameSignificanceStore = FrameSignificanceStore(database)
 
     /**
-     * Собирает сервис рабочей структуры серии.
+     * Собирает сервис рабочего структуры эпизода.
      *
      * @param database доступ к базе
      * @param runStore хранилище прогонов
@@ -111,13 +111,13 @@ class AnalysisConfiguration {
     /**
      * Собирает исполнителя задания `ANALYZE`.
      *
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @param runStore хранилище прогонов
      * @param structure сервис рабочей структуры
      * @param frames хранилище значимых кадров
      * @param detector детектор границ
      * @param program единая точка запуска внешних программ
-     * @param settingsStore настройки сериала
+     * @param settingsStore настройки фильма
      * @param artifactRegistry реестр артефактов
      * @param staleness пометка устаревания
      * @param storage объектное хранилище
@@ -125,19 +125,19 @@ class AnalysisConfiguration {
      */
     @Bean
     fun structureJob(
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         runStore: AnalysisRunStore,
         structure: StructureService,
         frames: FrameSignificanceStore,
         detector: SceneDetector,
         program: ExternalProgram,
-        settingsStore: SerialSettingsStore,
+        settingsStore: MovieSettingsStore,
         artifactRegistry: ArtifactRegistry,
         staleness: Staleness,
         storage: ObjectStorage,
     ): StructureJob =
         StructureJob(
-            seriesStore = seriesStore,
+            episodeStore = episodeStore,
             runStore = runStore,
             structure = structure,
             frames = frames,
@@ -155,26 +155,26 @@ class AnalysisConfiguration {
      * Собирает постановщик анализа структуры.
      *
      * @param queue очередь заданий
-     * @param settingsStore настройки сериала
+     * @param settingsStore настройки фильма
      * @return постановщик анализа
      */
     @Bean
     fun analysisEnqueuer(
         queue: JobQueue,
-        settingsStore: SerialSettingsStore,
+        settingsStore: MovieSettingsStore,
     ): AnalysisEnqueuer = AnalysisEnqueuer(queue, settingsStore)
 
     /**
-     * Собирает эндпоинты структуры серии и превью.
+     * Собирает эндпоинты структуры эпизода и превью.
      *
      * @param enqueuer постановщик анализа
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @param runStore хранилище прогонов
      * @param structure сервис рабочей структуры
      * @param boundaryStore хранилище сырых границ
      * @param frameStore хранилище значимых кадров
      * @param staleness состояние актуальности результата
-     * @param settingsStore настройки сериала
+     * @param settingsStore настройки фильма
      * @param artifactRegistry реестр артефактов
      * @param storage объектное хранилище
      * @param locations справочник мест действия
@@ -183,20 +183,20 @@ class AnalysisConfiguration {
     @Bean
     fun structureController(
         enqueuer: AnalysisEnqueuer,
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         runStore: AnalysisRunStore,
         structure: StructureService,
         boundaryStore: RawBoundaryStore,
         frameStore: FrameSignificanceStore,
         staleness: Staleness,
-        settingsStore: SerialSettingsStore,
+        settingsStore: MovieSettingsStore,
         artifactRegistry: ArtifactRegistry,
         storage: ObjectStorage,
         locations: LocationStore,
     ): StructureController =
         StructureController(
             enqueuer = enqueuer,
-            seriesStore = seriesStore,
+            episodeStore = episodeStore,
             runStore = runStore,
             structure = structure,
             boundaryStore = boundaryStore,

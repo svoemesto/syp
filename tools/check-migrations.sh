@@ -5,13 +5,15 @@
 # при этом не создаются и не трогаются; контейнер проверки удаляется в конце.
 #
 # Проверяется ровно то, что перечислено в задаче T025, плюс ограничения,
-# добавленные миграциями 09 и правила каскадного удаления сериала:
+# добавленные миграциями 09 и правила каскадного удаления фильма:
 #   1. все файлы deploy/syp-db/NN_*.sql применяются по порядку;
-#   2. состав схемы: 23 таблицы, среди них source_file_checksum,
-#      build_recipe, build_recipe_item;
+#   2. состав схемы: 23 таблицы, все с префиксом tbl_, среди них
+#      tbl_source_file_checksums, tbl_build_recipes, tbl_build_recipe_items;
+#   2a. переименование состоялось: прежних имён в схеме нет, новые на
+#      месте, а имена ссылок прежних нет (миграция 16);
 #   3. проверки ограничений: каждая — «ожидается отказ» или «ожидается
 #      принятие», в отдельной транзакции с откатом;
-#   4. новый сериал автоматически получает 11 настроек по умолчанию;
+#   4. новый фильм автоматически получает 11 настроек по умолчанию;
 #   5. повторное применение 01_catalog.sql отклоняется базой;
 #   6. столбец recordhash присутствует во всех таблицах;
 #   7. длина карты ключевых кадров обязана быть ровно ceil(кадров / 8) байт:
@@ -19,10 +21,10 @@
 #      что границы фрагментов считаются по не тем кадрам (миграция 09);
 #   7a. у незавершённого подсчёта суммы нет, а готовая сумма обязана быть, и
 #      запись справочника ссылается на существующее задание (миграция 10);
-#   7b. у каждого сериала ровно две служебные персоны, вторая того же вида не
-#      заводится, удаление заглушки при живом сериале отвергается базой, а
-#      удаление сериала уносит заглушки каскадом (миграция 11);
-#   8. удаление сериала каскадом уносит серии, лица, персоны, версии моделей,
+#   7b. у каждого фильма ровно две служебные персоны, вторая того же вида не
+#      заводится, удаление заглушки при живом фильме отвергается базой, а
+#      удаление фильма уносит заглушки каскадом (миграция 11);
+#   8. удаление фильма каскадом уносит эпизоды, лица, персоны, версии моделей,
 #      сценарии сборки, справочник сумм и настройки, не оставляя сирот.
 #
 # Использование: bash tools/check-migrations.sh
@@ -97,7 +99,7 @@ else
     report_fail "таблиц ${tables}, ожидалось 23"
 fi
 
-for table in source_file_checksum build_recipe build_recipe_item; do
+for table in tbl_source_file_checksums tbl_build_recipes tbl_build_recipe_items; do
     exists=$(psql_run <<< "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='${table}';")
     if [[ "${exists}" == "1" ]]; then
         report_ok "таблица ${table} есть"
@@ -105,6 +107,80 @@ for table in source_file_checksum build_recipe build_recipe_item; do
         report_fail "таблица ${table} отсутствует"
     fi
 done
+
+# --- 2a. Переименование состоялось ------------------------------------------
+# Проверка обратная не «список совпал», а «прежних имён нет»: иначе миграция
+# могла бы остаться неприменённой, а состав всё равно сошёлся бы с ожиданием.
+printf '\n%s\n' "2a. Переименование таблиц и столбцов-ссылок"
+
+renamed=$(psql_run <<< "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name NOT LIKE 'tbl\_%';")
+if [[ "${renamed}" == "0" ]]; then
+    report_ok "все 23 таблицы получили префикс tbl_"
+else
+    report_fail "без префикса tbl_ осталось таблиц: ${renamed}"
+fi
+
+stale=""
+for table in serial series analysis_run analysis_setting artifact build_recipe \
+              build_recipe_item face face_embedding filter_condition filter_group \
+              frame job location model_version model_version_example person \
+              raw_boundary scene season shot source_file_checksum syp_filter; do
+    found=$(psql_run <<< "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='${table}';")
+    if [[ "${found}" != "0" ]]; then
+        stale="${stale} ${table}"
+    fi
+done
+if [[ -z "${stale}" ]]; then
+    report_ok "прежних имён таблиц в схеме не осталось"
+else
+    report_fail "прежние имена таблиц на месте:${stale}"
+fi
+
+# Все 23 новых имени обязаны быть на месте: иначе переименование прошло бы
+# не полностью, а счёт таблиц остался бы прежним.
+missing=""
+for table in tbl_movies tbl_episodes tbl_analysis_runs tbl_analysis_settings \
+              tbl_artifacts tbl_build_recipes tbl_build_recipe_items tbl_faces \
+              tbl_face_embeddings tbl_filter_conditions tbl_filter_groups tbl_frames \
+              tbl_jobs tbl_locations tbl_model_versions tbl_model_version_examples \
+              tbl_persons tbl_raw_boundaries tbl_scenes tbl_seasons tbl_shots \
+              tbl_source_file_checksums tbl_filters; do
+    found=$(psql_run <<< "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='${table}';")
+    if [[ "${found}" != "1" ]]; then
+        missing="${missing} ${table}"
+    fi
+done
+if [[ -z "${missing}" ]]; then
+    report_ok "все 23 новых имени таблиц на месте"
+else
+    report_fail "новых имён нет:${missing}"
+fi
+
+# Прежние имена столбцов пишутся здесь дословно: правила переименования к
+# самой этой проверке не применяются, иначе она искала бы новые имена и
+# рапортовала бы об успехе, ничего не проверяя.
+stale_names="$(printf "'serial%s', 'series%s', 'series%s', 'series%s'" _id _id _name _count)"
+stale_cols=$(psql_run <<< "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND column_name IN (${stale_names});")
+if [[ "${stale_cols}" == "0" ]]; then
+    report_ok "прежних имён столбцов-ссылок не осталось"
+else
+    report_fail "прежних имён столбцов-ссылок осталось: ${stale_cols}"
+fi
+
+movie_cols=$(psql_run <<< "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND column_name='id_movie';")
+if [[ "${movie_cols}" == "8" ]]; then
+    report_ok "id_movie в восьми таблицах, как велит карта"
+else
+    report_fail "id_movie в ${movie_cols} таблицах, ожидалось 8"
+fi
+
+episode_cols=$(psql_run <<< "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND column_name='id_episode';")
+if [[ "${episode_cols}" == "7" ]]; then
+    report_ok "id_episode в семи таблицах, как велит карта"
+else
+    report_fail "id_episode в ${episode_cols} таблицах, ожидалось 7"
+fi
+
 
 hashes=$(psql_run <<< "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND column_name='recordhash';")
 if [[ "${hashes}" == "23" ]]; then
@@ -119,14 +195,14 @@ printf '\n%s\n' "3. Проверки ограничений"
 # Подготовка данных для проверок. Каждая проверка выполняется в своей
 # транзакции с откатом, поэтому состояние базы после проверок не меняется.
 psql_run <<'SQL' >/dev/null 2>&1
-INSERT INTO serial (id, name, source_root) VALUES (901, 'Проверка ограничений', '/srv/got');
-INSERT INTO location (serial_id, name) VALUES (901, 'Лагерь');
-INSERT INTO series (id, serial_id, ordinal, name, source_path, file_size, file_mtime,
+INSERT INTO tbl_movies (id, name, source_root) VALUES (901, 'Проверка ограничений', '/srv/got');
+INSERT INTO tbl_locations (id_movie, name) VALUES (901, 'Лагерь');
+INSERT INTO tbl_episodes (id, id_movie, ordinal, name, source_path, file_size, file_mtime,
                     frame_count, time_base_num, time_base_den, width, height,
                     duration_num, duration_den, video_codec, pixel_format)
 VALUES (901, 901, 1, 'S01E01', '/srv/got/S01E01.mkv', 5598286865, now(),
         88643, 1001, 24000, 1920, 1080, 36972, 10, 'h264', 'yuv420p');
-INSERT INTO series (id, serial_id, ordinal, name, source_path, file_size, file_mtime,
+INSERT INTO tbl_episodes (id, id_movie, ordinal, name, source_path, file_size, file_mtime,
                     frame_count, time_base_num, time_base_den, width, height,
                     duration_num, duration_den, video_codec, pixel_format)
 VALUES (9501, 901, 2, 'S01E02', '/srv/got/S01E02.mkv', 5022335635, now(),
@@ -172,126 +248,137 @@ check_writes() {
 }
 
 # --- каталог: ограничения путей и уникальности ---
-check "корень сериала не абсолютный — отказ" fail \
-    "INSERT INTO serial (name, source_root) VALUES ('p1', 'got');"
-check "корень сериала со слэшем в конце — отказ" fail \
-    "INSERT INTO serial (name, source_root) VALUES ('p2', '/srv/got/');"
-check "пустое имя сериала — отказ" fail \
-    "INSERT INTO serial (name, source_root) VALUES ('   ', '/srv/got');"
-check "дубль названия сериала — отказ" fail \
-    "INSERT INTO serial (name, source_root) VALUES ('Проверка ограничений', '/srv/got2');"
-check "корень сериала без слэша в конце — принят" ok \
-    "INSERT INTO serial (name, source_root) VALUES ('p3', '/srv/got3');"
+check "корень фильма не абсолютный — отказ" fail \
+    "INSERT INTO tbl_movies (name, source_root) VALUES ('p1', 'got');"
+check "корень фильма со слэшем в конце — отказ" fail \
+    "INSERT INTO tbl_movies (name, source_root) VALUES ('p2', '/srv/got/');"
+check "пустое имя фильма — отказ" fail \
+    "INSERT INTO tbl_movies (name, source_root) VALUES ('   ', '/srv/got');"
+check "дубль названия фильма — отказ" fail \
+    "INSERT INTO tbl_movies (name, source_root) VALUES ('Проверка ограничений', '/srv/got2');"
+check "корень фильма без слэша в конце — принят" ok \
+    "INSERT INTO tbl_movies (name, source_root) VALUES ('p3', '/srv/got3');"
 
-check "путь серии не абсолютный — отказ" fail \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
+check "путь эпизода не абсолютный — отказ" fail \
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
      VALUES (901, 2, 'X', 'relative/path.mkv', 100, now(), 10, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p');"
 check "нулевое число кадров — отказ" fail \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
      VALUES (901, 3, 'Y', '/srv/got/Y.mkv', 100, now(), 0, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p');"
 check "нулевая ширина — отказ" fail \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
      VALUES (901, 4, 'Z', '/srv/got/Z.mkv', 100, now(), 10, 1001, 24000, 0, 1080, 10, 1, 'h264', 'yuv420p');"
 check "дубль пути к источнику — отказ" fail \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
      VALUES (901, 5, 'W', '/srv/got/S01E01.mkv', 100, now(), 10, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p');"
-check "дубль номера серии в сериале — отказ" fail \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
+check "дубль номера эпизода в фильме — отказ" fail \
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format)
      VALUES (901, 1, 'V', '/srv/got/V.mkv', 100, now(), 10, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p');"
 
 # --- карта ключевых кадров: длина обязана соответствовать числу кадров ---
 # 88 643 кадра — это ceil(88 643 / 8) = 11 081 байт. Ровно такая карта
-# записывается опросом серии, и никакая другая быть не должна: короче —
+# записывается опросом эпизода, и никакая другая быть не должна: короче —
 # часть кадров молча считается неключевой, длиннее — границы фрагментов
 # считаются по не тем кадрам. Обе ошибки проявились бы не при регистрации
-# серии, а у пользователя через час работы на своей машине (миграция 09).
+# эпизода, а у пользователя через час работы на своей машине (миграция 09).
 check "карта ключевых кадров без единого бита — принят" ok \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
      VALUES (901, 10, 'Без карты', '/srv/got/без-карты.mkv', 100, now(), 88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p', NULL);"
 check "карта ключевых кадров точной длины — принят" ok \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
      VALUES (901, 11, 'С картой', '/srv/got/с-картой.mkv', 100, now(), 88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p', decode(repeat('00', 11081), 'hex'));"
 check "карта ключевых кадров короче требуемого — отказ" fail \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
      VALUES (901, 12, 'Короче', '/srv/got/короче.mkv', 100, now(), 88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p', decode(repeat('00', 11080), 'hex'));"
 check "карта ключевых кадров длиннее требуемого — отказ" fail \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
      VALUES (901, 13, 'Длиннее', '/srv/got/длиннее.mkv', 100, now(), 88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p', decode(repeat('00', 11082), 'hex'));"
 check "карта ключевых кадров длиной в целый кадр при 8 кадрах — принят" ok \
-    "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
+    "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, frame_count, time_base_num, time_base_den, width, height, duration_num, duration_den, video_codec, pixel_format, keyframe_bitmap)
      VALUES (901, 14, 'Восемь кадров', '/srv/got/восемь.mkv', 100, now(), 8, 1, 25, 1920, 1080, 8, 25, 'h264', 'yuv420p', decode(repeat('80', 1), 'hex'));"
 
 # --- очередь заданий: виды, состояния, прогресс, ошибка ---
 check "вид задания ASSEMBLE — отказ" fail \
-    "INSERT INTO job (kind, params, params_hash) VALUES ('ASSEMBLE', '{}', 'h');"
+    "INSERT INTO tbl_jobs (kind, params, params_hash) VALUES ('ASSEMBLE', '{}', 'h');"
 check "вид задания ANALYZE — принят" ok \
-    "INSERT INTO job (kind, params, params_hash) VALUES ('ANALYZE', '{}', 'h');"
+    "INSERT INTO tbl_jobs (kind, params, params_hash) VALUES ('ANALYZE', '{}', 'h');"
 check "вид задания HASH — принят" ok \
-    "INSERT INTO job (kind, params, params_hash) VALUES ('HASH', '{}', 'h2');"
+    "INSERT INTO tbl_jobs (kind, params, params_hash) VALUES ('HASH', '{}', 'h2');"
 check "состояние задания PAUSED — отказ" fail \
-    "INSERT INTO job (kind, state, params, params_hash) VALUES ('FACES', 'PAUSED', '{}', 'h3');"
+    "INSERT INTO tbl_jobs (kind, state, params, params_hash) VALUES ('FACES', 'PAUSED', '{}', 'h3');"
 check "состояние ERROR без текста ошибки — отказ" fail \
-    "INSERT INTO job (kind, state, params, params_hash) VALUES ('TRAIN', 'ERROR', '{}', 'h4');"
+    "INSERT INTO tbl_jobs (kind, state, params, params_hash) VALUES ('TRAIN', 'ERROR', '{}', 'h4');"
 check "состояние DONE без общего объёма — отказ" fail \
-    "INSERT INTO job (kind, state, params, params_hash, progress_total) VALUES ('ANALYZE', 'DONE', '{}', 'h5', 0);"
+    "INSERT INTO tbl_jobs (kind, state, params, params_hash, progress_total) VALUES ('ANALYZE', 'DONE', '{}', 'h5', 0);"
 check "состояние DONE с общим объёмом — принят" ok \
-    "INSERT INTO job (kind, state, params, params_hash, progress_total) VALUES ('ANALYZE', 'DONE', '{}', 'h6', 88643);"
+    "INSERT INTO tbl_jobs (kind, state, params, params_hash, progress_total) VALUES ('ANALYZE', 'DONE', '{}', 'h6', 88643);"
 check "пустой хеш параметров — отказ" fail \
-    "INSERT INTO job (kind, params, params_hash) VALUES ('HASH', '{}', '   ');"
+    "INSERT INTO tbl_jobs (kind, params, params_hash) VALUES ('HASH', '{}', '   ');"
 check "отрицательный прогресс — отказ" fail \
-    "INSERT INTO job (kind, params, params_hash, progress_done) VALUES ('HASH', '{}', 'h7', -1);"
+    "INSERT INTO tbl_jobs (kind, params, params_hash, progress_done) VALUES ('HASH', '{}', 'h7', -1);"
 check "пять состояний очереди — приняты" ok \
-    "INSERT INTO job (kind, state, params, params_hash, progress_total, error_text) VALUES
+    "INSERT INTO tbl_jobs (kind, state, params, params_hash, progress_total, error_text) VALUES
      ('ANALYZE','WAITING','{}','s1',0,NULL),
      ('FACES','CREATING','{}','s2',0,NULL),
      ('TRAIN','WORKING','{}','s3',0,NULL),
      ('HASH','DONE','{}','s4',10,NULL),
      ('HASH','ERROR','{}','s5',0,'упало');"
 
+# --- вид задания переименован вместе с сущностью ---
+# Ограничение в базе проверяет само значение: без его правки задание к
+# эпизоду не прошло бы, а прежнее значение продолжало бы проходить.
+# Прежнее значение собирается из кусков: правила переименования к самой
+# проверке не применяются, иначе она проверяла бы новое имя.
+old_subject="$(printf 'SERI%s' ES)"
+check "вид задания EPISODE — принят" ok \
+    "INSERT INTO tbl_jobs (kind, state, subject_type, subject_id, params, params_hash) VALUES ('HASH', 'WAITING', 'EPISODE', 1, '{}', 'ep1');"
+check "вид задания с прежним названием сущности — отказ" fail \
+    "INSERT INTO tbl_jobs (kind, state, subject_type, subject_id, params, params_hash) VALUES ('HASH', 'WAITING', '${old_subject}', 1, '{}', 'ep2');"
+
 # --- артефакты: виды, размещение, состояния, контрольная сумма ---
 check "вид артефакта ASSEMBLY — отказ" fail \
-    "INSERT INTO artifact (kind, placement, object_key) VALUES ('ASSEMBLY', 'SSD', 'a/b');"
+    "INSERT INTO tbl_artifacts (kind, placement, object_key) VALUES ('ASSEMBLY', 'SSD', 'a/b');"
 check "вид артефакта PREVIEW_SHEET — принят" ok \
-    "INSERT INTO artifact (kind, placement, object_key) VALUES ('PREVIEW_SHEET', 'SSD', 'a/p');"
+    "INSERT INTO tbl_artifacts (kind, placement, object_key) VALUES ('PREVIEW_SHEET', 'SSD', 'a/p');"
 check "вид артефакта RECIPE — принят" ok \
-    "INSERT INTO artifact (kind, placement, object_key) VALUES ('RECIPE', 'SSD', 'a/r');"
+    "INSERT INTO tbl_artifacts (kind, placement, object_key) VALUES ('RECIPE', 'SSD', 'a/r');"
 check "размещение HDD — отказ" fail \
-    "INSERT INTO artifact (kind, placement, object_key) VALUES ('MODEL', 'HDD', 'a/m');"
+    "INSERT INTO tbl_artifacts (kind, placement, object_key) VALUES ('MODEL', 'HDD', 'a/m');"
 check "состояние артефакта PENDING — отказ" fail \
-    "INSERT INTO artifact (kind, placement, object_key, state) VALUES ('MODEL', 'SSD', 'a/x', 'PENDING');"
+    "INSERT INTO tbl_artifacts (kind, placement, object_key, state) VALUES ('MODEL', 'SSD', 'a/x', 'PENDING');"
 check "готовый артефакт без размера — отказ" fail \
-    "INSERT INTO artifact (kind, placement, object_key, state, byte_size) VALUES ('MODEL', 'SSD', 'a/y', 'READY', NULL);"
+    "INSERT INTO tbl_artifacts (kind, placement, object_key, state, byte_size) VALUES ('MODEL', 'SSD', 'a/y', 'READY', NULL);"
 check "контрольная сумма не из 64 hex — отказ" fail \
-    "INSERT INTO artifact (kind, placement, object_key, byte_size, checksum) VALUES ('MODEL', 'SSD', 'a/z', 10, 'abc');"
+    "INSERT INTO tbl_artifacts (kind, placement, object_key, byte_size, checksum) VALUES ('MODEL', 'SSD', 'a/z', 10, 'abc');"
 check "контрольная сумма в верхнем регистре — отказ" fail \
-    "INSERT INTO artifact (kind, placement, object_key, byte_size, checksum)
+    "INSERT INTO tbl_artifacts (kind, placement, object_key, byte_size, checksum)
      VALUES ('MODEL', 'SSD', 'a/w', 10, repeat('A', 64));"
 check "контрольная сумма 64 hex в нижнем — принят" ok \
-    "INSERT INTO artifact (kind, placement, object_key, byte_size, checksum)
+    "INSERT INTO tbl_artifacts (kind, placement, object_key, byte_size, checksum)
      VALUES ('MODEL', 'SSD', 'a/v', 10, repeat('a', 64));"
 check "дубль вида и ключа артефакта — отказ" fail \
-    "INSERT INTO artifact (kind, placement, object_key, byte_size, checksum) VALUES ('MODEL', 'SSD', 'a/v', 10, repeat('a', 64));
-     INSERT INTO artifact (kind, placement, object_key) VALUES ('MODEL', 'SSD', 'a/v');"
+    "INSERT INTO tbl_artifacts (kind, placement, object_key, byte_size, checksum) VALUES ('MODEL', 'SSD', 'a/v', 10, repeat('a', 64));
+     INSERT INTO tbl_artifacts (kind, placement, object_key) VALUES ('MODEL', 'SSD', 'a/v');"
 check "пустой ключ артефакта — отказ" fail \
-    "INSERT INTO artifact (kind, placement, object_key) VALUES ('MODEL', 'SSD', '   ');"
+    "INSERT INTO tbl_artifacts (kind, placement, object_key) VALUES ('MODEL', 'SSD', '   ');"
 
 # --- справочник сумм: алгоритм, формат суммы, единственность ---
 check "алгоритм суммы не SHA-256 — отказ" fail \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state)
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state)
      VALUES (901, 'MD5', repeat('a', 32), 10, now(), 'DONE');"
 check "сумма не из 64 hex — отказ" fail \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state)
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state)
      VALUES (901, 'SHA-256', repeat('a', 63), 10, now(), 'DONE');"
 check "состояние суммы DONE без текста ошибки — принят" ok \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at)
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
      VALUES (901, 'SHA-256', repeat('b', 64), 10, now(), 'DONE', now());"
-check "вторая актуальная сумма той же серии — отказ" fail \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at)
+check "вторая актуальная сумма того же эпизода — отказ" fail \
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
      VALUES (901, 'SHA-256', repeat('c', 64), 10, now(), 'DONE', now());
-     INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at)
+     INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
      VALUES (901, 'SHA-256', repeat('g', 64), 10, now(), 'DONE', now());"
-check "вторая устаревшая сумма той же серии — принят" ok \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at, is_stale)
+check "вторая устаревшая сумма того же эпизода — принят" ok \
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at, is_stale)
      VALUES (901, 'SHA-256', repeat('d', 64), 10, now(), 'DONE', now(), true);"
 
 # --- справочник сумм: незавершённый подсчёт и связь с заданием ---
@@ -299,27 +386,27 @@ check "вторая устаревшая сумма той же серии — �
 # файла. Поэтому у записей CREATING и WORKING значения суммы нет вовсе, а
 # ссылка на задание проверяется базой (миграция 10).
 check_writes "запись незавершённого подсчёта без значения суммы — принята" \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state)
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state)
      VALUES (9501, 'SHA-256', NULL, 10, now(), 'CREATING');"
 check "запись в состоянии DONE без значения суммы — отказ" fail \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at)
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
      VALUES (9501, 'SHA-256', NULL, 10, now(), 'DONE', now());"
 check "ссылка на задание, которого нет, — отказ" fail \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, job_id)
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, job_id)
      VALUES (9501, 'SHA-256', NULL, 10, now(), 'WORKING', 999999);"
 check "готовый подсчёт без ссылки на задание — принят" ok \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at)
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
      VALUES (9502, 'SHA-256', repeat('e', 64), 10, now(), 'DONE', now());"
 # Удаление задания не должно удалять результат: ссылка обнуляется, а сама
 # сумма остаётся. Проверка идёт одной транзакцией — иначе откат уничтожил бы
 # и запись, и удаление задания.
 job_link=$(printf '%s\n' "BEGIN;" \
-    "INSERT INTO job (id, kind, state, subject_type, subject_id, params, params_hash)" \
-    "VALUES (777, 'HASH', 'WORKING', 'SERIES', 9501, '{}'::jsonb, repeat('7', 64));" \
-    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, job_id, computed_at)" \
+    "INSERT INTO tbl_jobs (id, kind, state, subject_type, subject_id, params, params_hash)" \
+    "VALUES (777, 'HASH', 'WORKING', 'EPISODE', 9501, '{}'::jsonb, repeat('7', 64));" \
+    "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, job_id, computed_at)" \
     "VALUES (9501, 'SHA-256', repeat('a', 64), 10, now(), 'DONE', 777, now());" \
-    "DELETE FROM job WHERE id = 777;" \
-    "SELECT count(*) FROM source_file_checksum WHERE series_id = 9501 AND job_id IS NULL;" \
+    "DELETE FROM tbl_jobs WHERE id = 777;" \
+    "SELECT count(*) FROM tbl_source_file_checksums WHERE id_episode = 9501 AND job_id IS NULL;" \
     "ROLLBACK;" | psql_run 2>&1 | tail -1)
 if [[ "${job_link}" == "1" ]]; then
     report_ok "удаление задания обнуляет ссылку, а сумма остаётся"
@@ -328,28 +415,28 @@ else
 fi
 
 # --- настройки по умолчанию ---
-settings=$(psql_run <<< "SELECT count(*) FROM analysis_setting WHERE serial_id = 901;")
+settings=$(psql_run <<< "SELECT count(*) FROM tbl_analysis_settings WHERE id_movie = 901;")
 if [[ "${settings}" == "11" ]]; then
-    report_ok "новый сериал получил 11 настроек по умолчанию"
+    report_ok "новый фильм получил 11 настроек по умолчанию"
 else
-    report_fail "новый сериал получил ${settings} настроек, ожидалось 11"
+    report_fail "новый фильм получил ${settings} настроек, ожидалось 11"
 fi
 
-# --- служебные персоны сериала -------------------------------------------
+# --- служебные персоны фильма -------------------------------------------
 # Правила живут в базе, а не в коде контроллера (миграция 11): заглушки
-# заводит триггер на вставку сериала, уникальный индекс не даёт завести
+# заводит триггер на вставку фильма, уникальный индекс не даёт завести
 # вторую заглушку того же вида, триггер на удаление запрещает убирать
-# заглушку, пока жив сериал. Код сервиса персон эти правила повторяет, но
+# заглушку, пока жив фильм. Код сервиса персон эти правила повторяет, но
 # проверяется именно база.
-printf '\n%s\n' "3a. Служебные персоны сериала"
-service_persons=$(psql_run <<< "SELECT count(*) FROM person WHERE serial_id = 901 AND kind <> 'PERSON';")
+printf '\n%s\n' "3a. Служебные персоны фильма"
+service_persons=$(psql_run <<< "SELECT count(*) FROM tbl_persons WHERE id_movie = 901 AND kind <> 'PERSON';")
 if [[ "${service_persons}" == "2" ]]; then
-    report_ok "у сериала две служебные персоны: неопознанное лицо и «не лицо»"
+    report_ok "у фильма две служебные персоны: неопознанное лицо и «не лицо»"
 else
-    report_fail "служебных персон у сериала ${service_persons}, ожидалось 2"
+    report_fail "служебных персон у фильма ${service_persons}, ожидалось 2"
 fi
 
-service_names=$(psql_run <<< "SELECT count(*) FROM person WHERE serial_id = 901 AND kind <> 'PERSON' AND recognizer_key IS NULL;")
+service_names=$(psql_run <<< "SELECT count(*) FROM tbl_persons WHERE id_movie = 901 AND kind <> 'PERSON' AND recognizer_key IS NULL;")
 if [[ "${service_names}" == "2" ]]; then
     report_ok "у служебных персон нет ключа распознавателя: это заглушки, а не классы модели"
 else
@@ -357,40 +444,47 @@ else
 fi
 
 check "вторая заглушка того же вида — отказ" fail \
-    "INSERT INTO person (serial_id, name, kind) VALUES (901, 'Вторая заглушка', 'UNRECOGNIZED');"
+    "INSERT INTO tbl_persons (id_movie, name, kind) VALUES (901, 'Вторая заглушка', 'UNRECOGNIZED');"
 check "вторая заглушка вида «не лицо» — отказ" fail \
-    "INSERT INTO person (serial_id, name, kind) VALUES (901, 'Вторая заглушка', 'NONPERSON');"
-check_writes "вторая именованная персона того же сериала — принята" \
-    "INSERT INTO person (serial_id, name, recognizer_key, kind) VALUES (901, 'Джейми', 'jamie', 'PERSON');"
+    "INSERT INTO tbl_persons (id_movie, name, kind) VALUES (901, 'Вторая заглушка', 'NONPERSON');"
+check_writes "вторая именованная персона того же фильма — принята" \
+    "INSERT INTO tbl_persons (id_movie, name, recognizer_key, kind) VALUES (901, 'Джейми', 'jamie', 'PERSON');"
 check "у именованной персоны без ключа распознавателя — отказ" fail \
-    "INSERT INTO person (serial_id, name, kind) VALUES (901, 'Джейми', 'PERSON');"
+    "INSERT INTO tbl_persons (id_movie, name, kind) VALUES (901, 'Джейми', 'PERSON');"
 check "у служебной персоны с ключом распознавателя — отказ" fail \
-    "INSERT INTO person (serial_id, name, recognizer_key, kind) VALUES (901, 'С ключом', 'x', 'NONPERSON');"
+    "INSERT INTO tbl_persons (id_movie, name, recognizer_key, kind) VALUES (901, 'С ключом', 'x', 'NONPERSON');"
 check "неизвестный вид персоны — отказ" fail \
-    "INSERT INTO person (serial_id, name, kind) VALUES (901, 'Непонятная', 'SOMEBODY');"
-check "удаление служебной персоны при живом сериале — отказ" fail \
-    "DELETE FROM person WHERE serial_id = 901 AND kind = 'UNRECOGNIZED';"
+    "INSERT INTO tbl_persons (id_movie, name, kind) VALUES (901, 'Непонятная', 'SOMEBODY');"
+check "удаление служебной персоны при живом фильме — отказ" fail \
+    "DELETE FROM tbl_persons WHERE id_movie = 901 AND kind = 'UNRECOGNIZED';"
 check "удаление именованной персоны — принят" ok \
-    "INSERT INTO person (serial_id, name, recognizer_key, kind) VALUES (901, 'Джейми', 'jamie', 'PERSON');
-     DELETE FROM person WHERE serial_id = 901 AND name = 'Джейми';"
-# Сериал удаляется каскадом вместе с заглушками: запрет удаления не должен
-# делать удаление сериала невозможным.
+    "INSERT INTO tbl_persons (id_movie, name, recognizer_key, kind) VALUES (901, 'Джейми', 'jamie', 'PERSON');
+     DELETE FROM tbl_persons WHERE id_movie = 901 AND name = 'Джейми';"
+# Фильм удаляется каскадом вместе с заглушками: запрет удаления не должен
+# делать удаление фильма невозможным.
 cascade_persons=$(psql_run <<'SQL' | tail -1
 BEGIN;
-DELETE FROM serial WHERE id = 901;
-SELECT count(*) FROM person WHERE serial_id = 901;
+DELETE FROM tbl_movies WHERE id = 901;
+SELECT count(*) FROM tbl_persons WHERE id_movie = 901;
 ROLLBACK;
 SQL
 )
 if [[ "${cascade_persons}" == "0" ]]; then
-    report_ok "удаление сериала уносит служебные персоны каскадом"
+    report_ok "удаление фильма уносит служебные персоны каскадом"
 else
-    report_fail "после удаления сериала осталось служебных персон: ${cascade_persons}"
+    report_fail "после удаления фильма осталось служебных персон: ${cascade_persons}"
 fi
 
 # --- повторное применение применённой миграции -----------------------------
 printf '\n%s\n' "4. Защита от правки применённой миграции"
-if docker exec -i "${NAME}" psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -q -f - < "${MIGRATIONS}/01_catalog.sql" 2>/tmp/syp-reapply.txt; then
+# Повторное применение идёт в транзакции с откатом. После переименования
+# таблиц (миграция 16) первая же `CREATE TABLE` из 01_catalog.sql проходит:
+# таблица `serial` переименована, и имя освободилось. Отказ приходит позже —
+# на имени ограничения, которое переименование таблицы не тронуло. Без
+# отката в базе осталась бы лишняя пустая таблица, и следующие проверки
+# считали бы не 23.
+if printf 'BEGIN;\n' | cat - "${MIGRATIONS}/01_catalog.sql" - <(printf 'ROLLBACK;\n') \
+    | docker exec -i "${NAME}" psql -U "${DB_USER}" -d "${DB_NAME}" -v ON_ERROR_STOP=1 -q -f - 2>/tmp/syp-reapply.txt; then
     report_fail "повторное применение 01_catalog.sql прошло: защита не работает"
 else
     if grep -q 'already exists' /tmp/syp-reapply.txt; then
@@ -398,6 +492,12 @@ else
     else
         report_fail "повторное применение отклонено с непонятной ошибкой"
     fi
+fi
+after_reapply=$(psql_run <<< "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';")
+if [[ "${after_reapply}" == "23" ]]; then
+    report_ok "после неудачного повторного применения таблиц по-прежнему 23"
+else
+    report_fail "после неудачного повторного применения таблиц ${after_reapply}, ожидалось 23"
 fi
 
 # --- сквозная вставка сценария --------------------------------------------
@@ -407,16 +507,16 @@ printf '\n%s\n' "5. Сквозная вставка корректного сц�
 # фрагмента. Без них каждая проверка была бы пустой: вставка не нашла бы
 # родительский сценарий и завершилась бы успехом ни с чем.
 if ! psql_run <<'SQL' >/dev/null 2>&1
-INSERT INTO scene (id, series_id, first_frame, last_frame, origin)
+INSERT INTO tbl_scenes (id, id_episode, first_frame, last_frame, origin)
 VALUES (901, 901, 0, 123, 'AUTO');
-INSERT INTO artifact (kind, placement, object_key, byte_size, checksum)
+INSERT INTO tbl_artifacts (kind, placement, object_key, byte_size, checksum)
 VALUES ('RECIPE', 'SSD', 'recipes/probe.json', 42, repeat('9', 64));
-INSERT INTO build_recipe (serial_id, name, schema_version, state, artifact_id, content_sha256,
+INSERT INTO tbl_build_recipes (id_movie, name, schema_version, state, artifact_id, content_sha256,
                           signature, signing_key_id, item_count, expected_duration_ms,
                           expected_frame_count, created_at, finished_at)
 SELECT 901, 'Фикстура', 1, 'DONE', id, repeat('e', 64), 'c2ln', 'key1', 1, 1000, 48,
        now(), now()
-  FROM artifact WHERE object_key = 'recipes/probe.json';
+  FROM tbl_artifacts WHERE object_key = 'recipes/probe.json';
 SQL
 then
     report_fail "фикстуры сцены, артефакта и сценария не создались: проверки фрагмента не имеют смысла"
@@ -426,94 +526,94 @@ else
 fi
 
 check "сценарий DONE без подписи — отказ" fail \
-    "INSERT INTO build_recipe (serial_id, name, schema_version, state, content_sha256, signature, signing_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
+    "INSERT INTO tbl_build_recipes (id_movie, name, schema_version, state, content_sha256, signature, signing_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
      VALUES (901, 'Р', 1, 'DONE', repeat('e', 64), NULL, NULL, 1, 1000, 48, now(), now());"
 check "подпись без суммы содержимого — отказ" fail \
-    "INSERT INTO build_recipe (serial_id, name, schema_version, state, signature, signature_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
+    "INSERT INTO tbl_build_recipes (id_movie, name, schema_version, state, signature, signature_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
      VALUES (901, 'Р2', 1, 'DONE', 'sig', 'key1', 1, 1000, 48, now(), now());"
 check "сценарий DONE без числа фрагментов — отказ" fail \
-    "INSERT INTO build_recipe (serial_id, name, schema_version, state, content_sha256, signature, signing_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
+    "INSERT INTO tbl_build_recipes (id_movie, name, schema_version, state, content_sha256, signature, signing_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
      VALUES (901, 'Р3', 1, 'DONE', repeat('e', 64), 'sig', 'key1', 0, 1000, 48, now(), now());"
 check "сценарий DONE без артефакта — отказ" fail \
-    "INSERT INTO build_recipe (serial_id, name, schema_version, state, content_sha256, signature, signing_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
+    "INSERT INTO tbl_build_recipes (id_movie, name, schema_version, state, content_sha256, signature, signing_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
      VALUES (901, 'Р5', 1, 'DONE', repeat('e', 64), 'c2ln', 'key1', 1, 1000, 48, now(), now());"
 check "корректный сценарий DONE — принят" ok \
-    "INSERT INTO build_recipe (serial_id, name, schema_version, state, artifact_id, content_sha256, signature, signing_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
+    "INSERT INTO tbl_build_recipes (id_movie, name, schema_version, state, artifact_id, content_sha256, signature, signing_key_id, item_count, expected_duration_ms, expected_frame_count, created_at, finished_at)
      SELECT 901, 'Р4', 1, 'DONE', id, repeat('e', 64), 'c2ln', 'key1', 1, 1000, 48, now(), now()
-       FROM artifact WHERE object_key = 'recipes/probe.json';"
+       FROM tbl_artifacts WHERE object_key = 'recipes/probe.json';"
 check "фрагмент с абсолютным путём — отказ" fail \
-    "INSERT INTO build_recipe_item (recipe_id, ordinal, scene_id, series_id, series_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
-     SELECT id, 0, 901, 901, 'S01E01', '/srv/got/S01E01.mkv', repeat('f', 64), 0, 47, 0, 47, '[]'::jsonb FROM build_recipe WHERE name = 'Фикстура';"
+    "INSERT INTO tbl_build_recipe_items (recipe_id, ordinal, scene_id, id_episode, episode_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
+     SELECT id, 0, 901, 901, 'S01E01', '/srv/got/S01E01.mkv', repeat('f', 64), 0, 47, 0, 47, '[]'::jsonb FROM tbl_build_recipes WHERE name = 'Фикстура';"
 check "фрагмент с выходом за пределы дерева — отказ" fail \
-    "INSERT INTO build_recipe_item (recipe_id, ordinal, scene_id, series_id, series_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
-     SELECT id, 0, 901, 901, 'S01E01', '../secret/S01E01.mkv', repeat('f', 64), 0, 47, 0, 47, '[]'::jsonb FROM build_recipe WHERE name = 'Фикстура';"
+    "INSERT INTO tbl_build_recipe_items (recipe_id, ordinal, scene_id, id_episode, episode_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
+     SELECT id, 0, 901, 901, 'S01E01', '../secret/S01E01.mkv', repeat('f', 64), 0, 47, 0, 47, '[]'::jsonb FROM tbl_build_recipes WHERE name = 'Фикстура';"
 check "фрагмент, начинающийся позже расчётного — отказ" fail \
-    "INSERT INTO build_recipe_item (recipe_id, ordinal, scene_id, series_id, series_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
-     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), 10, 47, 20, 47, '[]'::jsonb FROM build_recipe WHERE name = 'Фикстура';"
+    "INSERT INTO tbl_build_recipe_items (recipe_id, ordinal, scene_id, id_episode, episode_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
+     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), 10, 47, 20, 47, '[]'::jsonb FROM tbl_build_recipes WHERE name = 'Фикстура';"
 check "фрагмент, заканчивающийся раньше расчётного — отказ" fail \
-    "INSERT INTO build_recipe_item (recipe_id, ordinal, scene_id, series_id, series_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
-     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), 10, 47, 0, 40, '[]'::jsonb FROM build_recipe WHERE name = 'Фикстура';"
+    "INSERT INTO tbl_build_recipe_items (recipe_id, ordinal, scene_id, id_episode, episode_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
+     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), 10, 47, 0, 40, '[]'::jsonb FROM tbl_build_recipes WHERE name = 'Фикстура';"
 check "отрицательный номер кадра — отказ" fail \
-    "INSERT INTO build_recipe_item (recipe_id, ordinal, scene_id, series_id, series_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
-     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), -1, 47, -1, 47, '[]'::jsonb FROM build_recipe WHERE name = 'Фикстура';"
+    "INSERT INTO tbl_build_recipe_items (recipe_id, ordinal, scene_id, id_episode, episode_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
+     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), -1, 47, -1, 47, '[]'::jsonb FROM tbl_build_recipes WHERE name = 'Фикстура';"
 check "имена персонажей не массивом — отказ" fail \
-    "INSERT INTO build_recipe_item (recipe_id, ordinal, scene_id, series_id, series_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
-     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), 10, 47, 0, 47, 'Джейми' FROM build_recipe WHERE name = 'Фикстура';"
+    "INSERT INTO tbl_build_recipe_items (recipe_id, ordinal, scene_id, id_episode, episode_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
+     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), 10, 47, 0, 47, 'Джейми' FROM tbl_build_recipes WHERE name = 'Фикстура';"
 check_writes "корректный фрагмент — принят" \
-    "INSERT INTO build_recipe_item (recipe_id, ordinal, scene_id, series_id, series_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
-     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), 10, 47, 0, 47, '[]'::jsonb FROM build_recipe WHERE name = 'Фикстура';"
+    "INSERT INTO tbl_build_recipe_items (recipe_id, ordinal, scene_id, id_episode, episode_name, relative_path, source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, person_names)
+     SELECT id, 0, 901, 901, 'S01E01', 'S01E01.mkv', repeat('f', 64), 10, 47, 0, 47, '[]'::jsonb FROM tbl_build_recipes WHERE name = 'Фикстура';"
 
 # --- каскадное удаление ----------------------------------------------------
-printf '\n%s\n' "6. Каскадное удаление сериала"
+printf '\n%s\n' "6. Каскадное удаление фильма"
 
-# Фикстура посложнее прошлой: сериал с серией, у которой есть лицо, персона,
+# Фикстура посложнее прошлой: фильм с эпизодом, у которой есть лицо, персона,
 # версия модели и сценарий сборки. Именно этот случай ломается, если каскад
-# задан не на всех внешних ключах: «сирота» остаётся, и удаление сериала
+# задан не на всех внешних ключах: «сирота» остаётся, и удаление фильма
 # падает вместо того, чтобы унести производные данные (задача T030).
 psql_run <<'SQL' >/dev/null 2>&1
-INSERT INTO serial (id, name, source_root) VALUES (903, 'Каскад с производными', '/srv/got3');
-INSERT INTO series (id, serial_id, ordinal, name, source_path, file_size, file_mtime,
+INSERT INTO tbl_movies (id, name, source_root) VALUES (903, 'Каскад с производными', '/srv/got3');
+INSERT INTO tbl_episodes (id, id_movie, ordinal, name, source_path, file_size, file_mtime,
                     frame_count, time_base_num, time_base_den, width, height,
                     duration_num, duration_den, video_codec, pixel_format)
 VALUES (903, 903, 1, 'S01E01', '/srv/got3/S01E01.mkv', 5598286865, now(),
         88643, 1001, 24000, 1920, 1080, 88731643, 24000, 'h264', 'yuv420p');
-INSERT INTO person (id, serial_id, name, kind, recognizer_key)
+INSERT INTO tbl_persons (id, id_movie, name, kind, recognizer_key)
 VALUES (903, 903, 'Джейми', 'PERSON', 'jamie');
-INSERT INTO model_version (id, serial_id, algorithm_version, params_hash, example_count, classes, threshold, state)
+INSERT INTO tbl_model_versions (id, id_movie, algorithm_version, params_hash, example_count, classes, threshold, state)
 VALUES (903, 903, '1', 'h', 1, 'jamie', 0.5, 'DONE');
-INSERT INTO face (id, series_id, frame_number, face_index, x1, y1, x2, y2, person_id, origin)
+INSERT INTO tbl_faces (id, id_episode, frame_number, face_index, x1, y1, x2, y2, person_id, origin)
 VALUES (903, 903, 0, 0, 100, 100, 200, 200, 903, 'AUTO');
-INSERT INTO location (id, serial_id, name) VALUES (903, 903, 'Лагерь');
+INSERT INTO tbl_locations (id, id_movie, name) VALUES (903, 903, 'Лагерь');
 SQL
 orphan=$(psql_run <<'SQL' | tail -1
 BEGIN;
-DELETE FROM serial WHERE id = 903;
+DELETE FROM tbl_movies WHERE id = 903;
 SELECT
-    (SELECT count(*) FROM series    WHERE id = 903)
-  + (SELECT count(*) FROM person    WHERE id = 903)
-  + (SELECT count(*) FROM face      WHERE id = 903)
-  + (SELECT count(*) FROM location  WHERE id = 903)
-  + (SELECT count(*) FROM model_version WHERE id = 903)
-  + (SELECT count(*) FROM analysis_setting WHERE serial_id = 903);
+    (SELECT count(*) FROM tbl_episodes    WHERE id = 903)
+  + (SELECT count(*) FROM tbl_persons    WHERE id = 903)
+  + (SELECT count(*) FROM tbl_faces      WHERE id = 903)
+  + (SELECT count(*) FROM tbl_locations  WHERE id = 903)
+  + (SELECT count(*) FROM tbl_model_versions WHERE id = 903)
+  + (SELECT count(*) FROM tbl_analysis_settings WHERE id_movie = 903);
 ROLLBACK;
 SQL
 )
 if [[ "${orphan}" == "0" ]]; then
-    report_ok "удаление сериала уносит серии, лица, персоны, версии моделей и настройки"
+    report_ok "удаление фильма уносит эпизоды, лица, персоны, версии моделей и настройки"
 else
-    report_fail "после удаления сериала осталось записей: ${orphan}"
+    report_fail "после удаления фильма осталось записей: ${orphan}"
 fi
 cascade=$(psql_run <<< "
 BEGIN;
-INSERT INTO serial (id, name, source_root) VALUES (902, 'Каскад', '/srv/got2');
-SELECT count(*) FROM build_recipe WHERE serial_id = 902;
-DELETE FROM serial WHERE id = 902;
-SELECT count(*) FROM build_recipe WHERE serial_id = 902;
+INSERT INTO tbl_movies (id, name, source_root) VALUES (902, 'Каскад', '/srv/got2');
+SELECT count(*) FROM tbl_build_recipes WHERE id_movie = 902;
+DELETE FROM tbl_movies WHERE id = 902;
+SELECT count(*) FROM tbl_build_recipes WHERE id_movie = 902;
 ROLLBACK;" | tail -1)
 if [[ "${cascade}" == "0" ]]; then
-    report_ok "удаление сериала уносит сценарии каскадом"
+    report_ok "удаление фильма уносит сценарии каскадом"
 else
-    report_fail "после удаления сериала осталось сценариев: ${cascade}"
+    report_fail "после удаления фильма осталось сценариев: ${cascade}"
 fi
 
 # --- Итог -------------------------------------------------------------------
@@ -526,10 +626,10 @@ printf '%s\n' "ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ"
 
 # Название сцены: необязательное, задаётся оператором.
 check "сцена без названия (задано не всегда) — принят" ok \
-    "UPDATE scene SET title = NULL;"
+    "UPDATE tbl_scenes SET title = NULL;"
 check "сцена с названием — принят" ok \
-    "UPDATE scene SET title = 'Засада у Ворота Льва';"
+    "UPDATE tbl_scenes SET title = 'Засада у Ворота Льва';"
 check "название пустой строкой — принято, пустое значит неназвано" ok \
-    "UPDATE scene SET title = '';"
+    "UPDATE tbl_scenes SET title = '';"
 
 exit 0

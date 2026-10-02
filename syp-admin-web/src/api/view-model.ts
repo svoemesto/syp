@@ -15,7 +15,7 @@
 // Формат ответов — контракт `specs/001-first-vertical-slice/contracts/admin-api.md`.
 
 import { formatBytes, formatDate, formatDuration, formatNumber } from '../format/values'
-import type { SerialView, SeriesView } from './catalog'
+import type { MovieView, EpisodeView } from './catalog'
 import type { ChecksumView } from './checksum'
 import type {
   FaceClusterView,
@@ -36,7 +36,7 @@ export interface SerialRow {
   /** Корень каталога сериала на машине администратора. */
   sourceRoot: string
   /** Сколько серий заведено. */
-  seriesCount: number
+  episodeCount: number
   /** Дата создания либо прочерк. */
   createdAt: string
   /** Есть ли у сериала хотя бы одна серия. */
@@ -224,14 +224,14 @@ function describeLevel(level: string): string {
  * @param dto сериал из ответа бэкенда
  * @returns строка экрана
  */
-export function toSerialRow(dto: SerialView): SerialRow {
+export function toSerialRow(dto: MovieView): SerialRow {
   return {
     id: dto.id,
     name: dto.name,
     sourceRoot: dto.sourceRoot,
-    seriesCount: dto.seriesCount,
+    episodeCount: dto.episodeCount,
     createdAt: formatDate(dto.createdAt),
-    hasSeries: dto.seriesCount > 0,
+    hasSeries: dto.episodeCount > 0,
   }
 }
 
@@ -245,10 +245,10 @@ export function toSerialRow(dto: SerialView): SerialRow {
  * @param dto серия из ответа бэкенда
  * @returns строка экрана
  */
-export function toSeriesRow(dto: SeriesView): SeriesRow {
+export function toSeriesRow(dto: EpisodeView): SeriesRow {
   return {
     id: dto.id,
-    serialId: dto.serialId,
+    serialId: dto.movieId,
     ordinal: dto.ordinal,
     name: dto.name,
     displayPath: dto.relativePath ?? dto.sourcePath,
@@ -298,7 +298,7 @@ export function toChecksumRow(dto: ChecksumView): ChecksumRow {
       stateTitle = dto.state
   }
   return {
-    seriesId: dto.seriesId,
+    seriesId: dto.episodeId,
     stateTitle,
     stateTone: tone,
     isRunning: running,
@@ -381,7 +381,7 @@ export function toRawBoundaryRow(
 export function toStructureRow(dto: StructureView): StructureRow {
   const scenes = dto.scenes.map(toSceneRow)
   return {
-    seriesId: dto.seriesId,
+    seriesId: dto.episodeId,
     summary:
       `сцен: ${formatNumber(dto.scenesTotal)}, планов: ${formatNumber(dto.shotsTotal)}, ` +
       `кадров: ${formatNumber(dto.frameCount)}`,
@@ -510,8 +510,8 @@ export function toFaceRow(dto: FaceView): FaceRow {
  */
 export function toFacesRow(dto: FacesView): FacesRow {
   return {
-    seriesId: dto.seriesId,
-    serialId: dto.serialId,
+    seriesId: dto.episodeId,
+    serialId: dto.movieId,
     frameWidth: dto.frameWidth,
     frameHeight: dto.frameHeight,
     summary: `лиц найдено: ${formatNumber(dto.facesTotal)}, разрешение кадра: ${dto.frameWidth}×${dto.frameHeight}`,

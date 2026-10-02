@@ -4,42 +4,24 @@
 // меняется по ходу работы. Стор — обычная функция, возвращающая реактивные
 // ссылки: это позволяет экрану подписаться на них и не тащить Pinia ради
 // одного файла.
-//
-// В состоянии лежат **строки экрана** из `api/view-model.ts`, а не ответы
-// бэкенда: обращения к полям `serialId` и `seriesId` не должны расходиться по
-// шаблонам, иначе грядущее переименование затронет их все.
 
 import { computed, ref } from 'vue'
 import {
-  type SerialDetailView,
-  createSerial,
-  listSerials,
-  readSerial,
-  registerSeries,
+  type MovieDetailView,
+  type MovieView,
+  type EpisodeView,
+  createMovie,
+  listMovies,
+  readMovie,
+  registerEpisode,
 } from '../api/catalog'
 import { ApiError } from '../api/http'
-import { type SerialRow, type SeriesRow, toSerialRow, toSeriesRow } from '../api/view-model'
 
-/** Сериалы на экране. */
-const serials = ref<SerialRow[]>([])
+/** Список фильмов. */
+const movies = ref<MovieView[]>([])
 
-/** Название раскрытого сериала — нужно заголовкам экранов. */
-const currentName = ref('')
-
-/** Серии раскрытого сериала на экране. */
-const seriesRows = ref<SeriesRow[]>([])
-
-/** Идентификатор раскрытого сериала. */
-const currentId = ref<number | null>(null)
-
-/**
- * Серия, выбранная для экранов суммы и структуры.
- *
- * Отдельное поле, а не вычисление из списка: разделы «суммы» и «структура»
- * живут в навигации всегда, а открыть их имеет смысл только для конкретной
- * серии. Пока серия не выбрана, раздел объясняет это и отправляет в приём.
- */
-const selectedSeriesId = ref<number | null>(null)
+/** Раскрытый фильм с его эпизодами и настройками. */
+const current = ref<MovieDetailView | null>(null)
 
 /** Идёт ли обращение к бэкенду: показывается работа, а не пустой экран. */
 const loading = ref(false)
@@ -68,14 +50,11 @@ function remember(failure: unknown): void {
   error.value = failure instanceof Error ? failure.message : String(failure)
 }
 
-/** Раскрыт ли сериал: от этого зависит, показывается ли блок серий. */
-const hasCurrent = computed(() => currentId.value !== null)
+/** Эпизода раскрытого фильма; пустой список, если фильм не выбран. */
+const episode = computed<EpisodeView[]>(() => current.value?.episode ?? [])
 
-/** Можно ли ставить новую серию: сериал должен быть выбран. */
-const canRegisterSeries = computed(() => currentId.value !== null)
-
-/** У выбранной серии есть хотя бы одна. */
-const hasSeries = computed(() => seriesRows.value.length > 0)
+/** Можно ли ставить новый эпизод: фильм должен быть выбран. */
+const canRegisterEpisode = computed(() => current.value !== null)
 
 /**
  * Состояние экрана приёма и действия над ним.
@@ -84,14 +63,14 @@ const hasSeries = computed(() => seriesRows.value.length > 0)
  */
 export function useCatalogStore() {
   /**
-   * Перечитывает список сериалов.
+   * Перечитывает список фильмов.
    *
    * @returns `true`, если список прочитан
    */
-  async function reloadSerials(): Promise<boolean> {
+  async function reloadMovies(): Promise<boolean> {
     loading.value = true
     try {
-      serials.value = (await listSerials()).map(toSerialRow)
+      movies.value = await listMovies()
       error.value = ''
       errorCode.value = ''
       return true
@@ -104,18 +83,18 @@ export function useCatalogStore() {
   }
 
   /**
-   * Создаёт сериал с корнем каталога и раскрывает его.
+   * Создаёт фильм с корнем каталога и раскрывает его.
    *
-   * @param name название сериала
-   * @param sourceRoot корневой каталог сериала на машине администратора
-   * @returns `true`, если сериал создан и показан
+   * @param name название фильма
+   * @param sourceRoot корневой каталог фильма на машине администратора
+   * @returns `true`, если фильм создан и показан
    */
-  async function addSerial(name: string, sourceRoot: string): Promise<boolean> {
+  async function addMovie(name: string, sourceRoot: string): Promise<boolean> {
     loading.value = true
     try {
-      const created = await createSerial(name, sourceRoot)
-      await openSerial(created.serial.id)
-      await reloadSerials()
+      const created = await createMovie(name, sourceRoot)
+      await openMovie(created.movie.id)
+      await reloadMovies()
       return true
     } catch (failure) {
       remember(failure)
@@ -126,21 +105,15 @@ export function useCatalogStore() {
   }
 
   /**
-   * Открывает сериал: серии и настройки.
+   * Открывает фильм: эпизода и настройки.
    *
-   * @param serialId идентификатор сериала
-   * @returns `true`, если сериал прочитан
+   * @param movieId идентификатор фильма
+   * @returns `true`, если фильм прочитан
    */
-  async function openSerial(serialId: number): Promise<boolean> {
+  async function openMovie(movieId: number): Promise<boolean> {
     loading.value = true
     try {
-      const detail: SerialDetailView = await readSerial(serialId)
-      currentId.value = detail.serial.id
-      currentName.value = detail.serial.name
-      seriesRows.value = detail.series.map(toSeriesRow)
-      // Открытый сериал снимает выбор серии: выбранная серия относилась бы к
-      // прежнему сериалу, и разделы суммы и структуры показали бы чужое.
-      selectedSeriesId.value = null
+      current.value = await readMovie(movieId)
       error.value = ''
       errorCode.value = ''
       return true
@@ -153,22 +126,22 @@ export function useCatalogStore() {
   }
 
   /**
-   * Регистрирует серию по пути к файлу.
+   * Регистрирует эпизод по пути к файлу.
    *
-   * @param sourcePath абсолютный путь к файлу внутри корня сериала
-   * @param name название серии; если не задано, берётся имя файла
-   * @returns `true`, если серия зарегистрирована
+   * @param sourcePath абсолютный путь к файлу внутри корня фильма
+   * @param name название эпизода; если не задано, берётся имя файла
+   * @returns `true`, если эпизод зарегистрирована
    */
-  async function addSeries(sourcePath: string, name?: string): Promise<boolean> {
-    if (currentId.value === null) {
+  async function addEpisode(sourcePath: string, name?: string): Promise<boolean> {
+    if (current.value === null) {
       errorCode.value = 'BAD_REQUEST'
-      error.value = 'Сначала откройте сериал: серия заводится только в нём'
+      error.value = 'Сначала откройте фильм: эпизод заводится только в нём'
       return false
     }
     loading.value = true
     try {
-      await registerSeries(currentId.value, sourcePath, name)
-      await openSerial(currentId.value)
+      await registerEpisode(current.value.movie.id, sourcePath, name)
+      await openMovie(current.value.movie.id)
       return true
     } catch (failure) {
       remember(failure)
@@ -176,20 +149,6 @@ export function useCatalogStore() {
     } finally {
       loading.value = false
     }
-  }
-
-  /**
-   * Выбирает серию для разделов суммы и структуры.
-   *
-   * @param seriesId идентификатор серии
-   */
-  function selectSeries(seriesId: number): void {
-    selectedSeriesId.value = seriesId
-  }
-
-  /** Снимает выбор серии: разделы суммы и структуры снова требуют выбора. */
-  function clearSelection(): void {
-    selectedSeriesId.value = null
   }
 
   /** Очищает текст ошибки: экран возвращается в спокойное состояние. */
@@ -199,23 +158,17 @@ export function useCatalogStore() {
   }
 
   return {
-    serials,
-    currentName,
-    series: seriesRows,
-    currentId,
-    selectedSeriesId,
+    movies,
+    current,
+    episode,
     loading,
     error,
     errorCode,
-    hasCurrent,
-    hasSeries,
-    canRegisterSeries,
-    reloadSerials,
-    addSerial,
-    openSerial,
-    addSeries,
-    selectSeries,
-    clearSelection,
+    canRegisterEpisode,
+    reloadMovies,
+    addMovie,
+    openMovie,
+    addEpisode,
     clearError,
   }
 }

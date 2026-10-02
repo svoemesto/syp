@@ -8,20 +8,20 @@ import ru.svoemesto.syp.core.db.Db
  * Что именно оказалось помечено устаревшим.
  *
  * Счётчики нужны не для красоты: без них оператор увидел бы «результат
- * устарел» и не смог бы понять масштаб — помечен один прогон или вся
- * структура серии (FR-090).
+ * устарел» и не смог бы понять масштаб — помечен один прогон или всего
+ * структура эпизода (FR-090).
  *
  * @property runs число прогонов, помеченных устаревшими
  * @property scenes число рабочих сцен, помеченных устаревшими
  * @property shots число рабочих планов, помеченных устаревшими
- * @property seriesIds серии, у которых помечено устаревшим
+ * @property episodeIds эпизода, у которых помечено устаревшим
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class StaleSummary(
     val runs: Int,
     val scenes: Int,
     val shots: Int,
-    val seriesIds: List<Long>,
+    val episodeIds: List<Long>,
 ) {
     /** Помечено ли хоть что-нибудь. */
     val isEmpty: Boolean
@@ -29,9 +29,9 @@ data class StaleSummary(
 }
 
 /**
- * Состояние актуальности результата серии.
+ * Состояние актуальности результата эпизода.
  *
- * @property seriesId серия, о которой идёт речь
+ * @property episodeId эпизод, о которой идёт речь
  * @property runId последний прогон заданного вида либо `null`
  * @property algorithmVersion версия алгоритма последнего прогона
  * @property paramsHash хеш входов последнего прогона
@@ -42,7 +42,7 @@ data class StaleSummary(
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class StaleStatus(
-    val seriesId: Long,
+    val episodeId: Long,
     val runId: Long?,
     val algorithmVersion: String?,
     val paramsHash: String?,
@@ -91,107 +91,107 @@ class Staleness(
     private val runStore: AnalysisRunStore,
 ) {
     /**
-     * Помечает устаревшим прогоны серии, сделанные при других входах.
+     * Помечает устаревшим прогоны эпизода, сделанные при других входах.
      *
      * Заодно помечаются рабочие сцены и планы, полученные этими прогонами:
      * иначе интерфейс показал бы структуру со снятым признаком устаревания,
      * а прогон, из которого она получена, остался бы помеченным — два
      * разных ответа на один вопрос.
      *
-     * @param seriesId серия
+     * @param episodeId эпизод
      * @param kind вид прогона
      * @param currentParamsHash хеш входов, действующих сейчас
      * @return что помечено
      * @throws ru.svoemesto.syp.core.db.DbException если обновление не удалось
      */
     fun markStaleExcept(
-        seriesId: Long,
+        episodeId: Long,
         kind: AnalysisKind,
         currentParamsHash: String,
     ): StaleSummary {
-        val runs = runStore.markStaleExcept(seriesId, kind, currentParamsHash)
+        val runs = runStore.markStaleExcept(episodeId, kind, currentParamsHash)
         if (runs == 0) {
             return StaleSummary(0, 0, 0, emptyList())
         }
         return db.useTransaction { connection ->
-            val scenes = markStructure(connection, seriesId, listOf(kind))
+            val scenes = markStructure(connection, episodeId, listOf(kind))
             StaleSummary(
                 runs = runs,
                 scenes = scenes.first,
                 shots = scenes.second,
-                seriesIds = listOf(seriesId),
+                episodeIds = listOf(episodeId),
             )
         }
     }
 
     /**
-     * Помечает устаревшим результаты всех серий сериала при смене настройки.
+     * Помечает устаревшим результаты всех эпизодов фильма при смене настройки.
      *
-     * Настройки принадлежат сериалу, а не серии, поэтому смена порога
-     * затрагивает структуру **всех** его серий: исключение «эта серия
+     * Настройки принадлежат фильму, а не эпизода, поэтому смена порога
+     * затрагивает структуру **всех** его эпизодов: исключение «этот эпизод
      * разбиралась позже» сделала бы устарелость выборочной, а вопрос
      * «актуален ли мой результат» — неоднозначным.
      *
-     * @param serialId сериал, настройки которого изменились
-     * @param currentParamsHash хеш входов, действующих сейчас, по этому сериалу
+     * @param movieId фильм, настройки которого изменились
+     * @param currentParamsHash хеш входов, действующих сейчас, по этому фильму
      * @return что помечено
      * @throws ru.svoemesto.syp.core.db.DbException если обновление не удалось
      */
-    fun markStaleForSerial(
-        serialId: Long,
+    fun markStaleForMovie(
+        movieId: Long,
         currentParamsHash: String,
     ): StaleSummary {
-        val seriesIds =
+        val episodeIds =
             db.select(
-                "SELECT id FROM series WHERE serial_id = ? ORDER BY id",
+                "SELECT id FROM tbl_episodes WHERE id_movie = ? ORDER BY id",
                 { it.long("id") },
-                serialId,
+                movieId,
             )
         var runs = 0
         var scenes = 0
         var shots = 0
         val marked = mutableSetOf<Long>()
         val runSql =
-            "UPDATE analysis_run SET is_stale = TRUE " +
-                "WHERE series_id = ? AND params_hash <> ?"
+            "UPDATE tbl_analysis_runs SET is_stale = TRUE " +
+                "WHERE id_episode = ? AND params_hash <> ?"
         db.useTransaction { connection ->
-            seriesIds.forEach { seriesId ->
+            episodeIds.forEach { episodeId ->
                 runs +=
                     connection
                         .prepareStatement(runSql)
                         .use { statement ->
-                            statement.setLong(1, seriesId)
+                            statement.setLong(1, episodeId)
                             statement.setString(2, currentParamsHash)
                             statement.executeUpdate()
                         }
-                val structure = markStructure(connection, seriesId, AnalysisKind.entries)
+                val structure = markStructure(connection, episodeId, AnalysisKind.entries)
                 scenes += structure.first
                 shots += structure.second
                 if (structure.first > 0 || structure.second > 0) {
-                    marked.add(seriesId)
+                    marked.add(episodeId)
                 }
             }
         }
-        return StaleSummary(runs = runs, scenes = scenes, shots = shots, seriesIds = marked.toList())
+        return StaleSummary(runs = runs, scenes = scenes, shots = shots, episodeIds = marked.toList())
     }
 
     /**
-     * Читает состояние актуальности результата серии.
+     * Читает состояние актуальности результата эпизода.
      *
-     * @param seriesId серия
+     * @param episodeId эпизод
      * @param kind вид прогона
      * @param currentParamsHash хеш входов, действующих сейчас
      * @return состояние актуальности
      */
     fun status(
-        seriesId: Long,
+        episodeId: Long,
         kind: AnalysisKind,
         currentParamsHash: String,
     ): StaleStatus {
         val run =
-            runStore.latest(seriesId, kind)
+            runStore.latest(episodeId, kind)
                 ?: return StaleStatus(
-                    seriesId = seriesId,
+                    episodeId = episodeId,
                     runId = null,
                     algorithmVersion = null,
                     paramsHash = null,
@@ -212,7 +212,7 @@ class Staleness(
                 else -> "структура помечена устаревшей после смены версии алгоритма или порогов"
             }
         return StaleStatus(
-            seriesId = seriesId,
+            episodeId = episodeId,
             runId = run.id,
             algorithmVersion = run.algorithmVersion,
             paramsHash = run.paramsHash,
@@ -240,48 +240,48 @@ class Staleness(
         throw DomainException(
             ErrorCode.STALE_RESULT,
             status.reason
-                ?: "результат серии ${status.seriesId} помечен устаревшим. " +
+                ?: "результат эпизода ${status.episodeId} помечен устаревшим. " +
                 "Правка легла бы на границы, полученные при других настройках, — пересчитайте",
         )
     }
 
     /**
-     * Помечает устаревшими сцены и планы серии по устаревшим прогонам.
+     * Помечает устаревшими сцены и планы эпизода по устаревшим прогонам.
      *
      * @param connection открытое соединение, транзакцией управляет вызывающий
-     * @param seriesId серия
+     * @param episodeId эпизод
      * @param kinds виды прогонов, по которым смотрим устаревание
      * @return число помеченных сцен и планов
      */
     private fun markStructure(
         connection: java.sql.Connection,
-        seriesId: Long,
+        episodeId: Long,
         kinds: List<AnalysisKind>,
     ): Pair<Int, Int> {
         val kindsList = kinds.joinToString(", ") { "'" + it.name + "'" }
         val condition =
-            "run_id IN (SELECT id FROM analysis_run WHERE series_id = ? " +
+            "run_id IN (SELECT id FROM tbl_analysis_runs WHERE id_episode = ? " +
                 "AND kind IN ($kindsList) AND is_stale)"
         val sceneSql =
             "UPDATE ${StructureService.SCENE_TABLE} SET is_stale = TRUE " +
-                "WHERE series_id = ? AND $condition"
+                "WHERE id_episode = ? AND $condition"
         val shotSql =
             "UPDATE ${StructureService.SHOT_TABLE} SET is_stale = TRUE " +
-                "WHERE series_id = ? AND $condition"
+                "WHERE id_episode = ? AND $condition"
         val scenes =
             connection
                 .prepareStatement(sceneSql)
                 .use { statement ->
-                    statement.setLong(1, seriesId)
-                    statement.setLong(2, seriesId)
+                    statement.setLong(1, episodeId)
+                    statement.setLong(2, episodeId)
                     statement.executeUpdate()
                 }
         val shots =
             connection
                 .prepareStatement(shotSql)
                 .use { statement ->
-                    statement.setLong(1, seriesId)
-                    statement.setLong(2, seriesId)
+                    statement.setLong(1, episodeId)
+                    statement.setLong(2, episodeId)
                     statement.executeUpdate()
                 }
         return scenes to shots

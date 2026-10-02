@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
  */
 class KeyframeMapTest {
     /**
-     * Число кадров серии `GOT.S01E01`.
+     * Число кадров эпизода `GOT.S01E01`.
      *
      * @return 88 643 кадра
      */
@@ -145,7 +145,7 @@ class KeyframeMapTest {
     }
 
     @Test
-    fun `кадр вне серии отвергается`() {
+    fun `кадр вне эпизода отвергается`() {
         val map = KeyframeMap.empty(frameCount = 100)
 
         assertFailsWith<IllegalArgumentException> { map.isKeyframe(100) }

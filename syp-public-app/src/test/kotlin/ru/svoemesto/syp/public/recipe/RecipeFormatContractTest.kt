@@ -55,26 +55,26 @@ class RecipeFormatContractTest {
     private fun artifacts(root: java.nio.file.Path): ArtifactRegistry =
         ArtifactRegistry(TestDatabase.assumeDatabase(), FileSystemStorage(root))
 
-    private fun newSerial(): Long = TestDatabase.insertSerial("Игры Престолов")
+    private fun newMovie(): Long = TestDatabase.insertMovie("Игры Престолов")
 
-    private fun newSeries(
-        serialId: Long,
+    private fun newEpisode(
+        movieId: Long,
         name: String,
-    ): Long = TestDatabase.insertSeries(serialId, name)
+    ): Long = TestDatabase.insertEpisode(movieId, name)
 
     private fun newScene(
-        seriesId: Long,
+        episodeId: Long,
         firstFrame: Int,
         lastFrame: Int,
-    ): Long = TestDatabase.insertScene(seriesId, firstFrame, lastFrame)
+    ): Long = TestDatabase.insertScene(episodeId, firstFrame, lastFrame)
 
     private fun item(
         recipeId: Long,
         ordinal: Int,
         sceneId: Long,
-        seriesId: Long,
-        seriesName: String,
-        relativePath: String = "GOT.S01/$seriesName.mkv",
+        episodeId: Long,
+        episodeName: String,
+        relativePath: String = "GOT.S01/$episodeName.mkv",
         firstFrame: Int = 1200,
         lastFrame: Int = 1455,
         cutFirstFrame: Int = 1188,
@@ -83,8 +83,8 @@ class RecipeFormatContractTest {
         recipeId = recipeId,
         ordinal = ordinal,
         sceneId = sceneId,
-        seriesId = seriesId,
-        seriesName = seriesName,
+        episodeId = episodeId,
+        episodeName = episodeName,
         relativePath = relativePath,
         sourceSha256 = "3f786850e387550fdab836ed7e6dc881de23001b1a2c3d4e5f60718293a4b5c6",
         firstFrame = firstFrame,
@@ -100,13 +100,13 @@ class RecipeFormatContractTest {
     @DisplayName("Сценарий без подписи не может перейти в DONE")
     fun doneRecipeRequiresSignature() {
         val store = store()
-        val serialId = newSerial()
+        val movieId = newMovie()
         TestDatabase.rejected(
             "сценарий в состоянии DONE без подписи, суммы и идентификатора ключа",
         ) {
             store.insert(
                 BuildRecipe(
-                    serialId = serialId,
+                    movieId = movieId,
                     name = "Без подписи",
                     state = RecipeState.DONE,
                     itemCount = 1,
@@ -124,10 +124,10 @@ class RecipeFormatContractTest {
     @DisplayName("Сумма содержимого не из 64 шестнадцатеричных символов отвергается")
     fun contentSha256MustBeHex64() {
         val store = store()
-        val serialId = newSerial()
+        val movieId = newMovie()
         TestDatabase.rejected("сумма содержимого из 63 символов") {
             TestDatabase.insertRecipeRow(
-                serialId = serialId,
+                movieId = movieId,
                 name = "Плохая сумма",
                 state = RecipeState.DONE,
                 artifactId = null,
@@ -144,18 +144,18 @@ class RecipeFormatContractTest {
     @DisplayName("Абсолютный путь фрагмента отвергается")
     fun absoluteItemPathIsRejected() {
         val store = store()
-        val serialId = newSerial()
-        val seriesId = newSeries(serialId, "GOT.S01E01")
-        val sceneId = newScene(seriesId, 1200, 1455)
-        TestDatabase.rejected("путь, уводящий за пределы копии сериала") {
+        val movieId = newMovie()
+        val episodeId = newEpisode(movieId, "GOT.S01E01")
+        val sceneId = newScene(episodeId, 1200, 1455)
+        TestDatabase.rejected("путь, уводящий за пределы копии фильма") {
             store.insert(
                 BuildRecipe(
-                    serialId = serialId,
+                    movieId = movieId,
                     name = "Абсолютный путь",
                     state = RecipeState.CREATING,
                     createdAt = issuedAt,
                 ),
-                listOf(item(1, 1, sceneId, seriesId, "GOT.S01E01", relativePath = "/GOT.S01E01.mkv")),
+                listOf(item(1, 1, sceneId, episodeId, "GOT.S01E01", relativePath = "/GOT.S01E01.mkv")),
             )
         }
     }
@@ -164,18 +164,18 @@ class RecipeFormatContractTest {
     @DisplayName("Путь с `..` отвергается")
     fun escapingItemPathIsRejected() {
         val store = store()
-        val serialId = newSerial()
-        val seriesId = newSeries(serialId, "GOT.S01E02")
-        val sceneId = newScene(seriesId, 1200, 1455)
+        val movieId = newMovie()
+        val episodeId = newEpisode(movieId, "GOT.S01E02")
+        val sceneId = newScene(episodeId, 1200, 1455)
         TestDatabase.rejected("путь с сегментом `..`") {
             store.insert(
                 BuildRecipe(
-                    serialId = serialId,
+                    movieId = movieId,
                     name = "Выход за пределы",
                     state = RecipeState.CREATING,
                     createdAt = issuedAt,
                 ),
-                listOf(item(1, 1, sceneId, seriesId, "GOT.S01E02", relativePath = "GOT.S01/../GOT.S01E02.mkv")),
+                listOf(item(1, 1, sceneId, episodeId, "GOT.S01E02", relativePath = "GOT.S01/../GOT.S01E02.mkv")),
             )
         }
     }
@@ -184,17 +184,17 @@ class RecipeFormatContractTest {
     @DisplayName("Начало позже расчётного и конец раньше расчётного отвергаются")
     fun cutBoundariesMustCoverPlannedOnes() {
         val store = store()
-        val serialId = newSerial()
-        val seriesId = newSeries(serialId, "GOT.S01E03")
-        val sceneId = newScene(seriesId, 1200, 1455)
+        val movieId = newMovie()
+        val episodeId = newEpisode(movieId, "GOT.S01E03")
+        val sceneId = newScene(episodeId, 1200, 1455)
         listOf(
-            item(1, 1, sceneId, seriesId, "GOT.S01E03", cutFirstFrame = 1201),
-            item(1, 1, sceneId, seriesId, "GOT.S01E03", cutLastFrame = 1454),
+            item(1, 1, sceneId, episodeId, "GOT.S01E03", cutFirstFrame = 1201),
+            item(1, 1, sceneId, episodeId, "GOT.S01E03", cutLastFrame = 1454),
         ).forEach { broken ->
             TestDatabase.rejected("фактические границы не охватывают расчётные") {
                 store.insert(
                     BuildRecipe(
-                        serialId = serialId,
+                        movieId = movieId,
                         name = "Границы ${broken.cutFirstFrame}…${broken.cutLastFrame}",
                         state = RecipeState.CREATING,
                         createdAt = issuedAt,
@@ -209,13 +209,13 @@ class RecipeFormatContractTest {
     @DisplayName("Повторная выдача тех же данных даёт побайтово те же канонические байты")
     fun repeatedIssueGivesSameBytes() {
         val store = store()
-        val serialId = newSerial()
-        val seriesId = newSeries(serialId, "GOT.S01E04")
-        val sceneId = newScene(seriesId, 1200, 1455)
+        val movieId = newMovie()
+        val episodeId = newEpisode(movieId, "GOT.S01E04")
+        val sceneId = newScene(episodeId, 1200, 1455)
         val document =
             ru.svoemesto.syp.core.recipe.RecipeDocument(
-                serialId = serialId,
-                serialName = "Игры Престолов",
+                movieId = movieId,
+                movieName = "Игры Престолов",
                 recipeId = 0,
                 recipeName = "Джейми — выходы",
                 signingKeyId = signer.signingKeyId,
@@ -225,7 +225,7 @@ class RecipeFormatContractTest {
                 expectedFrameCount = 272,
                 items =
                     listOf(
-                        item(0, 1, sceneId, seriesId, "GOT.S01E04").toDocumentItem(),
+                        item(0, 1, sceneId, episodeId, "GOT.S01E04").toDocumentItem(),
                     ),
             )
         val first = RecipeFormat.canonicalBytes(document)
@@ -235,7 +235,7 @@ class RecipeFormatContractTest {
         // Подписанные байты — ровно те, что отдаются пользователю, и они
         // разбираются обычным разбором JSON: без кавычек воркер файл не прочтёт.
         val json = Json.mapper().readTree(first)
-        assertEquals(1, json["schemaVersion"].asInt())
+        assertEquals(2, json["schemaVersion"].asInt())
         assertEquals("Джейми Ланистер", json["items"][0]["persons"][0].asText())
         assertTrue(verificationKey.verify(first, signer.sign(first)), "подпись проверяется")
     }
@@ -245,13 +245,13 @@ class RecipeFormatContractTest {
     fun fileIsServedOnlyWhenArtifactIsReady() {
         val store = store()
         val registry = artifacts(TestDatabase.tempStorageRoot("recipe-$issuedAt"))
-        val serialId = newSerial()
-        val seriesId = newSeries(serialId, "GOT.S01E05")
-        val sceneId = newScene(seriesId, 1200, 1455)
+        val movieId = newMovie()
+        val episodeId = newEpisode(movieId, "GOT.S01E05")
+        val sceneId = newScene(episodeId, 1200, 1455)
         val document =
             ru.svoemesto.syp.core.recipe.RecipeDocument(
-                serialId = serialId,
-                serialName = "Игры Престолов",
+                movieId = movieId,
+                movieName = "Игры Престолов",
                 recipeId = 0,
                 recipeName = "Джейми — выходы",
                 signingKeyId = signer.signingKeyId,
@@ -259,7 +259,7 @@ class RecipeFormatContractTest {
                 audioTrackCount = 1,
                 expectedDurationMs = 272,
                 expectedFrameCount = 272,
-                items = listOf(item(0, 1, sceneId, seriesId, "GOT.S01E05").toDocumentItem()),
+                items = listOf(item(0, 1, sceneId, episodeId, "GOT.S01E05").toDocumentItem()),
             )
         val bytes = RecipeFormat.canonicalBytes(document)
         val signed =
@@ -272,7 +272,7 @@ class RecipeFormatContractTest {
         val stored =
             store.insert(
                 BuildRecipe(
-                    serialId = serialId,
+                    movieId = movieId,
                     name = "Джейми — выходы",
                     state = RecipeState.DONE,
                     artifactId = artifact.id,
@@ -285,7 +285,7 @@ class RecipeFormatContractTest {
                     createdAt = issuedAt,
                     finishedAt = issuedAt,
                 ),
-                listOf(item(0, 1, sceneId, seriesId, "GOT.S01E05")),
+                listOf(item(0, 1, sceneId, episodeId, "GOT.S01E05")),
             )
 
         val recipeId = requireNotNull(stored.id)

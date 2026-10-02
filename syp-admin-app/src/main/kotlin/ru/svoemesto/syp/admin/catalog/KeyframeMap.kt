@@ -3,12 +3,12 @@ package ru.svoemesto.syp.admin.catalog
 import ru.svoemesto.syp.core.recipe.KeyframeLookup
 
 /**
- * Карта ключевых кадров серии.
+ * Карта ключевых кадров эпизода.
  *
- * Один бит на кадр, бит 1 — кадр ключевой. Карта хранится у серии и
+ * Один бит на кадр, бит 1 — кадр ключевой. Карта хранится у эпизода и
  * обслуживает две задачи сразу:
  *
- * 1. показать оператору признак I-кадра по всей серии (FR-023) — без строки
+ * 1. показать оператору признак I-кадра по всему эпизоду (FR-023) — без строки
  *    на каждый кадр: такая таблица была бы полной таблицей кадров, которую
  *    Р-07 запрещает (research.md Т-04);
  * 2. вычислить **фактические** границы фрагмента сценария: начало — ближайший
@@ -21,7 +21,7 @@ import ru.svoemesto.syp.core.recipe.KeyframeLookup
  * задан здесь один раз и не меняется: карта лежит в базе, и перестановка
  * разрядки сделала бы все ранее записанные карты неверными.
  *
- * Длина карты задаётся числом кадров: `ceil(frame_count / 8)` байт. Для серии
+ * Длина карты задаётся числом кадров: `ceil(frame_count / 8)` байт. Для эпизода
  * `GOT.S01E01` (88 643 кадра) это 11 081 байт — против 88 643 строк, которых
  * здесь нет.
  *
@@ -35,7 +35,7 @@ import ru.svoemesto.syp.core.recipe.KeyframeLookup
  * изменении одного из них компилятор потребует привести в соответствие второе,
  * иначе расчёт границ молча разошёлся бы с картой.
  *
- * @property frameCount число кадров серии, которому соответствует карта
+ * @property frameCount число кадров эпизода, которому соответствует карта
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class KeyframeMap private constructor(
@@ -51,7 +51,7 @@ class KeyframeMap private constructor(
      *
      * @param frame номер кадра с нуля
      * @return `true`, если кадр ключевой
-     * @throws IllegalArgumentException если номер кадра вне серии
+     * @throws IllegalArgumentException если номер кадра вне эпизода
      */
     fun isKeyframe(frame: Int): Boolean {
         requireFrame(frame)
@@ -59,7 +59,7 @@ class KeyframeMap private constructor(
     }
 
     /**
-     * Число ключевых кадров в серии.
+     * Число ключевых кадров в эпизоде.
      *
      * Считается проходом по байтам карты, а не хранится отдельным полем:
      * второе поле означало бы второй источник правды о том же факте.
@@ -96,7 +96,7 @@ class KeyframeMap private constructor(
      *
      * @param frame номер кадра
      * @return номер ключевого кадра или `null`, если раньше него ключевых нет
-     * @throws IllegalArgumentException если номер кадра вне серии
+     * @throws IllegalArgumentException если номер кадра вне эпизода
      */
     override fun lastKeyframeAtOrBefore(frame: Int): Int? {
         requireFrame(frame)
@@ -114,7 +114,7 @@ class KeyframeMap private constructor(
      *
      * @param frame номер кадра
      * @return номер ключевого кадра или `null`, если после него ключевых нет
-     * @throws IllegalArgumentException если номер кадра вне серии
+     * @throws IllegalArgumentException если номер кадра вне эпизода
      */
     override fun firstKeyframeAtOrAfter(frame: Int): Int? {
         requireFrame(frame)
@@ -131,15 +131,15 @@ class KeyframeMap private constructor(
      */
     fun toByteArray(): ByteArray = bits.copyOf()
 
-    /** Проверяет, что номер кадра принадлежит серии. */
+    /** Проверяет, что номер кадра принадлежит эпизоду. */
     private fun requireFrame(frame: Int) {
         require(frame in 0..lastFrameIndex()) {
-            "Кадр $frame вне серии из $frameCount кадров: нумерация с нуля, " +
+            "Кадр $frame вне эпизода из $frameCount кадров: нумерация с нуля, " +
                 "последний кадр ${lastFrameIndex()}"
         }
     }
 
-    /** Номер последнего кадра серии. */
+    /** Номер последнего кадра эпизода. */
     private fun lastFrameIndex(): Int = frameCount - 1
 
     override fun equals(other: Any?): Boolean {
@@ -157,15 +157,15 @@ class KeyframeMap private constructor(
         const val BITS_PER_BYTE: Int = 8
 
         /**
-         * Требуемая длина карты для серии с указанным числом кадров.
+         * Требуемая длина карты для эпизода с указанным числом кадров.
          *
-         * @param frameCount число кадров серии
+         * @param frameCount число кадров эпизода
          * @return длина карты в байтах: округление вверх до целого байта
          * @throws IllegalArgumentException если число кадров не положительно
          */
         fun requiredLength(frameCount: Int): Int {
             require(frameCount > 0) {
-                "Число кадров серии должно быть положительным, задано $frameCount"
+                "Число кадров эпизода должно быть положительным, задано $frameCount"
             }
             return (frameCount + BITS_PER_BYTE - 1) / BITS_PER_BYTE
         }
@@ -173,11 +173,11 @@ class KeyframeMap private constructor(
         /**
          * Строит карту по номерам ключевых кадров.
          *
-         * @param frameCount число кадров серии
+         * @param frameCount число кадров эпизода
          * @param keyframes номера ключевых кадров; повторы допустимы, порядок
          *   значения не имеет
          * @return готовая карта
-         * @throws IllegalArgumentException если номер кадра вне серии
+         * @throws IllegalArgumentException если номер кадра вне эпизода
          */
         fun build(
             frameCount: Int,
@@ -187,7 +187,7 @@ class KeyframeMap private constructor(
             val map = KeyframeMap(frameCount, bits)
             keyframes.forEach { frame ->
                 require(frame in 0..map.lastFrameIndex()) {
-                    "Ключевой кадр $frame вне серии из $frameCount кадров"
+                    "Ключевой кадр $frame вне эпизода из $frameCount кадров"
                 }
                 bits[frame / BITS_PER_BYTE] =
                     (bits[frame / BITS_PER_BYTE].toInt() or maskOf(frame)).toByte()
@@ -202,7 +202,7 @@ class KeyframeMap private constructor(
          * каком кадры идут в файле: номер кадра получается позицией, а не
          * округлением времени, — это и есть требование ADR-0001.
          *
-         * @param frameCount число кадров серии
+         * @param frameCount число кадров эпизода
          * @param flags признак «кадр ключевой» по кадрам, начиная с первого
          * @return готовая карта
          * @throws IllegalArgumentException если признаков не столько же,
@@ -216,7 +216,7 @@ class KeyframeMap private constructor(
             var frame = 0
             for (flag in flags) {
                 require(frame <= frameCount) {
-                    "Признаков больше, чем кадров в серии: кадров $frameCount, " +
+                    "Признаков больше, чем кадров в эпизоде: кадров $frameCount, " +
                         "признак №${frame + 1}"
                 }
                 if (flag) {
@@ -226,7 +226,7 @@ class KeyframeMap private constructor(
                 frame++
             }
             require(frame == frameCount) {
-                "Признаков меньше, чем кадров в серии: кадров $frameCount, признаков $frame"
+                "Признаков меньше, чем кадров в эпизоде: кадров $frameCount, признаков $frame"
             }
             return KeyframeMap(frameCount, bits)
         }
@@ -234,7 +234,7 @@ class KeyframeMap private constructor(
         /**
          * Разбирает карту из байтов, прочитанных в базе.
          *
-         * @param frameCount число кадров серии
+         * @param frameCount число кадров эпизода
          * @param bytes байты карты
          * @return готовая карта
          * @throws IllegalArgumentException если длина байтов не равна
@@ -246,8 +246,8 @@ class KeyframeMap private constructor(
         ): KeyframeMap {
             val expected = requiredLength(frameCount)
             require(bytes.size == expected) {
-                "Длина карты ключевых кадров ${bytes.size} байт, а для серии из " +
-                    "$frameCount кадров требуется $expected: карта не соответствует серии"
+                "Длина карты ключевых кадров ${bytes.size} байт, а для эпизода из " +
+                    "$frameCount кадров требуется $expected: карта не соответствует эпизоду"
             }
             return KeyframeMap(frameCount, bytes.copyOf())
         }
@@ -256,11 +256,11 @@ class KeyframeMap private constructor(
          * Карта без единого ключевого кадра.
          *
          * Случай «ключевых кадров нет» в файле невозможен, но пустая карта
-         * нужна до заполнения: серия зарегистрирована, а карта ещё не
+         * нужна до заполнения: эпизод зарегистрирована, а карта ещё не
          * посчитана.
          *
-         * @param frameCount число кадров серии
-         * @return пустая карта
+         * @param frameCount число кадров эпизода
+         * @return пустой карта
          */
         fun empty(frameCount: Int): KeyframeMap = KeyframeMap(frameCount, ByteArray(requiredLength(frameCount)))
 

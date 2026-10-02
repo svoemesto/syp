@@ -3,10 +3,10 @@ package ru.svoemesto.syp.admin.integrity
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.Job
@@ -44,7 +44,7 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HashJobTest {
     private lateinit var db: Db
-    private lateinit var seriesStore: SeriesStore
+    private lateinit var episodeStore: EpisodeStore
     private lateinit var registry: ChecksumRegistry
 
     /**
@@ -55,11 +55,11 @@ class HashJobTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        seriesStore = SeriesStore(db)
+        episodeStore = EpisodeStore(db)
         registry = ChecksumRegistry(db)
     }
 
-    /** Размер проверочного файла, байт: два блока по 4 МиБ с запасом. */
+    /** Размер проверочного файла, байт: два блока по 4 Миб с запасом. */
     private val fileSize = 9L * 1024 * 1024
 
     /**
@@ -81,17 +81,17 @@ class HashJobTest {
     }
 
     /**
-     * Заводит серию на проверочный файл.
+     * Заводит эпизод на проверочный файл.
      *
      * @param file путь к файлу
-     * @return записанная серия
+     * @return записанный эпизод
      */
-    private fun newSeries(file: Path): Series {
-        val serials = SerialStore(db)
-        val serial = serials.create("Подсчёт ${System.nanoTime()}", file.parent.toString())
-        return seriesStore.insert(
-            Series(
-                serialId = serial.id!!,
+    private fun newEpisode(file: Path): Episode {
+        val movies = MovieStore(db)
+        val movie = movies.create("Подсчёт ${System.nanoTime()}", file.parent.toString())
+        return episodeStore.insert(
+            Episode(
+                movieId = movie.id!!,
                 ordinal = 0,
                 name = "S1E1",
                 sourcePath = file.toString(),
@@ -132,26 +132,26 @@ class HashJobTest {
     }
 
     /**
-     * Ставит задание вида `HASH` над серией и отдаёт его.
+     * Ставит задание вида `HASH` над эпизодом и отдаёт его.
      *
      * Задание записывается по-настоящему: запись справочника ссылается на
      * задание, и ссылка проверяется базой. Задание с выдуманным
      * идентификатором было бы проверкой несуществующего.
      *
-     * @param series серия
+     * @param episode эпизод
      * @return задание в состоянии `WORKING`
      */
-    private fun newJob(series: Series): Job {
+    private fun newJob(episode: Episode): Job {
         val jobId =
             db.use { connection ->
                 connection
                     .prepareStatement(
-                        "INSERT INTO job (kind, state, subject_type, subject_id, params, params_hash, " +
+                        "INSERT INTO tbl_jobs (kind, state, subject_type, subject_id, params, params_hash, " +
                             "algorithm_version, progress_done, progress_total) " +
-                            "VALUES ('HASH', 'WORKING', 'SERIES', ?, ?::jsonb, ?, 'SHA-256', 0, 0) " +
+                            "VALUES ('HASH', 'WORKING', 'EPISODE', ?, ?::jsonb, ?, 'SHA-256', 0, 0) " +
                             "RETURNING id",
                     ).use { statement ->
-                        statement.setLong(1, series.id!!)
+                        statement.setLong(1, episode.id!!)
                         statement.setString(2, "{\"algorithm\":\"SHA-256\"}")
                         statement.setString(3, "0".repeat(64))
                         statement.executeQuery().use { resultSet ->
@@ -164,7 +164,7 @@ class HashJobTest {
             id = jobId,
             kind = JobKind.HASH,
             state = JobState.WORKING,
-            subject = JobSubject.series(series.id!!),
+            subject = JobSubject.episode(episode.id!!),
             paramsJson = "{}",
             paramsHash = "0".repeat(64),
             algorithmVersion = "SHA-256",
@@ -179,13 +179,13 @@ class HashJobTest {
     @Test
     fun `сумма задания совпадает с независимо посчитанной`() {
         val file = newSourceFile(fileSize)
-        val series = newSeries(file)
-        val job = newJob(series)
+        val episode = newEpisode(file)
+        val job = newJob(episode)
         val reported = mutableListOf<JobProgress>()
 
-        val result = HashJob(seriesStore, registry, progressStep = 1024 * 1024).execute(job) { reported.add(it) }
+        val result = HashJob(episodeStore, registry, progressStep = 1024 * 1024).execute(job) { reported.add(it) }
 
-        val current = registry.current(series.id!!)
+        val current = registry.current(episode.id!!)
         assertNotNull(current, "после задания должна появиться актуальная сумма")
         assertEquals(referenceDigest(file), current!!.digest)
         assertEquals(ChecksumState.DONE, current.state)
@@ -204,16 +204,16 @@ class HashJobTest {
     @Test
     fun `ошибка чтения переводит подсчёт в ошибку с текстом`() {
         val file = newSourceFile(fileSize)
-        val series = newSeries(file)
-        val handler = HashJob(seriesStore, registry)
+        val episode = newEpisode(file)
+        val handler = HashJob(episodeStore, registry)
         Files.delete(file)
 
-        val failure = assertFailsWith<HashFailed> { handler.execute(newJob(series)) {} }
+        val failure = assertFailsWith<HashFailed> { handler.execute(newJob(episode)) {} }
 
         assertTrue(failure.text.contains("не удалось прочитать"), "текст ошибки объясняет, что именно не вышло: ${failure.text}")
-        val entry = registry.latest(series.id!!)
+        val entry = registry.latest(episode.id!!)
         assertEquals(ChecksumState.ERROR, entry?.state, "подсчёт должен остаться в ошибке, а не в готовом состоянии")
         assertNotNull(entry?.errorText)
-        assertFalse(registry.isUsable(series.id!!), "у серии без прочитанного файла актуальной суммы быть не может")
+        assertFalse(registry.isUsable(episode.id!!), "у эпизода без прочитанного файла актуальной суммы быть не может")
     }
 }

@@ -53,19 +53,19 @@ class RecipeDeliveryController(
     private val artifacts: ArtifactRegistry,
 ) {
     /**
-     * Перечисляет сценарии сериала.
+     * Перечисляет сценарии фильма.
      *
      * Сценарий — ресурс с адресом, а не состояние вкладки: перезагрузка
-     * страницы ничего не теряет, и список отдаётся по сериалу, а не по
+     * страницы ничего не теряет, и список отдаётся по фильму, а не по
      * содержимому окна.
      *
-     * @param serialId сериал
+     * @param movieId фильм
      * @return сценарии, свежие сверху
      */
     @GetMapping("/api/recipes")
     fun list(
-        @RequestParam("serialId") serialId: Long,
-    ): List<RecipeSummary> = recipes.listBySerial(serialId, LIST_LIMIT).map { it.toSummary() }
+        @RequestParam("movieId") movieId: Long,
+    ): List<RecipeSummary> = recipes.listByMovie(movieId, LIST_LIMIT).map { it.toSummary() }
 
     /**
      * Отдаёт состав сценария перед скачиванием.
@@ -272,10 +272,10 @@ data class RecipeComposition(
  *
  * @property ordinal порядковый номер фрагмента
  * @property sceneId сцена-источник
- * @property seriesId серия-источник
- * @property seriesName название серии
- * @property relativePath путь к файлу серии от корня сериала
- * @property sourceSha256 эталонная сумма файла серии
+ * @property episodeId эпизод-источник
+ * @property episodeName название эпизода
+ * @property relativePath путь к файлу эпизода от корня фильма
+ * @property sourceSha256 эталонная сумма файла эпизода
  * @property firstFrame расчётная граница начала
  * @property lastFrame расчётная граница конца
  * @property cutFirstFrame фактическая граница начала
@@ -288,8 +288,8 @@ data class RecipeComposition(
 data class RecipeCompositionItem(
     val ordinal: Int,
     val sceneId: Long,
-    val seriesId: Long,
-    val seriesName: String,
+    val episodeId: Long,
+    val episodeName: String,
     val relativePath: String,
     val sourceSha256: String,
     val firstFrame: Int,
@@ -340,7 +340,7 @@ private fun BuildRecipe.toSummary(): RecipeSummary =
  * Текст пометки устаревания для показа пользователю.
  *
  * Публичная часть не знает, какая версия формата действует сейчас: версия
- * формата — настройка сериала, и она принадлежит админскому бэкенду. Поэтому
+ * формата — настройка фильма, и она принадлежит админскому бэкенду. Поэтому
  * здесь объясняется только то, что видно из самой строки сценария: помечен он
  * устаревшим или нет. Сравнение версий делает админка при выдаче (ADR-0014).
  */
@@ -357,8 +357,8 @@ private fun BuildRecipeItem.toCompositionItem(): RecipeCompositionItem =
     RecipeCompositionItem(
         ordinal = ordinal,
         sceneId = sceneId,
-        seriesId = seriesId,
-        seriesName = seriesName,
+        episodeId = episodeId,
+        episodeName = episodeName,
         relativePath = relativePath,
         sourceSha256 = sourceSha256,
         firstFrame = firstFrame,

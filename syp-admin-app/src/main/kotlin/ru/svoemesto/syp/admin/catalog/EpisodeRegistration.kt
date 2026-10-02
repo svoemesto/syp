@@ -7,17 +7,17 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
- * Регистрация серии в сериале.
+ * Регистрация эпизода в фильме.
  *
  * Регистрация — единственное место, где в систему попадает путь к файлу. Здесь
  * проверяется всё, что делает этот путь пригодным для сценария сборки, и всё,
  * что делает его безопасным:
  *
- * 1. **Путь лежит внутри корня каталога сериала.** Сценарий обращается к
+ * 1. **Путь лежит внутри корня каталога фильма.** Сценарий обращается к
  *    файлам по путям относительно этого корня (FR-089a): у пользователя своя
- *    копия дерева под своим корнем. Серия вне корня дала бы относительный путь,
+ *    копия дерева под своим корнем. Эпизод вне корня дала бы относительный путь,
  *    который невозможно воспроизвести, то есть выдуманный путь. Отказ здесь
- *    с кодом `SOURCE_UNREADABLE`: для файла серии «источник недоступен» и
+ *    с кодом `SOURCE_UNREADABLE`: для файла эпизода «источник недоступен» и
  *    «лежит вне корня» — одно и то же, и внятный текст говорит, что именно
  *    не так.
  * 2. **Проверка идёт по настоящему пути, а не по написанному.** Символ внутри
@@ -30,51 +30,51 @@ import java.nio.file.Paths
  *    расходились бы с содержимым (FR-002).
  *
  * Порядок проверок неслучаен: сначала форма пути, потом его принадлежность
- * корню, потом существование файла. Иначе серия, указанная не в том каталоге и
+ * корню, потом существование файла. Иначе эпизод, указанная не в том каталоге и
  * несуществующая, сообщала бы «файла нет» — а дело в том, что каталог выбран не
  * тот, и оператор пошёл бы искать несуществующий файл вместо неверного корня.
  *
- * @property serials хранилище сериалов
- * @property seriesStore хранилище серий
- * @property probe опрос файла серии
+ * @property movies хранилище фильмов
+ * @property episodeStore хранилище эпизодов
+ * @property probe опрос файла эпизода
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class SeriesRegistration(
-    private val serials: SerialStore,
-    private val seriesStore: SeriesStore,
+class EpisodeRegistration(
+    private val movies: MovieStore,
+    private val episodeStore: EpisodeStore,
     private val probe: SourceProbe,
 ) {
     /**
-     * Регистрирует серию в сериале.
+     * Регистрирует эпизод в фильме.
      *
-     * @param serialId сериал-владелец
+     * @param movieId фильм-владелец
      * @param sourcePath путь к исходному видеофайлу
-     * @param name название серии; если не задано, берётся имя файла без
+     * @param name название эпизода; если не задано, берётся имя файла без
      *   расширения
-     * @return зарегистрированная серия с определёнными параметрами
-     * @throws DomainException с кодом `NOT_FOUND`, если сериала нет; с кодом
-     *   `SOURCE_UNREADABLE`, если путь вне корня сериала либо файл
+     * @return зарегистрированный эпизод с определёнными параметрами
+     * @throws DomainException с кодом `NOT_FOUND`, если фильма нет; с кодом
+     *   `SOURCE_UNREADABLE`, если путь вне корня фильма либо файл
      *   недоступен; с кодом `CONFLICT`, если такой файл уже зарегистрирован
      */
     fun register(
-        serialId: Long,
+        movieId: Long,
         sourcePath: String,
         name: String? = null,
         seasonId: Long? = null,
         episodeOrdinal: Int = 0,
-    ): Series {
-        val serial =
-            serials.find(serialId)
+    ): Episode {
+        val movie =
+            movies.find(movieId)
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
-                    "сериал $serialId не заведён: создайте сериал с корнем каталога и повторите",
+                    "фильм $movieId не заведён: создайте фильм с корнем каталога и повторите",
                 )
-        val file = requireInsideRoot(serial, sourcePath)
+        val file = requireInsideRoot(movie, sourcePath)
         val parameters = probe.probe(file)
-        val series =
-            Series.of(
-                serialId = serial.id!!,
-                ordinal = serials.nextSeriesOrdinal(serialId),
+        val episode =
+            Episode.of(
+                movieId = movie.id!!,
+                ordinal = movies.nextEpisodeOrdinal(movieId),
                 name = (name?.takeIf { it.isNotBlank() }) ?: file.fileName.toString().substringBeforeLast('.'),
                 seasonId = seasonId,
                 episodeOrdinal =
@@ -92,14 +92,14 @@ class SeriesRegistration(
                 sourcePath = file.toString(),
                 parameters = parameters,
             )
-        return seriesStore.insert(series)
+        return episodeStore.insert(episode)
     }
 
     /**
-     * Проверяет, что файл лежит внутри корня каталога сериала, и отдаёт его
+     * Проверяет, что файл лежит внутри корня каталога фильма, и отдаёт его
      * настоящий путь.
      *
-     * @param serial сериал-владелец
+     * @param movie фильм-владелец
      * @param sourcePath путь, указанный оператором
      * @return путь к файлу с раскрытыми символами
      * @throws DomainException с кодом `SOURCE_UNREADABLE`, если путь не
@@ -107,20 +107,20 @@ class SeriesRegistration(
      *   каталог недоступен или самого файла нет
      */
     fun requireInsideRoot(
-        serial: Serial,
+        movie: Movie,
         sourcePath: String,
     ): Path {
-        val root = requireAccessibleRoot(serial)
+        val root = requireAccessibleRoot(movie)
         val declared = requireAbsolute(sourcePath)
         val normalized = declared.normalize()
 
         if (!normalized.startsWith(root)) {
-            throw outsideRoot(serial, declared)
+            throw outsideRoot(movie, declared)
         }
         if (!Files.isRegularFile(normalized)) {
             throw unreadableFile(
                 declared,
-                "по указанному пути нет файла серии; проверьте путь и права на архив",
+                "по указанному пути нет файла эпизода; проверьте путь и права на архив",
             )
         }
 
@@ -130,7 +130,7 @@ class SeriesRegistration(
         val real = normalized.toRealPath()
         val realRoot = root.toRealPath()
         if (!real.startsWith(realRoot)) {
-            throw outsideRoot(serial, declared)
+            throw outsideRoot(movie, declared)
         }
         if (!Files.isReadable(real)) {
             throw unreadableFile(declared, "файл не доступен для чтения: проверьте права на архив")
@@ -155,14 +155,14 @@ class SeriesRegistration(
         if (text.isEmpty()) {
             throw DomainException(
                 ErrorCode.BAD_REQUEST,
-                "путь к файлу серии не задан: укажите путь внутри корня каталога сериала",
+                "путь к файлу эпизода не задан: укажите путь внутри корня каталога фильма",
             )
         }
         val path = runCatching { Paths.get(text) }.getOrNull()
         if (path == null || !path.isAbsolute) {
             throw DomainException(
                 ErrorCode.SOURCE_UNREADABLE,
-                "путь к файлу серии «$text» должен быть абсолютным: относительный путь попал бы " +
+                "путь к файлу эпизода «$text» должен быть абсолютным: относительный путь попал бы " +
                     "в сценарий сборки и оказался бы выдуманным (FR-089a)",
             )
         }
@@ -170,38 +170,38 @@ class SeriesRegistration(
     }
 
     /**
-     * Проверяет, что корневой каталог сериала доступен.
+     * Проверяет, что корневой каталог фильма доступен.
      *
-     * @param serial сериал-владелец
+     * @param movie фильм-владелец
      * @return настоящий путь корня
      * @throws DomainException с кодом `SOURCE_UNREADABLE`, если каталога нет
      */
-    private fun requireAccessibleRoot(serial: Serial): Path {
-        val root = Paths.get(serial.sourceRoot)
+    private fun requireAccessibleRoot(movie: Movie): Path {
+        val root = Paths.get(movie.sourceRoot)
         if (!Files.isDirectory(root)) {
             throw DomainException(
                 ErrorCode.SOURCE_UNREADABLE,
-                "корневой каталог сериала «${serial.sourceRoot}» недоступен: " +
-                    "каталога нет или он не смонтирован. Проверьте корень в карточке сериала",
+                "корневой каталог фильма «${movie.sourceRoot}» недоступен: " +
+                    "каталога нет или он не смонтирован. Проверьте корень в карточке фильма",
             )
         }
         return root.normalize()
     }
 
     /**
-     * Отказ «путь вне корня каталога сериала».
+     * Отказ «путь вне корня каталога фильма».
      *
-     * @param serial сериал-владелец
+     * @param movie фильм-владелец
      * @param path путь, указанный оператором
      * @return исключение с кодом `SOURCE_UNREADABLE`
      */
     private fun outsideRoot(
-        serial: Serial,
+        movie: Movie,
         path: Path,
     ): DomainException =
         DomainException(
             ErrorCode.SOURCE_UNREADABLE,
-            "файл «$path» лежит вне корня каталога сериала «${serial.sourceRoot}»: " +
+            "файл «$path» лежит вне корня каталога фильма «${movie.sourceRoot}»: " +
                 "сценарий сборки обращается к файлам по путям относительно этого корня, " +
                 "и путь вне его был бы выдуманным (FR-089a)",
         )

@@ -6,10 +6,10 @@ import org.junit.jupiter.api.TestInstance
 import ru.svoemesto.syp.admin.analysis.AnalysisKind
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
 import ru.svoemesto.syp.admin.analysis.AnalysisState
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.SerialStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import ru.svoemesto.syp.admin.jobs.AdminJobWorker
 import ru.svoemesto.syp.admin.jobs.JobHandler
@@ -37,7 +37,7 @@ import kotlin.test.assertTrue
  * Проверяется то, что видно со стороны очереди и базы:
  *
  * 1. успешный проход даёт задание в `DONE` с прогрессом, равным числу кадров
- *    серии, и записывает прогон вида `FACES`;
+ *    эпизода, и записывает прогон вида `FACES`;
  * 2. **прогон называет заглушку детектора** — результат заглушки никогда не
  *    должен быть выдан за результат настоящего детектора;
  * 3. ненулевой код декодера даёт `ERROR` с текстом, а не `DONE` (SC-005,
@@ -52,7 +52,7 @@ import kotlin.test.assertTrue
 class FacesJobTest {
     private lateinit var db: Db
     private lateinit var queue: JobQueue
-    private lateinit var seriesStore: SeriesStore
+    private lateinit var episodeStore: EpisodeStore
     private lateinit var runStore: AnalysisRunStore
     private lateinit var registry: ArtifactRegistry
     private lateinit var storageRoot: Path
@@ -72,7 +72,7 @@ class FacesJobTest {
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
         queue = JobQueue(db)
-        seriesStore = SeriesStore(db)
+        episodeStore = EpisodeStore(db)
         runStore = AnalysisRunStore(db)
         storageRoot = Files.createTempDirectory("syp-faces-storage")
         registry = ArtifactRegistry(db, FileSystemStorage(storageRoot))
@@ -81,10 +81,10 @@ class FacesJobTest {
 
     @Test
     fun `успешный проход даёт задание в DONE и прогон вида FACES`() {
-        val series = newSeries(frames = 6)
+        val episode = newEpisode(frames = 6)
         val decoder = FakeDecoder.write(decoderRoot.resolve("ok"), frames = 6)
         val worker = workerFor(decoder)
-        val job = enqueueAndClaim(series)
+        val job = enqueueAndClaim(episode)
 
         val done = worker.runJob(job)
         val stored = assertNotNull(queue.find(job.id), "задание обязано остаться в базе")
@@ -94,13 +94,13 @@ class FacesJobTest {
         assertEquals(
             6L,
             stored.progress.total,
-            "общий объём работы равен числу кадров серии: адаптивного шага нет (ADR-0002)",
+            "общий объём работы равен числу кадров эпизода: адаптивного шага нет (ADR-0002)",
         )
-        assertEquals(6L, stored.progress.done, "прогресс обязан дойти до конца серии")
+        assertEquals(6L, stored.progress.done, "прогресс обязан дойти до конца эпизода")
 
         val run =
             assertNotNull(
-                runStore.latest(series.id!!, AnalysisKind.FACES),
+                runStore.latest(episode.id!!, AnalysisKind.FACES),
                 "прогон вида FACES обязан остаться в базе",
             )
         assertEquals(AnalysisState.DONE, run.state, "прогон успешного прохода — DONE")
@@ -114,10 +114,10 @@ class FacesJobTest {
 
     @Test
     fun `текст результата называет заглушку детектора`() {
-        val series = newSeries(frames = 3)
+        val episode = newEpisode(frames = 3)
         val decoder = FakeDecoder.write(decoderRoot.resolve("stub"), frames = 3)
         val worker = workerFor(decoder)
-        val job = enqueueAndClaim(series)
+        val job = enqueueAndClaim(episode)
 
         worker.runJob(job)
         val stored = assertNotNull(queue.find(job.id))
@@ -131,10 +131,10 @@ class FacesJobTest {
 
     @Test
     fun `ненулевой код декодера переводит задание в ошибку с текстом`() {
-        val series = newSeries(frames = 4)
+        val episode = newEpisode(frames = 4)
         val decoder = FakeDecoder.write(decoderRoot.resolve("broken"), frames = 4, exit = 1)
         val worker = workerFor(decoder)
-        val job = enqueueAndClaim(series)
+        val job = enqueueAndClaim(episode)
 
         val done = worker.runJob(job)
         val stored = assertNotNull(queue.find(job.id))
@@ -149,7 +149,7 @@ class FacesJobTest {
         )
         val run =
             assertNotNull(
-                runStore.latest(series.id!!, AnalysisKind.FACES),
+                runStore.latest(episode.id!!, AnalysisKind.FACES),
                 "прогон неудачи обязан остаться в базе",
             )
         assertEquals(AnalysisState.ERROR, run.state, "прогон неудачи не остаётся в состоянии работы")
@@ -166,7 +166,7 @@ class FacesJobTest {
         val detector: FaceDetector = StubFaceDetector()
         val job =
             FacesJob(
-                seriesStore = seriesStore,
+                episodeStore = episodeStore,
                 runStore = runStore,
                 scan = FaceScan(FrameChannel(decoder.toString()), detector),
                 detectorKey = detector.key,
@@ -184,16 +184,16 @@ class FacesJobTest {
     }
 
     /**
-     * Заводит серию с указанным числом кадров.
+     * Заводит эпизод с указанным числом кадров.
      *
-     * @param frames число кадров серии
-     * @return записанная серия
+     * @param frames число кадров эпизода
+     * @return записанный эпизод
      */
-    private fun newSeries(frames: Int): Series {
-        val serial = SerialStore(db).create("Лица ${System.nanoTime()}", "/srv/got")
-        return seriesStore.insert(
-            Series(
-                serialId = serial.id!!,
+    private fun newEpisode(frames: Int): Episode {
+        val movie = MovieStore(db).create("Лица ${System.nanoTime()}", "/srv/got")
+        return episodeStore.insert(
+            Episode(
+                movieId = movie.id!!,
                 ordinal = 0,
                 name = "S01E01",
                 sourcePath = "/srv/got/S01E01-${System.nanoTime()}.mkv",
@@ -217,14 +217,14 @@ class FacesJobTest {
     /**
      * Ставит задание в очередь и берёт его в работу.
      *
-     * @param series серия
+     * @param episode эпизод
      * @return взятое задание
      */
-    private fun enqueueAndClaim(series: Series): Job {
+    private fun enqueueAndClaim(episode: Episode): Job {
         val jobId =
             queue.enqueue(
                 kind = JobKind.FACES,
-                subject = JobSubject.series(series.id!!),
+                subject = JobSubject.episode(episode.id!!),
                 paramsJson = "{\"detector\":\"${StubFaceDetector.KEY}\"}",
                 paramsHash = ParamsHash.of(StubFaceDetector.KEY, 4, 2),
                 algorithmVersion = StubFaceDetector.KEY,

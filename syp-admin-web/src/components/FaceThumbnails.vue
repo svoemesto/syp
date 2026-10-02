@@ -4,22 +4,21 @@
 (FR-024), а уменьшённые превью всех // кадров уже лежат на листах. Отдельная картинка на каждое лицо
 означала бы // ещё около 17,5 ГБ данных, которые ничего не добавляют оператору (Q10). // // Рамка
 лица рисуется поверх кадра: координаты приходят в пикселях кадра // полного разрешения, а картинка —
-135×75. Масштаб считается от разрешения // серии, поэтому рамка попадает на лицо при любом размере
+135×75. Масштаб считается от разрешения // эпизода, поэтому рамка попадает на лицо при любом размере
 миниатюры.
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { facePreviewUrl } from '../api/characters'
-import type { FaceRow } from '../api/view-model'
+import { type FaceView, facePreviewUrl } from '../api/characters'
 
 const props = defineProps<{
-  /** Серия-владелец лиц. */
-  seriesId: number
+  /** Эпизод-владелец лиц. */
+  episodeId: number
   /** Лица для показа. */
-  faces: FaceRow[]
-  /** Разрешение кадра серии: по нему считается положение рамки. */
+  faces: FaceView[]
+  /** Разрешение кадра эпизода: по нему считается положение рамки. */
   frameWidth: number
-  /** Высота кадра серии. */
+  /** Высота кадра эпизода. */
   frameHeight: number
   /** Считать ли рамки рамками, а не заливкой: так показывают нарисованные вручную. */
   outlined?: boolean
@@ -28,7 +27,7 @@ const props = defineProps<{
 /**
  * Положение и размер рамок в процентах миниатюры.
  *
- * Считается от разрешения серии, а не от размеров картинки: миниатюра может
+ * Считается от разрешения эпизода, а не от размеров картинки: миниатюра может
  * показываться в любом размере, а рамка обязана остаться на месте.
  */
 const boxes = computed(() =>
@@ -39,6 +38,16 @@ const boxes = computed(() =>
     height: `${((face.y2 - face.y1) / props.frameHeight) * 100}%`,
   })),
 )
+
+/**
+ * Подпись миниатюры для оператора.
+ *
+ * @param face лицо
+ * @returns текст для `alt`
+ */
+function caption(face: FaceView): string {
+  return `Лицо на кадре ${face.frameNumber}, ${face.personName}`
+}
 </script>
 
 <template>
@@ -51,13 +60,13 @@ const boxes = computed(() =>
     >
       <img
         class="frame"
-        :src="facePreviewUrl(seriesId, face.frameNumber)"
-        :alt="face.caption"
+        :src="facePreviewUrl(episodeId, face.frameNumber)"
+        :alt="caption(face)"
         loading="lazy"
       />
       <span class="box" :style="boxes[index]" />
       <span class="caption">
-        кадр {{ face.frameLabel }}
+        кадр {{ face.frameNumber }}
         <span v-if="face.origin === 'OPERATOR'" class="operator" title="рамку нарисовал оператор">
           вручную
         </span>
@@ -73,20 +82,18 @@ const boxes = computed(() =>
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 6px;
 }
 
 .thumb {
   width: 135px;
   position: relative;
-  background: #0d1117;
-  border: 1px solid var(--syp-border);
-  border-radius: var(--bs-border-radius);
-  overflow: hidden;
+  border: 1px solid #d0d4d8;
+  background: #ffffff;
 }
 
 .thumb.outlined {
-  border-color: var(--syp-origin-operator);
+  border-color: #2f7d32;
 }
 
 .frame {
@@ -97,27 +104,26 @@ const boxes = computed(() =>
 
 .box {
   position: absolute;
-  border: 2px solid var(--syp-origin-auto);
+  border: 2px solid #c62828;
   box-sizing: border-box;
   pointer-events: none;
 }
 
 .thumb.outlined .box {
   border-style: dashed;
-  border-color: var(--syp-origin-operator);
+  border-color: #2f7d32;
 }
 
 .caption {
-  font-size: 0.6875rem;
-  padding: 0.2rem 0.35rem;
-  color: var(--syp-text-muted);
-  background-color: var(--syp-raised);
+  font-size: 11px;
+  padding: 2px 4px;
+  color: #333333;
   display: flex;
-  gap: 0.25rem;
+  gap: 4px;
   justify-content: space-between;
 }
 
 .operator {
-  color: var(--syp-origin-operator);
+  color: #2f7d32;
 }
 </style>

@@ -26,7 +26,7 @@ services:
       POSTGRES_USER: ${SYP_DB_USER:-syp}
       POSTGRES_PASSWORD: ${SYP_DB_PASSWORD:?задайте SYP_DB_PASSWORD в deploy/.env}
       # Русская сортировка не нужна: домен оперирует номерами кадров и
-      # идентификаторами, текстовые поиски выполняются по имени сериала.
+      # идентификаторами, текстовые поиски выполняются по имени фильма.
       POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     command:
       - postgres
@@ -122,7 +122,7 @@ services:
       SYP_FACE_PROVIDER: ${SYP_FACE_PROVIDER:-CUDAExecutionProvider}
       SYP_FACE_INPUT_WIDTH: ${SYP_FACE_INPUT_WIDTH:-640}
       SYP_FACE_INPUT_HEIGHT: ${SYP_FACE_INPUT_HEIGHT:-640}
-      # Порог подобран замером М-02 на размеченной выборке серии,
+      # Порог подобран замером М-02 на размеченного выборке эпизода,
       # а не взят из примера репозитория модели.
       SYP_FACE_SCORE_THRESHOLD: ${SYP_FACE_SCORE_THRESHOLD:-0.2}
       SYP_FACE_NMS_THRESHOLD: ${SYP_FACE_NMS_THRESHOLD:-0.3}

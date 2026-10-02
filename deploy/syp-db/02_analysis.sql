@@ -92,7 +92,7 @@ CREATE TABLE scene (
 );
 
 COMMENT ON TABLE scene IS
-    'Сцена — непрерывный участок серии. Связь сцена ↔ план вычисляется по диапазонам кадров (ADR-0007).';
+    'Сцена — непрерывный участок эпизода. Связь сцена ↔ план вычисляется по диапазонам кадров (ADR-0007).';
 COMMENT ON COLUMN scene.origin IS
     'Происхождение границы: AUTO — алгоритм, OPERATOR — оператор, CANCELLED — решение алгоритма отменено (FR-015, FR-016).';
 COMMENT ON COLUMN scene.location_id IS

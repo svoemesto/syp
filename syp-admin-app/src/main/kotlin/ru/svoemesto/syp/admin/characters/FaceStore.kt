@@ -6,28 +6,28 @@ import ru.svoemesto.syp.core.db.Save
 import ru.svoemesto.syp.core.db.Table
 
 /**
- * Лицо, найденное в кадре серии.
+ * Лицо, найденное в кадре эпизода.
  *
  * Лицо — это **рамка в координатах кадра полного разрешения**. Время здесь
  * не хранится: номер кадра — единственный источник правды для границ
- * (ADR-0001), а клиент пересчитывает время от `time_base` серии.
+ * (ADR-0001), а клиент пересчитывает время от `time_base` эпизода.
  *
- * Естественный ключ лица — тройка **серия, номер кадра, порядковый номер в
+ * Естественный ключ лица — тройка **эпизод, номер кадра, порядковый номер в
  * кадре**. Он же объявлен уникальным в базе (`face_natural_key_unique`).
  * Смысл порядкового номера — в том, что он задаётся детектором: два
- * повторных прохода по одной серии дают по нескольку рамок на один и тот же
+ * повторных прохода по одному эпизоду дают по нескольку рамок на один и тот же
  * кадр, и без порядкового номера вторая запись конфликтовала бы с первой.
  *
  * Рамка проверяется дважды, и обе проверки обязательны:
  *
  * 1. **на записи** — перевёрнутая или пустая рамка не доходит до базы
  *    (`DetectedFace`, ограничение `face_box_order`);
- * 2. **в базе** — рамка обязана помещаться в разрешение серии
- *    (миграция `16_face_box_within_series.sql`). Условие `CHECK` этого не
+ * 2. **в базе** — рамка обязана помещаться в разрешение эпизода
+ *    (миграция `16_face_box_within_episode.sql`). Условие `CHECK` этого не
  *    умеет: разрешение лежит в другой таблице.
  *
  * @property id идентификатор лица; `null`, пока не записано
- * @property seriesId серия-владелец
+ * @property episodeId эпизод-владелец
  * @property frameNumber номер кадра, нумерация с нуля
  * @property faceIndex порядковый номер лица в кадре, с нуля
  * @property x1 левая граница рамки в пикселях кадра
@@ -35,7 +35,7 @@ import ru.svoemesto.syp.core.db.Table
  * @property x2 правая граница рамки в пикселях кадра
  * @property y2 нижняя граница рамки в пикселях кадра
  * @property shotId план, которому принадлежит лицо; `null` допустим, только
- *   если номер кадра вне диапазонов всех планов серии (FR-034)
+ *   если номер кадра вне диапазонов всех планов эпизода (FR-034)
  * @property personId персона лица; непустая **всегда**, «нет персоны»
  *   выражается служебной заглушкой (Р-12, FR-036)
  * @property origin происхождение рамки: `AUTO` или `OPERATOR` (FR-032)
@@ -46,7 +46,7 @@ import ru.svoemesto.syp.core.db.Table
  */
 data class Face(
     val id: Long? = null,
-    val seriesId: Long,
+    val episodeId: Long,
     val frameNumber: Int,
     val faceIndex: Int,
     val x1: Int,
@@ -116,7 +116,7 @@ data class Face(
             FaceStore.COLUMNS,
             {
                 listOf(
-                    seriesId,
+                    episodeId,
                     frameNumber,
                     faceIndex,
                     x1,
@@ -136,7 +136,7 @@ data class Face(
     companion object {
         /** Столбцы лица в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, series_id, frame_number, face_index, x1, y1, x2, y2, shot_id, person_id, " +
+            "id, id_episode, frame_number, face_index, x1, y1, x2, y2, shot_id, person_id, " +
                 "origin, is_example, detect_confidence, recordhash"
     }
 }
@@ -177,17 +177,17 @@ enum class FaceOrigin {
 }
 
 /**
- * Хранилище лиц серии.
+ * Хранилище лиц эпизода.
  *
- * Запись идёт **пачками по кадру**, а не по одному лицу: на 88 643 кадрах серии
+ * Запись идёт **пачками по кадру**, а не по одному лицу: на 88 643 кадрах эпизода
  * это до нескольких сотен тысяч строк, и запись по одной строке на лицо
  * держала бы соединение открытым на часы.
  *
  * Два свойства хранилища, которые иначе выполнялись бы «по памяти»
  * вызывающих:
  *
- * 1. **естественный ключ — серия, кадр, порядковый номер.** Повторный
- *    проход детектора по той же серии обновляет те же строки, а не плодит
+ * 1. **естественный ключ — эпизод, кадр, порядковый номер.** Повторный
+ *    проход детектора по того же эпизода обновляет те же строки, а не плодит
  *    вторые: рамка на кадре 60 с номером 1 — та же рамка, что и в прошлом
  *    проходе, даже если детектор другой;
  * 2. **лицо с происхождением `OPERATOR` повторным проходом не затирается.**
@@ -211,7 +211,7 @@ class FaceStore(
      * Строки, нарисованные оператором, не обновляются: обновление заменило бы
      * рамку человека результатом автоматики (SC-006).
      *
-     * @param seriesId серия-владелец
+     * @param episodeId эпизод-владелец
      * @param frameNumber номер кадра
      * @param found лица, найденные детектором, в порядке отдачи
      * @param personId персона по умолчанию для найденных лиц: служебная
@@ -223,7 +223,7 @@ class FaceStore(
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun saveFrame(
-        seriesId: Long,
+        episodeId: Long,
         frameNumber: Int,
         found: List<DetectedFace>,
         personOf: (DetectedFace) -> Long,
@@ -236,7 +236,7 @@ class FaceStore(
         return db.useTransaction { connection ->
             saveFrameInConnection(
                 connection,
-                seriesId,
+                episodeId,
                 frameNumber,
                 found,
                 personOf,
@@ -254,7 +254,7 @@ class FaceStore(
      * строк — но только те, чьё происхождение `AUTO`. Нарисованные человеком
      * остаются (FR-032, SC-006).
      *
-     * @param seriesId серия-владелец
+     * @param episodeId эпизод-владелец
      * @param frameNumber номер кадра
      * @param found лица, найденные детектором в этом проходе
      * @param personOf назначает персону каждому найденному лицу
@@ -263,7 +263,7 @@ class FaceStore(
      * @return сколько строк лица изменилось
      */
     fun replaceAutoFrame(
-        seriesId: Long,
+        episodeId: Long,
         frameNumber: Int,
         found: List<DetectedFace>,
         personOf: (DetectedFace) -> Long,
@@ -273,16 +273,16 @@ class FaceStore(
         db.useTransaction { connection ->
             connection
                 .prepareStatement(
-                    "DELETE FROM $TABLE WHERE series_id = ? AND frame_number = ? AND origin = ?",
+                    "DELETE FROM $TABLE WHERE id_episode = ? AND frame_number = ? AND origin = ?",
                 ).use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.setInt(2, frameNumber)
                     statement.setString(3, FaceOrigin.AUTO.name)
                     statement.executeUpdate()
                 }
             saveFrameInConnection(
                 connection,
-                seriesId,
+                episodeId,
                 frameNumber,
                 found,
                 personOf,
@@ -294,7 +294,7 @@ class FaceStore(
     /**
      * Записывает лицо, нарисованное оператором.
      *
-     * @param seriesId серия-владелец
+     * @param episodeId эпизод-владелец
      * @param frameNumber номер кадра
      * @param faceIndex порядковый номер лица в кадре
      * @param detected рамка
@@ -304,7 +304,7 @@ class FaceStore(
      * @return идентификатор записанного лица
      */
     fun saveOperatorFace(
-        seriesId: Long,
+        episodeId: Long,
         frameNumber: Int,
         faceIndex: Int,
         detected: DetectedFace,
@@ -316,7 +316,7 @@ class FaceStore(
         detected.requireInside(frameWidth, frameHeight)
         val face =
             Face(
-                seriesId = seriesId,
+                episodeId = episodeId,
                 frameNumber = frameNumber,
                 faceIndex = faceIndex,
                 x1 = detected.x1,
@@ -329,22 +329,22 @@ class FaceStore(
         return db.useTransaction { connection ->
             Save.insertIfAbsent(connection, face.toTable())
             idOf(
-                findInConnection(connection, seriesId, frameNumber, faceIndex),
-                "Лицо $seriesId/$frameNumber/$faceIndex записано, но не читается",
+                findInConnection(connection, episodeId, frameNumber, faceIndex),
+                "Лицо $episodeId/$frameNumber/$faceIndex записано, но не читается",
             )
         }
     }
 
     /**
-     * Читает лица серии по возрастанию номера кадра и порядкового номера.
+     * Читает лица эпизода по возрастанию номера кадра и порядкового номера.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param offset сколько лиц пропустить
      * @param limit сколько лиц вернуть; `0` — все
      * @return лица выборки
      */
-    fun listBySeries(
-        seriesId: Long,
+    fun listByEpisode(
+        episodeId: Long,
         offset: Int = 0,
         limit: Int = 0,
     ): List<Face> {
@@ -363,7 +363,7 @@ class FaceStore(
                     if (offset > 0) " OFFSET $offset" else ""
             }
         val order = " ORDER BY frame_number, face_index"
-        return db.select("$SELECT_ALL WHERE series_id = ?$order$tail", ::readRow, seriesId)
+        return db.select("$SELECT_ALL WHERE id_episode = ?$order$tail", ::readRow, episodeId)
     }
 
     /**
@@ -375,16 +375,16 @@ class FaceStore(
     fun find(faceId: Long): Face? = db.selectOne(SELECT_BY_ID, ::readRow, faceId)
 
     /**
-     * Считает лица серии.
+     * Считает лица эпизода.
      *
-     * @param seriesId идентификатор серии
-     * @return число лиц серии
+     * @param episodeId идентификатор эпизода
+     * @return число лиц эпизода
      */
-    fun countBySeries(seriesId: Long): Int =
+    fun countByEpisode(episodeId: Long): Int =
         db.selectOne(
-            "SELECT count(*) AS total FROM $TABLE WHERE series_id = ?",
+            "SELECT count(*) AS total FROM $TABLE WHERE id_episode = ?",
             { it.int("total") },
-            seriesId,
+            episodeId,
         ) ?: 0
 
     /**
@@ -424,7 +424,7 @@ class FaceStore(
     }
 
     /**
-     * Читает лица серии по идентификаторам.
+     * Читает лица эпизода по идентификаторам.
      *
      * @param faceIds идентификаторы лиц
      * @return лица по возрастанию номера кадра
@@ -459,7 +459,7 @@ class FaceStore(
      * Записывает лица кадра в уже открытой транзакции.
      *
      * @param connection открытое соединение
-     * @param seriesId серия-владелец
+     * @param episodeId эпизод-владелец
      * @param frameNumber номер кадра
      * @param found лица, найденные детектором
      * @param personOf назначает персону каждому найденному лицу
@@ -469,7 +469,7 @@ class FaceStore(
      */
     fun saveFrameInConnection(
         connection: java.sql.Connection,
-        seriesId: Long,
+        episodeId: Long,
         frameNumber: Int,
         found: List<DetectedFace>,
         personOf: (DetectedFace) -> Long,
@@ -480,7 +480,7 @@ class FaceStore(
         found.forEachIndexed { index, detected ->
             val face =
                 Face(
-                    seriesId = seriesId,
+                    episodeId = episodeId,
                     frameNumber = frameNumber,
                     faceIndex = index,
                     x1 = detected.x1,
@@ -505,7 +505,7 @@ class FaceStore(
     private fun readRow(row: Row): Face =
         Face(
             id = row.long("id"),
-            seriesId = row.long("series_id"),
+            episodeId = row.long("id_episode"),
             frameNumber = row.int("frame_number"),
             faceIndex = row.int("face_index"),
             x1 = row.int("x1"),
@@ -524,22 +524,22 @@ class FaceStore(
      * Читает лицо по естественному ключу в открытой транзакции.
      *
      * @param connection открытое соединение
-     * @param seriesId серия-владелец
+     * @param episodeId эпизод-владелец
      * @param frameNumber номер кадра
      * @param faceIndex порядковый номер лица в кадре
      * @return лицо или `null`, если такой строки нет
      */
     private fun findInConnection(
         connection: java.sql.Connection,
-        seriesId: Long,
+        episodeId: Long,
         frameNumber: Int,
         faceIndex: Int,
     ): Face? =
         connection
             .prepareStatement(
-                "$SELECT_ALL WHERE series_id = ? AND frame_number = ? AND face_index = ?",
+                "$SELECT_ALL WHERE id_episode = ? AND frame_number = ? AND face_index = ?",
             ).use { statement ->
-                statement.setLong(1, seriesId)
+                statement.setLong(1, episodeId)
                 statement.setInt(2, frameNumber)
                 statement.setInt(3, faceIndex)
                 statement.executeQuery().use { resultSet ->
@@ -562,16 +562,16 @@ class FaceStore(
     ): Long =
         face?.id
             ?: throw ru.svoemesto.syp.core.db
-                .DbException("$what: у серии не оказалось ни одной строки")
+                .DbException("$what: у эпизода не оказалось ни одной строки")
 
     companion object {
         /** Имя таблицы лиц. */
-        const val TABLE: String = "face"
+        const val TABLE: String = "tbl_faces"
 
         /** Записываемые столбцы лица в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "series_id",
+                "id_episode",
                 "frame_number",
                 "face_index",
                 "x1",

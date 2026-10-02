@@ -5,18 +5,18 @@ import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.contract.ErrorItem
 
 /**
- * Источник сведений о ключевых кадрах серии.
+ * Источник сведений о ключевых кадрах эпизода.
  *
  * Интерфейс, а не конкретная карта: код сценария лежит в общем модуле
- * `syp-core`, а карта ключевых кадров хранится у серии и обслуживает ещё и
+ * `syp-core`, а карта ключевых кадров хранится у эпизода и обслуживает ещё и
  * интерфейс админки. Смешивать их нельзя — общий модуль не знает, где его
  * вызвали (ADR-0011, последствие 3).
  *
- * @property frameCount число кадров серии
+ * @property frameCount число кадров эпизода
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 interface KeyframeLookup {
-    /** Число кадров серии, которому соответствует карта. */
+    /** Число кадров эпизода, которому соответствует карта. */
     val frameCount: Int
 
     /**
@@ -57,8 +57,8 @@ data class CutBoundaries(
  * какой частотой.
  *
  * @property frames число кадров по фактическим границам
- * @property timeBaseNum числитель частокадровой базы серии
- * @property timeBaseDen знаменатель частокадровой базы серии
+ * @property timeBaseNum числитель частокадрового базы эпизода
+ * @property timeBaseDen знаменатель частокадровый базы эпизода
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class RecipeSlice(
@@ -94,10 +94,10 @@ object RecipeFragmentPlan {
      *
      * @param firstFrame расчётная граница начала
      * @param lastFrame расчётная граница конца
-     * @param keyframes ключевые кадры серии
+     * @param keyframes ключевые кадры эпизода
      * @return фактические границы фрагмента
      * @throws DomainException с кодом `SOURCE_UNREADABLE`, если карты ключевых
-     *   кадров у серии нет: выдать сценарий с выдуманными границами нельзя
+     *   кадров у эпизода нет: выдать сценарий с выдуманными границами нельзя
      */
     fun cutBoundaries(
         firstFrame: Int,
@@ -110,9 +110,9 @@ object RecipeFragmentPlan {
         if (keyframes == null) {
             throw DomainException(
                 ErrorCode.SOURCE_UNREADABLE,
-                "у серии не посчитана карта ключевых кадров, фактические границы фрагмента " +
+                "у эпизода не посчитана карта ключевых кадров, фактические границы фрагмента " +
                     "вычислить нечем; округление на стыке выдумывать нельзя (FR-082)",
-                listOf(ErrorItem("series", "?", "карта ключевых кадров не посчитана")),
+                listOf(ErrorItem("tbl_episodes", "?", "карта ключевых кадров не посчитана")),
             )
         }
         val cutFirst = keyframes.lastKeyframeAtOrBefore(firstFrame) ?: firstFrame
@@ -138,7 +138,7 @@ object RecipeFragmentPlan {
      * величина разошлась бы с той, что покажет пользователю воркер.
      *
      * @param slices фрагменты с числом кадров по фактическим границам и
-     *   частокадровой базой их серий
+     *   частокадровой базой их эпизодов
      * @return пара «расчётная длительность в миллисекундах, расчётное число кадров»
      * @throws IllegalArgumentException если частокадровая база неположительна
      */
@@ -150,7 +150,7 @@ object RecipeFragmentPlan {
                 "Число кадров фрагмента не может быть отрицательным, задано ${slice.frames}"
             }
             require(slice.timeBaseNum > 0 && slice.timeBaseDen > 0) {
-                "Частокадровая база серии должна быть положительной, задано " +
+                "Частокадрового база эпизода должна быть положительной, задано " +
                     "${slice.timeBaseNum}/${slice.timeBaseDen}"
             }
             val frameNanoseconds = slice.timeBaseNum.toLong() * NANOSECONDS_PER_SECOND / slice.timeBaseDen

@@ -61,8 +61,8 @@ class RecipeController(
      * @param request имя сценария и выбранные сцены
      * @return созданный сценарий
      * @throws DomainException с кодом `EMPTY_SELECTION`, `NOT_FOUND`,
-     *   `BAD_REQUEST`, `STALE_RESULT`, `SERIES_NOT_ANALYZED`,
-     *   `INCOMPATIBLE_SERIES` или `CHECKSUM_NOT_READY`
+     *   `BAD_REQUEST`, `STALE_RESULT`, `EPISODE_NOT_ANALYZED`,
+     *   `INCOMPATIBLE_EPISODE` или `CHECKSUM_NOT_READY`
      */
     @PostMapping("/api/recipes")
     fun issue(
@@ -102,15 +102,15 @@ class RecipeController(
     }
 
     /**
-     * Перечисляет сценарии сериала, свежие сверху.
+     * Перечисляет сценарии фильма, свежие сверху.
      *
-     * @param serialId сериал
-     * @return сценарии сериала
+     * @param movieId фильм
+     * @return сценарии фильма
      */
     @GetMapping("/api/recipes")
     fun list(
-        @RequestParam("serialId") serialId: Long,
-    ): List<RecipeSummaryResponse> = recipes.listBySerial(serialId, LIST_LIMIT).map { it.toSummary() }
+        @RequestParam("movieId") movieId: Long,
+    ): List<RecipeSummaryResponse> = recipes.listByMovie(movieId, LIST_LIMIT).map { it.toSummary() }
 
     /**
      * Отдаёт состав сценария: что войдёт в подборку и обе пары границ
@@ -283,10 +283,10 @@ data class RecipeCompositionResponse(
  *
  * @property ordinal порядковый номер фрагмента
  * @property sceneId сцена-источник
- * @property seriesId серия-источник
- * @property seriesName название серии-снимок
- * @property relativePath путь к файлу серии от корня сериала
- * @property sourceSha256 эталонная сумма файла серии
+ * @property episodeId эпизод-источник
+ * @property episodeName название эпизода-снимок
+ * @property relativePath путь к файлу эпизода от корня фильма
+ * @property sourceSha256 эталонная сумма файла эпизода
  * @property firstFrame расчётная граница начала
  * @property lastFrame расчётная граница конца
  * @property cutFirstFrame фактическая граница начала
@@ -299,8 +299,8 @@ data class RecipeCompositionResponse(
 data class RecipeCompositionItemResponse(
     val ordinal: Int,
     val sceneId: Long,
-    val seriesId: Long,
-    val seriesName: String,
+    val episodeId: Long,
+    val episodeName: String,
     val relativePath: String,
     val sourceSha256: String,
     val firstFrame: Int,
@@ -330,8 +330,8 @@ private fun BuildRecipeItem.toCompositionItem(): RecipeCompositionItemResponse =
     RecipeCompositionItemResponse(
         ordinal = ordinal,
         sceneId = sceneId,
-        seriesId = seriesId,
-        seriesName = seriesName,
+        episodeId = episodeId,
+        episodeName = episodeName,
         relativePath = relativePath,
         sourceSha256 = sourceSha256,
         firstFrame = firstFrame,

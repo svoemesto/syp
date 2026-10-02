@@ -17,9 +17,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Проверки регистрации серии.
+ * Проверки регистрации эпизода.
  *
- * Закрываются требования задач T033 и T034: путь вне корня сериала
+ * Закрываются требования задач T033 и T034: путь вне корня фильма
  * отвергается с кодом `SOURCE_UNREADABLE` и внятным текстом, относительный
  * путь, который попал бы в сценарий, не может быть выдуман (FR-089a);
  * несуществующий или нечитаемый файл даёт `400` с кодом `SOURCE_UNREADABLE` и
@@ -33,16 +33,16 @@ import kotlin.test.assertTrue
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class SeriesRegistrationTest {
+class EpisodeRegistrationTest {
     private lateinit var root: Path
     private lateinit var outside: Path
-    private lateinit var serials: SerialStore
-    private lateinit var seriesStore: SeriesStore
-    private lateinit var pathChecks: SeriesRegistration
-    private lateinit var serial: Serial
+    private lateinit var movies: MovieStore
+    private lateinit var episodeStore: EpisodeStore
+    private lateinit var pathChecks: EpisodeRegistration
+    private lateinit var movie: Movie
 
     /**
-     * Готовит каталог сериала и хранилища домена.
+     * Готовит каталог фильма и хранилища домена.
      *
      * @throws org.opentest4j.TestAbortedException если база не поднята
      */
@@ -50,15 +50,15 @@ class SeriesRegistrationTest {
     fun prepare() {
         val db: Db = TestDatabase.assumeDatabase()
         val workspace = Files.createTempDirectory("syp-registration")
-        root = workspace.resolve("сериал")
+        root = workspace.resolve("фильм")
         outside = workspace.resolve("снаружи")
         Files.createDirectories(root)
         Files.createDirectories(outside)
 
-        serials = SerialStore(db)
-        seriesStore = SeriesStore(db)
+        movies = MovieStore(db)
+        episodeStore = EpisodeStore(db)
         pathChecks = registrationForPathChecks()
-        serial = serials.create("Регистрация ${System.nanoTime()}", root.toString())
+        movie = movies.create("Регистрация ${System.nanoTime()}", root.toString())
     }
 
     /**
@@ -68,23 +68,23 @@ class SeriesRegistrationTest {
      * выполняется до обращения к `ffprobe` — она и должна выполняться на
      * машине без видеоинструментов.
      *
-     * @return регистрация серии
+     * @return регистрация эпизода
      */
-    private fun registrationForPathChecks(): SeriesRegistration =
-        SeriesRegistration(serials, seriesStore, SourceProbe(ExternalProgram(), "ffprobe"))
+    private fun registrationForPathChecks(): EpisodeRegistration =
+        EpisodeRegistration(movies, episodeStore, SourceProbe(ExternalProgram(), "ffprobe"))
 
     /**
-     * Собирает регистрацию серии, которой нужен настоящий `ffprobe`.
+     * Собирает регистрацию эпизода, которой нужен настоящий `ffprobe`.
      *
      * Проверки пути внутри корня от видеоинструментов не зависят: путь
      * проверяется до обращения к программе, и на машине без `ffprobe` они
      * проходят, а не пропускаются. Требование выставляется здесь, чтобы
      * пропускались ровно те проверки, которым программа действительно нужна.
      *
-     * @return регистрация серии
+     * @return регистрация эпизода
      * @throws org.opentest4j.TestAbortedException если программы нет
      */
-    private fun registrationRequiringProbe(): SeriesRegistration {
+    private fun registrationRequiringProbe(): EpisodeRegistration {
         val ffprobe =
             (System.getenv("PATH") ?: "")
                 .split(":")
@@ -94,10 +94,10 @@ class SeriesRegistrationTest {
                 ?.toString()
         if (ffprobe == null) {
             throw org.opentest4j.TestAbortedException(
-                "Программа ffprobe не найдена в PATH: проверки регистрации серии с опросом файла пропущены",
+                "Программа ffprobe не найдена в PATH: проверки регистрации эпизода с опросом файла пропущены",
             )
         }
-        return SeriesRegistration(serials, seriesStore, SourceProbe(ExternalProgram(), ffprobe))
+        return EpisodeRegistration(movies, episodeStore, SourceProbe(ExternalProgram(), ffprobe))
     }
 
     /**
@@ -144,26 +144,26 @@ class SeriesRegistrationTest {
     }
 
     @Test
-    fun `путь вне корня сериала отвергается с кодом SOURCE_UNREADABLE`() {
+    fun `путь вне корня фильма отвергается с кодом SOURCE_UNREADABLE`() {
         val outsideFile = videoIn(outside, "не-в-корне.mkv")
 
         val failure =
             assertFailsWith<DomainException> {
-                pathChecks.requireInsideRoot(serial, outsideFile.toString())
+                pathChecks.requireInsideRoot(movie, outsideFile.toString())
             }
 
         assertEquals(ErrorCode.SOURCE_UNREADABLE, failure.code)
         assertEquals(400, failure.toBody().status)
         val text = failure.toBody().message
         assertTrue(text.contains(outsideFile.toString()), "текст должен называть путь: $text")
-        assertTrue(text.contains(serial.sourceRoot), "текст должен называть корень сериала: $text")
+        assertTrue(text.contains(movie.sourceRoot), "текст должен называть корень фильма: $text")
     }
 
     @Test
     fun `путь в обход корня через два каталога отвергается`() {
         val failure =
             assertFailsWith<DomainException> {
-                pathChecks.requireInsideRoot(serial, root.resolve("../снаружи/серия.mkv").toString())
+                pathChecks.requireInsideRoot(movie, root.resolve("../снаружи/эпизод.mkv").toString())
             }
 
         assertEquals(ErrorCode.SOURCE_UNREADABLE, failure.code)
@@ -174,7 +174,7 @@ class SeriesRegistrationTest {
     fun `относительный путь отвергается`() {
         val failure =
             assertFailsWith<DomainException> {
-                pathChecks.requireInsideRoot(serial, "серия.mkv")
+                pathChecks.requireInsideRoot(movie, "эпизод.mkv")
             }
 
         assertEquals(ErrorCode.SOURCE_UNREADABLE, failure.code)
@@ -185,7 +185,7 @@ class SeriesRegistrationTest {
     fun `пустой путь отвергается как непонятный запрос`() {
         val failure =
             assertFailsWith<DomainException> {
-                pathChecks.requireInsideRoot(serial, "   ")
+                pathChecks.requireInsideRoot(movie, "   ")
             }
 
         assertEquals(ErrorCode.BAD_REQUEST, failure.code)
@@ -197,7 +197,7 @@ class SeriesRegistrationTest {
 
         val failure =
             assertFailsWith<DomainException> {
-                pathChecks.requireInsideRoot(serial, missing.toString())
+                pathChecks.requireInsideRoot(movie, missing.toString())
             }
 
         assertEquals(ErrorCode.SOURCE_UNREADABLE, failure.code)
@@ -214,7 +214,7 @@ class SeriesRegistrationTest {
 
         val failure =
             assertFailsWith<DomainException> {
-                pathChecks.requireInsideRoot(serial, link.toString())
+                pathChecks.requireInsideRoot(movie, link.toString())
             }
 
         assertEquals(ErrorCode.SOURCE_UNREADABLE, failure.code)
@@ -222,8 +222,8 @@ class SeriesRegistrationTest {
     }
 
     @Test
-    fun `недоступный корневой каталог сериала даёт внятный отказ`() {
-        val missingRoot = serials.create("Нет корня ${System.nanoTime()}", root.resolve("нет-такого").toString())
+    fun `недоступный корневой каталог фильма даёт внятный отказ`() {
+        val missingRoot = movies.create("Нет корня ${System.nanoTime()}", root.resolve("нет-такого").toString())
 
         val failure =
             assertFailsWith<DomainException> {
@@ -235,7 +235,7 @@ class SeriesRegistrationTest {
     }
 
     @Test
-    fun `незаведённый сериал даёт NOT_FOUND, а не пустую серию`() {
+    fun `незаведённый фильм даёт NOT_FOUND, а не пустой эпизод`() {
         val failure =
             assertFailsWith<DomainException> {
                 pathChecks.register(-1, root.resolve("что-угодно.mkv").toString())
@@ -246,37 +246,41 @@ class SeriesRegistrationTest {
     }
 
     @Test
-    fun `успешная регистрация снимает параметры с файла и пишет серию`() {
+    fun `успешная регистрация снимает параметры с файла и пишет эпизод`() {
         val file = videoIn(root, "S01E01-проверка.mkv")
+        // Каталог общий у всего класса (@BeforeAll), и число файлов в нём
+        // зависит от того, какие проверки уже отработали. Поэтому сравниваем
+        // «после» с «до», а не с единицей: иначе проверка зависит от порядка.
+        val filesBefore = Files.list(root).use { it.count() }
 
-        val registered = registrationRequiringProbe().register(serial.id!!, file.toString())
+        val registered = registrationRequiringProbe().register(movie.id!!, file.toString())
 
         assertNotNull(registered.id)
         assertEquals("S01E01-проверка", registered.name)
-        assertEquals(serial.id, registered.serialId)
+        assertEquals(movie.id, registered.movieId)
         assertEquals(25, registered.frameCount)
         assertEquals(1, registered.timeBaseNum)
         assertEquals(25, registered.timeBaseDen)
         assertEquals(64, registered.width)
-        assertEquals("S01E01-проверка.mkv", registered.relativePath(serial.sourceRoot))
+        assertEquals("S01E01-проверка.mkv", registered.relativePath(movie.sourceRoot))
         assertNotNull(registered.keyframeMap)
         assertTrue(registered.keyframeMap!!.isKeyframe(0))
 
         // Регистрация не оставила файлов вне своего каталога: система читает
         // источник и ничего в нём не меняет.
         assertTrue(file.exists())
-        assertEquals(1, Files.list(root).use { it.count() })
+        assertEquals(filesBefore.toLong(), Files.list(root).use { it.count() })
     }
 
     @Test
     fun `повторная регистрация того же файла даёт CONFLICT`() {
         val file = videoIn(root, "повтор-регистрации.mkv")
         val registering = registrationRequiringProbe()
-        registering.register(serial.id!!, file.toString())
+        registering.register(movie.id!!, file.toString())
 
         val failure =
             assertFailsWith<DomainException> {
-                registering.register(serial.id!!, file.toString())
+                registering.register(movie.id!!, file.toString())
             }
 
         assertEquals(ErrorCode.CONFLICT, failure.code)

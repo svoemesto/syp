@@ -1,61 +1,54 @@
+// Корневой компонент фронтенда админки SYP. // // Здесь только каркас: заголовок, навигация между
+экранами и область // содержимого. Вся работа экранов живёт в `views/`, обращение к бэкенду — в //
+`api/`, состояние — в `stores/`.
 <script setup lang="ts">
-// Корневой компонент фронтенда админки SYP.
-//
-// Здесь только каркас: шапка с навигацией и рабочая область. Вся работа экранов
-// живёт в `views/`, обращение к бэкенду — в `api/`, состояние — в `stores/`,
-// оформление — в `theme/theme.css` поверх Bootstrap (ADR-0015).
-//
-// `BApp` обязателен: он устанавливает оркестратор тостов, которым пользуются
-// экраны постановки заданий и поток уведомлений.
-//
-// Уведомления о ходе работы показываются здесь, а не на экранах: оператор
-// поставил задание на одном экране, а смотрит на другом. Тост из
-// `ui/notify.ts` берётся один раз на всё приложение — иначе каждая вкладка
-// экрана завела бы свой оркестратор.
-import { BApp } from 'bootstrap-vue-next'
-import { watch } from 'vue'
-import AppHeader from './components/AppHeader.vue'
-import { RouterView } from 'vue-router'
-import { useNotify } from './ui/notify'
-import { currentNotice } from './stores/notifications'
+import { computed } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 
-const notify = useNotify()
+const route = useRoute()
 
-watch(
-  () => currentNotice(),
-  (message) => {
-    if (message !== null) {
-      notify(message.text, message.tone)
-    }
-  },
-)
+/**
+ * Эпизод, для которой показывается ссылка на структуру.
+ *
+ * Ссылка появляется только на экране эпизода: с приёма структуру открывать
+ * нечего, а пустая ссылка вела бы на пустую страницу.
+ */
+const structureEpisodeId = computed(() => {
+  const raw = route.params.episodeId
+  if (typeof raw === 'string' && raw !== '') {
+    return raw
+  }
+  return null
+})
 </script>
 
 <template>
-  <BApp>
-    <div class="syp-shell">
-      <AppHeader />
-      <main class="syp-content py-4">
-        <RouterView />
-      </main>
-      <footer class="syp-content">
-        <div class="syp-footer d-flex justify-content-between flex-wrap gap-2">
-          <span>SYP — подготовка данных: приём, анализ, разметка, выдача сценария</span>
-          <span>Видео на сервере не хранится и не передаётся (ADR-0009)</span>
-        </div>
-      </footer>
-    </div>
-  </BApp>
+  <main>
+    <header>
+      <h1>SYP — админка</h1>
+      <nav>
+        <RouterLink :to="{ name: 'intake' }"> Приём фильмов и эпизодов </RouterLink>
+        <RouterLink
+          v-if="structureEpisodeId"
+          :to="{ name: 'structure', params: { episodeId: structureEpisodeId } }"
+        >
+          Структура эпизода
+        </RouterLink>
+      </nav>
+    </header>
+    <RouterView />
+  </main>
 </template>
 
 <style scoped>
-.syp-shell {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+main {
+  font-family: system-ui, sans-serif;
+  margin: 1.5rem auto;
+  max-width: 72rem;
+  padding: 0 1rem;
 }
 
-main {
-  flex: 1 0 auto;
+nav a {
+  color: #1a4f8a;
 }
 </style>

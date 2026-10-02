@@ -1,6 +1,6 @@
 package ru.svoemesto.syp.admin.integrity
 
-import ru.svoemesto.syp.admin.catalog.Series
+import ru.svoemesto.syp.admin.catalog.Episode
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
@@ -56,7 +56,7 @@ enum class ChecksumState {
  * помечается устаревшей. По ней видно, что файл менялся, — а это и есть
  * причина, по которой сумму приходится пересчитывать (FR-090).
  *
- * **Одна актуальная запись на серию** обеспечивается базой: частичный
+ * **Одна актуальная запись на эпизод** обеспечивается базой: частичный
  * уникальный индекс по `state = 'DONE' AND is_stale = FALSE`. Здесь это
  * правило не дублируется, а только соблюдается: новая актуальная запись
  * появляется лишь после того, как прежняя помечена устаревшей.
@@ -67,7 +67,7 @@ enum class ChecksumState {
  * из которого выхода нет — такая запись не является результатом.
  *
  * @property id идентификатор записи; `null`, пока не записана
- * @property seriesId серия-владелец
+ * @property episodeId эпизод-владелец
  * @property algorithm алгоритм; в модели только `SHA-256`
  * @property digest шестнадцатеричная сумма; `null`, пока подсчёт не
  *   завершён, — суммы у незавершённого подсчёта не существует
@@ -83,7 +83,7 @@ enum class ChecksumState {
  */
 data class ChecksumEntry(
     val id: Long? = null,
-    val seriesId: Long,
+    val episodeId: Long,
     val algorithm: String = ALGORITHM_SHA256,
     val digest: String? = null,
     val byteSize: Long,
@@ -110,7 +110,7 @@ data class ChecksumEntry(
             ChecksumRegistry.COLUMNS,
             {
                 listOf(
-                    seriesId,
+                    episodeId,
                     algorithm,
                     digest,
                     byteSize,
@@ -132,13 +132,13 @@ data class ChecksumEntry(
 }
 
 /**
- * Справочник сумм исходных файлов серий.
+ * Справочник сумм исходных файлов эпизодов.
  *
  * Реестр хранит **историю** пересчётов и отвечает на вопросы, без которых
  * сценарий отдать нельзя (ADR-0009, FR-089):
  *
  * 1. **Какая сумма актуальная** — та, что посчитана при текущих размере и
- *    времени изменения файла. Такая запись на серию ровно одна; вторая
+ *    времени изменения файла. Такая запись на эпизод ровно один; вторая
  *    актуальная запись в базу не попадёт (частичный уникальный индекс).
  * 2. **Устарела ли она** — если размер файла или время его изменения не
  *    совпадают с теми, при которых считали. Прежнее значение при этом
@@ -149,7 +149,7 @@ data class ChecksumEntry(
  * Порядок действий при пересчёте задан явно: сначала прежняя актуальная сумма
  * помечается устаревшей, затем новая приводится в состояние `DONE`. Обратный
  * порядок нарушил бы частичный уникальный индекс — вторая актуальная запись
- * той же серии невозможна, и это защита базы, а не соглашение в коде.
+ * того же эпизода невозможна, и это защита базы, а не соглашение в коде.
  *
  * @property db доступ к базе сырым JDBC
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -158,28 +158,28 @@ class ChecksumRegistry(
     private val db: Db,
 ) {
     /**
-     * Открывает новый подсчёт для серии.
+     * Открывает новый подсчёт для эпизода.
      *
-     * Незавершённые записи той же серии (из прерванного подсчёта) удаляются:
+     * Незавершённые записи того же эпизода (из прерванного подсчёта) удаляются:
      * они не результат и ничего не говорят — по ним видно лишь то, что
      * подсчёт когда-то начался. История **посчитанных** сумм при этом не
      * трогается.
      *
-     * @param series серия, для которой считается сумма
+     * @param episode эпизод, для которой считается сумма
      * @param jobId задание, считающее сумму
      * @return созданная запись в состоянии [ChecksumState.CREATING]
      */
     fun begin(
-        series: Series,
+        episode: Episode,
         jobId: Long?,
     ): ChecksumEntry =
         db.useTransaction { connection ->
-            val seriesId =
-                series.id
+            val episodeId =
+                episode.id
                     ?: throw ru.svoemesto.syp.core.db.DbException(
-                        "у серии «${series.name}» нет идентификатора: подсчёт ставить некуда",
+                        "у эпизода «${episode.name}» нет идентификатора: подсчёт ставить некуда",
                     )
-            // Два подсчёта одной серии несовместимы: они бы делили файл между
+            // Два подсчёта одного эпизода несовместимы: они бы делили файл между
             // собой, а оператор видел бы два задания, каждое из которых
             // утверждает, что считает. Наличие работы проверяется до удаления
             // незавершённых записей, иначе отказ стёр бы след уже идущего счёта.
@@ -188,11 +188,11 @@ class ChecksumRegistry(
             val running =
                 connection
                     .prepareStatement(
-                        "SELECT count(*) FROM job WHERE kind = 'HASH' AND subject_type = 'SERIES' " +
+                        "SELECT count(*) FROM tbl_jobs WHERE kind = 'HASH' AND subject_type = 'EPISODE' " +
                             "AND subject_id = ? AND state IN ('CREATING', 'WORKING') " +
                             "AND (CAST(? AS BIGINT) IS NULL OR id <> CAST(? AS BIGINT))",
                     ).use { statement ->
-                        statement.setLong(1, seriesId)
+                        statement.setLong(1, episodeId)
                         statement.setObject(2, jobId)
                         statement.setObject(3, jobId)
                         statement.executeQuery().use { resultSet ->
@@ -203,27 +203,27 @@ class ChecksumRegistry(
             if (running > 0) {
                 throw DomainException(
                     ErrorCode.CONFLICT,
-                    "сумма серии «${series.name}» уже считается: второй подсчёт той же серии " +
+                    "сумма эпизода «${episode.name}» уже считается: второй подсчёт того же эпизода " +
                         "перемешал бы две работы в один результат",
                 )
             }
             connection
                 .prepareStatement(
-                    "DELETE FROM $TABLE WHERE series_id = ? AND state IN ('CREATING', 'WORKING')",
+                    "DELETE FROM $TABLE WHERE id_episode = ? AND state IN ('CREATING', 'WORKING')",
                 ).use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.executeUpdate()
                 }
             val entry =
                 ChecksumEntry(
-                    seriesId = seriesId,
-                    byteSize = series.byteSize,
-                    fileMtime = series.fileMtime,
+                    episodeId = episodeId,
+                    byteSize = episode.byteSize,
+                    fileMtime = episode.fileMtime,
                     state = ChecksumState.CREATING,
                     jobId = jobId,
                 )
             Save.insertIfAbsent(connection, entry.toTable())
-            readBySeriesAndSize(connection, seriesId, series.byteSize, series.fileMtime, jobId)
+            readByEpisodeAndSize(connection, episodeId, episode.byteSize, episode.fileMtime, jobId)
                 ?: throw ru.svoemesto.syp.core.db.DbException(
                     "Запись справочника сумм создана, но сразу после записи не прочитана: это дефект, а не результат",
                 )
@@ -248,7 +248,7 @@ class ChecksumRegistry(
      * Обе операции выполняются одной транзакцией: помечение прежней суммы
      * устаревшей и появление новой актуальной — это одно событие. Разорванное
      * во времени состояние, при котором актуальных сумм ноль, означало бы
-     * «серия пригодна» ровно в тот момент, когда она непригодна.
+     * «эпизод пригодна» ровно в тот момент, когда она непригодна.
      *
      * @param entryId идентификатор записи
      * @param digest посчитанная сумма
@@ -276,13 +276,13 @@ class ChecksumRegistry(
                     )
             // Сначала прежняя актуальная сумма уходит в архив устаревших,
             // и только потом появляется новая: иначе в момент её вставки у
-            // серии было бы две актуальные суммы, что база не допускает.
+            // эпизода было бы две актуальные суммы, что база не допускает.
             connection
                 .prepareStatement(
-                    "UPDATE $TABLE SET is_stale = TRUE WHERE series_id = ? AND is_stale = FALSE " +
+                    "UPDATE $TABLE SET is_stale = TRUE WHERE id_episode = ? AND is_stale = FALSE " +
                         "AND state = 'DONE' AND id <> ?",
                 ).use { statement ->
-                    statement.setLong(1, current.seriesId)
+                    statement.setLong(1, current.episodeId)
                     statement.setLong(2, entryId)
                     statement.executeUpdate()
                 }
@@ -339,37 +339,38 @@ class ChecksumRegistry(
     fun find(entryId: Long): ChecksumEntry? = db.selectOne("$READ_SQL WHERE id = ?", ::readRow, entryId)
 
     /**
-     * Актуальная сумма серии.
+     * Актуального сумма эпизода.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return запись в состоянии `DONE` без признака устаревания либо
      *   `null`, если такой записи нет
      */
-    fun current(seriesId: Long): ChecksumEntry? =
+    fun current(episodeId: Long): ChecksumEntry? =
         db.selectOne(
-            "$READ_SQL WHERE series_id = ? AND state = 'DONE' AND is_stale = FALSE",
+            "$READ_SQL WHERE id_episode = ? AND state = 'DONE' AND is_stale = FALSE",
             ::readRow,
-            seriesId,
+            episodeId,
         )
 
     /**
-     * Последняя запись справочника для серии.
+     * Последняя запись справочника для эпизода.
      *
-     * Возвращается любая, включая незавершённую: интерфейсу нужно показать
+     * Возвращается любой, включая незавершённую: интерфейсу нужно показать
      * «считается» или «ошибка», а не пустую страницу (FR-003).
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return последняя по идентификатору запись либо `null`
      */
-    fun latest(seriesId: Long): ChecksumEntry? = db.selectOne("$READ_SQL WHERE series_id = ? ORDER BY id DESC LIMIT 1", ::readRow, seriesId)
+    fun latest(episodeId: Long): ChecksumEntry? =
+        db.selectOne("$READ_SQL WHERE id_episode = ? ORDER BY id DESC LIMIT 1", ::readRow, episodeId)
 
     /**
-     * История пересчётов серии, свежая первой.
+     * История пересчётов эпизода, свежий первый.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return записи в обратном порядке идентификаторов
      */
-    fun history(seriesId: Long): List<ChecksumEntry> = db.select("$READ_SQL WHERE series_id = ? ORDER BY id DESC", ::readRow, seriesId)
+    fun history(episodeId: Long): List<ChecksumEntry> = db.select("$READ_SQL WHERE id_episode = ? ORDER BY id DESC", ::readRow, episodeId)
 
     /**
      * Помечает актуальную сумму устаревшей, если источник изменился.
@@ -380,34 +381,34 @@ class ChecksumRegistry(
      * помечается устаревшей (FR-090). Значение при этом сохраняется —
      * стереть его значило бы стереть след подмены.
      *
-     * @param series серия с текущими параметрами источника
+     * @param episode эпизод с текущими параметрами источника
      * @return число помеченных устаревшими записей
      */
-    fun markStaleWhenSourceChanged(series: Series): Int {
-        val seriesId =
-            series.id
+    fun markStaleWhenSourceChanged(episode: Episode): Int {
+        val episodeId =
+            episode.id
                 ?: return 0
         return db.update(
             "UPDATE $TABLE SET is_stale = TRUE " +
-                "WHERE series_id = ? AND state = 'DONE' AND is_stale = FALSE " +
+                "WHERE id_episode = ? AND state = 'DONE' AND is_stale = FALSE " +
                 "AND (byte_size <> ? OR file_mtime <> ?)",
-            seriesId,
-            series.byteSize,
-            series.fileMtime,
+            episodeId,
+            episode.byteSize,
+            episode.fileMtime,
         )
     }
 
     /**
-     * Пригодна ли серия к выдаче сценария.
+     * Пригодна ли эпизод к выдаче сценария.
      *
      * Единственный признак — наличие актуальной суммы. Молча выдать сценарий
-     * серии без суммы нельзя: пользователь узнал бы об этом через час работы
+     * эпизода без суммы нельзя: пользователь узнал бы об этом через час работы
      * на своей машине (ADR-0009, последствие 4).
      *
-     * @param seriesId идентификатор серии
-     * @return `true`, если актуальная сумма есть
+     * @param episodeId идентификатор эпизода
+     * @return `true`, если актуальный сумма есть
      */
-    fun isUsable(seriesId: Long): Boolean = current(seriesId)?.isUsable == true
+    fun isUsable(episodeId: Long): Boolean = current(episodeId)?.isUsable == true
 
     /** Читает запись по идентификатору в пределах открытого соединения. */
     private fun readById(
@@ -423,24 +424,24 @@ class ChecksumRegistry(
      * Читает только что созданную запись.
      *
      * Идентификатор выдаёт база, поэтому запись ищется по значениям, которыми
-     * она только что записана: серия, размер, время изменения и задание.
+     * она только что записана: эпизод, размер, время изменения и задание.
      * Берётся **последняя** из совпавших: у пересчёта значения совпадают с
      * прежними, и поиск без порядка вернул бы прежнюю запись — подсчёт был бы
      * записан не туда, куда он поставлен.
      */
-    private fun readBySeriesAndSize(
+    private fun readByEpisodeAndSize(
         connection: java.sql.Connection,
-        seriesId: Long,
+        episodeId: Long,
         byteSize: Long,
         fileMtime: OffsetDateTime,
         jobId: Long?,
     ): ChecksumEntry? =
         connection
             .prepareStatement(
-                "$READ_SQL WHERE series_id = ? AND byte_size = ? AND file_mtime = ? " +
+                "$READ_SQL WHERE id_episode = ? AND byte_size = ? AND file_mtime = ? " +
                     "AND job_id IS NOT DISTINCT FROM ? ORDER BY id DESC LIMIT 1",
             ).use { statement ->
-                statement.setLong(1, seriesId)
+                statement.setLong(1, episodeId)
                 statement.setLong(2, byteSize)
                 statement.setObject(3, fileMtime)
                 statement.setObject(4, jobId)
@@ -451,7 +452,7 @@ class ChecksumRegistry(
     private fun read(resultSet: java.sql.ResultSet): ChecksumEntry =
         ChecksumEntry(
             id = resultSet.getLong("id"),
-            seriesId = resultSet.getLong("series_id"),
+            episodeId = resultSet.getLong("id_episode"),
             algorithm = resultSet.getString("algorithm"),
             digest = resultSet.getString("digest"),
             byteSize = resultSet.getLong("byte_size"),
@@ -468,7 +469,7 @@ class ChecksumRegistry(
     private fun readRow(row: Row): ChecksumEntry =
         ChecksumEntry(
             id = row.long("id"),
-            seriesId = row.long("series_id"),
+            episodeId = row.long("id_episode"),
             algorithm = row.string("algorithm"),
             digest = row.stringOrNull("digest"),
             byteSize = row.long("byte_size"),
@@ -491,12 +492,12 @@ class ChecksumRegistry(
 
     companion object {
         /** Имя таблицы справочника сумм. */
-        const val TABLE: String = "source_file_checksum"
+        const val TABLE: String = "tbl_source_file_checksums"
 
         /** Записываемые столбцы записи в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "series_id",
+                "id_episode",
                 "algorithm",
                 "digest",
                 "byte_size",
@@ -514,7 +515,7 @@ class ChecksumRegistry(
         /** Столбцы записи в порядке чтения из базы. */
         private val READ_SQL: String =
             (
-                "SELECT id, series_id, algorithm, digest, byte_size, file_mtime, state, is_stale, " +
+                "SELECT id, id_episode, algorithm, digest, byte_size, file_mtime, state, is_stale, " +
                     "computed_at, error_text, job_id, recordhash FROM $TABLE"
             )
     }

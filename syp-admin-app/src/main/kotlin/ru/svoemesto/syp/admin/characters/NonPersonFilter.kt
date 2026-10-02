@@ -1,7 +1,7 @@
 package ru.svoemesto.syp.admin.characters
 
-import ru.svoemesto.syp.admin.catalog.SerialSetting
-import ru.svoemesto.syp.admin.catalog.SerialSettings
+import ru.svoemesto.syp.admin.catalog.MovieSetting
+import ru.svoemesto.syp.admin.catalog.MovieSettings
 import ru.svoemesto.syp.core.db.Db
 
 /**
@@ -17,7 +17,7 @@ import ru.svoemesto.syp.core.db.Db
  * меньшей. Лицо почти всегда близко к квадрату, а вытянутый прямоугольник
  * человеком не бывает.
  *
- * Порог — **настройка сериала** `face.not_person_aspect`, а не константа
+ * Порог — **настройка фильма** `face.not_person_aspect`, а не константа
  * кода. Иначе подбор порога требовал бы пересборки образа, а число, молча
  * зашитое в код, невозможно объяснить постфактум: изменилось поведение —
  * изменилось ли качество (ADR-0003).
@@ -59,7 +59,7 @@ class NonPersonFilter(
      * Является ли рамка лицом по пропорциям.
      *
      * @param detected найденное лицо
-     * @param maxAspect порог пропорции из настроек сериала
+     * @param maxAspect порог пропорции из настроек фильма
      * @return `true`, если рамка признана лицом
      */
     fun looksLikeFace(
@@ -76,10 +76,10 @@ class NonPersonFilter(
     /**
      * Пропорция, при которой рамка признаётся лицом.
      *
-     * @param settings настройки сериала
+     * @param settings настройки фильма
      * @return порог пропорции
      */
-    fun thresholdOf(settings: SerialSettings): Double = settings.number(SerialSetting.FACE_NOT_PERSON_ASPECT)
+    fun thresholdOf(settings: MovieSettings): Double = settings.number(MovieSetting.FACE_NOT_PERSON_ASPECT)
 
     /**
      * Переводит лица, которые лицом не являются, в служебную персону «не лицо».
@@ -89,38 +89,38 @@ class NonPersonFilter(
      * ложное срабатывание вовсе и не сможет его проверить, а расхождение
      * детектора с картинкой выглядело бы как «детектор ошибся» без следа.
      *
-     * Перевод идёт **в одной транзакции** на всю серию. Промежуточное
+     * Перевод идёт **в одной транзакции** на всём эпизод. Промежуточное
      * состояние, где часть нелицевых рамок переведена, а часть нет, не
      * наблюдаемо через интерфейс, но наблюдаемо в отчёте «кто в сцене» —
      * а значит, попало бы в сценарий сборки.
      *
-     * @param seriesId серия
-     * @param settings настройки сериала; из них берётся порог пропорции
+     * @param episodeId эпизод
+     * @param settings настройки фильма; из них берётся порог пропорции
      * @return сколько лиц переведено в «не лицо»
      * @throws ru.svoemesto.syp.core.db.DbException если перевод не удался
      */
-    fun applySeries(
-        seriesId: Long,
-        settings: SerialSettings,
+    fun applyEpisode(
+        episodeId: Long,
+        settings: MovieSettings,
     ): Int {
-        val serialId =
+        val movieId =
             db.selectOne(
-                "SELECT serial_id FROM series WHERE id = ?",
-                { it.long("serial_id") },
-                seriesId,
+                "SELECT id_movie FROM tbl_episodes WHERE id = ?",
+                { it.long("id_movie") },
+                episodeId,
             ) ?: return 0
         val maxAspect = thresholdOf(settings)
-        val nonPerson = persons.servicePerson(serialId, PersonKind.NONPERSON).id
+        val nonPerson = persons.servicePerson(movieId, PersonKind.NONPERSON).id
         requireNotNull(nonPerson)
         return db.useTransaction { connection ->
             var changed = 0
-            // Рамки перебираются по серии: чтение всех лиц серии в память не
+            // Рамки перебираются по эпизоду: чтение всех лиц эпизода в память не
             // годится — на S01E01 их десятки тысяч.
             connection
                 .prepareStatement(
-                    "SELECT id, x1, y1, x2, y2, person_id FROM ${FaceStore.TABLE} WHERE series_id = ?",
+                    "SELECT id, x1, y1, x2, y2, person_id FROM ${FaceStore.TABLE} WHERE id_episode = ?",
                 ).use { statement ->
-                    statement.setLong(1, seriesId)
+                    statement.setLong(1, episodeId)
                     statement.executeQuery().use { resultSet ->
                         val suspected = mutableListOf<Pair<Long, Long>>()
                         while (resultSet.next()) {

@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
  * запускается тем же бэкендом, который и так держит очередь заданий.
  *
  * Обмен идёт в обе стороны, поэтому программа живёт от начала прохода до его
- * конца и умирает вместе с ним: один процесс на одну серию, а не на кадр.
+ * конца и умирает вместе с ним: один процесс на одну эпизод, а не на кадр.
  *
  * **Об отступлении от `redirectErrorStream(true)`.** Правило обязательно
  * (ADR-0010, ограничение 4), но протокол здесь — двоичный: по стандартному
@@ -200,7 +200,7 @@ class FaceDetectorProcess(
             running.waitFor(DESTROY_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
             throw FaceDetectorFailed(
                 "Программа детектора «$programPath» не завершилась за ${CLOSE_TIMEOUT.toSeconds()} с " +
-                    "после конца серии. Вывод программы: ${diagnostics.text()}",
+                    "после конца эпизода. Вывод программы: ${diagnostics.text()}",
             )
         }
         reader?.join(READER_JOIN_MILLIS)
@@ -513,7 +513,7 @@ class FaceDetectorProcess(
         /** Сколько ждать ответа на один кадр до отказа. */
         val DEFAULT_FRAME_TIMEOUT: Duration = Duration.ofMinutes(2)
 
-        /** Сколько ждать завершения программы после конца серии. */
+        /** Сколько ждать завершения программы после конца эпизода. */
         val CLOSE_TIMEOUT: Duration = Duration.ofMinutes(2)
 
         /** Сколько байт вывода программы удерживается для текста ошибки. */

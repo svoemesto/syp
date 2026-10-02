@@ -1,9 +1,9 @@
-// Клиент структуры серии и превью кадров.
+// Клиент структуры эпизода и превью кадров.
 //
 // Соответствует разделу 5 контракта
 // `specs/001-first-vertical-slice/contracts/admin-api.md`. Время в ответах не
 // приходит: номер кадра — единственный источник правды, а клиент пересчитывает
-// время от `time_base` серии (ADR-0001). Клиенту не нужно знать и раскладку
+// время от `time_base` эпизода (ADR-0001). Клиенту не нужно знать и раскладку
 // листа превью: сервер отдаёт готовый адрес и область кадрирования кадра.
 
 import { request } from './http'
@@ -52,11 +52,11 @@ export interface SceneView {
   shots: ShotView[]
 }
 
-/** Ответ о структуре серии. */
+/** Ответ о структуре эпизода. */
 export interface StructureView {
-  /** Серия. */
-  seriesId: number
-  /** Число кадров серии. */
+  /** Эпизод. */
+  episodeId: number
+  /** Число кадров эпизода. */
   frameCount: number
   /** Устарел ли результат. */
   isStale: boolean
@@ -70,9 +70,9 @@ export interface StructureView {
   algorithmVersion: string | null
   /** Хеш входов прогона. */
   paramsHash: string | null
-  /** Сколько сцен у серии всего. */
+  /** Сколько сцен у эпизода всего. */
   scenesTotal: number
-  /** Сколько планов у серии всего. */
+  /** Сколько планов у эпизода всего. */
   shotsTotal: number
   /** Смещение выборки сцен. */
   offset: number
@@ -96,8 +96,8 @@ export interface RawBoundaryView {
 
 /** Ответ с сырыми границами. */
 export interface RawBoundariesView {
-  /** Серия. */
-  seriesId: number
+  /** Эпизод. */
+  episodeId: number
   /** Прогон либо `null`, если прогона ещё не было. */
   runId: number | null
   /** Смещение выборки. */
@@ -112,7 +112,7 @@ export interface RawBoundariesView {
   boundaries: RawBoundaryView[]
 }
 
-/** Значимый кадр серии. */
+/** Значимый кадр эпизода. */
 export interface FrameView {
   /** Номер кадра. */
   frameNumber: number
@@ -124,15 +124,15 @@ export interface FrameView {
   faceCount: number
   /** Подсказка смены крупности либо `null`. */
   sizeHint: string | null
-  /** Ключевой ли кадр по карте серии. */
+  /** Ключевой ли кадр по карте эпизода. */
   isKeyframe: boolean
 }
 
 /** Страница значимых кадров. */
 export interface FramesView {
-  /** Серия. */
-  seriesId: number
-  /** Сколько значимых кадров у серии. */
+  /** Эпизод. */
+  episodeId: number
+  /** Сколько значимых кадров у эпизода. */
   total: number
   /** Смещение выборки. */
   offset: number
@@ -146,8 +146,8 @@ export interface FramesView {
 export interface AnalysisEnqueuedView {
   /** Поставленное задание. */
   jobId: number
-  /** Серия. */
-  seriesId: number
+  /** Эпизод. */
+  episodeId: number
   /** Состояние задания на момент постановки. */
   state: string
   /** Порог границы сцены. */
@@ -156,9 +156,9 @@ export interface AnalysisEnqueuedView {
   shotThreshold: number
   /** Хеш входов задания. */
   paramsHash: string
-  /** Число кадров серии. */
+  /** Число кадров эпизода. */
   frameCount: number
-  /** Сколько листов превью у серии будет. */
+  /** Сколько листов превью у эпизода будет. */
   previewSheetCount: number
   /** Выполнялась ли такая работа раньше. */
   alreadyCompleted: boolean
@@ -182,8 +182,8 @@ export interface CellCropView {
 
 /** Адрес листа превью и его раскладка. */
 export interface PreviewUrlView {
-  /** Серия. */
-  seriesId: number
+  /** Эпизод. */
+  episodeId: number
   /** Номер листа, с нуля. */
   index: number
   /** Первый кадр листа. */
@@ -219,44 +219,44 @@ export interface PreviewUrlView {
 }
 
 /**
- * Ставит серию на анализ структуры.
+ * Ставит эпизод на анализ структуры.
  *
  * Работа идёт заданием очереди и занимает минуты, поэтому ответ приходит
  * сразу: кнопка, ждущая окончания, в интерфейсе недопустима (FR-003).
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @returns поставленное задание
  */
-export function startAnalysis(seriesId: number): Promise<AnalysisEnqueuedView> {
-  return request<AnalysisEnqueuedView>('POST', `/series/${seriesId}/analysis`)
+export function startAnalysis(episodeId: number): Promise<AnalysisEnqueuedView> {
+  return request<AnalysisEnqueuedView>('POST', `/episodes/${episodeId}/analysis`)
 }
 
 /**
- * Читает структуру серии.
+ * Читает структуру эпизода.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @param offset смещение выборки сцен
  * @param limit размер выборки сцен
  * @returns страница структуры
  */
-export function readStructure(seriesId: number, offset = 0, limit = 200): Promise<StructureView> {
+export function readStructure(episodeId: number, offset = 0, limit = 200): Promise<StructureView> {
   return request<StructureView>(
     'GET',
-    `/series/${seriesId}/structure?offset=${offset}&limit=${limit}`,
+    `/episodes/${episodeId}/structure?offset=${offset}&limit=${limit}`,
   )
 }
 
 /**
  * Читает сырые границы результата автоматики.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @param level уровень границ: `SCENE`, `SHOT` или оба
  * @param offset смещение выборки
  * @param limit размер выборки
  * @returns страница сырых границ
  */
 export function readRawBoundaries(
-  seriesId: number,
+  episodeId: number,
   level?: string,
   offset = 0,
   limit = 200,
@@ -264,32 +264,32 @@ export function readRawBoundaries(
   const levelQuery = level === undefined ? '' : `&level=${level}`
   return request<RawBoundariesView>(
     'GET',
-    `/series/${seriesId}/raw-boundaries?offset=${offset}&limit=${limit}${levelQuery}`,
+    `/episodes/${episodeId}/raw-boundaries?offset=${offset}&limit=${limit}${levelQuery}`,
   )
 }
 
 /**
- * Читает страницу значимых кадров серии.
+ * Читает страницу значимых кадров эпизода.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @param offset смещение выборки
  * @param limit размер выборки
  * @returns страница значимых кадров
  */
-export function readFrames(seriesId: number, offset = 0, limit = 200): Promise<FramesView> {
-  return request<FramesView>('GET', `/series/${seriesId}/frames?offset=${offset}&limit=${limit}`)
+export function readFrames(episodeId: number, offset = 0, limit = 200): Promise<FramesView> {
+  return request<FramesView>('GET', `/episodes/${episodeId}/frames?offset=${offset}&limit=${limit}`)
 }
 
 /**
  * Читает адрес листа превью и область кадрирования кадра.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @param frame кадр, для которого нужен лист; без него берётся первый лист
  * @returns описание листа превью
  */
-export function readPreviewUrl(seriesId: number, frame?: number): Promise<PreviewUrlView> {
+export function readPreviewUrl(episodeId: number, frame?: number): Promise<PreviewUrlView> {
   const frameQuery = frame === undefined ? '' : `&frame=${frame}`
-  return request<PreviewUrlView>('GET', `/series/${seriesId}/preview-url?index=0${frameQuery}`)
+  return request<PreviewUrlView>('GET', `/episodes/${episodeId}/preview-url?index=0${frameQuery}`)
 }
 
 /**
@@ -298,10 +298,10 @@ export function readPreviewUrl(seriesId: number, frame?: number): Promise<Previe
  * Отдельная функция вместо строки в шаблоне: адрес собирается в одном месте,
  * и переименование пути не потребует правок по экрану.
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @param index номер листа, с нуля
  * @returns адрес листа
  */
-export function previewSheetUrl(seriesId: number, index: number): string {
-  return `/api/series/${seriesId}/preview-sheets/${index}`
+export function previewSheetUrl(episodeId: number, index: number): string {
+  return `/api/episodes/${episodeId}/preview-sheets/${index}`
 }

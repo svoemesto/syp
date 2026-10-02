@@ -1,23 +1,20 @@
-// Экран структуры серии (задача T054). // // Экран показывает результат автоматики в двух слоях:
+// Экран структуры эпизода (задача T054). // // Экран показывает результат автоматики в двух слоях:
 рабочую структуру — // сцены и планы с их происхождением — и, по кнопке, сырой результат //
 автоматики последнего прогона. Второй слой нужен для сравнения: без него // нельзя увидеть, что
-машина предложила и что человек с этим сделал (FR-093). // // Цвет происхождения задан один раз в
-`theme/theme.css`: алгоритм, оператор, // отмена решения алгоритма (FR-015, FR-016). Класс цвета
-приходит из // `api/view-model.ts`, а не из шаблона, — иначе правило «цвет происхождения // один раз
-в CSS» перестало бы держаться.
+машина предложила и что человек с этим сделал // (FR-093). // // Цвет происхождения задан один раз в
+CSS: красный — алгоритм, зелёный — // оператор, оранжевый — отменено решение алгоритма (FR-015,
+FR-016).
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PreviewSheetView from '../components/PreviewSheetView.vue'
-import StateBlock from '../components/StateBlock.vue'
 import { type PreviewUrlView, readPreviewUrl } from '../api/structure'
+import { formatBytes } from '../format/values'
 import { useStructureStore } from '../stores/structure'
-import { useNotify } from '../ui/notify'
 
 const route = useRoute()
 const store = useStructureStore()
-const notify = useNotify()
 
 /** Описание листа превью, показанного рядом со структурой. */
 const sheet = ref<PreviewUrlView | null>(null)
@@ -25,28 +22,26 @@ const sheet = ref<PreviewUrlView | null>(null)
 /** Кадр, выбранный для показа превью. */
 const selectedFrame = ref<number | null>(null)
 
-/** Идентификатор серии из адреса. */
-const seriesId = computed(() => Number(route.params.seriesId))
+/** Идентификатор эпизода из адреса. */
+const episodeId = computed(() => Number(route.params.episodeId))
 
 /** Сцены текущей страницы. */
 const scenes = computed(() => store.structure.value?.scenes ?? [])
 
-/** Структура прочитана и сцен на ней есть. */
-const hasScenes = computed(() => scenes.value.length > 0)
-
-/** Размер листа превью словами; строка байтов оператору ничего не говорит. */
-const sheetSize = computed(() => {
-  if (sheet.value === null || sheet.value.byteSize === null) {
-    return ''
+/** Есть ли следующая страница сцен. */
+const hasNextPage = computed(() => {
+  const value = store.structure.value
+  if (value === null) {
+    return false
   }
-  return `${(sheet.value.byteSize / 1024 / 1024).toFixed(1)} МиБ`
+  return value.offset + value.limit < value.scenesTotal
 })
 
 onMounted(() => {
-  void store.reload(seriesId.value)
+  void store.reload(episodeId.value)
 })
 
-watch(seriesId, (next) => {
+watch(episodeId, (next) => {
   void store.reload(next)
 })
 
@@ -58,7 +53,7 @@ watch(seriesId, (next) => {
 async function showSheet(frame: number | null): Promise<void> {
   selectedFrame.value = frame
   try {
-    sheet.value = await readPreviewUrl(seriesId.value, frame ?? undefined)
+    sheet.value = await readPreviewUrl(episodeId.value, frame ?? undefined)
   } catch (failure) {
     store.clearError()
     sheet.value = null
@@ -66,190 +61,226 @@ async function showSheet(frame: number | null): Promise<void> {
   }
 }
 
-/** Ставит анализ структуры заново. */
-async function analyse(): Promise<void> {
-  if (await store.analyse(seriesId.value)) {
-    notify('Задание анализа поставлено в очередь. Сцена и планы появятся после прогона.', 'info')
+/**
+ * Пояснение цвета происхождения словами.
+ *
+ * @param origin происхождение границы
+ * @returns текст для оператора
+ */
+function originTitle(origin: string): string {
+  switch (origin) {
+    case 'AUTO':
+      return 'решение алгоритма'
+    case 'OPERATOR':
+      return 'сделано оператором'
+    case 'CANCELLED':
+      return 'решение алгоритма отменено оператором'
+    default:
+      return origin
   }
 }
 </script>
 
 <template>
-  <section>
-    <div class="syp-page-head">
-      <div>
-        <h2 class="syp-page-title">Структура серии</h2>
-        <p class="syp-page-lead">
-          Сцены и планы с их происхождением. Сырой результат автоматики показывается отдельно —
-          сравнивать его с рабочей структурой иначе нечем.
-        </p>
-      </div>
-      <div class="btn-group">
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="store.loading.value"
-          @click="analyse"
-        >
-          разобрать заново
-        </button>
-        <button type="button" class="btn btn-outline-secondary" @click="store.toggleRaw()">
-          {{ store.rawVisible.value ? 'скрыть сырой результат' : 'показать сырой результат' }}
-        </button>
-        <button type="button" class="btn btn-outline-secondary" @click="showSheet(null)">
-          лист превью
-        </button>
-      </div>
-    </div>
+  <section class="structure">
+    <h2>Структура эпизода</h2>
 
-    <StateBlock
-      :loading="store.loading.value && store.structure.value === null"
-      :error="store.error.value"
-      :error-code="store.errorCode.value"
-      @dismiss="store.clearError()"
-    />
+    <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
 
-    <div v-if="store.structure.value" class="syp-stale mb-3" role="status">
-      {{ store.structure.value.summary }}.
-      <span class="text-body-secondary ms-2">
+    <p v-if="store.error.value" class="error" role="alert">
+      <span v-if="store.errorCode.value" class="code">{{ store.errorCode.value }}</span>
+      {{ store.error.value }}
+      <button type="button" @click="store.clearError()">скрыть</button>
+    </p>
+
+    <p v-if="store.structure.value" class="state">
+      Сцен: {{ store.structure.value.scenesTotal }}, планов: {{ store.structure.value.shotsTotal }},
+      кадров: {{ store.structure.value.frameCount }}.
+      <span v-if="store.structure.value.algorithmVersion">
         Версия алгоритма: {{ store.structure.value.algorithmVersion }}.
       </span>
-    </div>
+    </p>
 
-    <div v-if="store.isStale.value" class="syp-stale mb-3" role="status">
-      <span class="syp-mono me-2">{{ store.staleCode.value }}</span>
-      {{ store.staleReason.value }}
-      <button type="button" class="btn btn-sm btn-outline-secondary ms-2" @click="analyse">
-        пересчитать
+    <p v-if="store.isStale.value" class="stale" role="status">
+      <span class="code">{{ store.staleCode }}</span>
+      {{ store.structure.value?.staleReason }}
+      <button type="button" @click="store.analyse(episodeId)">пересчитать</button>
+    </p>
+
+    <p class="actions">
+      <button type="button" :disabled="store.loading.value" @click="store.analyse(episodeId)">
+        Разобрать эпизод заново
       </button>
-    </div>
+      <button type="button" @click="store.toggleRaw()">
+        {{ store.rawVisible.value ? 'Скрыть сырой результат' : 'Показать сырой результат' }}
+      </button>
+      <button type="button" @click="showSheet(null)">Показать лист превью</button>
+    </p>
 
-    <div v-if="store.structure.value" class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span
-          >Сцены {{ store.structure.value.visibleFrom }}…{{ store.structure.value.visibleTo }}</span
-        >
-        <div class="btn-group">
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-secondary"
-            :disabled="store.loading.value || store.structure.value.offset === 0"
-            @click="store.previousPage(seriesId)"
-          >
-            предыдущие
-          </button>
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-secondary"
-            :disabled="store.loading.value || !store.structure.value.hasNextPage"
-            @click="store.nextPage(seriesId)"
-          >
-            следующие
-          </button>
-        </div>
-      </div>
+    <nav v-if="store.structure.value" class="pager">
+      <button
+        type="button"
+        :disabled="store.structure.value.offset === 0"
+        @click="store.previousPage(episodeId)"
+      >
+        предыдущие сцены
+      </button>
+      <span>
+        Показаны сцены с {{ store.structure.value.offset + 1 }} по
+        {{ store.structure.value.offset + scenes.length }}
+      </span>
+      <button type="button" :disabled="!hasNextPage" @click="store.nextPage(episodeId)">
+        следующие сцены
+      </button>
+    </nav>
 
-      <div v-if="hasScenes" class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th scope="col">Происхождение</th>
-              <th scope="col">Кадры</th>
-              <th scope="col">Место действия</th>
-              <th scope="col">Планы</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="scene in scenes" :key="scene.id">
-              <td>
-                <span class="syp-origin" :class="`syp-origin-${scene.originClass}`">
-                  {{ scene.originTitle }}
-                </span>
-              </td>
-              <td class="syp-number">
-                {{ scene.frames }}
-                <span v-if="scene.isStale" class="badge text-bg-warning ms-1">устарела</span>
-              </td>
-              <td>{{ scene.location }}</td>
-              <td>
-                <ul class="syp-list-plain">
-                  <li
-                    v-for="shot in scene.shots"
-                    :key="shot.id"
-                    class="d-flex gap-2 align-items-baseline"
-                  >
-                    <span
-                      class="syp-origin"
-                      :class="`syp-origin-${shot.originClass}`"
-                      :title="shot.originTitle"
-                    >
-                      {{ shot.size }}
-                    </span>
-                    <span class="syp-number">{{ shot.frames }}</span>
-                    <span class="syp-unit">{{ shot.sizeTitle }}</span>
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-link p-0"
-                      @click="showSheet(shot.firstFrame)"
-                    >
-                      превью
-                    </button>
-                    <span v-if="shot.isStale" class="badge text-bg-warning">устарел</span>
-                  </li>
-                </ul>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <table v-if="scenes.length > 0" class="scenes">
+      <thead>
+        <tr>
+          <th>Сцена</th>
+          <th>Кадры</th>
+          <th>Место действия</th>
+          <th>Планы</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="scene in scenes" :key="scene.id">
+          <td :class="['origin', scene.origin.toLowerCase()]">{{ originTitle(scene.origin) }}</td>
+          <td>
+            {{ scene.firstFrame }}…{{ scene.lastFrame }}
+            <span v-if="scene.isStale" class="stale-mark">устарела</span>
+          </td>
+          <td>{{ scene.location?.name ?? 'не назначено' }}</td>
+          <td>
+            <ul class="shots">
+              <li v-for="shot in scene.shots" :key="shot.id">
+                <span :class="['origin', shot.origin.toLowerCase()]">{{ shot.origin }}</span>
+                {{ shot.firstFrame }}…{{ shot.lastFrame }} — {{ shot.size }}
+                <em>({{ shot.sizeOrigin }})</em>
+                <button type="button" @click="showSheet(shot.firstFrame)">превью</button>
+              </li>
+            </ul>
+          </td>
+        </tr>
+      </tbody>
+    </table>
 
-      <StateBlock
-        v-else-if="!store.loading.value"
-        :error="''"
-        empty-title="Сцен нет"
-        empty-text="Анализ серии ещё не выполнялся или не завершён."
-      />
-    </div>
+    <p v-else-if="!store.loading.value" class="note">
+      Сцен нет: анализ эпизода ещё не выполнялся или не завершён.
+    </p>
 
-    <div v-if="store.rawVisible.value" class="card mt-4">
-      <div class="card-header">Сырой результат автоматики</div>
-      <div class="card-body">
-        <p class="mb-2 text-body-secondary">
-          Границы, которые выдал алгоритм, до ручных правок. Рабочая структура выше — то, что
-          осталось после правок; сравнивать их нужно рядом (FR-093).
-        </p>
-        <p v-if="store.rawRunId.value" class="form-text">
-          Прогон №{{ store.rawRunId.value }}, границ всего: {{ store.rawTotal.value }}, показано:
-          {{ store.raw.value.length }}.
-        </p>
-        <div v-if="store.raw.value.length > 0" class="table-responsive">
-          <table class="table table-sm align-middle">
-            <thead>
-              <tr>
-                <th scope="col">Уровень</th>
-                <th scope="col">Кадры</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(boundary, position) in store.raw.value" :key="position">
-                <td>{{ boundary.level }}</td>
-                <td class="syp-number">{{ boundary.frames }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p v-else class="mb-0 text-body-secondary">Прогонов ещё не было.</p>
-      </div>
-    </div>
+    <section v-if="store.rawVisible.value" class="raw">
+      <h3>Сырой результат автоматики</h3>
+      <p class="note">
+        Границы, которые выдал алгоритм, до ручных правок. Рабочая структура выше — то, что осталось
+        после правок; сравнивать их нужно рядом (FR-093).
+      </p>
+      <p v-if="store.raw.value" class="note">
+        Прогон №{{ store.raw.value.runId }}, границ всего: {{ store.raw.value.total }}, показано:
+        {{ store.raw.value.boundaries.length }}.
+      </p>
+      <table v-if="store.raw.value && store.raw.value.boundaries.length > 0">
+        <thead>
+          <tr>
+            <th>Уровень</th>
+            <th>Кадры</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(boundary, position) in store.raw.value.boundaries" :key="position">
+            <td>{{ boundary.level }}</td>
+            <td>{{ boundary.firstFrame }}…{{ boundary.lastFrame }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
-    <div v-if="sheet" class="card mt-4">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span>Лист превью</span>
-        <span class="syp-unit">{{ sheetSize }}</span>
-      </div>
-      <div class="card-body">
-        <PreviewSheetView :series-id="seriesId" :sheet="sheet" :highlight-frame="selectedFrame" />
-      </div>
-    </div>
+    <PreviewSheetView
+      v-if="sheet"
+      :episode-id="episodeId"
+      :sheet="sheet"
+      :highlight-frame="selectedFrame"
+    />
+    <p v-if="sheet && sheet.isReady" class="note">
+      Размер листа: {{ formatBytes(sheet.byteSize ?? 0) }}, тип содержимого:
+      {{ sheet.contentType }}.
+    </p>
   </section>
 </template>
+
+<style scoped>
+.structure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.actions,
+.pager {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.error {
+  color: #8a1f1f;
+}
+
+.code {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.stale {
+  background: #fff4e0;
+  border-left: 4px solid #d06000;
+  padding: 0.4rem 0.6rem;
+}
+
+.stale-mark {
+  color: #d06000;
+  font-size: 0.85rem;
+}
+
+.note {
+  color: #444;
+  font-size: 0.9rem;
+}
+
+.scenes {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.scenes th,
+.scenes td {
+  border-bottom: 1px solid #ddd;
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.shots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shots li {
+  font-size: 0.9rem;
+}
+
+/* Цвет происхождения границы: алгоритм, оператор, отмена. */
+.origin.auto {
+  color: #b02020;
+}
+
+.origin.operator {
+  color: #1f7a35;
+}
+
+.origin.cancelled {
+  color: #d06000;
+}
+</style>

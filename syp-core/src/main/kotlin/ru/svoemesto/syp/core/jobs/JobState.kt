@@ -144,7 +144,7 @@ enum class JobKind {
     /** Обучение распознавания, новая версия модели. */
     TRAIN,
 
-    /** Подсчёт `sha256` исходного файла серии. */
+    /** Подсчёт `sha256` исходного файла эпизода. */
     HASH,
     ;
 
@@ -171,7 +171,7 @@ enum class JobKind {
 /**
  * Предмет работы задания.
  *
- * Задание либо привязано к объекту базы (серия, версия модели), либо нет.
+ * Задание либо привязано к объекту базы (эпизод, версия модели), либо нет.
  * Пустой предмет — не ошибка: анализ структуры вбора не требует.
  *
  * @property type вид объекта или `null`
@@ -186,8 +186,8 @@ data class JobSubject(
         /** Задание не привязано к объекту. */
         val NONE: JobSubject = JobSubject(null, null)
 
-        /** Задание работает с серией. */
-        fun series(seriesId: Long): JobSubject = JobSubject("SERIES", seriesId)
+        /** Задание работает с эпизодом. */
+        fun episode(episodeId: Long): JobSubject = JobSubject("EPISODE", episodeId)
 
         /** Задание работает с версией модели. */
         fun modelVersion(versionId: Long): JobSubject = JobSubject("MODEL_VERSION", versionId)

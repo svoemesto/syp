@@ -10,10 +10,10 @@ import { request } from './http'
 /** Состояние записи справочника сумм. */
 export type ChecksumState = 'CREATING' | 'WORKING' | 'DONE' | 'ERROR'
 
-/** Состояние суммы серии в ответе. */
+/** Состояние суммы эпизода в ответе. */
 export interface ChecksumView {
-  /** Идентификатор серии. */
-  seriesId: number
+  /** Идентификатор эпизода. */
+  episodeId: number
   /** Состояние подсчёта. */
   state: ChecksumState
   /** Алгоритм подсчёта; в модели только `SHA-256`. */
@@ -34,7 +34,7 @@ export interface ChecksumView {
   errorText: string | null
   /** Задание, считающее или посчитавшее сумму. */
   jobId: number | null
-  /** Сколько записей пересчётов у серии всего. */
+  /** Сколько записей пересчётов у эпизода всего. */
   historyCount: number
   /** Можно ли поставить пересчёт прямо сейчас. */
   canRecalculate: boolean
@@ -44,8 +44,8 @@ export interface ChecksumView {
 export interface ChecksumEnqueuedView {
   /** Идентификатор поставленного задания. */
   jobId: number
-  /** Серия, для которой считается сумма. */
-  seriesId: number
+  /** Эпизод, для которой считается сумма. */
+  episodeId: number
   /** Состояние задания на момент постановки. */
   state: string
   /** Зачем поставлен пересчёт. */
@@ -53,30 +53,30 @@ export interface ChecksumEnqueuedView {
 }
 
 /**
- * Читает состояние суммы серии.
+ * Читает состояние суммы эпизода.
  *
  * Отказ `CHECKSUM_NOT_READY` означает, что сумму не считали ни разу: это не
  * ошибка экрана, а его обычное состояние, и интерфейс показывает «поставьте
  * пересчёт» вместо пустой страницы.
  *
- * @param seriesId идентификатор серии
- * @returns состояние суммы серии
+ * @param episodeId идентификатор эпизода
+ * @returns состояние суммы эпизода
  */
-export function readChecksum(seriesId: number): Promise<ChecksumView> {
-  return request<ChecksumView>('GET', `/series/${seriesId}/checksum`)
+export function readChecksum(episodeId: number): Promise<ChecksumView> {
+  return request<ChecksumView>('GET', `/episodes/${episodeId}/checksum`)
 }
 
 /**
- * Ставит пересчёт суммы серии.
+ * Ставит пересчёт суммы эпизода.
  *
  * Работа идёт заданием: чтение 5,6 ГБ не должно держать соединение
  * интерфейса (constitution IV.1, FR-003).
  *
- * @param seriesId идентификатор серии
+ * @param episodeId идентификатор эпизода
  * @returns поставленное задание
  */
-export function startChecksum(seriesId: number): Promise<ChecksumEnqueuedView> {
-  return request<ChecksumEnqueuedView>('POST', `/series/${seriesId}/checksum`)
+export function startChecksum(episodeId: number): Promise<ChecksumEnqueuedView> {
+  return request<ChecksumEnqueuedView>('POST', `/episodes/${episodeId}/checksum`)
 }
 
 /**

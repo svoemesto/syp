@@ -1,9 +1,9 @@
 package ru.svoemesto.syp.admin.analysis
 
-import ru.svoemesto.syp.admin.catalog.SerialSetting
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.MovieSetting
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.admin.jobs.JobResult
 import ru.svoemesto.syp.core.contract.DomainException
@@ -25,7 +25,7 @@ import java.nio.file.Path
 import java.security.MessageDigest
 
 /**
- * Задание `ANALYZE`: структура серии и листы превью.
+ * Задание `ANALYZE`: структура эпизода и листы превью.
  *
  * **Прогресс задаётся потоком внешней программы, а не индексом цикла**
  * (FR-003, research.md Т-15). Здесь это значит три вещи:
@@ -37,7 +37,7 @@ import java.security.MessageDigest
  *    возврате задания в очередь сохранённое значение остаётся, а новый
  *    прогон не может откатить его назад — иначе интерфейс увидел бы, как
  *    работа идёт назад;
- * 3. общий объём известен заранее — это удвоенное число кадров серии, по
+ * 3. общий объём известен заранее — это удвоенное число кадров эпизода, по
  *    одному проходу на фазу, — поэтому прогресс сразу настоящий, а не
  *    «неизвестно, сколько всего».
  *
@@ -56,14 +56,14 @@ import java.security.MessageDigest
  * при этом проходит заново: поток `scdet` нельзя продолжить с середины, и
  * честнее сказать об этом в отчёте, чем показать нулевой прогресс.
  *
- * @property seriesStore хранилище серий: из него берётся путь и число кадров
+ * @property episodeStore хранилище эпизодов: из него берётся путь и число кадров
  * @property runStore хранилище прогонов
  * @property structure запись рабочей структуры по результату детекции
  * @property frames хранилище значимых кадров
  * @property detector детектор границ сцен и планов
  * @property program единая точка запуска внешних программ
  * @property ffmpegPath путь к программе; приходит из конфигурации (ADR-0010)
- * @property settingsStore настройки сериала: пороги и раскладка листа
+ * @property settingsStore настройки фильма: пороги и раскладка листа
  * @property artifactRegistry реестр артефактов листов превью
  * @property staleness пометка результатов, полученных при других входах
  * @property storage объектное хранилище артефактов
@@ -71,14 +71,14 @@ import java.security.MessageDigest
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class StructureJob(
-    private val seriesStore: SeriesStore,
+    private val episodeStore: EpisodeStore,
     private val runStore: AnalysisRunStore,
     private val structure: StructureService,
     private val frames: FrameSignificanceStore,
     private val detector: SceneDetector,
     private val program: ExternalProgram,
     private val ffmpegPath: String,
-    private val settingsStore: SerialSettingsStore,
+    private val settingsStore: MovieSettingsStore,
     private val artifactRegistry: ArtifactRegistry,
     private val staleness: Staleness,
     private val storage: ObjectStorage,
@@ -88,12 +88,12 @@ class StructureJob(
     override val kind: JobKind = JobKind.ANALYZE
 
     /**
-     * Находит границы, пишет структуру серии и собирает листы превью.
+     * Находит границы, пишет структуру эпизода и собирает листы превью.
      *
-     * @param job задание с предметом «серия»
+     * @param job задание с предметом «эпизод»
      * @param progress приёмник прогресса из потока внешней программы
      * @return результат выполнения
-     * @throws DomainException с кодом `NOT_FOUND`, если серия не зарегистрирована
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизод не зарегистрирована
      * @throws ExternalProgramFailed если `ffmpeg` завершился с ненулевым кодом:
      *   воркер переведёт задание в `ERROR` с текстом (FR-092, SC-005)
      */
@@ -101,19 +101,19 @@ class StructureJob(
         job: Job,
         progress: (JobProgress) -> Unit,
     ): JobResult {
-        val series = requireSeries(job)
-        val settings = settingsStore.read(series.serialId)
-        val sceneThreshold = settings.number(SerialSetting.SCENE_THRESHOLD)
-        val shotThreshold = settings.number(SerialSetting.SHOT_THRESHOLD)
-        val layout = layoutOf(settings.integer(SerialSetting.PREVIEW_SHEET_COLS), settings.integer(SerialSetting.PREVIEW_SHEET_ROWS))
+        val episode = requireEpisode(job)
+        val settings = settingsStore.read(episode.movieId)
+        val sceneThreshold = settings.number(MovieSetting.SCENE_THRESHOLD)
+        val shotThreshold = settings.number(MovieSetting.SHOT_THRESHOLD)
+        val layout = layoutOf(settings.integer(MovieSetting.PREVIEW_SHEET_COLS), settings.integer(MovieSetting.PREVIEW_SHEET_ROWS))
         val paramsHash = SceneDetector.paramsHashOf(settings)
-        val total = series.frameCount.toLong() * PHASES
+        val total = episode.frameCount.toLong() * PHASES
         val report = MonotonicProgress(progress, job.progress, total)
 
         val run =
             runStore.begin(
                 AnalysisRun(
-                    seriesId = series.id!!,
+                    episodeId = episode.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = DetectionResult.ALGORITHM_VERSION,
                     paramsHash = paramsHash,
@@ -130,37 +130,37 @@ class StructureJob(
             // Фаза 1. Детекция границ.
             val detection =
                 detector.detect(
-                    series = series,
+                    episode = episode,
                     sceneThreshold = sceneThreshold,
                     shotThreshold = shotThreshold,
                     progress = { streamed ->
                         report.report(
                             streamed.done,
-                            "детекция границ: кадр ${streamed.done} из ${series.frameCount}",
+                            "детекция границ: кадр ${streamed.done} из ${episode.frameCount}",
                         )
                     },
                 )
             report.report(
-                series.frameCount.toLong(),
+                episode.frameCount.toLong(),
                 "детекция границ: найдено ${detection.sceneBoundaries.size} сцен и " +
                     "${detection.shotBoundaries.size} планов, разбор структуры",
             )
-            val seriesId = series.id!!
-            val (sceneCount, shotCount) = structure.applyDetection(runId, seriesId, detection)
-            frames.markSceneBoundaries(seriesId, detection.sceneBoundaries)
-            frames.markShotBoundaries(seriesId, detection.shotBoundaries)
+            val episodeId = episode.id!!
+            val (sceneCount, shotCount) = structure.applyDetection(runId, episodeId, detection)
+            frames.markSceneBoundaries(episodeId, detection.sceneBoundaries)
+            frames.markShotBoundaries(episodeId, detection.shotBoundaries)
 
             // Фаза 2. Листы превью.
-            val sheets = buildPreviewSheets(job.id, series, layout, report)
+            val sheets = buildPreviewSheets(job.id, episode, layout, report)
 
             runStore.complete(runId)
             // Прогоны, сделанные при других входах, помечаются устаревшими —
             // после того, как новый результат записан, а не вместо него.
-            staleness.markStaleExcept(seriesId, AnalysisKind.STRUCTURE, paramsHash)
+            staleness.markStaleExcept(episodeId, AnalysisKind.STRUCTURE, paramsHash)
 
             JobResult(
                 note =
-                    "структура серии «${series.name}»: сцен $sceneCount, планов $shotCount, " +
+                    "структура эпизода «${episode.name}»: сцен $sceneCount, планов $shotCount, " +
                         "листов превью ${sheets.built} из ${sheets.expected}" +
                         if (sheets.skipped > 0) ", готовых ранее ${sheets.skipped}" else "",
                 progressTotal = total,
@@ -185,14 +185,14 @@ class StructureJob(
     }
 
     /**
-     * Собирает листы превью серии одним проходом внешней программы.
+     * Собирает листы превью эпизода одним проходом внешней программы.
      *
      * Листы, уже зарегистрированные в состоянии `READY`, не собираются
      * заново: перезапуск задания продолжает работу, а не начинает её с
      * начала (FR-003, T056).
      *
      * @param jobId задание-владелец артефактов
-     * @param series серия
+     * @param episode эпизод
      * @param layout раскладка листа
      * @param report счётчик прогресса
      * @return число собранных, пропущенных и ожидаемых листов
@@ -201,20 +201,20 @@ class StructureJob(
      */
     private fun buildPreviewSheets(
         jobId: Long,
-        series: Series,
+        episode: Episode,
         layout: PreviewLayout,
         report: MonotonicProgress,
     ): SheetOutcome {
-        val sheetCount = PreviewSheet.sheetCount(series.frameCount, layout)
-        val seriesId = series.id!!
+        val sheetCount = PreviewSheet.sheetCount(episode.frameCount, layout)
+        val episodeId = episode.id!!
         val pending =
             (0 until sheetCount)
-                .map { PreviewSheet.of(seriesId, it, series.frameCount, layout) }
+                .map { PreviewSheet.of(episodeId, it, episode.frameCount, layout) }
                 .filterNot { artifactRegistry.findReady(ArtifactKind.PREVIEW_SHEET, it.finalKey()) != null }
         val skipped = sheetCount - pending.size
         if (pending.isEmpty()) {
             report.report(
-                series.frameCount.toLong() * PHASES,
+                episode.frameCount.toLong() * PHASES,
                 "листы превью: все $sheetCount готовы ранее",
             )
             return SheetOutcome(built = 0, skipped = skipped, expected = sheetCount)
@@ -231,7 +231,7 @@ class StructureJob(
                             "-hide_banner",
                             "-nostdin",
                             "-i",
-                            series.sourcePath,
+                            episode.sourcePath,
                             "-vf",
                             "scale=${layout.cellWidth}:${layout.cellHeight},tile=${layout.columns}x${layout.rows}",
                             "-fps_mode",
@@ -243,8 +243,8 @@ class StructureJob(
                     progressReader = JobProgress::parseFfmpegProgress,
                     onProgress = { streamed ->
                         report.report(
-                            series.frameCount.toLong() + streamed.done,
-                            "листы превью: кадр ${streamed.done} из ${series.frameCount}",
+                            episode.frameCount.toLong() + streamed.done,
+                            "листы превью: кадр ${streamed.done} из ${episode.frameCount}",
                         )
                     },
                 )
@@ -254,7 +254,7 @@ class StructureJob(
                 val produced = directory.resolve(SHEET_NAME_TEMPLATE.format(sheet.index))
                 if (!Files.isRegularFile(produced)) {
                     throw IOException(
-                        "внешняя программа не выдала лист ${sheet.index} серии ${series.id}: " +
+                        "внешняя программа не выдала лист ${sheet.index} эпизода ${episode.id}: " +
                             "ожидался файл ${produced.fileName}. Листов ожидалось $sheetCount",
                     )
                 }
@@ -275,7 +275,7 @@ class StructureJob(
                 built++
             }
             report.report(
-                series.frameCount.toLong() * PHASES,
+                episode.frameCount.toLong() * PHASES,
                 "листы превью: собрано $built, готово ранее $skipped, всего $sheetCount",
             )
             return SheetOutcome(built = built, skipped = skipped, expected = sheetCount)
@@ -312,7 +312,7 @@ class StructureJob(
     }
 
     /**
-     * Раскладка листа из настроек сериала.
+     * Раскладка листа из настроек фильма.
      *
      * @param columns число столбцов
      * @param rows число строк
@@ -330,27 +330,27 @@ class StructureJob(
         )
 
     /**
-     * Читает серию по предмету задания.
+     * Читает эпизод по предмету задания.
      *
      * @param job задание
-     * @return серия
+     * @return эпизод
      * @throws DomainException с кодом `NOT_FOUND`, если предмет задания не
-     *   серия либо серия не зарегистрирована
+     *   эпизод либо эпизод не зарегистрирована
      */
-    private fun requireSeries(job: Job): Series {
+    private fun requireEpisode(job: Job): Episode {
         val subject = job.subject
-        val seriesId = subject.identifier
-        if (subject.type != SUBJECT_SERIES || seriesId == null) {
+        val episodeId = subject.identifier
+        if (subject.type != SUBJECT_EPISODE || episodeId == null) {
             throw DomainException(
                 ErrorCode.BAD_REQUEST,
-                "заданию ANALYZE нужен предмет «серия», а у него «${subject.type}»: " +
+                "заданию ANALYZE нужен предмет «эпизод», а у него «${subject.type}»: " +
                     "анализировать нечего",
             )
         }
-        return seriesStore.find(seriesId)
+        return episodeStore.find(episodeId)
             ?: throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "серия $seriesId не зарегистрирована: структуру разбирать нечего",
+                "эпизод $episodeId не зарегистрирована: структуру разбирать нечего",
             )
     }
 
@@ -359,7 +359,7 @@ class StructureJob(
      *
      * @property built сколько листов собрано этим запуском
      * @property skipped сколько листов было готово ранее
-     * @property expected сколько листов у серии всего
+     * @property expected сколько листов у эпизода всего
      */
     private data class SheetOutcome(
         val built: Int,
@@ -368,8 +368,8 @@ class StructureJob(
     )
 
     companion object {
-        /** Тип предмета задания для серии. */
-        const val SUBJECT_SERIES: String = "SERIES"
+        /** Тип предмета задания для эпизода. */
+        const val SUBJECT_EPISODE: String = "EPISODE"
 
         /** Имя программы в тексте ошибки. */
         const val PROGRAM_NAME: String = "ffmpeg"

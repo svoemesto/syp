@@ -9,7 +9,7 @@ import java.time.OffsetDateTime
 /**
  * Вид прогона анализа.
  *
- * Разделение на два вида не декоративно: структура серии и лица считаются
+ * Разделение на два вида не декоративно: структура эпизода и лица считаются
  * разными заданиями с разными порогами и разными версиями алгоритма, и
  * смешивать их в одном прогоне означало бы невозможность понять, чем
  * получен результат.
@@ -77,7 +77,7 @@ enum class AnalysisState {
 }
 
 /**
- * Прогон анализа серии.
+ * Прогон анализа эпизода.
  *
  * Прогон существует ради одного: результат должен зависеть от версии
  * алгоритма и набора параметров (FR-090). Без прогона «тот же результат» не
@@ -88,7 +88,7 @@ enum class AnalysisState {
  * понять, что именно изменилось — алгоритм, пороги или сам файл (FR-093).
  *
  * @property id идентификатор прогона; `null`, пока не записан
- * @property seriesId серия, которую разбирали
+ * @property episodeId эпизод, которую разбирали
  * @property kind вид прогона
  * @property algorithmVersion версия алгоритма, которой получен результат
  * @property paramsHash хеш входов задания: по нему видно, при каких порогах
@@ -104,7 +104,7 @@ enum class AnalysisState {
  */
 data class AnalysisRun(
     val id: Long? = null,
-    val seriesId: Long,
+    val episodeId: Long,
     val kind: AnalysisKind,
     val algorithmVersion: String,
     val paramsHash: String,
@@ -140,7 +140,7 @@ data class AnalysisRun(
             AnalysisRunStore.COLUMNS,
             {
                 listOf(
-                    seriesId,
+                    episodeId,
                     kind.name,
                     algorithmVersion,
                     paramsHash,
@@ -157,7 +157,7 @@ data class AnalysisRun(
     companion object {
         /** Столбцы прогона в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, series_id, kind, algorithm_version, params_hash, state, started_at, " +
+            "id, id_episode, kind, algorithm_version, params_hash, state, started_at, " +
                 "finished_at, error_text, is_stale, recordhash"
     }
 }
@@ -249,25 +249,25 @@ class AnalysisRunStore(
     }
 
     /**
-     * Помечает прогоны серии устаревшими.
+     * Помечает прогоны эпизода устаревшими.
      *
      * Помечаются прогоны, полученные при других входах: смена порога или
      * версии алгоритма делает прежний результат устаревшим, но **не удаляет**
      * его — удаление уничтожило бы ручные правки оператора (FR-090, SC-006).
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param kind вид прогона
      * @param paramsHash актуальный хеш параметров
      * @return число помеченных прогонов
      */
     fun markStaleExcept(
-        seriesId: Long,
+        episodeId: Long,
         kind: AnalysisKind,
         paramsHash: String,
     ): Int =
         db.update(
-            "UPDATE $NAME SET is_stale = TRUE WHERE series_id = ? AND kind = ? AND params_hash <> ?",
-            seriesId,
+            "UPDATE $NAME SET is_stale = TRUE WHERE id_episode = ? AND kind = ? AND params_hash <> ?",
+            episodeId,
             kind.name,
             paramsHash,
         )
@@ -281,34 +281,34 @@ class AnalysisRunStore(
     fun find(runId: Long): AnalysisRun? = db.selectOne("$READ_SQL WHERE id = ?", ::readRow, runId)
 
     /**
-     * Последний прогон серии заданного вида.
+     * Последний прогон эпизода заданного вида.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param kind вид прогона
      * @return последний по идентификатору прогон либо `null`
      */
     fun latest(
-        seriesId: Long,
+        episodeId: Long,
         kind: AnalysisKind,
     ): AnalysisRun? =
         db.selectOne(
-            "$READ_SQL WHERE series_id = ? AND kind = ? ORDER BY id DESC LIMIT 1",
+            "$READ_SQL WHERE id_episode = ? AND kind = ? ORDER BY id DESC LIMIT 1",
             ::readRow,
-            seriesId,
+            episodeId,
             kind.name,
         )
 
     /**
-     * Все прогоны серии, свежие первыми.
+     * Все прогоны эпизода, свежие первыми.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return прогоны в обратном порядке идентификаторов
      */
-    fun listBySeries(seriesId: Long): List<AnalysisRun> =
+    fun listByEpisode(episodeId: Long): List<AnalysisRun> =
         db.select(
-            "$READ_SQL WHERE series_id = ? ORDER BY id DESC",
+            "$READ_SQL WHERE id_episode = ? ORDER BY id DESC",
             ::readRow,
-            seriesId,
+            episodeId,
         )
 
     /** Читает идентификатор только что записанного прогона. */
@@ -318,10 +318,10 @@ class AnalysisRunStore(
     ): Long =
         connection
             .prepareStatement(
-                "SELECT id FROM $NAME WHERE series_id = ? AND kind = ? AND params_hash = ? " +
+                "SELECT id FROM $NAME WHERE id_episode = ? AND kind = ? AND params_hash = ? " +
                     "ORDER BY id DESC LIMIT 1",
             ).use { statement ->
-                statement.setLong(1, run.seriesId)
+                statement.setLong(1, run.episodeId)
                 statement.setString(2, run.kind.name)
                 statement.setString(3, run.paramsHash)
                 statement.executeQuery().use { resultSet ->
@@ -339,7 +339,7 @@ class AnalysisRunStore(
     private fun readRow(row: Row): AnalysisRun =
         AnalysisRun(
             id = row.long("id"),
-            seriesId = row.long("series_id"),
+            episodeId = row.long("id_episode"),
             kind = AnalysisKind.parse(row.string("kind")),
             algorithmVersion = row.string("algorithm_version"),
             paramsHash = row.string("params_hash"),
@@ -356,12 +356,12 @@ class AnalysisRunStore(
 
     companion object {
         /** Имя таблицы прогонов. */
-        const val NAME: String = "analysis_run"
+        const val NAME: String = "tbl_analysis_runs"
 
         /** Записываемые столбцы прогона в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "series_id",
+                "id_episode",
                 "kind",
                 "algorithm_version",
                 "params_hash",

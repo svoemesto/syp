@@ -63,9 +63,9 @@ object TestDatabase {
 /**
  * Проверки домена каталога поверх готовых миграций.
  *
- * Закрываются требования задачи T030: корень каталога сериала — абсолютный путь
- * без завершающего слэша; путь серии абсолютный; одна серия принадлежит ровно
- * одному сериалу; удаление сериала каскадом уносит производные данные.
+ * Закрываются требования задачи T030: корень каталога фильма — абсолютный путь
+ * без завершающего слэша; путь эпизода абсолютный; один эпизод принадлежит ровно
+ * одному фильму; удаление фильма каскадом уносит производные данные.
  *
  * Заодно проверяется то, ради чего домен и написан: запись идёт **только** при
  * реальном изменении значений, а карта ключевых кадров возвращается из базы
@@ -76,8 +76,8 @@ object TestDatabase {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CatalogStoreTest {
     private lateinit var db: Db
-    private lateinit var serials: SerialStore
-    private lateinit var seriesStore: SeriesStore
+    private lateinit var movies: MovieStore
+    private lateinit var episodeStore: EpisodeStore
     private lateinit var locations: LocationStore
 
     /**
@@ -89,35 +89,35 @@ class CatalogStoreTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        serials = SerialStore(db)
-        seriesStore = SeriesStore(db)
+        movies = MovieStore(db)
+        episodeStore = EpisodeStore(db)
         locations = LocationStore(db)
     }
 
     /**
-     * Создаёт сериал с уникальным именем.
+     * Создаёт фильм с уникальным именем.
      *
-     * @param root корень каталога сериала
-     * @return созданный сериал
+     * @param root корень каталога фильма
+     * @return созданный фильм
      */
-    private fun newSerial(root: String): Serial = serials.create("Проверка ${System.nanoTime()}", root)
+    private fun newMovie(root: String): Movie = movies.create("Проверка ${System.nanoTime()}", root)
 
     /**
-     * Создаёт серию с заданной картой ключевых кадров.
+     * Создаёт эпизод с заданный картой ключевых кадров.
      *
-     * @param serial сериал-владелец
-     * @param path путь к файлу серии
+     * @param movie фильм-владелец
+     * @param path путь к файлу эпизода
      * @param keyframes карта ключевых кадров
-     * @return записанная серия
+     * @return записанный эпизод
      */
-    private fun newSeries(
-        serial: Serial,
+    private fun newEpisode(
+        movie: Movie,
         path: String,
         keyframes: KeyframeMap,
-    ): Series =
-        seriesStore.insert(
-            Series(
-                serialId = serial.id!!,
+    ): Episode =
+        episodeStore.insert(
+            Episode(
+                movieId = movie.id!!,
                 ordinal = 0,
                 name = "S01E01",
                 sourcePath = path,
@@ -141,32 +141,32 @@ class CatalogStoreTest {
         )
 
     @Test
-    fun `сериал записывается и читается со своим хешем`() {
-        val created = newSerial("/srv/got")
+    fun `фильм записывается и читается со своим хешем`() {
+        val created = newMovie("/srv/got")
 
         assertNotNull(created.id)
         assertEquals("/srv/got", created.sourceRoot)
         assertNotNull(created.recordHash) { "записанная строка обязана получить хеш значений" }
         assertNotNull(created.createdAt)
 
-        val loaded = serials.find(created.id!!)
+        val loaded = movies.find(created.id!!)
 
         assertEquals(created, loaded)
     }
 
     @Test
-    fun `корень каталога сериала проверяется до записи`() {
-        assertFailsWith<IllegalArgumentException> { serials.create("Без корня", "got") }
-        assertFailsWith<IllegalArgumentException> { serials.create("Со слэшем", "/srv/got/") }
-        assertFailsWith<IllegalArgumentException> { serials.create("   ", "/srv/got") }
+    fun `корень каталога фильма проверяется до записи`() {
+        assertFailsWith<IllegalArgumentException> { movies.create("Без корня", "got") }
+        assertFailsWith<IllegalArgumentException> { movies.create("Со слэшем", "/srv/got/") }
+        assertFailsWith<IllegalArgumentException> { movies.create("   ", "/srv/got") }
     }
 
     @Test
-    fun `дубль названия сериала даёт внятный отказ`() {
+    fun `дубль названия фильма даёт внятный отказ`() {
         val name = "Повтор ${System.nanoTime()}"
-        serials.create(name, "/srv/got")
+        movies.create(name, "/srv/got")
 
-        val failure = assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> { serials.create(name, "/srv/got") }
+        val failure = assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> { movies.create(name, "/srv/got") }
 
         assertEquals(ru.svoemesto.syp.core.contract.ErrorCode.CONFLICT, failure.code)
         assertTrue(failure.toBody().message.contains(name))
@@ -174,21 +174,21 @@ class CatalogStoreTest {
 
     @Test
     fun `сохранение без изменений не переписывает строку`() {
-        val serial = newSerial("/srv/got")
+        val movie = newMovie("/srv/got")
 
-        assertTrue(!serials.save(serial), "повторное сохранение без изменений не должно переписывать строку")
-        assertTrue(serials.save(serial.copy(name = serial.name + " (уточнён)")), "изменение значения обязано переписывать строку")
-        assertEquals(serial.name + " (уточнён)", serials.find(serial.id!!)?.name)
+        assertTrue(!movies.save(movie), "повторное сохранение без изменений не должно переписывать строку")
+        assertTrue(movies.save(movie.copy(name = movie.name + " (уточнён)")), "изменение значения обязано переписывать строку")
+        assertEquals(movie.name + " (уточнён)", movies.find(movie.id!!)?.name)
     }
 
     @Test
-    fun `серия хранит карту ключевых кадров байт в байт`() {
-        val serial = newSerial("/srv/got")
+    fun `эпизод хранит карту ключевых кадров байт в байт`() {
+        val movie = newMovie("/srv/got")
         val keyframes = KeyframeMap.build(frameCount = 88_643, keyframes = listOf(0, 240, 88_642))
         val path = "/srv/got/проверка-${System.nanoTime()}.mkv"
 
-        val saved = newSeries(serial, path, keyframes)
-        val loaded = seriesStore.find(saved.id!!)
+        val saved = newEpisode(movie, path, keyframes)
+        val loaded = episodeStore.find(saved.id!!)
 
         assertNotNull(loaded)
         assertEquals(11_081, loaded.keyframeMap?.byteLength)
@@ -200,16 +200,16 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `параметры серии возвращаются из базы без изменений`() {
-        val serial = newSerial("/srv/got")
+    fun `параметры эпизода возвращаются из базы без изменений`() {
+        val movie = newMovie("/srv/got")
         val saved =
-            newSeries(
-                serial,
+            newEpisode(
+                movie,
                 "/srv/got/параметры-${System.nanoTime()}.mkv",
                 KeyframeMap.build(frameCount = 88_643, keyframes = listOf(0, 1000)),
             )
 
-        val loaded = seriesStore.find(saved.id!!)!!
+        val loaded = episodeStore.find(saved.id!!)!!
 
         assertEquals(88_643, loaded.frameCount)
         assertEquals(1001, loaded.timeBaseNum)
@@ -227,16 +227,16 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `одна серия принадлежит ровно одному сериалу, повторный путь отвергается`() {
-        val serial = newSerial("/srv/got")
+    fun `один эпизод принадлежит ровно одному фильму, повторный путь отвергается`() {
+        val movie = newMovie("/srv/got")
         val path = "/srv/got/единственный-${System.nanoTime()}.mkv"
-        val saved = newSeries(serial, path, KeyframeMap.build(frameCount = 100, keyframes = listOf(0)))
+        val saved = newEpisode(movie, path, KeyframeMap.build(frameCount = 100, keyframes = listOf(0)))
 
-        assertEquals(serial.id, saved.serialId)
+        assertEquals(movie.id, saved.movieId)
 
         val failure =
             assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> {
-                newSeries(newSerial("/srv/got"), path, KeyframeMap.build(frameCount = 100, keyframes = listOf(0)))
+                newEpisode(newMovie("/srv/got"), path, KeyframeMap.build(frameCount = 100, keyframes = listOf(0)))
             }
 
         assertEquals(ru.svoemesto.syp.core.contract.ErrorCode.CONFLICT, failure.code)
@@ -244,94 +244,94 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `незарегистрированная серия читается пустой, а не выдуманной`() {
-        assertNull(serials.find(-1))
-        assertNull(seriesStore.find(-1))
+    fun `незарегистрированный эпизод читается пустой, а не выдуманной`() {
+        assertNull(movies.find(-1))
+        assertNull(episodeStore.find(-1))
     }
 
     @Test
-    fun `удаление сериала каскадом уносит производные данные`() {
-        val serial = newSerial("/srv/got")
+    fun `удаление фильма каскадом уносит производные данные`() {
+        val movie = newMovie("/srv/got")
         val saved =
-            newSeries(
-                serial,
+            newEpisode(
+                movie,
                 "/srv/got/каскад-${System.nanoTime()}.mkv",
                 KeyframeMap.build(frameCount = 200, keyframes = listOf(0, 100)),
             )
-        locations.add(serial.id!!, "Лагерь ${System.nanoTime()}")
+        locations.add(movie.id!!, "Лагерь ${System.nanoTime()}")
         val settingsBefore =
             db.selectOne(
-                "SELECT count(*) AS total FROM analysis_setting WHERE serial_id = ?",
+                "SELECT count(*) AS total FROM tbl_analysis_settings WHERE id_movie = ?",
                 { it.int("total") },
-                serial.id,
+                movie.id,
             )
 
         assertEquals(11, settingsBefore)
 
-        assertTrue(serials.delete(serial.id!!))
+        assertTrue(movies.delete(movie.id!!))
 
-        assertNull(serials.find(serial.id!!))
-        assertNull(seriesStore.find(saved.id!!))
+        assertNull(movies.find(movie.id!!))
+        assertNull(episodeStore.find(saved.id!!))
         assertEquals(
             0,
             db.selectOne(
-                "SELECT count(*) AS total FROM location WHERE serial_id = ?",
+                "SELECT count(*) AS total FROM tbl_locations WHERE id_movie = ?",
                 { it.int("total") },
-                serial.id,
+                movie.id,
             ),
         )
         assertEquals(
             0,
             db.selectOne(
-                "SELECT count(*) AS total FROM analysis_setting WHERE serial_id = ?",
+                "SELECT count(*) AS total FROM tbl_analysis_settings WHERE id_movie = ?",
                 { it.int("total") },
-                serial.id,
+                movie.id,
             ),
         )
     }
 
     @Test
-    fun `справочник мест действия уникален в пределах сериала`() {
-        val serial = newSerial("/srv/got")
+    fun `справочник мест действия уникален в пределах фильма`() {
+        val movie = newMovie("/srv/got")
         val name = "Весёлая Роджеровка ${System.nanoTime()}"
-        val added = locations.add(serial.id!!, name)
+        val added = locations.add(movie.id!!, name)
 
         assertNotNull(added.id)
-        assertContentEquals(listOf(name), locations.listBySerial(serial.id!!).map { it.name })
+        assertContentEquals(listOf(name), locations.listByMovie(movie.id!!).map { it.name })
 
         val failure =
             assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> {
-                locations.add(serial.id!!, name)
+                locations.add(movie.id!!, name)
             }
 
         assertEquals(ru.svoemesto.syp.core.contract.ErrorCode.CONFLICT, failure.code)
     }
 
     @Test
-    fun `список сериалов показывает число серий`() {
-        val serial = newSerial("/srv/got")
-        newSeries(serial, "/srv/got/список-${System.nanoTime()}.mkv", KeyframeMap.build(frameCount = 50, keyframes = listOf(0)))
+    fun `список фильмов показывает число эпизодов`() {
+        val movie = newMovie("/srv/got")
+        newEpisode(movie, "/srv/got/список-${System.nanoTime()}.mkv", KeyframeMap.build(frameCount = 50, keyframes = listOf(0)))
 
-        val summary = serials.listWithSeriesCount().first { it.serial.id == serial.id }
+        val summary = movies.listWithEpisodeCount().first { it.movie.id == movie.id }
 
-        assertEquals(1, summary.seriesCount)
-        assertEquals(1, serials.countSeries(serial.id!!))
+        assertEquals(1, summary.episodeCount)
+        assertEquals(1, movies.countEpisode(movie.id!!))
     }
 
     @Test
-    fun `следующий порядковый номер серии продолжает нумерацию`() {
-        val serial = newSerial("/srv/got")
+    fun `следующий порядковый номер эпизода продолжает нумерацию`() {
+        val movie = newMovie("/srv/got")
 
-        assertEquals(0, serials.nextSeriesOrdinal(serial.id!!))
-        newSeries(serial, "/srv/got/нумерация-${System.nanoTime()}.mkv", KeyframeMap.build(frameCount = 10, keyframes = listOf(0)))
-        assertEquals(1, serials.nextSeriesOrdinal(serial.id!!))
+        assertEquals(0, movies.nextEpisodeOrdinal(movie.id!!))
+        newEpisode(movie, "/srv/got/нумерация-${System.nanoTime()}.mkv", KeyframeMap.build(frameCount = 10, keyframes = listOf(0)))
+        assertEquals(1, movies.nextEpisodeOrdinal(movie.id!!))
     }
 
     @Test
-    fun `относительный путь вычисляется от корня сериала`() {
+    fun `относительный путь вычисляется от корня фильма`() {
         val saved =
-            newSeries(
-                newSerial("/disks/HDD_16Tb_Clouds/GOT"),
+            newEpisode(
+                newMovie("/disks/HDD_16Tb_Clouds/GOT"),
                 "/disks/HDD_16Tb_Clouds/GOT/GOT.S01/GOT.S01E01.mkv",
                 KeyframeMap.build(frameCount = 100, keyframes = listOf(0)),
             )
@@ -341,12 +341,12 @@ class CatalogStoreTest {
     }
 
     @Test
-    fun `серия без ключевых кадров записывается с пустой картой`() {
-        val serial = newSerial("/srv/got")
+    fun `эпизод без ключевых кадров записывается с пустой картой`() {
+        val movie = newMovie("/srv/got")
         val saved =
-            seriesStore.insert(
-                Series(
-                    serialId = serial.id!!,
+            episodeStore.insert(
+                Episode(
+                    movieId = movie.id!!,
                     ordinal = 3,
                     name = "Без карты",
                     sourcePath = "/srv/got/без-карты-${System.nanoTime()}.mkv",
@@ -366,12 +366,12 @@ class CatalogStoreTest {
                 ),
             )
 
-        assertNull(seriesStore.find(saved.id!!)?.keyframeMap)
+        assertNull(episodeStore.find(saved.id!!)?.keyframeMap)
     }
 
     @Test
     fun `карта неверной длины отвергается базой`() {
-        val serial = newSerial("/srv/got")
+        val movie = newMovie("/srv/got")
         val path = "/srv/got/длина-карты-${System.nanoTime()}.mkv"
         val tooShort = KeyframeMap.build(frameCount = 100, keyframes = listOf(0)).toByteArray()
 
@@ -380,12 +380,12 @@ class CatalogStoreTest {
                 db.useTransaction { connection ->
                     connection
                         .prepareStatement(
-                            "INSERT INTO series (serial_id, ordinal, name, source_path, file_size, file_mtime, " +
+                            "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, " +
                                 "frame_count, time_base_num, time_base_den, width, height, duration_num, " +
                                 "duration_den, video_codec, pixel_format, keyframe_bitmap) " +
                                 "VALUES (?, 0, 'S01E01', ?, 10, now(), 100, 1, 25, 8, 8, 4, 1, 'h264', 'yuv420p', ?)",
                         ).use { statement ->
-                            statement.setLong(1, serial.id!!)
+                            statement.setLong(1, movie.id!!)
                             statement.setString(2, path)
                             statement.setBytes(3, tooShort.copyOf(3))
                             statement.executeUpdate()

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Фронтенд админки SYP: приём сериалов, разметка, анализ, очередь заданий",
+  "description": "Фронтенд админки SYP: приём фильмов, разметка, анализ, очередь заданий",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",

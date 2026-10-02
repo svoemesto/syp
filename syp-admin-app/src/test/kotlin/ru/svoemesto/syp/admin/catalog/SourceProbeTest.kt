@@ -17,7 +17,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Проверки опроса файла серии.
+ * Проверки опроса файла эпизода.
  *
  * Закрываются требования задачи T031: определяются число кадров, числитель и
  * знаменатель частокадровой базы, разрешение, длительность, кодек, профиль,
@@ -59,8 +59,8 @@ class SourceProbeTest {
      *
      * @return путь к файлу, который удаляет вызывающий
      */
-    private fun syntheticSeries(): Path {
-        val target = Files.createTempDirectory("syp-probe").resolve("series.mkv")
+    private fun syntheticEpisode(): Path {
+        val target = Files.createTempDirectory("syp-probe").resolve("episode.mkv")
         val result =
             ExternalProgram()
                 .runOrFail(
@@ -90,17 +90,17 @@ class SourceProbeTest {
     /**
      * Опрашивает подготовленный ролик.
      *
-     * @param series путь к файлу
+     * @param episode путь к файлу
      * @return параметры файла
      */
-    private fun probeOf(series: Path): SourceParameters = SourceProbe(ExternalProgram(), requireProgram("ffprobe")).probe(series)
+    private fun probeOf(episode: Path): SourceParameters = SourceProbe(ExternalProgram(), requireProgram("ffprobe")).probe(episode)
 
     @Test
     fun `определяются все параметры файла`() {
-        val series = syntheticSeries()
+        val episode = syntheticEpisode()
 
         try {
-            val parameters = probeOf(series)
+            val parameters = probeOf(episode)
 
             // Две секунды по 25 кадров в секунду — ровно 50 кадров.
             assertEquals(50, parameters.frameCount)
@@ -117,16 +117,16 @@ class SourceProbeTest {
             assertNull(parameters.audioChannels)
             assertNull(parameters.audioSampleRate)
         } finally {
-            series.deleteIfExists()
+            episode.deleteIfExists()
         }
     }
 
     @Test
     fun `частокадровая база хранится длительностью кадра, а не частотой`() {
-        val series = syntheticSeries()
+        val episode = syntheticEpisode()
 
         try {
-            val parameters = probeOf(series)
+            val parameters = probeOf(episode)
 
             // 25 кадров в секунду — это 1/25 секунды на кадр, и именно эта
             // величина переводит номер кадра во время (ADR-0001).
@@ -135,20 +135,20 @@ class SourceProbeTest {
             assertEquals(2.0, parameters.durationSeconds(), 1e-9)
             assertEquals(1.0 / 25.0, parameters.frameDurationSeconds(), 1e-12)
         } finally {
-            series.deleteIfExists()
+            episode.deleteIfExists()
         }
     }
 
     @Test
     fun `длительность вычисляется по кадрам, а не берётся у контейнера`() {
-        val series = syntheticSeries()
+        val episode = syntheticEpisode()
 
         try {
-            val parameters = probeOf(series)
+            val parameters = probeOf(episode)
 
             // Длительность обязана следовать из числа кадров и базы, а не из
             // объявленной контейнером величины: та считается по последнему
-            // пакету и на длинной серии расходится с фактом. Сверка идёт
+            // пакету и на длинном эпизоде расходится с фактом. Сверка идёт
             // умножением крест-накрест: целочисленное деление здесь потеряло бы
             // точность и обесценило проверку.
             assertEquals(
@@ -157,31 +157,31 @@ class SourceProbeTest {
             )
             assertEquals(2L, parameters.durationNum / parameters.durationDen)
         } finally {
-            series.deleteIfExists()
+            episode.deleteIfExists()
         }
     }
 
     @Test
     fun `время кадра и номер кадра обратимы`() {
-        val series = syntheticSeries()
+        val episode = syntheticEpisode()
 
         try {
-            val parameters = probeOf(series)
+            val parameters = probeOf(episode)
 
             for (frame in listOf(0L, 1L, 25L, 49L)) {
                 assertEquals(frame, parameters.frameOfTime(parameters.timeOfFrame(frame)))
             }
         } finally {
-            series.deleteIfExists()
+            episode.deleteIfExists()
         }
     }
 
     @Test
     fun `карта ключевых кадров заполняется при опросе`() {
-        val series = syntheticSeries()
+        val episode = syntheticEpisode()
 
         try {
-            val keyframes = probeOf(series).keyframes
+            val keyframes = probeOf(episode).keyframes
 
             assertEquals(KeyframeMap.requiredLength(50), keyframes.byteLength)
             // Ключевой кадр есть в начале и в начале второго опорного кадра.
@@ -189,7 +189,7 @@ class SourceProbeTest {
             assertTrue(keyframes.isKeyframe(25))
             assertTrue(keyframes.keyframeCount() >= 2)
         } finally {
-            series.deleteIfExists()
+            episode.deleteIfExists()
         }
     }
 
@@ -245,7 +245,7 @@ class SourceProbeTest {
 
         assertEquals(one to one, SourceProbe.reduce(two, two))
         // Длительность кадра — обратная величина к частоте кадров: именно её
-        // хранит серия, и именно она переводит номер кадра во время
+        // хранит эпизод, и именно она переводит номер кадра во время
         // (ADR-0001). Для 24000/1001 это 1001/24000 секунды на кадр.
         assertEquals(fpsDenominator to fpsNumerator, SourceProbe.reduce(fpsDenominator, fpsNumerator))
     }

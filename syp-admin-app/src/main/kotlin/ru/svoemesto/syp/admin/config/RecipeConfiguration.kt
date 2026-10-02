@@ -2,8 +2,8 @@ package ru.svoemesto.syp.admin.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.admin.integrity.ChecksumRegistry
 import ru.svoemesto.syp.admin.notify.NotificationPublisher
 import ru.svoemesto.syp.admin.recipe.RecipeController
@@ -73,9 +73,9 @@ class RecipeConfiguration {
      * Собирает генератор сценария.
      *
      * @param database доступ к базе
-     * @param seriesStore хранилище серий
+     * @param episodeStore хранилище эпизодов
      * @param checksums справочник эталонных сумм
-     * @param settingsStore настройки сериала
+     * @param settingsStore настройки фильма
      * @param recipes хранилище сценариев
      * @param catalog каталог сценариев
      * @param artifacts реестр артефактов
@@ -86,9 +86,9 @@ class RecipeConfiguration {
     @Bean
     fun recipeBuilder(
         database: Db,
-        seriesStore: SeriesStore,
+        episodeStore: EpisodeStore,
         checksums: ChecksumRegistry,
-        settingsStore: SerialSettingsStore,
+        settingsStore: MovieSettingsStore,
         recipes: RecipeStore,
         catalog: RecipeCatalog,
         artifacts: ArtifactRegistry,
@@ -97,7 +97,7 @@ class RecipeConfiguration {
     ): RecipeBuilder =
         RecipeBuilder(
             db = database,
-            seriesStore = seriesStore,
+            episodeStore = episodeStore,
             checksums = checksums,
             settingsStore = settingsStore,
             recipes = recipes,

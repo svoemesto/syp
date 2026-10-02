@@ -7,13 +7,13 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.Location
 import ru.svoemesto.syp.admin.catalog.LocationStore
-import ru.svoemesto.syp.admin.catalog.SerialSetting
-import ru.svoemesto.syp.admin.catalog.SerialSettings
-import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
-import ru.svoemesto.syp.admin.catalog.Series
-import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.catalog.MovieSetting
+import ru.svoemesto.syp.admin.catalog.MovieSettings
+import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.images.PreviewLayout
@@ -39,13 +39,13 @@ data class LocationView(
 )
 
 /**
- * План в ответе структуры серии.
+ * План в ответе структуры эпизода.
  *
  * Поля совпадают с примером контракта
  * [`admin-api.md`](../../../../../specs/001-first-vertical-slice/contracts/admin-api.md)
  * § 5.1: границы по номерам кадров, происхождение границы и размера, признак
  * устаревания. Время не приходит: номер кадра — единственный источник правды,
- * а клиент пересчитывает время от `time_base` серии (ADR-0001).
+ * а клиент пересчитывает время от `time_base` эпизода (ADR-0001).
  *
  * @property id идентификатор плана
  * @property firstFrame первый кадр плана
@@ -67,7 +67,7 @@ data class ShotView(
 )
 
 /**
- * Сцена в ответе структуры серии.
+ * Сцена в ответе структуры эпизода.
  *
  * @property id идентификатор сцены
  * @property firstFrame первый кадр сцены
@@ -91,7 +91,7 @@ data class SceneView(
 )
 
 /**
- * Ответ о структуре серии.
+ * Ответ о структуре эпизода.
  *
  * На верхнем уровне лежит состояние актуальности: `staleResultCode` равен
  * `STALE_RESULT`, когда результат получен при других входах. Ответ при этом
@@ -99,23 +99,23 @@ data class SceneView(
  * есть ручные правки оператора, которые смена порога не отменяет (FR-090,
  * SC-006).
  *
- * @property seriesId серия
- * @property frameCount число кадров серии
+ * @property episodeId эпизод
+ * @property frameCount число кадров эпизода
  * @property isStale устарел ли результат
  * @property staleResultCode машинный код устаревания либо `null`
  * @property staleReason чем именно результат устарел
  * @property runId последний прогон структуры либо `null`
  * @property algorithmVersion версия алгоритма прогона
  * @property paramsHash хеш входов прогона
- * @property scenesTotal сколько сцен у серии всего
- * @property shotsTotal сколько планов у серии всего
+ * @property scenesTotal сколько сцен у эпизода всего
+ * @property shotsTotal сколько планов у эпизода всего
  * @property offset смещение выборки сцен
  * @property limit размер выборки сцен
  * @property scenes сцены выборки с их планами
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class StructureView(
-    val seriesId: Long,
+    val episodeId: Long,
     val frameCount: Int,
     val isStale: Boolean,
     val staleResultCode: String?,
@@ -153,7 +153,7 @@ data class RawBoundaryView(
 /**
  * Ответ с сырыми границами последнего прогона.
  *
- * @property seriesId серия
+ * @property episodeId эпизод
  * @property runId последний прогон структуры либо `null`
  * @property offset смещение выборки
  * @property limit размер выборки
@@ -163,7 +163,7 @@ data class RawBoundaryView(
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class RawBoundariesView(
-    val seriesId: Long,
+    val episodeId: Long,
     val runId: Long?,
     val offset: Int,
     val limit: Int,
@@ -180,7 +180,7 @@ data class RawBoundariesView(
  * @property isShotBoundary начинается ли здесь новый план
  * @property faceCount сколько лиц найдено в кадре
  * @property sizeHint подсказка смены крупности либо `null`
- * @property isKeyframe ключевой ли кадр по карте серии
+ * @property isKeyframe ключевой ли кадр по карте эпизода
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class FrameView(
@@ -195,19 +195,19 @@ data class FrameView(
 /**
  * Страница значимых кадров.
  *
- * Списки кадров и лиц пагинируются **всегда**: на серии их десятки тысяч, а
+ * Списки кадров и лиц пагинируются **всегда**: на эпизоде их десятки тысяч, а
  * полный ответ занял бы мегабайты и положил бы вкладку оператора
  * (`admin-api.md` § 1.5).
  *
- * @property seriesId серия
- * @property total сколько значимых кадров у серии
+ * @property episodeId эпизод
+ * @property total сколько значимых кадров у эпизода
  * @property offset смещение выборки
  * @property limit размер выборки
  * @property frames кадры выборки
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class FramesView(
-    val seriesId: Long,
+    val episodeId: Long,
     val total: Int,
     val offset: Int,
     val limit: Int,
@@ -237,14 +237,14 @@ data class FrameFlagsView(
 /**
  * Ответ с признаками кадров диапазона.
  *
- * @property seriesId серия
+ * @property episodeId эпизод
  * @property fromFrame первый кадр диапазона
  * @property toFrame последний кадр диапазона
  * @property flags признаки кадров диапазона по возрастанию номера
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class FrameFlagsListView(
-    val seriesId: Long,
+    val episodeId: Long,
     val fromFrame: Int,
     val toFrame: Int,
     val flags: List<FrameFlagsView>,
@@ -277,7 +277,7 @@ data class CellCropView(
  * спросили про конкретный кадр, область его кадрирования на листе
  * (`admin-api.md` § 5.2, FR-022).
  *
- * @property seriesId серия
+ * @property episodeId эпизод
  * @property index номер листа, с нуля
  * @property firstFrame первый кадр листа
  * @property lastFrame последний кадр листа
@@ -297,7 +297,7 @@ data class CellCropView(
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class PreviewUrlView(
-    val seriesId: Long,
+    val episodeId: Long,
     val index: Int,
     val firstFrame: Int,
     val lastFrame: Int,
@@ -320,22 +320,22 @@ data class PreviewUrlView(
  * Ответ на постановку анализа структуры.
  *
  * Ответ — `202`: работа принята в очередь, а не выполнена. Кнопка, ждащая
- * окончания разбора серии, нарушала бы constitution IV.1 (FR-003).
+ * окончания разбора эпизода, нарушала бы constitution IV.1 (FR-003).
  *
  * @property jobId идентификатор поставленного задания
- * @property seriesId серия
+ * @property episodeId эпизод
  * @property state состояние задания на момент постановки
  * @property sceneThreshold порог границы сцены
  * @property shotThreshold порог границы плана
  * @property paramsHash хеш входов задания
- * @property frameCount число кадров серии
- * @property previewSheetCount сколько листов превью у серии будет
+ * @property frameCount число кадров эпизода
+ * @property previewSheetCount сколько листов превью у эпизода будет
  * @property alreadyCompleted выполнялась ли работа с такими входами раньше
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class AnalysisEnqueuedView(
     val jobId: Long,
-    val seriesId: Long,
+    val episodeId: Long,
     val state: String,
     val sceneThreshold: Double,
     val shotThreshold: Double,
@@ -346,41 +346,41 @@ data class AnalysisEnqueuedView(
 )
 
 /**
- * Постановщик анализа структуры серии.
+ * Постановщик анализа структуры эпизода.
  *
  * **Повторная постановка означает пересчёт.** Правило о пропуске задания с
  * тем же хешем параметров (Р-10) здесь не действует: кнопка анализа означает
- * требование человека разобрать серию заново — например, после правки
+ * требование человека разобрать эпизод заново — например, после правки
  * границ вручную. Ответ при этом прямо говорит, была ли такая работа
  * выполнена раньше, чтобы интерфейс не показывал лишний час ожидания как
  * неизвестность.
  *
  * @property queue очередь заданий
- * @property settingsStore настройки сериала: из них берутся пороги
+ * @property settingsStore настройки фильма: из них берутся пороги
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class AnalysisEnqueuer(
     private val queue: JobQueue,
-    private val settingsStore: SerialSettingsStore,
+    private val settingsStore: MovieSettingsStore,
 ) {
     /**
-     * Ставит анализ структуры серии.
+     * Ставит анализ структуры эпизода.
      *
-     * @param series серия
+     * @param episode эпизод
      * @return ответ на постановку
-     * @throws DomainException если у сериала нет настроек: значения по
+     * @throws DomainException если у фильма нет настроек: значения по
      *   умолчанию создаёт триггер базы, и их отсутствие — дефект данных
      */
-    fun enqueue(series: Series): AnalysisEnqueuedView {
-        val settings = settingsStore.read(series.serialId)
-        val sceneThreshold = settings.number(SerialSetting.SCENE_THRESHOLD)
-        val shotThreshold = settings.number(SerialSetting.SHOT_THRESHOLD)
+    fun enqueue(episode: Episode): AnalysisEnqueuedView {
+        val settings = settingsStore.read(episode.movieId)
+        val sceneThreshold = settings.number(MovieSetting.SCENE_THRESHOLD)
+        val shotThreshold = settings.number(MovieSetting.SHOT_THRESHOLD)
         val paramsHash = SceneDetector.paramsHashOf(settings)
         val layout = previewLayoutOf(settings)
         val jobId =
             queue.enqueue(
                 kind = JobKind.ANALYZE,
-                subject = JobSubject.series(series.id!!),
+                subject = JobSubject.episode(episode.id!!),
                 paramsJson =
                     "{\"sceneThreshold\":$sceneThreshold,\"shotThreshold\":$shotThreshold," +
                         "\"previewColumns\":${layout.columns},\"previewRows\":${layout.rows}}",
@@ -389,28 +389,28 @@ class AnalysisEnqueuer(
             )
         return AnalysisEnqueuedView(
             jobId = jobId,
-            seriesId = series.id,
+            episodeId = episode.id,
             state = JobState.WAITING.name,
             sceneThreshold = sceneThreshold,
             shotThreshold = shotThreshold,
             paramsHash = paramsHash,
-            frameCount = series.frameCount,
-            previewSheetCount = PreviewSheet.sheetCount(series.frameCount, layout),
+            frameCount = episode.frameCount,
+            previewSheetCount = PreviewSheet.sheetCount(episode.frameCount, layout),
             alreadyCompleted =
                 queue.hasCompletedWithReadyArtifact(JobKind.ANALYZE, paramsHash),
         )
     }
 
     /**
-     * Раскладка листа превью по настройкам сериала.
+     * Раскладка листа превью по настройкам фильма.
      *
-     * @param settings настройки сериала
+     * @param settings настройки фильма
      * @return раскладка листа
      */
-    private fun previewLayoutOf(settings: ru.svoemesto.syp.admin.catalog.SerialSettings): PreviewLayout =
+    private fun previewLayoutOf(settings: ru.svoemesto.syp.admin.catalog.MovieSettings): PreviewLayout =
         PreviewLayout(
-            columns = settings.integer(SerialSetting.PREVIEW_SHEET_COLS),
-            rows = settings.integer(SerialSetting.PREVIEW_SHEET_ROWS),
+            columns = settings.integer(MovieSetting.PREVIEW_SHEET_COLS),
+            rows = settings.integer(MovieSetting.PREVIEW_SHEET_ROWS),
         )
 }
 
@@ -422,7 +422,7 @@ class AnalysisEnqueuer(
 internal fun Location.toView(): LocationView = LocationView(id!!, name)
 
 /**
- * Эндпоинты структуры серии и превью кадров.
+ * Эндпоинты структуры эпизода и превью кадров.
  *
  * Это чтение результата анализа и постановка самого анализа. Ручной доводки
  * границ здесь нет: она описана отдельными механиками и приходит вместе с
@@ -430,74 +430,74 @@ internal fun Location.toView(): LocationView = LocationView(id!!, name)
  * операция правки может случайно изменить то, что он смотрит.
  *
  * @property enqueuer постановщик анализа
- * @property seriesStore хранилище серий
+ * @property episodeStore хранилище эпизодов
  * @property runStore хранилище прогонов
  * @param structure сервис рабочей структуры
  * @property boundaryStore хранилище сырых границ
  * @property frameStore хранилище значимых кадров
  * @property staleness состояние актуальности результата
- * @property settingsStore настройки сериала
+ * @property settingsStore настройки фильма
  * @property artifactRegistry реестр артефактов листов превью
  * @property storage объектное хранилище
- * @property locations справочник мест действия сериала
+ * @property locations справочник мест действия фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 @RestController
 class StructureController(
     private val enqueuer: AnalysisEnqueuer,
-    private val seriesStore: SeriesStore,
+    private val episodeStore: EpisodeStore,
     private val runStore: AnalysisRunStore,
     private val structure: StructureService,
     private val boundaryStore: RawBoundaryStore,
     private val frameStore: FrameSignificanceStore,
     private val staleness: Staleness,
-    private val settingsStore: SerialSettingsStore,
+    private val settingsStore: MovieSettingsStore,
     private val artifactRegistry: ArtifactRegistry,
     private val storage: ObjectStorage,
     private val locations: LocationStore,
 ) {
     /**
-     * Ставит серию на анализ структуры.
+     * Ставит эпизод на анализ структуры.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @return поставленное задание, код `202`
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    @PostMapping("/api/series/{seriesId}/analysis")
+    @PostMapping("/api/episodes/{episodeId}/analysis")
     fun startAnalysis(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
     ): ResponseEntity<AnalysisEnqueuedView> =
         ResponseEntity
             .status(HttpStatus.ACCEPTED)
-            .body(enqueuer.enqueue(requireSeries(seriesId)))
+            .body(enqueuer.enqueue(requireEpisode(episodeId)))
 
     /**
-     * Отдаёт структуру серии: сцены с планами.
+     * Отдаёт структуру эпизода: сцены с планами.
      *
      * Планы внутри сцены вычисляются по диапазонам кадров, а не берутся из
      * сохранённой связи: такой связи в схеме нет и быть не должно (ADR-0007).
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param offset смещение выборки сцен
      * @param limit размер выборки сцен
      * @return страница структуры со сведениями об актуальности
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    @GetMapping("/api/series/{seriesId}/structure")
+    @GetMapping("/api/episodes/{episodeId}/structure")
     fun readStructure(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
         @RequestParam(defaultValue = "0") offset: Int,
         @RequestParam(defaultValue = "200") limit: Int,
     ): StructureView {
-        val series = requireSeries(seriesId)
-        val status = currentStatus(series)
-        val scenes = structure.listScenes(seriesId)
-        val shots = structure.listShots(seriesId)
+        val episode = requireEpisode(episodeId)
+        val status = currentStatus(episode)
+        val scenes = structure.listScenes(episodeId)
+        val shots = structure.listShots(episodeId)
         val page = pageOf(scenes, offset, limit)
-        val locations = locationsOf(series.serialId, page.mapNotNull { it.locationId })
+        val locations = locationsOf(episode.movieId, page.mapNotNull { it.locationId })
         return StructureView(
-            seriesId = seriesId,
-            frameCount = series.frameCount,
+            episodeId = episodeId,
+            frameCount = episode.frameCount,
             isStale = status.isStale,
             staleResultCode = status.staleResultCode,
             staleReason = status.reason,
@@ -543,28 +543,28 @@ class StructureController(
      * Показываются **отдельно** от рабочей структуры: иначе сравнить
      * предложение машины с решением человека нечем (FR-093).
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param level уровень границ: сцена или план; оба, если не задан
      * @param offset смещение выборки
      * @param limit размер выборки
      * @return страница сырых границ
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет, или с кодом
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет, или с кодом
      *   `BAD_REQUEST`, если уровень неизвестен
      */
-    @GetMapping("/api/series/{seriesId}/raw-boundaries")
+    @GetMapping("/api/episodes/{episodeId}/raw-boundaries")
     fun readRawBoundaries(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
         @RequestParam(required = false) level: String?,
         @RequestParam(defaultValue = "0") offset: Int,
         @RequestParam(defaultValue = "200") limit: Int,
     ): RawBoundariesView {
-        requireSeries(seriesId)
+        requireEpisode(episodeId)
         val parsed = level?.let { name -> parseLevel(name) }
-        val runId = runStore.latest(seriesId, AnalysisKind.STRUCTURE)?.id
+        val runId = runStore.latest(episodeId, AnalysisKind.STRUCTURE)?.id
         val all = rawBoundariesOf(runId, parsed)
         val page = all.drop(offset.coerceAtLeast(0)).take(checkedLimit(limit))
         return RawBoundariesView(
-            seriesId = seriesId,
+            episodeId = episodeId,
             runId = runId,
             offset = offset.coerceAtLeast(0),
             limit = checkedLimit(limit),
@@ -583,92 +583,92 @@ class StructureController(
     }
 
     /**
-     * Отдаёт страницу значимых кадров серии.
+     * Отдаёт страницу значимых кадров эпизода.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param offset смещение выборки
      * @param limit размер выборки
      * @return страница значимых кадров
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    @GetMapping("/api/series/{seriesId}/frames")
+    @GetMapping("/api/episodes/{episodeId}/frames")
     fun readFrames(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
         @RequestParam(defaultValue = "0") offset: Int,
         @RequestParam(defaultValue = "200") limit: Int,
     ): FramesView {
-        val series = requireSeries(seriesId)
-        val total = frameStore.countBySeries(seriesId)
+        val episode = requireEpisode(episodeId)
+        val total = frameStore.countByEpisode(episodeId)
         val from = offset.coerceAtLeast(0)
-        val frames = frameStore.listRange(seriesId, from, series.frameCount - 1, checkedLimit(limit))
+        val frames = frameStore.listRange(episodeId, from, episode.frameCount - 1, checkedLimit(limit))
         return FramesView(
-            seriesId = seriesId,
+            episodeId = episodeId,
             total = total,
             offset = from,
             limit = checkedLimit(limit),
-            frames = frames.map { it.toView(series) },
+            frames = frames.map { it.toView(episode) },
         )
     }
 
     /**
      * Отдаёт признаки кадров диапазона.
      *
-     * Признак «ключевой кадр» приходит из карты серии, а не из таблицы
+     * Признак «ключевой кадр» приходит из карты эпизода, а не из таблицы
      * кадров: полной таблицы на 88 643 строки не существует (Р-07).
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param fromFrame первый кадр диапазона включительно
      * @param toFrame последний кадр диапазона включительно
      * @return признаки кадров диапазона
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет, или с кодом
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет, или с кодом
      *   `BAD_REQUEST`, если диапазон вывернут наизнанку
      */
-    @GetMapping("/api/series/{seriesId}/frames/flags")
+    @GetMapping("/api/episodes/{episodeId}/frames/flags")
     fun readFrameFlags(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
         @RequestParam fromFrame: Int,
         @RequestParam toFrame: Int,
     ): FrameFlagsListView {
-        val series = requireSeries(seriesId)
+        val episode = requireEpisode(episodeId)
         if (fromFrame < 0 || toFrame < fromFrame) {
             throw DomainException(
                 ErrorCode.BAD_REQUEST,
                 "диапазон кадров $fromFrame…$toFrame вывернут наизнанку или уходит в отрицательные номера",
             )
         }
-        val frames = frameStore.listRange(seriesId, fromFrame, minOf(toFrame, series.frameCount - 1))
+        val frames = frameStore.listRange(episodeId, fromFrame, minOf(toFrame, episode.frameCount - 1))
         return FrameFlagsListView(
-            seriesId = seriesId,
+            episodeId = episodeId,
             fromFrame = fromFrame,
             toFrame = toFrame,
-            flags = frames.map { it.toFlagsView(series) },
+            flags = frames.map { it.toFlagsView(episode) },
         )
     }
 
     /**
-     * Отдаёт лист превью серии.
+     * Отдаёт лист превью эпизода.
      *
      * Отдаётся **только** лист, зарегистрированный в состоянии `READY`:
      * незавершённый файл не считается готовым и показывать его незачем
      * (FR-091).
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param index номер листа, с нуля
      * @return содержимое листа
      * @throws DomainException с кодом `NOT_FOUND`, если листа нет или он ещё
      *   не готов
      */
-    @GetMapping("/api/series/{seriesId}/preview-sheets/{index}")
+    @GetMapping("/api/episodes/{episodeId}/preview-sheets/{index}")
     fun readPreviewSheet(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
         @PathVariable index: Int,
     ): ResponseEntity<ByteArray> {
-        val sheet = requireSheet(seriesId, index)
+        val sheet = requireSheet(episodeId, index)
         val artifact =
             artifactRegistry.findReady(ArtifactKind.PREVIEW_SHEET, sheet.finalKey())
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
-                    "лист превью №$index серии $seriesId ещё не готов: анализ не завершён " +
+                    "лист превью №$index эпизода $episodeId ещё не готов: анализ не завершён " +
                         "или оборвался. Незавершённый лист не выдаётся (FR-091)",
                 )
         val bytes = storage.get(artifact.objectKey).use { it.readBytes() }
@@ -682,29 +682,29 @@ class StructureController(
     /**
      * Отдаёт адрес листа превью и раскладку листа.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param index номер листа, с нуля; если не задан, берётся из `frame`
      * @param frame кадр, для которого нужен адрес листа и область кадрирования
      * @return описание листа
-     * @throws DomainException с кодом `NOT_FOUND`, если серии или листа нет,
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода или листа нет,
      *   либо с кодом `BAD_REQUEST`, если не задан ни номер листа, ни кадр
      */
-    @GetMapping("/api/series/{seriesId}/preview-url")
+    @GetMapping("/api/episodes/{episodeId}/preview-url")
     fun readPreviewUrl(
-        @PathVariable seriesId: Long,
+        @PathVariable episodeId: Long,
         @RequestParam(required = false) index: Int?,
         @RequestParam(required = false) frame: Int?,
     ): PreviewUrlView {
-        val series = requireSeries(seriesId)
-        val layout = previewLayoutOf(settingsStore.read(series.serialId))
+        val episode = requireEpisode(episodeId)
+        val layout = previewLayoutOf(settingsStore.read(episode.movieId))
         val resolvedIndex =
             when {
                 index != null -> index
                 frame != null -> {
-                    if (frame < 0 || frame >= series.frameCount) {
+                    if (frame < 0 || frame >= episode.frameCount) {
                         throw DomainException(
                             ErrorCode.BAD_REQUEST,
-                            "кадра $frame у серии из ${series.frameCount} кадров нет: " +
+                            "кадра $frame у эпизода из ${episode.frameCount} кадров нет: " +
                                 "спросить лист превью не о чем",
                         )
                     }
@@ -717,11 +717,11 @@ class StructureController(
                             "без них лист не определить",
                     )
             }
-        val sheet = requireSheet(seriesId, resolvedIndex, layout, series.frameCount)
+        val sheet = requireSheet(episodeId, resolvedIndex, layout, episode.frameCount)
         val artifact = artifactRegistry.findReady(ArtifactKind.PREVIEW_SHEET, sheet.finalKey())
         val position = frame?.let { sheet.positionOf(it) }
         return PreviewUrlView(
-            seriesId = seriesId,
+            episodeId = episodeId,
             index = sheet.index,
             firstFrame = sheet.firstFrame,
             lastFrame = sheet.lastFrame,
@@ -735,7 +735,7 @@ class StructureController(
             isReady = artifact != null,
             byteSize = artifact?.byteSize,
             contentType = layout.contentType,
-            url = "/api/series/$seriesId/preview-sheets/${sheet.index}",
+            url = "/api/episodes/$episodeId/preview-sheets/${sheet.index}",
             frame = frame,
             crop =
                 position?.let {
@@ -752,15 +752,15 @@ class StructureController(
     }
 
     /**
-     * Читает серию или отказывает.
+     * Читает эпизод или отказывает.
      *
-     * @param seriesId идентификатор серии
-     * @return серия
-     * @throws DomainException с кодом `NOT_FOUND`, если серии нет
+     * @param episodeId идентификатор эпизода
+     * @return эпизод
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    private fun requireSeries(seriesId: Long): Series =
-        seriesStore.find(seriesId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "серия $seriesId не зарегистрирована")
+    private fun requireEpisode(episodeId: Long): Episode =
+        episodeStore.find(episodeId)
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $episodeId не зарегистрирована")
 
     /**
      * Сырые границы прогона указанного уровня либо обоих сразу.
@@ -783,56 +783,56 @@ class StructureController(
     }
 
     /**
-     * Состояние актуальности структуры серии.
+     * Состояние актуальности структуры эпизода.
      *
-     * @param series серия
+     * @param episode эпизод
      * @return состояние актуальности
      */
-    private fun currentStatus(series: Series): StaleStatus =
-        staleness.status(series.id!!, AnalysisKind.STRUCTURE, currentParamsHash(series))
+    private fun currentStatus(episode: Episode): StaleStatus =
+        staleness.status(episode.id!!, AnalysisKind.STRUCTURE, currentParamsHash(episode))
 
     /**
-     * Актуальный хеш входов детекции по настройкам сериала.
+     * Актуальный хеш входов детекции по настройкам фильма.
      *
-     * @param series серия
+     * @param episode эпизод
      * @return 64 шестнадцатеричных символов в нижнем регистре
      */
-    private fun currentParamsHash(series: Series): String = SceneDetector.paramsHashOf(settingsStore.read(series.serialId))
+    private fun currentParamsHash(episode: Episode): String = SceneDetector.paramsHashOf(settingsStore.read(episode.movieId))
 
     /**
-     * Лист серии по номеру.
+     * Лист эпизода по номеру.
      *
-     * @param seriesId идентификатор серии
+     * @param episodeId идентификатор эпизода
      * @param index номер листа, с нуля
      * @param layout раскладка листа
-     * @param frameCount число кадров серии
+     * @param frameCount число кадров эпизода
      * @return лист
-     * @throws DomainException с кодом `NOT_FOUND`, если серии или листа нет
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода или листа нет
      */
     private fun requireSheet(
-        seriesId: Long,
+        episodeId: Long,
         index: Int,
-        layout: PreviewLayout = previewLayoutOf(settingsStore.read(requireSeries(seriesId).serialId)),
-        frameCount: Int = requireSeries(seriesId).frameCount,
+        layout: PreviewLayout = previewLayoutOf(settingsStore.read(requireEpisode(episodeId).movieId)),
+        frameCount: Int = requireEpisode(episodeId).frameCount,
     ): PreviewSheet =
-        runCatching { PreviewSheet.of(seriesId, index, frameCount, layout) }
+        runCatching { PreviewSheet.of(episodeId, index, frameCount, layout) }
             .getOrElse { failure ->
                 throw DomainException(
                     ErrorCode.NOT_FOUND,
-                    "листа превью №$index у серии $seriesId нет: $failure",
+                    "листа превью №$index у эпизода $episodeId нет: $failure",
                 )
             }
 
     /**
-     * Раскладка листа превью по настройкам сериала.
+     * Раскладка листа превью по настройкам фильма.
      *
-     * @param settings настройки сериала
+     * @param settings настройки фильма
      * @return раскладка листа
      */
-    private fun previewLayoutOf(settings: SerialSettings): PreviewLayout =
+    private fun previewLayoutOf(settings: MovieSettings): PreviewLayout =
         PreviewLayout(
-            columns = settings.integer(SerialSetting.PREVIEW_SHEET_COLS),
-            rows = settings.integer(SerialSetting.PREVIEW_SHEET_ROWS),
+            columns = settings.integer(MovieSetting.PREVIEW_SHEET_COLS),
+            rows = settings.integer(MovieSetting.PREVIEW_SHEET_ROWS),
         )
 
     /**
@@ -860,16 +860,16 @@ class StructureController(
     /**
      * Справочник мест действия по идентификаторам.
      *
-     * Локаций у сериала десятки, а не тысячи, поэтому берётся весь справочник
-     * сериала и фильтруется по нужным: запрос «по десяти идентификаторам» был
+     * Локаций у фильма десятки, а не тысячи, поэтому берётся весь справочник
+     * фильма и фильтруется по нужным: запрос «по десяти идентификаторам» был
      * бы сложнее ради того же результата.
      *
-     * @param serialId сериал-владелец локаций
+     * @param movieId фильм-владелец локаций
      * @param ids идентификаторы локаций, которые нужны в ответе
      * @return описания локаций по идентификаторам
      */
     private fun locationsOf(
-        serialId: Long,
+        movieId: Long,
         ids: List<Long>,
     ): Map<Long, LocationView> {
         if (ids.isEmpty()) {
@@ -877,7 +877,7 @@ class StructureController(
         }
         val wanted = ids.toSet()
         return locations
-            .listBySerial(serialId)
+            .listByMovie(movieId)
             .filter { it.id in wanted }
             .associate { it.id!! to it.toView() }
     }
@@ -899,29 +899,29 @@ class StructureController(
     /**
      * Кадр в ответе списка значимых кадров.
      *
-     * @param series серия: из неё берётся карта ключевых кадров
+     * @param episode эпизод: из неё берётся карта ключевых кадров
      * @return описание кадра
      */
-    private fun FrameSignificance.toView(series: Series): FrameView =
+    private fun FrameSignificance.toView(episode: Episode): FrameView =
         FrameView(
             frameNumber = frameNumber,
             isSceneBoundary = isSceneBoundary,
             isShotBoundary = isShotBoundary,
             faceCount = faceCount,
             sizeHint = sizeHint?.name,
-            isKeyframe = series.keyframeMap?.isKeyframe(frameNumber) == true,
+            isKeyframe = episode.keyframeMap?.isKeyframe(frameNumber) == true,
         )
 
     /**
      * Кадр в ответе с признаками диапазона.
      *
-     * @param series серия: из неё берётся карта ключевых кадров
+     * @param episode эпизод: из неё берётся карта ключевых кадров
      * @return признаки кадра
      */
-    private fun FrameSignificance.toFlagsView(series: Series): FrameFlagsView =
+    private fun FrameSignificance.toFlagsView(episode: Episode): FrameFlagsView =
         FrameFlagsView(
             frameNumber = frameNumber,
-            isKeyframe = series.keyframeMap?.isKeyframe(frameNumber) == true,
+            isKeyframe = episode.keyframeMap?.isKeyframe(frameNumber) == true,
             isSceneBoundary = isSceneBoundary,
             isShotBoundary = isShotBoundary,
             faceCount = faceCount,

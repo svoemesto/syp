@@ -122,15 +122,15 @@ class FaceEmbeddingStore(
     ): Int = embeddings.count { saveInConnection(connection, it) }
 
     /**
-     * Читает векторы лиц серии **одной модели**.
+     * Читает векторы лиц эпизода **один модели**.
      *
-     * @param seriesId серия
+     * @param episodeId эпизод
      * @param modelKey ключ модели эмбеддингов
      * @return векторы в порядке идентификаторов лиц
      * @throws IllegalArgumentException если ключ модели пуст
      */
-    fun listBySeries(
-        seriesId: Long,
+    fun listByEpisode(
+        episodeId: Long,
         modelKey: String,
     ): List<FaceEmbedding> {
         require(modelKey.isNotBlank()) {
@@ -140,9 +140,9 @@ class FaceEmbeddingStore(
             "SELECT e.face_id, e.embedding_model_key, e.vector " +
                 "FROM ${FaceEmbeddingStore.TABLE} e " +
                 "JOIN ${FaceStore.TABLE} f ON f.id = e.face_id " +
-                "WHERE f.series_id = ? AND e.embedding_model_key = ? ORDER BY e.face_id",
+                "WHERE f.id_episode = ? AND e.embedding_model_key = ? ORDER BY e.face_id",
             ::readRow,
-            seriesId,
+            episodeId,
             modelKey,
         )
     }
@@ -167,22 +167,22 @@ class FaceEmbeddingStore(
         )
 
     /**
-     * Считает векторы серии заданной модели.
+     * Считает векторы эпизода заданный модели.
      *
-     * @param seriesId серия
+     * @param episodeId эпизод
      * @param modelKey ключ модели эмбеддингов
      * @return число векторов
      */
-    fun countBySeries(
-        seriesId: Long,
+    fun countByEpisode(
+        episodeId: Long,
         modelKey: String,
     ): Int =
         db.selectOne(
             "SELECT count(*) AS total FROM ${FaceEmbeddingStore.TABLE} e " +
                 "JOIN ${FaceStore.TABLE} f ON f.id = e.face_id " +
-                "WHERE f.series_id = ? AND e.embedding_model_key = ?",
+                "WHERE f.id_episode = ? AND e.embedding_model_key = ?",
             { it.int("total") },
-            seriesId,
+            episodeId,
             modelKey,
         ) ?: 0
 
@@ -201,7 +201,7 @@ class FaceEmbeddingStore(
 
     companion object {
         /** Имя таблицы эмбеддингов. */
-        const val TABLE: String = "face_embedding"
+        const val TABLE: String = "tbl_face_embeddings"
 
         /** Записываемые столбцы эмбеддинга в порядке значений. */
         val COLUMNS: List<String> = listOf("face_id", "embedding_model_key", "vector")
