@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.analysis.Staleness
 import ru.svoemesto.syp.admin.catalog.CatalogController
+import ru.svoemesto.syp.admin.catalog.LocationStore
 import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
 import ru.svoemesto.syp.admin.catalog.SerialStore
 import ru.svoemesto.syp.admin.catalog.SeriesRegistration
@@ -124,6 +125,20 @@ class CatalogConfiguration {
         seriesRegistration: SeriesRegistration,
         staleness: Staleness,
     ): CatalogController = CatalogController(serialStore, seriesStore, settingsStore, seriesRegistration, staleness = staleness)
+
+    /**
+     * Собирает справочник мест действия сериала.
+     *
+     * Место действия назначается сцене вручную и только из этого справочника
+     * (FR-050, FR-051): пустой ссылкой сцену оставлять нельзя, а искать
+     * локацию в произвольном тексте — значило бы заводить вторую пару
+     * «локация, имя».
+     *
+     * @param database доступ к базе
+     * @return справочник мест действия
+     */
+    @Bean
+    fun locationStore(database: Db): LocationStore = LocationStore(database)
 
     /**
      * Собирает разбор значений настроек.

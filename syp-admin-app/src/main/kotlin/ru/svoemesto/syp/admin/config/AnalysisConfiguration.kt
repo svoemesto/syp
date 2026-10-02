@@ -2,16 +2,20 @@ package ru.svoemesto.syp.admin.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import ru.svoemesto.syp.admin.analysis.AnalysisEnqueuer
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
 import ru.svoemesto.syp.admin.analysis.FrameSignificanceStore
 import ru.svoemesto.syp.admin.analysis.RawBoundaryStore
 import ru.svoemesto.syp.admin.analysis.SceneDetector
 import ru.svoemesto.syp.admin.analysis.Staleness
+import ru.svoemesto.syp.admin.analysis.StructureController
 import ru.svoemesto.syp.admin.analysis.StructureJob
 import ru.svoemesto.syp.admin.analysis.StructureService
+import ru.svoemesto.syp.admin.catalog.LocationStore
 import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
 import ru.svoemesto.syp.admin.catalog.SeriesStore
 import ru.svoemesto.syp.core.db.Db
+import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.media.ExternalProgram
 import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.ObjectStorage
@@ -148,6 +152,63 @@ class AnalysisConfiguration {
             staleness = staleness,
             storage = storage,
             workRoot = workRoot(),
+        )
+
+    /**
+     * Собирает постановщик анализа структуры.
+     *
+     * @param queue очередь заданий
+     * @param settingsStore настройки сериала
+     * @return постановщик анализа
+     */
+    @Bean
+    fun analysisEnqueuer(
+        queue: JobQueue,
+        settingsStore: SerialSettingsStore,
+    ): AnalysisEnqueuer = AnalysisEnqueuer(queue, settingsStore)
+
+    /**
+     * Собирает эндпоинты структуры серии и превью.
+     *
+     * @param enqueuer постановщик анализа
+     * @param seriesStore хранилище серий
+     * @param runStore хранилище прогонов
+     * @param structure сервис рабочей структуры
+     * @param boundaryStore хранилище сырых границ
+     * @param frameStore хранилище значимых кадров
+     * @param staleness состояние актуальности результата
+     * @param settingsStore настройки сериала
+     * @param artifactRegistry реестр артефактов
+     * @param storage объектное хранилище
+     * @param locations справочник мест действия
+     * @return контроллер структуры
+     */
+    @Bean
+    fun structureController(
+        enqueuer: AnalysisEnqueuer,
+        seriesStore: SeriesStore,
+        runStore: AnalysisRunStore,
+        structure: StructureService,
+        boundaryStore: RawBoundaryStore,
+        frameStore: FrameSignificanceStore,
+        staleness: Staleness,
+        settingsStore: SerialSettingsStore,
+        artifactRegistry: ArtifactRegistry,
+        storage: ObjectStorage,
+        locations: LocationStore,
+    ): StructureController =
+        StructureController(
+            enqueuer = enqueuer,
+            seriesStore = seriesStore,
+            runStore = runStore,
+            structure = structure,
+            boundaryStore = boundaryStore,
+            frameStore = frameStore,
+            staleness = staleness,
+            settingsStore = settingsStore,
+            artifactRegistry = artifactRegistry,
+            storage = storage,
+            locations = locations,
         )
 
     companion object {

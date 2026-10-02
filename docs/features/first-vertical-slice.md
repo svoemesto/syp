@@ -191,6 +191,7 @@ Your Picture» на машине пользователя.
 | Устаревание результата | Пометка прогонов, сцен и планов при смене порога, машинный код `STALE_RESULT` в ответе, запрет действия над устаревшим результатом | `syp-admin-app/…/analysis/Staleness.kt`, `syp-core/…/contract/ErrorCode.kt` |
 | Эндпоинты структуры | Постановка анализа, чтение структуры, сырых границ, значимых кадров, листов превью и адреса листа | `syp-admin-app/…/analysis/StructureController.kt` |
 | Экран структуры | Список сцен с планами, сырой результат автоматики отдельно, показ листа превью | `syp-admin-web/src/views/StructureView.vue`, `syp-admin-web/src/components/PreviewSheetView.vue` |
+| Сборка домена | Путь к `ffmpeg` и каталог промежуточных файлов из окружения, исполнители заданий собираются списком | `syp-admin-app/…/config/AnalysisConfiguration.kt`, `syp-admin-app/…/config/IntegrityConfiguration.kt` |
 
 ### Решения, принятые при реализации
 
