@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class ClusteringTest {
-    private val clustering = Clustering { settings }
+    private val clustering = Clustering()
 
     private val settings =
         ru.svoemesto.syp.admin.catalog.SerialSettings(
@@ -112,7 +112,7 @@ class ClusteringTest {
     fun `число центров и порог слияния берутся у сериала`() {
         val points = listOf(face(1, 0.0), face(2, 5.0), face(3, 180.0))
 
-        val fromSettings = clustering.cluster(points)
+        val fromSettings = clustering.cluster(points, settings)
 
         assertEquals(
             clustering

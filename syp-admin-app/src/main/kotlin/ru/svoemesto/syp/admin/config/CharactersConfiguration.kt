@@ -4,7 +4,10 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
 import ru.svoemesto.syp.admin.catalog.SerialSettingsStore
+import ru.svoemesto.syp.admin.catalog.SerialStore
 import ru.svoemesto.syp.admin.catalog.SeriesStore
+import ru.svoemesto.syp.admin.characters.CharactersController
+import ru.svoemesto.syp.admin.characters.Clustering
 import ru.svoemesto.syp.admin.characters.FaceDetector
 import ru.svoemesto.syp.admin.characters.FaceEmbeddingStore
 import ru.svoemesto.syp.admin.characters.FacePlanBinding
@@ -182,6 +185,51 @@ class CharactersConfiguration {
     @Bean
     fun facePlanBinding(database: Db): FacePlanBinding = FacePlanBinding(database)
 
+    /**
+     * Собирает кластеризацию лиц на холодном старте.
+     *
+     * Кластеризация — чистая функция от векторов и настроек сериала, поэтому
+     * бином является без состояния: настройки приходят аргументом, и смена
+     * порога замером М-08 не требует ни правки кода, ни перезапуска.
+     *
+     * @return кластеризация лиц
+     */
+    @Bean
+    fun clustering(): Clustering = Clustering()
+
+    /**
+     * Собирает эндпоинты лиц, кластеров и персон.
+     *
+     * @param faceStore хранилище лиц
+     * @param embeddingStore хранилище эмбеддингов
+     * @param clustering кластеризация лиц
+     * @param personService сервис персон
+     * @param seriesStore хранилище серий
+     * @param serialStore хранилище сериалов
+     * @param settingsStore настройки сериала
+     * @return контроллер домена персонажей
+     */
+    @Bean
+    fun charactersController(
+        faceStore: FaceStore,
+        embeddingStore: FaceEmbeddingStore,
+        clustering: Clustering,
+        personService: PersonService,
+        seriesStore: SeriesStore,
+        serialStore: SerialStore,
+        settingsStore: SerialSettingsStore,
+    ): CharactersController =
+        CharactersController(
+            faces = faceStore,
+            embeddings = embeddingStore,
+            clustering = clustering,
+            persons = personService,
+            seriesStore = seriesStore,
+            serials = serialStore,
+            settingsStore = settingsStore,
+            embeddingModelKey = env(ENV_FACE_EMBEDDING_MODEL_KEY, DEFAULT_FACE_EMBEDDING_MODEL_KEY),
+        )
+
     companion object {
         /** Имя переменной окружения с путём к программе детектора лиц. */
         const val ENV_FACE_DETECTOR_PATH: String = "SYP_FACE_DETECTOR_PATH"
@@ -213,6 +261,25 @@ class CharactersConfiguration {
 
         /** Имя переменной окружения с порогом перекрытия рамок. */
         const val ENV_FACE_NMS_THRESHOLD: String = "SYP_FACE_NMS_THRESHOLD"
+
+        /**
+         * Имя переменной окружения с ключом модели эмбеддингов.
+         *
+         * Ключ обязателен: векторы разных моделей несравнимы, и чтение без
+         * него вернуло бы смесь векторов разных моделей под видом одной
+         * (Р-09). Модель эмбеддингов выбирается замером М-02, задача T076;
+         * до её закрытия в образе эмбеддингов нет.
+         */
+        const val ENV_FACE_EMBEDDING_MODEL_KEY: String = "SYP_FACE_EMBEDDING_MODEL_KEY"
+
+        /**
+         * Ключ модели эмбеддингов по умолчанию.
+         *
+         * Значение прямо говорит, что векторов в базе не лежит: без модели
+         * эмбеддингов кластеры пусты, и оператор видит «лица без кластеров»
+         * вместо «детектор ещё не умеет считать похожесть».
+         */
+        const val DEFAULT_FACE_EMBEDDING_MODEL_KEY: String = "none-yet"
 
         /**
          * Путь к программе детектора из окружения развёртывания.

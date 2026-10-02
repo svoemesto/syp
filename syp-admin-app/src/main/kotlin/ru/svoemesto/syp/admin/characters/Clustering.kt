@@ -33,29 +33,34 @@ import kotlin.math.sqrt
  * приняло бы поворот человека за другого человека. Косинус от этого
  * свободен: он смотрит только на направление.
  *
- * @property settings читает настройки сериала: из них берутся число центров
- *   и порог слияния
+ * Настройки передаются вызывающим, а не читаются внутри: они принадлежат
+ * сериалу, а у серии своего сериала нет. Чтение настроек внутри кластеризации
+ * означало бы, что бин знает, чью серию он сейчас разбирает, — а этого он не
+ * знает и знать не должен.
+ *
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class Clustering(
-    private val settings: () -> SerialSettings,
-) {
+class Clustering {
     /**
      * Строит кластеры по векторам лиц.
      *
      * @param points вектора лиц с идентификаторами
+     * @param settings настройки сериала: из них берутся число центров и порог
+     *   слияния
      * @return кластеры; кластер без идентификатора лица пуст не бывает
      * @throws ru.svoemesto.syp.core.contract.DomainException если у сериала нет
      *   настроек: значения по умолчанию создаёт триггер базы, и их отсутствие
      *   — дефект данных, а не «взять порог по умолчанию»
      */
-    fun cluster(points: List<ClusterPoint>): List<FaceCluster> {
-        if (points.isEmpty()) return emptyList()
-        val serialSettings = settings()
-        val centerCount = serialSettings.integer(SerialSetting.CLUSTER_COUNT)
-        val mergeThreshold = serialSettings.number(SerialSetting.CLUSTER_MERGE_THRESHOLD)
-        return cluster(points, centerCount, mergeThreshold)
-    }
+    fun cluster(
+        points: List<ClusterPoint>,
+        settings: SerialSettings,
+    ): List<FaceCluster> =
+        cluster(
+            points,
+            settings.integer(SerialSetting.CLUSTER_COUNT),
+            settings.number(SerialSetting.CLUSTER_MERGE_THRESHOLD),
+        )
 
     /**
      * Строит кластеры по векторам с заданными параметрами.

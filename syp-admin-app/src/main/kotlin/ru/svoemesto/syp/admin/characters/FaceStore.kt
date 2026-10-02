@@ -388,6 +388,58 @@ class FaceStore(
         ) ?: 0
 
     /**
+     * Назначает лица персоне.
+     *
+     * Запись идёт одной транзакцией: промежуточное состояние, где часть
+     * лиц уже переведена, а часть ещё нет, наблюдаемо через интерфейс и
+     * попало бы в отчёт «кто в сцене» (FR-033).
+     *
+     * Служебный столбец `recordhash` очищается: значение лица изменилось, а
+     * хеш без пересчёта означал бы «строка не менялась», и следующая
+     * диффированная запись потеряла бы это изменение.
+     *
+     * @param personId персона-получатель
+     * @param faceIds лица
+     * @return сколько строк лица изменилось
+     */
+    fun assignPerson(
+        personId: Long,
+        faceIds: List<Long>,
+    ): Int {
+        if (faceIds.isEmpty()) return 0
+        return db.useTransaction { connection ->
+            var changed = 0
+            connection
+                .prepareStatement(
+                    "UPDATE $TABLE SET person_id = ?, recordhash = NULL WHERE id = ?",
+                ).use { statement ->
+                    faceIds.forEach { faceId ->
+                        statement.setLong(1, personId)
+                        statement.setLong(2, faceId)
+                        changed += statement.executeUpdate()
+                    }
+                }
+            changed
+        }
+    }
+
+    /**
+     * Читает лица серии по идентификаторам.
+     *
+     * @param faceIds идентификаторы лиц
+     * @return лица по возрастанию номера кадра
+     */
+    fun listByIds(faceIds: List<Long>): List<Face> {
+        if (faceIds.isEmpty()) return emptyList()
+        val marks = faceIds.joinToString(", ") { "?" }
+        return db.select(
+            "$SELECT_ALL WHERE id IN ($marks) ORDER BY frame_number, face_index",
+            ::readRow,
+            *faceIds.toTypedArray(),
+        )
+    }
+
+    /**
      * Удаляет лицо и его эмбеддинг каскадом.
      *
      * @param faceId идентификатор лица

@@ -196,7 +196,7 @@ class FaceEmbeddingStore(
         FaceEmbedding(
             faceId = row.long("face_id"),
             modelKey = row.string("embedding_model_key"),
-            vector = (row.raw("vector") as Array<*>).map { (it as Number).toFloat() }.toFloatArray(),
+            vector = row.floatArray("vector"),
         )
 
     companion object {
