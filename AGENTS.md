@@ -161,7 +161,8 @@
 
 **Примечание SYP**: `nginx:stable` (не `nginx:alpine` — compose использует
 `/bin/bash -c`), `node:22-alpine` (не `node:latest`), `postgres:16`,
-`minio/minio:RELEASE.2024-12-18T13-15-44Z`. База образов бэкенда —
+`elestio/minio:latest` (MinIO убрана из Docker Hub; внутри релиз
+`RELEASE.2025-09-07T16-13-09Z`, digest зафиксирован — ADR-0012). База образов бэкенда —
 `eclipse-temurin:21-jre-noble` (JRE, не JDK), как в Karaoke. Файлы образов:
 `deploy/Dockerfile.backend`, `deploy/Dockerfile.frontend`.
 
