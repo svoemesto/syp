@@ -25,6 +25,8 @@ code_to_docs:
   - docs/features/first-vertical-slice.md
   syp-core/src/main/kotlin/ru/svoemesto/syp/core/contract:
   - docs/features/first-vertical-slice.md
+  - specs/001-first-vertical-slice/contracts/admin-api.md
+  - specs/001-first-vertical-slice/contracts/public-api.md
   syp-admin-app/src/test:
   - docs/features/first-vertical-slice.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/catalog:
@@ -41,6 +43,15 @@ code_to_docs:
   - docs/domains/annotation/domain.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/selection:
   - docs/domains/selection/domain.md
+  - docs/domains/selection/components/recipe-builder.md
+  - specs/001-first-vertical-slice/contracts/admin-api.md
+  syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/recipe:
+  - docs/domains/selection/domain.md
+  - docs/domains/selection/components/recipe-builder.md
+  - docs/domains/selection/components/recipe-signer.md
+  - docs/domains/showcase/components/recipe-delivery.md
+  - docs/features/first-vertical-slice.md
+  - specs/001-first-vertical-slice/contracts/admin-api.md
   syp-admin-app/src/main/kotlin/ru/svoemesto/syp/admin/jobs:
   - docs/features/first-vertical-slice.md
   syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/config:
@@ -51,7 +62,9 @@ code_to_docs:
   - docs/domains/showcase/domain.md
   syp-public-app/src/main/kotlin/ru/svoemesto/syp/public/recipe:
   - docs/domains/selection/domain.md
+  - docs/domains/showcase/components/recipe-delivery.md
   - docs/features/first-vertical-slice.md
+  - specs/001-first-vertical-slice/contracts/public-api.md
   syp-admin-web/src:
   - docs/domains/analysis/domain.md
   - docs/features/first-vertical-slice.md

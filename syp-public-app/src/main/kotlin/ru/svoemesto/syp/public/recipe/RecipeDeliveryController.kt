@@ -29,6 +29,11 @@ import java.nio.charset.StandardCharsets
  * с видеосодержимым в этом контроллере нет, и это не запрет в договорённостях,
  * а отсутствие.
  *
+ * **Сценарий здесь не создаётся.** Он выдан админским бэкендом и подписан там
+ * же, где живёл закрытый ключ: у этого контроллера нет ни эндпоинта выдачи,
+ * ни закрытого ключа (ADR-0014, решение владельца 2026-10-03). Здесь только
+ * чтение уже подписанного и хранимого.
+ *
  * **Доставка ручная**: пользователь сохраняет файл браузером и сам кладёт его в
  * папку сценариев. Ссылок с подпиской, автообновления и докачивания в первом
  * срезе нет — это сознательное ограничение объёма, а не недоработка
@@ -83,6 +88,8 @@ class RecipeDeliveryController(
             name = recipe.name,
             state = recipe.state.name,
             schemaVersion = recipe.schemaVersion,
+            isStale = recipe.isStale,
+            staleReason = staleReasonOf(recipe),
             signingKeyId = recipe.signingKeyId,
             contentSha256 = recipe.contentSha256,
             itemCount = recipes.items(recipeId).size,
@@ -207,6 +214,7 @@ class RecipeDeliveryController(
  * @property recipeId идентификатор сценария
  * @property name название сценария
  * @property state состояние выдачи
+ * @property isStale сценарий выдан при другой версии формата
  * @property itemCount число фрагментов
  * @property expectedDurationMs расчётная длительность подборки
  * @property expectedFrameCount расчётное число кадров
@@ -217,6 +225,7 @@ data class RecipeSummary(
     val recipeId: Long,
     val name: String,
     val state: String,
+    val isStale: Boolean,
     val itemCount: Int,
     val expectedDurationMs: Long?,
     val expectedFrameCount: Long?,
@@ -230,6 +239,8 @@ data class RecipeSummary(
  * @property name название сценария
  * @property state состояние выдачи
  * @property schemaVersion версия формата
+ * @property isStale сценарий выдан при другой версии формата
+ * @property staleReason чем именно устарел; `null`, если актуален
  * @property signingKeyId идентификатор ключа подписи
  * @property contentSha256 сумма содержимого файла сценария
  * @property itemCount число фрагментов
@@ -243,6 +254,8 @@ data class RecipeComposition(
     val name: String,
     val state: String,
     val schemaVersion: Int,
+    val isStale: Boolean,
+    val staleReason: String?,
     val signingKeyId: String?,
     val contentSha256: String?,
     val itemCount: Int,
@@ -316,11 +329,28 @@ private fun BuildRecipe.toSummary(): RecipeSummary =
         recipeId = id!!,
         name = name,
         state = state.name,
+        isStale = isStale,
         itemCount = itemCount,
         expectedDurationMs = expectedDurationMs,
         expectedFrameCount = expectedFrameCount,
         signingKeyId = signingKeyId,
     )
+
+/**
+ * Текст пометки устаревания для показа пользователю.
+ *
+ * Публичная часть не знает, какая версия формата действует сейчас: версия
+ * формата — настройка сериала, и она принадлежит админскому бэкенду. Поэтому
+ * здесь объясняется только то, что видно из самой строки сценария: помечен он
+ * устаревшим или нет. Сравнение версий делает админка при выдаче (ADR-0014).
+ */
+private fun staleReasonOf(recipe: BuildRecipe): String? =
+    if (recipe.isStale) {
+        "сценарий выдан при другой версии формата. Он сохранён и по-прежнему " +
+            "проверяем по своему ключу; новый сценарий попросите у оператора (FR-090)"
+    } else {
+        null
+    }
 
 /** Строит фрагмент состава из строки фрагмента в базе. */
 private fun BuildRecipeItem.toCompositionItem(): RecipeCompositionItem =
