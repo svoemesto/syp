@@ -1,6 +1,7 @@
 package ru.svoemesto.syp.admin.annotation
 
 import ru.svoemesto.syp.admin.analysis.BoundaryOrigin
+import ru.svoemesto.syp.admin.analysis.Scene
 import ru.svoemesto.syp.admin.analysis.Shot
 import ru.svoemesto.syp.admin.analysis.ShotSize
 import ru.svoemesto.syp.admin.analysis.SizeOrigin
@@ -21,6 +22,13 @@ import java.sql.Connection
  * @return границы плана
  */
 private fun Shot.range(): String = "$firstFrame…$lastFrame"
+
+/**
+ * Границы сцены одной строкой — для текстов отказа.
+ *
+ * @return границы сцены
+ */
+private fun Scene.range(): String = "$firstFrame…$lastFrame"
 
 /**
  * Вид операции над границей плана.
@@ -117,12 +125,19 @@ class ShotSizeScale(
     /**
      * Размер плана по доле площади крупнейшего лица.
      *
+     * Пороги идут от большей кругности к меньшей, поэтому ступень — это
+     * **число порогов, которые доля не превосходит**: их ноль у `ECU`, один у
+     * `BCU` и так далее. Считать именно их, а не искать первый подходящий
+     * порог: упорядочены пороги по убыванию, а доля сравнивается с каждым из
+     * них, и на нижних ступенях «первый подходящий» указывал бы на самую
+     * крупную ступень вместо самой мелкой.
+     *
      * @param frameShare доля площади кадра, которую занимает самое крупное лицо
      * @return ступень шкалы
      */
     fun sizeOf(frameShare: Double): ShotSize {
-        val index = thresholds.indexOfFirst { frameShare < it }.let { if (it < 0) 0 else it }
-        return SIZES[index.coerceAtMost(SIZES.lastIndex)]
+        val band = thresholds.count { frameShare < it }
+        return SIZES[band.coerceAtMost(SIZES.lastIndex)]
     }
 
     private companion object {
@@ -152,13 +167,12 @@ class ShotSizeScale(
  *
  * Семь правил, из-за которых класс написан так, а не иначе:
  *
- * 1. **Граница плана обязана попадать на границу соседнего плана либо на
- *    границу сцены.** Проверка идёт до записи, и отказ объясняет, между какими
- *    планами граница должна встать. Произвольный кадр внутри плана — это уже
- *    не сдвиг границы, а разрезание плана, и для него есть отдельная операция
- *    «разделить план». План лежит в сцене целиком (ADR-0007), поэтому граница,
- *    поставленная мимо границ сцен, оставляет структуру, где один план
- *    разрезает другой.
+ * 1. **Сцена начинается планом — и после правки обязана начинаться планом.**
+ *    Отсюда правило доводки: граница плана встаёт на границу соседнего плана
+ *    либо совпасть с границей сцены, а произвольный кадр, при котором сцена
+ *    начала бы с середины плана, отвергается: один план разрезает другой
+ *    (ADR-0007). Проверка идёт до записи, и отказ объясняет, между какими
+ *    планами граница должна встать.
  * 2. **Пересчёт размера обязателен.** Размер плана вычисляется по самому
  *    крупному лицу (ADR-0003), и после смены диапазона прежнее значение
  *    описывает уже другой набор кадров. Перезапуск разбора для этого не
@@ -275,7 +289,11 @@ class ShotBoundaryEditing(
                         "кадры второму плану, их объединяют",
                 )
             }
-            state.requireBoundaryPlace(toFrame, first, second)
+            state.requireScenesStartAtPlans(
+                spans = listOf(first.firstFrame..toFrame - 1, toFrame..second.lastFrame),
+                left = first,
+                right = second,
+            )
             val firstMoved = first.rebuilt(lastFrame = toFrame - 1)
             val secondMoved = second.rebuilt(firstFrame = toFrame)
             updateShot(connection, firstMoved)
@@ -285,7 +303,7 @@ class ShotBoundaryEditing(
                 episodeId = episodeId,
                 frame = toFrame,
                 action = ShotBoundaryAction.MOVE,
-                affected = workingShots(connection, episodeId, firstMoved),
+                affected = workingShots(connection, episodeId, first.firstFrame, second.lastFrame),
                 superseded = emptyList(),
                 shotIds = listOf(firstMoved.id!!, secondMoved.id!!),
                 facesRebound = settled.facesRebound,
@@ -332,14 +350,20 @@ class ShotBoundaryEditing(
             val tail = source.rebuilt(firstFrame = frame).asNew()
             insertShot(connection, head)
             insertShot(connection, tail)
-            val settled = settle(connection, episodeId, listOf(head, tail))
+            // Строки перечитываются перед пересчётом размера: у только что
+            // вставленных нет ни идентификатора, ни хеша, а пересчёт пишет
+            // обратно именно их.
+            val inserted = workingShots(connection, episodeId, source.firstFrame, source.lastFrame)
+            val settled = settle(connection, episodeId, inserted)
             ShotEditOutcome(
                 episodeId = episodeId,
                 frame = frame,
                 action = ShotBoundaryAction.SPLIT,
-                affected = workingShots(connection, episodeId, source),
+                // Ответ собирается после пересчёта: иначе в нём уехали бы
+                // размеры, каких уже нет.
+                affected = workingShots(connection, episodeId, source.firstFrame, source.lastFrame),
                 superseded = listOf(source.copy(isStale = true)),
-                shotIds = listOfNotNull(head.id, tail.id),
+                shotIds = inserted.mapNotNull { it.id },
                 facesRebound = settled.facesRebound,
                 sizesRecomputed = settled.sizesRecomputed,
             )
@@ -362,6 +386,11 @@ class ShotBoundaryEditing(
             val state = readState(connection, episodeId)
             val absorbed = state.shotStartingAt(frame, episodeId)
             val keeper = state.shotEndingAt(frame - 1, frame)
+            state.requireScenesStartAtPlans(
+                spans = listOf(keeper.firstFrame..absorbed.lastFrame),
+                left = keeper,
+                right = absorbed,
+            )
             val merged = keeper.rebuilt(lastFrame = absorbed.lastFrame)
             updateShot(connection, merged)
             updateShot(connection, absorbed.copy(isStale = true))
@@ -370,7 +399,7 @@ class ShotBoundaryEditing(
                 episodeId = episodeId,
                 frame = frame,
                 action = ShotBoundaryAction.MERGE,
-                affected = workingShots(connection, episodeId, merged),
+                affected = workingShots(connection, episodeId, keeper.firstFrame, absorbed.lastFrame),
                 superseded = listOf(absorbed.copy(isStale = true)),
                 shotIds = listOf(merged.id!!),
                 facesRebound = settled.facesRebound,
@@ -383,20 +412,14 @@ class ShotBoundaryEditing(
      *
      * @property episodeId эпизод
      * @property working планы, не выведенные из работы пометкой устаревания
-     * @property shotStarts кадры, с которых начинается хоть какой-нибудь рабочий
-     *   план: границей плана считается именно такая граница, а не любая строка
-     *   базы — устаревшая строка принадлежит прежней редакции структуры
-     * @property shotEnds кадры, которыми кончается хоть какой-нибудь рабочий
-     *   план
-     * @property sceneStarts первые кадры рабочих сцен
+     * @property scenes сцены, не выведенные из работы: по ним проверяется, что
+     *   после правки сцена по-прежнему начинается планом
      * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
      */
     private class EditState(
         val episodeId: Long,
         val working: List<Shot>,
-        val shotStarts: Set<Int>,
-        val shotEnds: Set<Int>,
-        val sceneStarts: Set<Int>,
+        val scenes: List<Scene>,
     ) {
         /**
          * План, заканчивающийся указанным кадром.
@@ -437,38 +460,50 @@ class ShotBoundaryEditing(
                 )
 
         /**
-         * Проверяет, что границу можно поставить на указанный кадр.
+         * Требует, чтобы после правки каждая сцена начиналась планом.
          *
-         * Кадр обязан быть либо границей плана, либо границей сцены. И то и
-         * другое проверяется **до** записи, и отказ называет, между какими
-         * планами граница должна встать: иначе оператор отправляется искать
-         * причину сам, а она видна на экране — в виде границ планов и сцен.
+         * Правило структуры ровно такое: **сцена начинается планом**, и ни одна
+         * граница сцены не стоит внутри плана. Оно проверяется записью прогона
+         * и обязано поддерживаться правкой, иначе правка ломает то, что сама
+         * же проверка структуры требует.
          *
-         * Проверяются только рабочие строки. Устаревшая строка принадлежит
-         * прежней редакции структуры, и граница, вставленная по ней, была бы
-         * согласована с тем, чего на экране нет.
+         * Отсюда правило доводки: **граница плана обязана встать на границу
+         * соседнего плана либо совпасть с границей сцены**. И то и другое
+         * удовлетворяет требованию автоматически, а произвольный кадр — нет:
+         * если после сдвига сцена начнётся внутри плана, один план разрежет
+         * другой (ADR-0007). Проверка идёт **до** записи и называет, между
+         * какими планами граница должна встать.
          *
-         * @param frame проверяемый кадр
-         * @param first план, который коротчает
-         * @param second план, который удлиняется
-         * @throws DomainException если кадр не является ни границей плана, ни
-         *   границей сцены
+         * Проверяются только рабочие строки: устаревшая сцена принадлежит
+         * прежней редакции структуры, и согласование с ней означало бы
+         * согласование с тем, чего на экране нет.
+         *
+         * @param spans диапазоны кадров получившихся планов
+         * @param left план, который коротчает
+         * @param right план, который удлиняется
+         * @throws DomainException если сцена начиналась бы внутри плана
          */
-        fun requireBoundaryPlace(
-            frame: Int,
-            first: Shot,
-            second: Shot,
+        fun requireScenesStartAtPlans(
+            spans: List<IntRange>,
+            left: Shot,
+            right: Shot,
         ) {
-            if (frame in shotStarts && frame - 1 in shotEnds || frame in sceneStarts) {
-                return
-            }
+            val crossing =
+                scenes.firstOrNull { scene ->
+                    spans.any { span -> scene.firstFrame in span.first + 1..span.last }
+                } ?: return
+            val leftSide = crossing.firstFrame <= spans.first().last
             throw DomainException(
                 ErrorCode.BOUNDARY_CONFLICT,
-                "границу плана нельзя поставить на кадр $frame: он не является ни границей " +
-                    "плана, ни границей сцены. Между планами ${first.range()} и " +
-                    "${second.range()} граница обязана встать на кадр, которым начинается другой " +
-                    "план, либо на первый кадр сцены. Внутри плана границу не ставят — план " +
-                    "разделяют отдельной операцией",
+                "граница плана не может встать так, чтобы сцена ${crossing.range()} начиналась " +
+                    "кадром ${crossing.firstFrame} внутри плана: сцена обязана начинаться " +
+                    "планом. Между планами ${left.range()} и ${right.range()} граница должна " +
+                    "встать " +
+                    if (leftSide) {
+                        "не позже кадра ${crossing.firstFrame - 1}"
+                    } else {
+                        "не раньше кадра ${crossing.firstFrame}"
+                    },
             )
         }
     }
@@ -483,17 +518,12 @@ class ShotBoundaryEditing(
     private fun readState(
         connection: Connection,
         episodeId: Long,
-    ): EditState {
-        val scenes = structure.listScenesIn(connection, episodeId).filter { !it.isStale }
-        val working = structure.listShotsIn(connection, episodeId).filter { !it.isStale }
-        return EditState(
+    ): EditState =
+        EditState(
             episodeId = episodeId,
-            working = working,
-            shotStarts = working.mapNotNull { it.firstFrame }.toSet(),
-            shotEnds = working.mapNotNull { it.lastFrame }.toSet(),
-            sceneStarts = scenes.mapNotNull { it.firstFrame }.toSet(),
+            working = structure.listShotsIn(connection, episodeId).filter { !it.isStale },
+            scenes = structure.listScenesIn(connection, episodeId).filter { !it.isStale },
         )
-    }
 
     /**
      * Пересчитывает принадлежность лиц и размеры затронутых планов.
@@ -559,7 +589,7 @@ class ShotBoundaryEditing(
     ): Double? =
         connection
             .prepareStatement(
-                "SELECT max((x2 - x1)::double * (y2 - y1)::double) AS biggest FROM $FACE_TABLE " +
+                "SELECT max((x2 - x1)::float8 * (y2 - y1)::float8) AS biggest FROM $FACE_TABLE " +
                     "WHERE id_episode = ? AND frame_number >= ? AND frame_number <= ?",
             ).use { statement ->
                 statement.setLong(1, episodeId)
@@ -610,21 +640,23 @@ class ShotBoundaryEditing(
     }
 
     /**
-     * Рабочие планы участка, заданного границами плана.
+     * Рабочие планы участка, заданного границами кадров.
      *
      * @param connection открытое соединение
      * @param episodeId эпизод
-     * @param range план, границами которого задан участок
+     * @param from первый кадр участка
+     * @param to последний кадр участка
      * @return рабочие планы, пересекающие участок
      */
     private fun workingShots(
         connection: Connection,
         episodeId: Long,
-        range: Shot,
+        from: Int,
+        to: Int,
     ): List<Shot> =
         structure
             .listShotsIn(connection, episodeId)
-            .filter { !it.isStale && it.lastFrame >= range.firstFrame && it.firstFrame <= range.lastFrame }
+            .filter { !it.isStale && it.lastFrame >= from && it.firstFrame <= to }
             .sortedBy { it.firstFrame }
 
     /**
