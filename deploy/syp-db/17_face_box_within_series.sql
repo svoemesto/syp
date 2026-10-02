@@ -1,4 +1,4 @@
--- 16_face_box_within_series.sql — SYP, PostgreSQL 16
+-- 17_face_box_within_series.sql — SYP, PostgreSQL 16
 --
 -- Рамка лица обязана помещаться в кадр своей серии.
 --
