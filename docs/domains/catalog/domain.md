@@ -39,7 +39,7 @@
 | Сериал | `Movie` | `tbl_movies` | `id_movie` |
 | Серия | `Episode` | `tbl_episodes` | `id_episode` |
 
-Пути доступа `/api/serials` и `/api/series` в карту переименования не входят
+Пути доступа `/api/movies` и `/api/episodes` в карту переименования не входят
 и остались прежними; имена в ответах — новые: `movieId`, `episodeId`.
 
 ## Публичные контракты (API)
@@ -49,18 +49,18 @@
 
 | Метод и путь | Что делает |
 |---|---|
-| `GET /api/serials` | список сериалов с числом серий |
-| `POST /api/serials` | создать сериал: название и корень каталога |
-| `GET /api/serials/{movieId}` | сериал, его серии и настройки |
-| `DELETE /api/serials/{movieId}` | удалить сериал вместе с производными данными |
-| `GET /api/serials/{movieId}/series` | список серий |
-| `POST /api/serials/{movieId}/series` | зарегистрировать серию по пути к файлу |
-| `GET /api/series/{episodeId}` | параметры серии и состояние готовности |
-| `DELETE /api/series/{episodeId}` | снять серию с учёта; файл не трогается |
-| `GET /api/serials/{movieId}/settings` | пороги, параметры кластеризации, версия формата сценария, число аудиодорожек |
-| `PUT /api/serials/{movieId}/settings` | изменить пороги и параметры |
+| `GET /api/movies` | список сериалов с числом серий |
+| `POST /api/movies` | создать сериал: название и корень каталога |
+| `GET /api/movies/{movieId}` | сериал, его серии и настройки |
+| `DELETE /api/movies/{movieId}` | удалить сериал вместе с производными данными |
+| `GET /api/movies/{movieId}/episodes` | список серий |
+| `POST /api/movies/{movieId}/episodes` | зарегистрировать серию по пути к файлу |
+| `GET /api/episodes/{episodeId}` | параметры серии и состояние готовности |
+| `DELETE /api/episodes/{episodeId}` | снять серию с учёта; файл не трогается |
+| `GET /api/movies/{movieId}/settings` | пороги, параметры кластеризации, версия формата сценария, число аудиодорожек |
+| `PUT /api/movies/{movieId}/settings` | изменить пороги и параметры |
 
-Справочник мест действия (`GET` и `POST /api/serials/{movieId}/locations`)
+Справочник мест действия (`GET` и `POST /api/movies/{movieId}/locations`)
 наполняется в фазе плана 7.
 
 Отказы несут общие коды и русский текст. Код `SOURCE_UNREADABLE` означает и

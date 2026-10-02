@@ -132,7 +132,7 @@ export interface ClusterNamedView {
  * @returns страница лиц серии
  */
 export function readFaces(episodeId: number, offset = 0, limit = 200): Promise<FacesView> {
-  return request<FacesView>('GET', `/series/${episodeId}/faces?offset=${offset}&limit=${limit}`)
+  return request<FacesView>('GET', `/episodes/${episodeId}/faces?offset=${offset}&limit=${limit}`)
 }
 
 /**
@@ -142,7 +142,7 @@ export function readFaces(episodeId: number, offset = 0, limit = 200): Promise<F
  * @returns кластеры серии
  */
 export function readClusters(episodeId: number): Promise<FaceClustersView> {
-  return request<FaceClustersView>('GET', `/series/${episodeId}/faces/clusters`)
+  return request<FaceClustersView>('GET', `/episodes/${episodeId}/faces/clusters`)
 }
 
 /**
@@ -174,7 +174,7 @@ export function nameCluster(
  * @returns персоны сериала
  */
 export function readPersons(movieId: number): Promise<PersonsView> {
-  return request<PersonsView>('GET', `/serials/${movieId}/persons`)
+  return request<PersonsView>('GET', `/movies/${movieId}/persons`)
 }
 
 /**
@@ -211,5 +211,5 @@ export function deletePerson(personId: number): Promise<null> {
  * @returns адрес листа превью
  */
 export function facePreviewUrl(episodeId: number, frame: number): string {
-  return `/api/series/${episodeId}/preview-sheets/0?frame=${frame}`
+  return `/api/episodes/${episodeId}/preview-sheets/0?frame=${frame}`
 }

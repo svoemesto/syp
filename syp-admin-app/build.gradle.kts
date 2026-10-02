@@ -26,7 +26,7 @@ dependencies {
 
     // Модуль времени: без него Jackson не умеет ни прочитать, ни отдать
     // java.time.Instant и отвечает 500 на любой ответ с датой. Нашлось на
-    // сквозном прогоне: GET /api/serials отвечал 200 на пустом списке и
+    // сквозном прогоне: GET /api/movies отвечал 200 на пустом списке и
     // падал 500, как только сериал создавался и в ответе появлялась дата.
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 

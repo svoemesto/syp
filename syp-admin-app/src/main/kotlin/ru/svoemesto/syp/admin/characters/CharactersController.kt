@@ -226,7 +226,7 @@ class CharactersController(
      * @return страница лиц серии
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    @GetMapping("/episode/{episodeId}/faces")
+    @GetMapping("/episodes/{episodeId}/faces")
     fun readFaces(
         @PathVariable episodeId: Long,
         @RequestParam(defaultValue = "0") offset: Int,
@@ -264,7 +264,7 @@ class CharactersController(
      * @return кластеры серии
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    @GetMapping("/episode/{episodeId}/faces/clusters")
+    @GetMapping("/episodes/{episodeId}/faces/clusters")
     fun readClusters(
         @PathVariable episodeId: Long,
     ): FaceClustersView {
@@ -355,7 +355,7 @@ class CharactersController(
      * @return персоны сериала
      * @throws DomainException с кодом `NOT_FOUND`, если сериала нет
      */
-    @GetMapping("/serials/{movieId}/persons")
+    @GetMapping("/movies/{movieId}/persons")
     fun readPersons(
         @PathVariable movieId: Long,
     ): PersonsView {

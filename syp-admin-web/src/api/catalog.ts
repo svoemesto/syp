@@ -111,7 +111,7 @@ export interface MovieDetailView {
  * @returns список сериалов
  */
 export function listMovies(): Promise<MovieView[]> {
-  return request<MovieView[]>('GET', '/serials')
+  return request<MovieView[]>('GET', '/movies')
 }
 
 /**
@@ -123,7 +123,7 @@ export function listMovies(): Promise<MovieView[]> {
  * @returns созданный сериал вместе с настройками по умолчанию
  */
 export function createMovie(name: string, sourceRoot: string): Promise<CreatedMovieView> {
-  return request<CreatedMovieView>('POST', '/serials', { name, sourceRoot })
+  return request<CreatedMovieView>('POST', '/movies', { name, sourceRoot })
 }
 
 /**
@@ -133,7 +133,7 @@ export function createMovie(name: string, sourceRoot: string): Promise<CreatedMo
  * @returns сериал с содержимым
  */
 export function readMovie(movieId: number): Promise<MovieDetailView> {
-  return request<MovieDetailView>('GET', `/serials/${movieId}`)
+  return request<MovieDetailView>('GET', `/movies/${movieId}`)
 }
 
 /**
@@ -144,7 +144,7 @@ export function readMovie(movieId: number): Promise<MovieDetailView> {
  * @param movieId идентификатор сериала
  */
 export function deleteMovie(movieId: number): Promise<null> {
-  return request<null>('DELETE', `/serials/${movieId}`)
+  return request<null>('DELETE', `/movies/${movieId}`)
 }
 
 /**
@@ -154,7 +154,7 @@ export function deleteMovie(movieId: number): Promise<null> {
  * @returns серии в порядке порядковых номеров
  */
 export function listEpisode(movieId: number): Promise<EpisodeView[]> {
-  return request<EpisodeView[]>('GET', `/serials/${movieId}/series`)
+  return request<EpisodeView[]>('GET', `/movies/${movieId}/episodes`)
 }
 
 /**
@@ -174,7 +174,7 @@ export function registerEpisode(
   sourcePath: string,
   name?: string,
 ): Promise<EpisodeView> {
-  return request<EpisodeView>('POST', `/serials/${movieId}/series`, {
+  return request<EpisodeView>('POST', `/movies/${movieId}/episodes`, {
     sourcePath,
     name: name ?? null,
   })
@@ -187,7 +187,7 @@ export function registerEpisode(
  * @returns параметры серии
  */
 export function readEpisode(episodeId: number): Promise<EpisodeView> {
-  return request<EpisodeView>('GET', `/series/${episodeId}`)
+  return request<EpisodeView>('GET', `/episodes/${episodeId}`)
 }
 
 /**
@@ -196,7 +196,7 @@ export function readEpisode(episodeId: number): Promise<EpisodeView> {
  * @param episodeId идентификатор серии
  */
 export function deleteEpisode(episodeId: number): Promise<null> {
-  return request<null>('DELETE', `/series/${episodeId}`)
+  return request<null>('DELETE', `/episodes/${episodeId}`)
 }
 
 /**
@@ -206,7 +206,7 @@ export function deleteEpisode(episodeId: number): Promise<null> {
  * @returns настройки сериала
  */
 export function readSettings(movieId: number): Promise<SettingView[]> {
-  return request<SettingView[]>('GET', `/serials/${movieId}/settings`)
+  return request<SettingView[]>('GET', `/movies/${movieId}/settings`)
 }
 
 /**
@@ -220,5 +220,5 @@ export function updateSettings(
   movieId: number,
   changes: Record<string, unknown>,
 ): Promise<{ settings: SettingView[]; changedKeys: string[] }> {
-  return request('PUT', `/serials/${movieId}/settings`, changes)
+  return request('PUT', `/movies/${movieId}/settings`, changes)
 }

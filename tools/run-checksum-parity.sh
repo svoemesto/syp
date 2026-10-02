@@ -12,7 +12,7 @@
 #
 # Использование:
 #   bash tools/run-checksum-parity.sh                       файл серии по умолчанию
-#   bash tools/run-checksum-parity.sh /path/to/series.mkv   свой файл
+#   bash tools/run-checksum-parity.sh /path/to/episode.mkv   свой файл
 #
 # Код возврата: 0 — суммы совпали, иначе — код Gradle.
 

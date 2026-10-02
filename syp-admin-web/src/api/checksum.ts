@@ -63,7 +63,7 @@ export interface ChecksumEnqueuedView {
  * @returns состояние суммы серии
  */
 export function readChecksum(episodeId: number): Promise<ChecksumView> {
-  return request<ChecksumView>('GET', `/series/${episodeId}/checksum`)
+  return request<ChecksumView>('GET', `/episodes/${episodeId}/checksum`)
 }
 
 /**
@@ -76,7 +76,7 @@ export function readChecksum(episodeId: number): Promise<ChecksumView> {
  * @returns поставленное задание
  */
 export function startChecksum(episodeId: number): Promise<ChecksumEnqueuedView> {
-  return request<ChecksumEnqueuedView>('POST', `/series/${episodeId}/checksum`)
+  return request<ChecksumEnqueuedView>('POST', `/episodes/${episodeId}/checksum`)
 }
 
 /**

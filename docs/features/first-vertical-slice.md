@@ -194,7 +194,7 @@ T186**:
 | Сбой анализа | Подставная внешняя программа вместо `ffmpeg`: код возврата фазы задаётся файлом, детекция и укладка листов различаются по аргументам, поэтому сбой воспроизводим | `syp-admin-app/src/test/.../FakeFfmpeg.kt`, `.../StructureFailureTest.kt` |
 | Справочник сумм | Запись по серии с историей пересчётов, одна актуальная сумма, помечание устаревшей при подмене источника | `syp-admin-app/…/integrity/ChecksumRegistry.kt`, `docs/domains/selection/components/checksum-registry.md` |
 | Задание `HASH` | Чтение файла блоками с отчётом прогресса по прочитанным байтам, запись результата в справочник | `syp-admin-app/…/integrity/HashJob.kt` |
-| Эндпоинты суммы | `GET` и `POST /api/series/{episodeId}/checksum`; автоматическая постановка при регистрации серии | `syp-admin-app/…/integrity/ChecksumController.kt` |
+| Эндпоинты суммы | `GET` и `POST /api/episodes/{episodeId}/checksum`; автоматическая постановка при регистрации серии | `syp-admin-app/…/integrity/ChecksumController.kt` |
 | Экраны админки | Приём сериалов и серий, состояние суммы, структура серии, лица; навигация через `vue-router` | `syp-admin-web/src/views/`, `syp-admin-web/src/api/`, `syp-admin-web/src/stores/` |
 | Анализ структуры | Прогон анализа, сырые границы, детектор двумя порогами за один проход, рабочие сцены и планы, листы превью, значимые кадры | `syp-admin-app/…/analysis/`, `syp-core/…/images/PreviewSheet.kt`, `docs/domains/analysis/` |
 | Задание `ANALYZE` | Два прохода `ffmpeg` с прогрессом из потока программы, монотонный счётчик, переживающий перезапуск воркера; готовые листы не собираются заново | `syp-admin-app/…/analysis/StructureJob.kt` |

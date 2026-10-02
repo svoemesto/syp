@@ -228,7 +228,7 @@ class CatalogController(
      *
      * @return список сериалов
      */
-    @GetMapping("/api/serials")
+    @GetMapping("/api/movies")
     fun listMovies(): List<MovieView> = movies.listWithEpisodeCount().map { it.movie.toView(it.episodeCount) }
 
     /**
@@ -242,7 +242,7 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `CONFLICT`, если название занято
      */
-    @PostMapping("/api/serials")
+    @PostMapping("/api/movies")
     fun createMovie(
         @RequestBody request: CreateMovieRequest,
     ): ResponseEntity<CreatedMovieView> {
@@ -259,7 +259,7 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если сериала нет
      */
-    @GetMapping("/api/serials/{movieId}")
+    @GetMapping("/api/movies/{movieId}")
     fun readMovie(
         @PathVariable movieId: Long,
     ): MovieDetailView {
@@ -282,7 +282,7 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если сериала нет
      */
-    @DeleteMapping("/api/serials/{movieId}")
+    @DeleteMapping("/api/movies/{movieId}")
     fun deleteMovie(
         @PathVariable movieId: Long,
     ): ResponseEntity<Void> {
@@ -299,7 +299,7 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если сериала нет
      */
-    @GetMapping("/api/serials/{movieId}/series")
+    @GetMapping("/api/movies/{movieId}/episodes")
     fun listEpisode(
         @PathVariable movieId: Long,
     ): List<EpisodeView> {
@@ -321,7 +321,7 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `SOURCE_UNREADABLE`, если путь вне корня или файл недоступен
      */
-    @PostMapping("/api/serials/{movieId}/series")
+    @PostMapping("/api/movies/{movieId}/episodes")
     fun registerEpisode(
         @PathVariable movieId: Long,
         @RequestBody request: RegisterEpisodeRequest,
@@ -351,7 +351,7 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если серии нет
      */
-    @GetMapping("/api/episode/{episodeId}")
+    @GetMapping("/api/episodes/{episodeId}")
     fun readEpisode(
         @PathVariable episodeId: Long,
     ): EpisodeView {
@@ -370,7 +370,7 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если серии нет
      */
-    @DeleteMapping("/api/episode/{episodeId}")
+    @DeleteMapping("/api/episodes/{episodeId}")
     fun deleteEpisode(
         @PathVariable episodeId: Long,
     ): ResponseEntity<Void> {
@@ -387,7 +387,7 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если сериала нет
      */
-    @GetMapping("/api/serials/{movieId}/settings")
+    @GetMapping("/api/movies/{movieId}/settings")
     fun readSettings(
         @PathVariable movieId: Long,
     ): List<SettingView> {
@@ -413,7 +413,7 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `BAD_REQUEST`, если ключ неизвестен или значение не подходит
      */
-    @PutMapping("/api/serials/{movieId}/settings")
+    @PutMapping("/api/movies/{movieId}/settings")
     fun updateSettings(
         @PathVariable movieId: Long,
         @RequestBody changes: Map<String, JsonNode>,

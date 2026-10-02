@@ -21,19 +21,19 @@ export const router = createRouter({
       component: EpisodeIntakeView,
     },
     {
-      path: '/series/:episodeId/checksum',
+      path: '/episodes/:episodeId/checksum',
       name: 'checksum',
       component: ChecksumStatusView,
       props: true,
     },
     {
-      path: '/series/:episodeId/structure',
+      path: '/episodes/:episodeId/structure',
       name: 'structure',
       component: StructureView,
       props: true,
     },
     {
-      path: '/series/:episodeId/faces',
+      path: '/episodes/:episodeId/faces',
       name: 'faces',
       component: FacesView,
       props: true,

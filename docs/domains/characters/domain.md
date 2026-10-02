@@ -25,8 +25,22 @@
 
 ## Публичные контракты (API)
 
-Определяются в `speckit-plan`: поиск лиц в кадре, кластеризация, обучение,
-чтение и откат версий модели.
+Контракт — `specs/001-first-vertical-slice/contracts/admin-api.md`. Пути
+экрана админки (решение владельца 2026-10-03: серия стала эпизодом):
+
+| Метод и путь | Что делает |
+|---|---|
+| `GET /api/episodes/{episodeId}/faces` | лица серии с кластерами и именами |
+| `GET /api/episodes/{episodeId}/faces/clusters` | кластеры безымянных лиц |
+| `POST /api/clusters/{clusterId}/person` | дать кластеру имя персоны |
+| `GET /api/movies/{movieId}/persons` | справочник персон фильма |
+| `PATCH /api/persons/{personId}` | переименовать персону |
+| `DELETE /api/persons/{personId}` | удалить персону; лица становятся неопознанными |
+| `POST /api/movies/{movieId}/training` | поставить обучение: порог и состав эталонов |
+| `GET /api/movies/{movieId}/model-versions` | версии: дата, число эталонов, состав классов, активность |
+| `POST /api/model-versions/{id}/activate` | сделать версию активной |
+| `POST /api/model-versions/{id}/rollback` | откат: новая версия на прежнем составе эталонов |
+| `GET /api/model-versions/{id}` | состав версии |
 
 ## Domain Invariants | Инварианты и правила бизнеса
 

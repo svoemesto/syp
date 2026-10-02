@@ -148,14 +148,14 @@ T127/T128 размещают прикладную часть в админке. 
 
 | Метод | Путь | FR |
 |---|---|---|
-| `POST` | `/api/series/{episodeId}/faces` | FR-003, FR-030 |
+| `POST` | `/api/episodes/{episodeId}/faces` | FR-003, FR-030 |
 | `GET` | `/api/jobs` | FR-003 |
 | `GET` | `/api/jobs/{jobId}` | FR-003, FR-004 |
 | `POST` | `/api/jobs/{jobId}/cancel` | FR-003 |
 | `GET` | `/api/queue/status` | FR-003 |
 
 Проверено программно: в `tasks.md` ноль вхождений `api/jobs` и
-`api/queue/status`; `POST /api/series/{episodeId}/faces` не реализует ни одна
+`api/queue/status`; `POST /api/episodes/{episodeId}/faces` не реализует ни одна
 задача — T071 (`tasks.md:515-518`) перечисляет только `GET …/faces`,
 `GET …/faces/clusters`, `POST /api/clusters/{clusterId}/person` и персон.
 Код ошибки `JOB_NOT_RUNNABLE` (`contracts/admin-api.md`) не используется ни в

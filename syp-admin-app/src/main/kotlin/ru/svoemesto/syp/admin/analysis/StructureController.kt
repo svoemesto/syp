@@ -463,7 +463,7 @@ class StructureController(
      * @return поставленное задание, код `202`
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    @PostMapping("/api/episode/{episodeId}/analysis")
+    @PostMapping("/api/episodes/{episodeId}/analysis")
     fun startAnalysis(
         @PathVariable episodeId: Long,
     ): ResponseEntity<AnalysisEnqueuedView> =
@@ -483,7 +483,7 @@ class StructureController(
      * @return страница структуры со сведениями об актуальности
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    @GetMapping("/api/episode/{episodeId}/structure")
+    @GetMapping("/api/episodes/{episodeId}/structure")
     fun readStructure(
         @PathVariable episodeId: Long,
         @RequestParam(defaultValue = "0") offset: Int,
@@ -551,7 +551,7 @@ class StructureController(
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет, или с кодом
      *   `BAD_REQUEST`, если уровень неизвестен
      */
-    @GetMapping("/api/episode/{episodeId}/raw-boundaries")
+    @GetMapping("/api/episodes/{episodeId}/raw-boundaries")
     fun readRawBoundaries(
         @PathVariable episodeId: Long,
         @RequestParam(required = false) level: String?,
@@ -591,7 +591,7 @@ class StructureController(
      * @return страница значимых кадров
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    @GetMapping("/api/episode/{episodeId}/frames")
+    @GetMapping("/api/episodes/{episodeId}/frames")
     fun readFrames(
         @PathVariable episodeId: Long,
         @RequestParam(defaultValue = "0") offset: Int,
@@ -623,7 +623,7 @@ class StructureController(
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет, или с кодом
      *   `BAD_REQUEST`, если диапазон вывернут наизнанку
      */
-    @GetMapping("/api/episode/{episodeId}/frames/flags")
+    @GetMapping("/api/episodes/{episodeId}/frames/flags")
     fun readFrameFlags(
         @PathVariable episodeId: Long,
         @RequestParam fromFrame: Int,
@@ -658,7 +658,7 @@ class StructureController(
      * @throws DomainException с кодом `NOT_FOUND`, если листа нет или он ещё
      *   не готов
      */
-    @GetMapping("/api/episode/{episodeId}/preview-sheets/{index}")
+    @GetMapping("/api/episodes/{episodeId}/preview-sheets/{index}")
     fun readPreviewSheet(
         @PathVariable episodeId: Long,
         @PathVariable index: Int,
@@ -689,7 +689,7 @@ class StructureController(
      * @throws DomainException с кодом `NOT_FOUND`, если серии или листа нет,
      *   либо с кодом `BAD_REQUEST`, если не задан ни номер листа, ни кадр
      */
-    @GetMapping("/api/episode/{episodeId}/preview-url")
+    @GetMapping("/api/episodes/{episodeId}/preview-url")
     fun readPreviewUrl(
         @PathVariable episodeId: Long,
         @RequestParam(required = false) index: Int?,
@@ -735,7 +735,7 @@ class StructureController(
             isReady = artifact != null,
             byteSize = artifact?.byteSize,
             contentType = layout.contentType,
-            url = "/api/episode/$episodeId/preview-sheets/${sheet.index}",
+            url = "/api/episodes/$episodeId/preview-sheets/${sheet.index}",
             frame = frame,
             crop =
                 position?.let {

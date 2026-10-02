@@ -56,12 +56,12 @@
 
 | Метод | Путь | Назначение | FR |
 |---|---|---|---|
-| `GET` | `/api/serials` | список сериалов с числом серий | FR-001 |
-| `POST` | `/api/serials` | создать сериал: название и корень каталога на машине администратора | FR-001, FR-089a |
-| `GET` | `/api/serials/{movieId}` | сериал, его серии и настройки анализа | FR-001 |
-| `DELETE` | `/api/serials/{movieId}` | удалить сериал вместе с производными данными | — |
+| `GET` | `/api/movies` | список сериалов с числом серий | FR-001 |
+| `POST` | `/api/movies` | создать сериал: название и корень каталога на машине администратора | FR-001, FR-089a |
+| `GET` | `/api/movies/{movieId}` | сериал, его серии и настройки анализа | FR-001 |
+| `DELETE` | `/api/movies/{movieId}` | удалить сериал вместе с производными данными | — |
 
-`POST /api/serials` — тело `{"name": "Игра престолов", "sourceRoot": "/sources"}`; ответ `201` с
+`POST /api/movies` — тело `{"name": "Игра престолов", "sourceRoot": "/sources"}`; ответ `201` с
 созданным сериалом **и со значениями настроек по умолчанию**: настройки
 создаются автоматически, оператор их правит (ADR-0003, `research.md` Т-06).
 
@@ -69,8 +69,8 @@
 
 | Метод | Путь | Назначение |
 |---|---|---|
-| `GET` | `/api/serials/{movieId}/seasons` | сезоны сериала с номерами эпизодов |
-| `POST` | `/api/serials/{movieId}/seasons` | завести сезон: `{"ordinal": 1, "name": "Первый сезон"}` |
+| `GET` | `/api/movies/{movieId}/seasons` | сезоны сериала с номерами эпизодов |
+| `POST` | `/api/movies/{movieId}/seasons` | завести сезон: `{"ordinal": 1, "name": "Первый сезон"}` |
 
 Номер сезона начинается с единицы и уникален внутри сериала. У художественного
 фильма сезонов нет, и эндпоинт возвращает пустой список — это законное
@@ -80,12 +80,12 @@
 
 | Метод | Путь | Назначение | FR |
 |---|---|---|---|
-| `GET` | `/api/serials/{movieId}/series` | список серий | FR-001 |
-| `POST` | `/api/serials/{movieId}/series` | зарегистрировать серию: путь к файлу; путь обязан лежать внутри корня сериала | FR-001, FR-002, FR-089a |
-| `GET` | `/api/series/{episodeId}` | параметры серии и состояние готовности | FR-002 |
-| `DELETE` | `/api/series/{episodeId}` | снять серию с учёта (файл не трогается) | — |
+| `GET` | `/api/movies/{movieId}/episodes` | список серий | FR-001 |
+| `POST` | `/api/movies/{movieId}/episodes` | зарегистрировать серию: путь к файлу; путь обязан лежать внутри корня сериала | FR-001, FR-002, FR-089a |
+| `GET` | `/api/episodes/{episodeId}` | параметры серии и состояние готовности | FR-002 |
+| `DELETE` | `/api/episodes/{episodeId}` | снять серию с учёта (файл не трогается) | — |
 
-`POST /api/serials/{movieId}/series` — тело
+`POST /api/movies/{movieId}/episodes` — тело
 `{"sourcePath": "...", "seasonId": 1, "episodeOrdinal": 3}`. `seasonId` необязателен — у фильма его нет; `episodeOrdinal` по умолчанию `0`, отрицательные отвергаются кодом `BAD_REQUEST`. Ответ содержит `designation` вида `S02E03`, а у фильма — `S00E00`..
 Сервер опрашивает файл и **сам** определяет параметры (FR-002): число кадров,
 частокадровую базу, разрешение, длительность, кодек, профиль, формат
@@ -100,8 +100,8 @@
 
 | Метод | Путь | Назначение | FR |
 |---|---|---|---|
-| `GET` | `/api/series/{episodeId}/checksum` | состояние суммы, алгоритм, значение, дата подсчёта, признак устаревания | FR-089 |
-| `POST` | `/api/series/{episodeId}/checksum` | поставить пересчёт заданием `HASH` | FR-089, FR-003 |
+| `GET` | `/api/episodes/{episodeId}/checksum` | состояние суммы, алгоритм, значение, дата подсчёта, признак устаревания | FR-089 |
+| `POST` | `/api/episodes/{episodeId}/checksum` | поставить пересчёт заданием `HASH` | FR-089, FR-003 |
 
 Ответ `GET`:
 
@@ -126,8 +126,8 @@
 
 | Метод | Путь | Назначение |
 |---|---|---|
-| `GET` | `/api/serials/{movieId}/settings` | текущие пороги, параметры кластеризации, версия формата сценария, число аудиодорожек |
-| `PUT` | `/api/serials/{movieId}/settings` | изменить пороги и параметры |
+| `GET` | `/api/movies/{movieId}/settings` | текущие пороги, параметры кластеризации, версия формата сценария, число аудиодорожек |
+| `PUT` | `/api/movies/{movieId}/settings` | изменить пороги и параметры |
 
 Изменение любого значения переводит результаты, полученные со старой парой
 «версия алгоритма + набор параметров», в состояние устаревших (FR-090).
@@ -137,9 +137,9 @@
 
 | Метод | Путь | Назначение | FR |
 |---|---|---|---|
-| `POST` | `/api/series/{episodeId}/analysis` | поставить серию на анализ структуры | FR-003, FR-010 |
-| `POST` | `/api/series/{episodeId}/faces` | поставить поиск лиц и эмбеддингов | FR-003, FR-030 |
-| `POST` | `/api/series/{episodeId}/checksum` | поставить подсчёт суммы `sha256` исходника | FR-089, FR-003 |
+| `POST` | `/api/episodes/{episodeId}/analysis` | поставить серию на анализ структуры | FR-003, FR-010 |
+| `POST` | `/api/episodes/{episodeId}/faces` | поставить поиск лиц и эмбеддингов | FR-003, FR-030 |
+| `POST` | `/api/episodes/{episodeId}/checksum` | поставить подсчёт суммы `sha256` исходника | FR-089, FR-003 |
 | `GET` | `/api/jobs` | список заданий с состоянием и прогрессом | FR-003 |
 | `GET` | `/api/jobs/{jobId}` | задание: состояние, прогресс, ошибка | FR-003, FR-004 |
 | `POST` | `/api/jobs/{jobId}/cancel` | снять задание с выполнения | FR-003 |
@@ -175,10 +175,10 @@
 
 | Метод | Путь | Назначение | FR |
 |---|---|---|---|
-| `GET` | `/api/series/{episodeId}/structure` | сцены серии с планами и признаком устаревания | FR-010, FR-011, FR-090 |
-| `GET` | `/api/series/{episodeId}/raw-boundaries` | сырой результат автоматики для сравнения | FR-093 |
-| `GET` | `/api/series/{episodeId}/frames` | страница значимых кадров с признаками | FR-023 |
-| `GET` | `/api/series/{episodeId}/frames/flags` | признаки кадров диапазона: ключевой, граница | FR-023 |
+| `GET` | `/api/episodes/{episodeId}/structure` | сцены серии с планами и признаком устаревания | FR-010, FR-011, FR-090 |
+| `GET` | `/api/episodes/{episodeId}/raw-boundaries` | сырой результат автоматики для сравнения | FR-093 |
+| `GET` | `/api/episodes/{episodeId}/frames` | страница значимых кадров с признаками | FR-023 |
+| `GET` | `/api/episodes/{episodeId}/frames/flags` | признаки кадров диапазона: ключевой, граница | FR-023 |
 
 ### 5.1 Границы и происхождение
 
@@ -210,8 +210,8 @@
 
 | Метод | Путь | Назначение | FR |
 |---|---|---|---|
-| `GET` | `/api/series/{episodeId}/preview-sheets/{index}` | лист превью: 16×16 ячеек по 135×75 | FR-020, FR-022 |
-| `GET` | `/api/series/{episodeId}/preview-url` | адрес листа для прямой загрузки интерфейсом | FR-020 |
+| `GET` | `/api/episodes/{episodeId}/preview-sheets/{index}` | лист превью: 16×16 ячеек по 135×75 | FR-020, FR-022 |
+| `GET` | `/api/episodes/{episodeId}/preview-url` | адрес листа для прямой загрузки интерфейсом | FR-020 |
 
 Матрица кадров разрывает строку на границе плана и показывает план на стыке
 страниц (FR-022). Состав страницы вычисляет сервер по размеру окна,
@@ -222,10 +222,10 @@
 
 | Метод | Путь | Назначение | FR |
 |---|---|---|---|
-| `GET` | `/api/series/{episodeId}/faces` | лица серии: рамка, план, персона, признак эталона | FR-030, FR-034, FR-036 |
-| `GET` | `/api/series/{episodeId}/faces/clusters` | кластеры похожих лиц без имени | FR-031 |
+| `GET` | `/api/episodes/{episodeId}/faces` | лица серии: рамка, план, персона, признак эталона | FR-030, FR-034, FR-036 |
+| `GET` | `/api/episodes/{episodeId}/faces/clusters` | кластеры похожих лиц без имени | FR-031 |
 | `POST` | `/api/clusters/{clusterId}/person` | дать кластеру имя: создать персону и назначить лица | FR-031, FR-033 |
-| `GET` | `/api/serials/{movieId}/persons` | персоны сериала | FR-031 |
+| `GET` | `/api/movies/{movieId}/persons` | персоны сериала | FR-031 |
 | `PATCH` | `/api/persons/{personId}` | переименовать персону | FR-031 |
 | `DELETE` | `/api/persons/{personId}` | удалить персону; лица переходят в неопознанные | FR-036 |
 
@@ -259,18 +259,18 @@
 
 | Метод | Путь | Механика | FR |
 |---|---|---|---|
-| `POST` | `/api/series/{episodeId}/shots/{frameNumber}/split` | разделить план в кадре | FR-013 |
-| `POST` | `/api/series/{episodeId}/shots/{frameNumber}/merge` | объединить план с соседним | FR-013 |
-| `POST` | `/api/series/{episodeId}/frames/{frameNumber}/cancel-detection` | отменить решение алгоритма | FR-016 |
+| `POST` | `/api/episodes/{episodeId}/shots/{frameNumber}/split` | разделить план в кадре | FR-013 |
+| `POST` | `/api/episodes/{episodeId}/shots/{frameNumber}/merge` | объединить план с соседним | FR-013 |
+| `POST` | `/api/episodes/{episodeId}/frames/{frameNumber}/cancel-detection` | отменить решение алгоритма | FR-016 |
 | `PATCH` | `/api/shots/{shotId}/size` | исправить размер плана вручную | FR-043 |
-| `POST` | `/api/series/{episodeId}/frames/{frameNumber}/faces` | нарисовать лицо рамкой; `origin` становится `OPERATOR` | FR-032 |
+| `POST` | `/api/episodes/{episodeId}/frames/{frameNumber}/faces` | нарисовать лицо рамкой; `origin` становится `OPERATOR` | FR-032 |
 | `DELETE` | `/api/faces/{faceId}` | удалить ошибочное лицо | FR-032 |
 | `POST` | `/api/faces/{faceId}/person` | назначить лицо персоне | FR-033 |
 | `POST` | `/api/faces/{faceId}/example` | пометить эталоном | FR-060 |
 | `DELETE` | `/api/faces/{faceId}/example` | снять метку эталона | FR-060 |
 | `PUT` | `/api/scenes/{sceneId}/location` | назначить место действия из справочника | FR-051 |
-| `GET` | `/api/serials/{movieId}/locations` | справочник локаций | FR-050 |
-| `POST` | `/api/serials/{movieId}/locations` | добавить локацию | FR-050 |
+| `GET` | `/api/movies/{movieId}/locations` | справочник локаций | FR-050 |
+| `POST` | `/api/movies/{movieId}/locations` | добавить локацию | FR-050 |
 
 ### 7.1 Инвариант доводки
 
@@ -298,13 +298,13 @@
 
 | Метод | Путь | Назначение | FR |
 |---|---|---|---|
-| `POST` | `/api/serials/{movieId}/training` | поставить обучение: порог и состав эталонов | FR-061, FR-065 |
-| `GET` | `/api/serials/{movieId}/model-versions` | версии: дата, число эталонов, состав классов, активность | FR-062 |
+| `POST` | `/api/movies/{movieId}/training` | поставить обучение: порог и состав эталонов | FR-061, FR-065 |
+| `GET` | `/api/movies/{movieId}/model-versions` | версии: дата, число эталонов, состав классов, активность | FR-062 |
 | `POST` | `/api/model-versions/{id}/activate` | сделать версию активной | FR-064 |
 | `POST` | `/api/model-versions/{id}/rollback` | откат: новая версия на прежнем составе эталонов | FR-064, SC-009 |
 | `GET` | `/api/model-versions/{id}` | состав версии | FR-062 |
 
-`POST /api/serials/{movieId}/training` — тело
+`POST /api/movies/{movieId}/training` — тело
 `{"threshold": 0.5, "movieIdOfExamples": null}`. Ответ `202`: обучение идёт
 заданием очереди, кнопка не блокирует интерфейс (FR-061). Порог приходит из
 запроса и сохраняется в версии модели, а не зашивается в код (FR-065).
@@ -318,8 +318,8 @@
 
 | Метод | Путь | Назначение | FR |
 |---|---|---|---|
-| `GET` | `/api/serials/{movieId}/filters` | список сохранённых фильтров | FR-072 |
-| `POST` | `/api/serials/{movieId}/filters` | сохранить фильтр | FR-070, FR-072 |
+| `GET` | `/api/movies/{movieId}/filters` | список сохранённых фильтров | FR-072 |
+| `POST` | `/api/movies/{movieId}/filters` | сохранить фильтр | FR-070, FR-072 |
 | `GET` | `/api/filters/{filterId}` | дерево условий | FR-070 |
 | `PUT` | `/api/filters/{filterId}` | изменить фильтр | FR-072 |
 | `DELETE` | `/api/filters/{filterId}` | удалить фильтр | FR-072 |

@@ -98,7 +98,7 @@ README измерений про песочницу агента относит�
 
 ```bash
 bash tools/run-checksum-parity.sh
-bash tools/run-checksum-parity.sh /path/to/series.mkv   # свой файл
+bash tools/run-checksum-parity.sh /path/to/episodes.mkv   # свой файл
 ```
 
 Скрипт поднимает одноразовый `postgres:16`, применяет миграции, гоняет

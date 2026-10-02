@@ -3,6 +3,17 @@
 Домен: [Characters](../domain.md). Спецификация: `specs/001-first-vertical-slice/`,
 FR-031, FR-033, FR-036. Решение Р-12.
 
+## Эндпоинты | Endpoints
+
+| Метод и путь | Что делает |
+|---|---|
+| `GET /api/episodes/{episodeId}/faces` | лица серии с кластерами |
+| `GET /api/episodes/{episodeId}/faces/clusters` | кластеры безымянных лиц |
+| `POST /api/clusters/{clusterId}/person` | дать кластеру имя персоны |
+| `GET /api/movies/{movieId}/persons` | справочник персон фильма |
+| `PATCH /api/persons/{personId}` | переименовать персону |
+| `DELETE /api/persons/{personId}` | удалить персону, лица становятся неопознанными |
+
 ## Ответственность | Responsibility
 
 Компонент ведёт справочник персон сериала и держит **две служебные персоны

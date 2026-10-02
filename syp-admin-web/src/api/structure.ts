@@ -228,7 +228,7 @@ export interface PreviewUrlView {
  * @returns поставленное задание
  */
 export function startAnalysis(episodeId: number): Promise<AnalysisEnqueuedView> {
-  return request<AnalysisEnqueuedView>('POST', `/series/${episodeId}/analysis`)
+  return request<AnalysisEnqueuedView>('POST', `/episodes/${episodeId}/analysis`)
 }
 
 /**
@@ -242,7 +242,7 @@ export function startAnalysis(episodeId: number): Promise<AnalysisEnqueuedView> 
 export function readStructure(episodeId: number, offset = 0, limit = 200): Promise<StructureView> {
   return request<StructureView>(
     'GET',
-    `/series/${episodeId}/structure?offset=${offset}&limit=${limit}`,
+    `/episodes/${episodeId}/structure?offset=${offset}&limit=${limit}`,
   )
 }
 
@@ -264,7 +264,7 @@ export function readRawBoundaries(
   const levelQuery = level === undefined ? '' : `&level=${level}`
   return request<RawBoundariesView>(
     'GET',
-    `/series/${episodeId}/raw-boundaries?offset=${offset}&limit=${limit}${levelQuery}`,
+    `/episodes/${episodeId}/raw-boundaries?offset=${offset}&limit=${limit}${levelQuery}`,
   )
 }
 
@@ -277,7 +277,7 @@ export function readRawBoundaries(
  * @returns страница значимых кадров
  */
 export function readFrames(episodeId: number, offset = 0, limit = 200): Promise<FramesView> {
-  return request<FramesView>('GET', `/series/${episodeId}/frames?offset=${offset}&limit=${limit}`)
+  return request<FramesView>('GET', `/episodes/${episodeId}/frames?offset=${offset}&limit=${limit}`)
 }
 
 /**
@@ -289,7 +289,7 @@ export function readFrames(episodeId: number, offset = 0, limit = 200): Promise<
  */
 export function readPreviewUrl(episodeId: number, frame?: number): Promise<PreviewUrlView> {
   const frameQuery = frame === undefined ? '' : `&frame=${frame}`
-  return request<PreviewUrlView>('GET', `/series/${episodeId}/preview-url?index=0${frameQuery}`)
+  return request<PreviewUrlView>('GET', `/episodes/${episodeId}/preview-url?index=0${frameQuery}`)
 }
 
 /**
@@ -303,5 +303,5 @@ export function readPreviewUrl(episodeId: number, frame?: number): Promise<Previ
  * @returns адрес листа
  */
 export function previewSheetUrl(episodeId: number, index: number): string {
-  return `/api/series/${episodeId}/preview-sheets/${index}`
+  return `/api/episodes/${episodeId}/preview-sheets/${index}`
 }

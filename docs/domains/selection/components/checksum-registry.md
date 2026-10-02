@@ -2,6 +2,13 @@
 
 Домен: [Selection](../domain.md). Спецификация: `specs/001-first-vertical-slice/`.
 
+## Эндпоинты | Endpoints
+
+| Метод и путь | Что делает |
+|---|---|
+| `GET /api/episodes/{episodeId}/checksum` | состояние подсчёта, алгоритм, значение, дата, признак устаревания |
+| `POST /api/episodes/{episodeId}/checksum` | поставить пересчёт суммы |
+
 ## Ответственность | Responsibility
 
 Компонент держит эталонные суммы `sha256` исходных файлов серий — то, с чем

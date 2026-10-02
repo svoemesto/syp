@@ -215,7 +215,7 @@ class ChecksumController(
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет; с кодом
      *   `CHECKSUM_NOT_READY`, если сумма ещё ни разу не считалась
      */
-    @GetMapping("/api/episode/{episodeId}/checksum")
+    @GetMapping("/api/episodes/{episodeId}/checksum")
     fun readChecksum(
         @PathVariable episodeId: Long,
     ): ChecksumView {
@@ -241,7 +241,7 @@ class ChecksumController(
      * @return поставленное задание, код `202`
      * @throws DomainException с кодом `NOT_FOUND`, если серии нет
      */
-    @PostMapping("/api/episode/{episodeId}/checksum")
+    @PostMapping("/api/episodes/{episodeId}/checksum")
     fun startChecksum(
         @PathVariable episodeId: Long,
     ): ResponseEntity<ChecksumEnqueuedView> {
