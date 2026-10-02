@@ -2,7 +2,24 @@
 экранами и область // содержимого. Вся работа экранов живёт в `views/`, обращение к бэкенду — в //
 `api/`, состояние — в `stores/`.
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+
+const route = useRoute()
+
+/**
+ * Серия, для которой показывается ссылка на структуру.
+ *
+ * Ссылка появляется только на экране серии: с приёма структуру открывать
+ * нечего, а пустая ссылка вела бы на пустую страницу.
+ */
+const structureSeriesId = computed(() => {
+  const raw = route.params.seriesId
+  if (typeof raw === 'string' && raw !== '') {
+    return raw
+  }
+  return null
+})
 </script>
 
 <template>
@@ -11,6 +28,12 @@ import { RouterLink, RouterView } from 'vue-router'
       <h1>SYP — админка</h1>
       <nav>
         <RouterLink :to="{ name: 'intake' }"> Приём сериалов и серий </RouterLink>
+        <RouterLink
+          v-if="structureSeriesId"
+          :to="{ name: 'structure', params: { seriesId: structureSeriesId } }"
+        >
+          Структура серии
+        </RouterLink>
       </nav>
     </header>
     <RouterView />
