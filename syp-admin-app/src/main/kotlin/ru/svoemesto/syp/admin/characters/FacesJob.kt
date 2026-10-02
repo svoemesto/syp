@@ -47,6 +47,8 @@ import ru.svoemesto.syp.core.media.FrameChannelFailed
  * @property runStore хранилище прогонов анализа
  * @property scan проход по кадрам с детектором
  * @property detectorKey идентификатор детектора для прогона
+ * @property faceSinks сборка приёмника рамок; `null` — рамки не сохраняются
+ * @property settingsStore настройки сериала: из них берётся порог пропорции
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class FacesJob(
@@ -54,6 +56,8 @@ class FacesJob(
     private val runStore: AnalysisRunStore,
     private val scan: FaceScan,
     private val detectorKey: String,
+    private val faceSinks: FaceSinkFactory? = null,
+    private val settingsStore: ru.svoemesto.syp.admin.catalog.SerialSettingsStore? = null,
 ) : JobHandler {
     /** Вид задания, который обрабатывает исполнитель. */
     override val kind: JobKind = JobKind.FACES
@@ -91,10 +95,20 @@ class FacesJob(
                 )
         runStore.startWork(runId)
 
+        // Приёмник рамок собирается до прохода и один раз: служебные персоны
+        // сериала читаются здесь, а не на каждом из 88 643 кадров.
+        val sink =
+            if (faceSinks != null && settingsStore != null) {
+                faceSinks.forSeries(series, settingsStore.read(series.serialId))
+            } else {
+                null
+            }
+
         return try {
             val result =
                 scan.scan(
                     series = series,
+                    sink = sink,
                     progress = { done ->
                         // Отчёт идёт пачками: на 88 643 кадрах отчёт по
                         // каждому кадру означал бы 88 643 записи в базу задания

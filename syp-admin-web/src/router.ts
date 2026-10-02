@@ -1,31 +1,22 @@
 // Маршруты админки.
 //
 // Экраны, за которыми стоит бэкенд: приём сериалов и серий, состояние суммы
-// исходника и структура разобранной серии. Разделы без экрана — лица и
-// сценарии — тоже имеют адрес: пункт навигации не должен исчезать из меню из-за
-// того, что он ещё не сделан, а пустой экран вместо «раздела ещё нет» — это
-// ошибка, которой не было.
+// исходника, структура разобранной серии и лица. Раздел без экрана — сценарии —
+// тоже имеет адрес: пункт навигации не должен исчезать из меню из-за того, что он
+// ещё не сделан, а пустой экран вместо «раздела ещё нет» — это ошибка, которой
+// не было.
 //
-// Сумма и структура живут для конкретной серии. Пока серия не выбрана, раздел
-// открывается на странице с пояснением: молча уводить в приём значило бы
+// Сумма, структура и лица живут для конкретной серии. Пока серия не выбрана,
+// раздел открывается на странице с пояснением: молча уводить в приём значило бы
 // потерять, что оператор собирался посмотреть.
 
 import { createRouter, createWebHistory } from 'vue-router'
 import ChecksumStatusView from './views/ChecksumStatusView.vue'
+import FacesView from './views/FacesView.vue'
 import SectionPlaceholder from './components/SectionPlaceholder.vue'
 import SeriesIntakeView from './views/SeriesIntakeView.vue'
 import SeriesRequiredView from './views/SeriesRequiredView.vue'
 import StructureView from './views/StructureView.vue'
-
-/** Что обещает раздел «Лица», пока экрана нет. */
-const facesPlaceholder = {
-  title: 'Лица',
-  purpose: 'Поиск лиц в каждом кадре серии, кластеры похожих и имена персон.',
-  missing:
-    'Детекция по кадрам, сводка кластеров, присвоение имён, обучение модели ' +
-    'с версиями и откатом. Раздел появится вместе со своей задачей.',
-  hint: 'Ближайший вход — структура серии: из планов оператор увидит лица в кадрах.',
-}
 
 /** Что обещает раздел «Сценарии», пока экрана нет. */
 const recipesPlaceholder = {
@@ -60,6 +51,12 @@ export const router = createRouter({
       props: { sectionTitle: 'Структура серии' },
     },
     {
+      path: '/series/faces',
+      name: 'faces',
+      component: SeriesRequiredView,
+      props: { sectionTitle: 'Лица серии' },
+    },
+    {
       path: '/series/:seriesId/checksum',
       name: 'checksum',
       component: ChecksumStatusView,
@@ -72,10 +69,10 @@ export const router = createRouter({
       props: true,
     },
     {
-      path: '/faces',
-      name: 'faces',
-      component: SectionPlaceholder,
-      props: facesPlaceholder,
+      path: '/series/:seriesId/faces',
+      name: 'faces-of-series',
+      component: FacesView,
+      props: true,
     },
     {
       path: '/recipes',
