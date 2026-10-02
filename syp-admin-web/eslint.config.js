@@ -24,6 +24,13 @@ export default [
     rules: {
       // Многострочные шаблоны Vue не требуют завершающих запятых.
       'vue/multi-word-component-names': 'off',
+      // Раскладку шаблона задаёт Prettier (`npm run format:check`), а не
+      // ESLint: два инструмента форматирования правят одни и те же строки
+      // по-разному, и проверка должна быть одна. Эти три правила как раз и
+      // требуют иного, чем требует Prettier.
+      'vue/max-attributes-per-line': 'off',
+      'vue/singleline-html-element-content-newline': 'off',
+      'vue/html-self-closing': 'off',
     },
   },
   {

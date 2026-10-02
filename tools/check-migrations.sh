@@ -9,7 +9,7 @@
 #   1. все файлы deploy/syp-db/NN_*.sql применяются по порядку;
 #   2. состав схемы: 22 таблицы, среди них source_file_checksum,
 #      build_recipe, build_recipe_item;
-#   3. 42 проверки ограничений: каждая — «ожидается отказ» или «ожидается
+#   3. проверки ограничений: каждая — «ожидается отказ» или «ожидается
 #      принятие», в отдельной транзакции с откатом;
 #   4. новый сериал автоматически получает 11 настроек по умолчанию;
 #   5. повторное применение 01_catalog.sql отклоняется базой;
@@ -17,6 +17,8 @@
 #   7. длина карты ключевых кадров обязана быть ровно ceil(кадров / 8) байт:
 #      короче значит, что часть кадров молча считается неключевой, длиннее —
 #      что границы фрагментов считаются по не тем кадрам (миграция 09);
+#   7a. у незавершённого подсчёта суммы нет, а готовая сумма обязана быть, и
+#      запись справочника ссылается на существующее задание (миграция 10);
 #   8. удаление сериала каскадом уносит серии, лица, персоны, версии моделей,
 #      сценарии сборки, справочник сумм и настройки, не оставляя сирот.
 #
@@ -121,6 +123,13 @@ INSERT INTO series (id, serial_id, ordinal, name, source_path, file_size, file_m
                     duration_num, duration_den, video_codec, pixel_format)
 VALUES (901, 901, 1, 'S01E01', '/srv/got/S01E01.mkv', 5598286865, now(),
         88643, 1001, 24000, 1920, 1080, 36972, 10, 'h264', 'yuv420p');
+INSERT INTO series (id, serial_id, ordinal, name, source_path, file_size, file_mtime,
+                    frame_count, time_base_num, time_base_den, width, height,
+                    duration_num, duration_den, video_codec, pixel_format)
+VALUES (9501, 901, 2, 'S01E02', '/srv/got/S01E02.mkv', 5022335635, now(),
+        80000, 1001, 24000, 1920, 1080, 33351, 10, 'h264', 'yuv420p'),
+       (9502, 901, 3, 'S01E03', '/srv/got/S01E03.mkv', 5199677723, now(),
+        82000, 1001, 24000, 1920, 1080, 34198, 10, 'h264', 'yuv420p');
 SQL
 
 # expect_ok — вставка должна пройти; expect_fail — должна быть отклонена.
@@ -281,6 +290,39 @@ check "вторая актуальная сумма той же серии — �
 check "вторая устаревшая сумма той же серии — принят" ok \
     "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at, is_stale)
      VALUES (901, 'SHA-256', repeat('d', 64), 10, now(), 'DONE', now(), true);"
+
+# --- справочник сумм: незавершённый подсчёт и связь с заданием ---
+# Запись появляется при постановке задания, а сумма — только после чтения
+# файла. Поэтому у записей CREATING и WORKING значения суммы нет вовсе, а
+# ссылка на задание проверяется базой (миграция 10).
+check_writes "запись незавершённого подсчёта без значения суммы — принята" \
+    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state)
+     VALUES (9501, 'SHA-256', NULL, 10, now(), 'CREATING');"
+check "запись в состоянии DONE без значения суммы — отказ" fail \
+    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at)
+     VALUES (9501, 'SHA-256', NULL, 10, now(), 'DONE', now());"
+check "ссылка на задание, которого нет, — отказ" fail \
+    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, job_id)
+     VALUES (9501, 'SHA-256', NULL, 10, now(), 'WORKING', 999999);"
+check "готовый подсчёт без ссылки на задание — принят" ok \
+    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, computed_at)
+     VALUES (9502, 'SHA-256', repeat('e', 64), 10, now(), 'DONE', now());"
+# Удаление задания не должно удалять результат: ссылка обнуляется, а сама
+# сумма остаётся. Проверка идёт одной транзакцией — иначе откат уничтожил бы
+# и запись, и удаление задания.
+job_link=$(printf '%s\n' "BEGIN;" \
+    "INSERT INTO job (id, kind, state, subject_type, subject_id, params, params_hash)" \
+    "VALUES (777, 'HASH', 'WORKING', 'SERIES', 9501, '{}'::jsonb, repeat('7', 64));" \
+    "INSERT INTO source_file_checksum (series_id, algorithm, digest, byte_size, file_mtime, state, job_id, computed_at)" \
+    "VALUES (9501, 'SHA-256', repeat('a', 64), 10, now(), 'DONE', 777, now());" \
+    "DELETE FROM job WHERE id = 777;" \
+    "SELECT count(*) FROM source_file_checksum WHERE series_id = 9501 AND job_id IS NULL;" \
+    "ROLLBACK;" | psql_run 2>&1 | tail -1)
+if [[ "${job_link}" == "1" ]]; then
+    report_ok "удаление задания обнуляет ссылку, а сумма остаётся"
+else
+    report_fail "удаление задания обнуляет ссылку, а сумма остаётся — найдено строк: «${job_link}»"
+fi
 
 # --- настройки по умолчанию ---
 settings=$(psql_run <<< "SELECT count(*) FROM analysis_setting WHERE serial_id = 901;")

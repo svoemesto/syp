@@ -1,0 +1,585 @@
+package ru.svoemesto.syp.admin.analysis
+
+import ru.svoemesto.syp.core.db.Db
+import ru.svoemesto.syp.core.db.Row
+import ru.svoemesto.syp.core.db.Save
+import ru.svoemesto.syp.core.db.Table
+
+/**
+ * Происхождение границы.
+ *
+ * Значение задаёт цвет оверлея в интерфейсе и отвечает на вопрос, кому
+ * принадлежит граница: алгоритму, оператору или это отменённое решение
+ * алгоритма (FR-015, FR-016). Отмена — **отдельное** значение, а не
+ * отсутствие строки: исчезнувшая граница выглядела бы так же, как граница,
+ * которую оператор принял, и сравнить было бы не с чем.
+ *
+ * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+enum class BoundaryOrigin {
+    /** Граница получена алгоритмом. */
+    AUTO,
+
+    /** Границу поставил или поправил оператор. */
+    OPERATOR,
+
+    /** Решение алгоритма отменено оператором. */
+    CANCELLED,
+    ;
+
+    companion object {
+        /**
+         * Разбирает происхождение из строки базы.
+         *
+         * @param value значение столбца `origin`
+         * @return происхождение
+         * @throws IllegalArgumentException если значения нет в наборе
+         */
+        fun parse(value: String): BoundaryOrigin =
+            entries.firstOrNull { it.name == value }
+                ?: throw IllegalArgumentException("Неизвестное происхождение границы: «$value»")
+    }
+}
+
+/**
+ * Размер плана.
+ *
+ * Справочник перенесён из старого проекта как есть: десять ступеней от `ECU`
+ * до `XLS` и нулевая `NONE` для плана без лиц (ADR-0003).
+ *
+ * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+enum class ShotSize {
+    /** Размер не определён: в плане нет лиц. */
+    NONE,
+
+    /** Очень крупный план. */
+    ECU,
+
+    /** Большой крупный план. */
+    BCU,
+
+    /** Крупный план. */
+    CU,
+
+    /** Средний крупный план. */
+    MCU,
+
+    /** Средний план. */
+    MS,
+
+    /** Средний общий план. */
+    MLS,
+
+    /** Общий план. */
+    LS,
+
+    /** Общий план с верхними точками съёмки. */
+    VLS,
+
+    /** Очень общий план. */
+    XLS,
+    ;
+
+    companion object {
+        /**
+         * Разбирает размер из строки базы.
+         *
+         * @param value значение столбца `size`
+         * @return размер плана
+         * @throws IllegalArgumentException если значения нет в наборе
+         */
+        fun parse(value: String): ShotSize =
+            entries.firstOrNull { it.name == value }
+                ?: throw IllegalArgumentException("Неизвестный размер плана: «$value»")
+    }
+}
+
+/**
+ * Происхождение размера плана.
+ *
+ * Отдельно от происхождения границы: оператор может поправить размер, не
+ * трогая границу, и наоборот (FR-043).
+ *
+ * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+enum class SizeOrigin {
+    /** Размер вычислен автоматически по самому крупному лицу плана. */
+    AUTO,
+
+    /** Размер исправлен оператором. */
+    OPERATOR,
+    ;
+
+    companion object {
+        /**
+         * Разбирает происхождение размера из строки базы.
+         *
+         * @param value значение столбца `size_origin`
+         * @return происхождение размера
+         * @throws IllegalArgumentException если значения нет в наборе
+         */
+        fun parse(value: String): SizeOrigin =
+            entries.firstOrNull { it.name == value }
+                ?: throw IllegalArgumentException("Неизвестное происхождение размера: «$value»")
+    }
+}
+
+/**
+ * Рабочая сцена серии.
+ *
+ * Рабочая сцена — текущее состояние разметки, а сырая граница прогона
+ * остаётся в своей таблице и ручными правками не меняется (FR-093).
+ *
+ * Связь сцена ↔ план **не хранится**: она вычисляется по диапазонам кадров,
+ * и хранить её списком идентификаторов запрещено (ADR-0007). Хранение связи
+ * означало бы второе место, где живёт истина о принадлежности плана сцене, и
+ * расхождение этих мест ловилось бы только при чтении.
+ *
+ * @property id идентификатор сцены; `null`, пока не записана
+ * @property seriesId серия-владелец
+ * @property firstFrame первый кадр сцены, нумерация с нуля
+ * @property lastFrame последний кадр сцены
+ * @property locationId место действия, если назначено вручную; `null`, если
+ *   не назначено (FR-052)
+ * @property origin происхождение границы
+ * @property runId прогон, которым сцена получена; `null`, если граница
+ *   создана вручную
+ * @property isStale результат помечен устаревшим
+ * @property recordHash хеш значений строки, прочитанный при загрузке
+ * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+data class Scene(
+    val id: Long? = null,
+    val seriesId: Long,
+    val firstFrame: Int,
+    val lastFrame: Int,
+    val locationId: Long? = null,
+    val origin: BoundaryOrigin = BoundaryOrigin.AUTO,
+    val runId: Long? = null,
+    val isStale: Boolean = false,
+    val recordHash: String? = null,
+) {
+    init {
+        require(firstFrame >= 0) { "Первый кадр сцены не может быть отрицательным, задано $firstFrame" }
+        require(lastFrame >= firstFrame) {
+            "Последний кадр сцены $lastFrame раньше первого $firstFrame: диапазон вывернут наизнанку"
+        }
+    }
+
+    /**
+     * Описание строки для сохранения по различию значений.
+     *
+     * @return таблица с записываемыми столбцами сцены
+     */
+    fun toTable(): Table =
+        Table(
+            StructureService.SCENE_TABLE,
+            StructureService.SCENE_COLUMNS,
+            {
+                listOf(
+                    seriesId,
+                    firstFrame,
+                    lastFrame,
+                    locationId,
+                    origin.name,
+                    runId,
+                    isStale,
+                )
+            },
+            recordHash,
+        )
+
+    companion object {
+        /** Столбцы сцены в порядке чтения из базы. */
+        val READ_COLUMNS: String =
+            "id, series_id, first_frame, last_frame, location_id, origin, run_id, is_stale, recordhash"
+    }
+}
+
+/**
+ * Рабочий план серии.
+ *
+ * План лежит в сцене целиком: `first >= scene.first AND last <= scene.last`
+ * при равной серии (ADR-0007). Частичное пересечение не допускается: план,
+ * наполовину лежащий в сцене, не имеет смысла ни в интерфейсе, ни в
+ * сценарии сборки.
+ *
+ * Столбцы размера и происхождения границы независимы: оператор может
+ * исправить размер, не трогая границу, и наоборот.
+ *
+ * @property id идентификатор плана; `null`, пока не записан
+ * @property seriesId серия-владелец
+ * @property firstFrame первый кадр плана, нумерация с нуля
+ * @property lastFrame последний кадр плана
+ * @property size размер плана; `NONE` у плана без лиц
+ * @property sizeOrigin происхождение размера
+ * @property origin происхождение границы
+ * @property runId прогон, которым план получен; `null`, если создан вручную
+ * @property isStale результат помечен устаревшим
+ * @property recordHash хеш значений строки, прочитанный при загрузке
+ * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+data class Shot(
+    val id: Long? = null,
+    val seriesId: Long,
+    val firstFrame: Int,
+    val lastFrame: Int,
+    val size: ShotSize = ShotSize.NONE,
+    val sizeOrigin: SizeOrigin = SizeOrigin.AUTO,
+    val origin: BoundaryOrigin = BoundaryOrigin.AUTO,
+    val runId: Long? = null,
+    val isStale: Boolean = false,
+    val recordHash: String? = null,
+) {
+    init {
+        require(firstFrame >= 0) { "Первый кадр плана не может быть отрицательным, задано $firstFrame" }
+        require(lastFrame >= firstFrame) {
+            "Последний кадр плана $lastFrame раньше первого $firstFrame: диапазон вывернут наизнанку"
+        }
+    }
+
+    /**
+     * Описание строки для сохранения по различию значений.
+     *
+     * @return таблица с записываемыми столбцами плана
+     */
+    fun toTable(): Table =
+        Table(
+            StructureService.SHOT_TABLE,
+            StructureService.SHOT_COLUMNS,
+            {
+                listOf(
+                    seriesId,
+                    firstFrame,
+                    lastFrame,
+                    size.name,
+                    sizeOrigin.name,
+                    origin.name,
+                    runId,
+                    isStale,
+                )
+            },
+            recordHash,
+        )
+
+    companion object {
+        /** Столбцы плана в порядке чтения из базы. */
+        val READ_COLUMNS: String =
+            "id, series_id, first_frame, last_frame, size, size_origin, origin, run_id, " +
+                "is_stale, recordhash"
+    }
+}
+
+/**
+ * Участок серии по номерам кадров.
+ *
+ * @property firstFrame первый кадр участка
+ * @property lastFrame последний кадр участка
+ * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+data class FrameRange(
+    val firstFrame: Int,
+    val lastFrame: Int,
+)
+
+/**
+ * Разбор границ на сцены и планы.
+ *
+ * Сырые границы прогона — это **точки**, а не участки: детектор отдаёт номера
+ * кадров, в которых он увидел смену. Рабочая структура — это участки: от
+ * одной границы до следующей. Перевод делается здесь, единственный раз, и
+ * он проверяет главное свойство структуры: **сцены покрывают серию без
+ * разрывов и перекрытий**.
+ *
+ * Проверка выполняется до записи. Структура с дырой выглядит на экране
+ * нормально — просто часть серии не показана, — и заметить её можно только
+ * сравнением с числом кадров (FR-011).
+ *
+ * @property detection результат детекции
+ * @property frameCount число кадров серии
+ * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+class StructureBuilder(
+    private val detection: DetectionResult,
+    private val frameCount: Int,
+) {
+    init {
+        require(frameCount > 0) { "Число кадров серии должно быть положительным, задано $frameCount" }
+    }
+
+    /**
+     * Разбирает детекцию на участки сцен.
+     *
+     * @return участки в порядке следования, покрывающие серию целиком
+     */
+    fun sceneSections(): List<FrameRange> = sections(detection.sceneBoundaries)
+
+    /**
+     * Разбирает детекцию на участки планов.
+     *
+     * @return участки в порядке следования, покрывающие серию целиком
+     */
+    fun shotSections(): List<FrameRange> = sections(detection.shotBoundaries)
+
+    /**
+     * Разбирает точки границ в участки.
+     *
+     * Первый участок начинается с кадра 0: серия покрыта целиком, и первая
+     * граница — это начало второй сцены, а не первая сцена.
+     *
+     * @param boundaries номера кадров-границ по возрастанию
+     * @return участки в порядке следования
+     */
+    private fun sections(boundaries: List<Int>): List<FrameRange> {
+        val starts = listOf(0) + boundaries.filter { it > 0 }
+        val distinct = starts.distinct().sorted()
+        val ranges =
+            distinct.mapIndexed { index, first ->
+                val last = distinct.getOrElse(index + 1) { frameCount } - 1
+                FrameRange(first, last)
+            }
+        require(ranges.all { it.firstFrame >= 0 && it.lastFrame >= it.firstFrame }) {
+            "Границы разобрались в пустой участок: $ranges"
+        }
+        require(ranges.first().firstFrame == 0 && ranges.last().lastFrame == frameCount - 1) {
+            "Участки не покрывают серию целиком: с ${ranges.first().firstFrame} по " +
+                "${ranges.last().lastFrame} при ${frameCount - 1} кадрах серии"
+        }
+        ranges.forEachIndexed { index, range ->
+            val next = ranges.getOrNull(index + 1)
+            require(next == null || range.lastFrame + 1 == next.firstFrame) {
+                "Между участками есть разрыв или перекрытие: ${range.lastFrame} и ${next?.firstFrame}"
+            }
+        }
+        return ranges
+    }
+}
+
+/**
+ * Создание рабочей структуры серии по результату прогона.
+ *
+ * Рабочие сцены и планы — **текущее состояние разметки**, а сырые границы
+ * остаются в своей таблице: разделение нужно, чтобы ручная правка не
+ * уничтожала то, что предложила машина, и чтобы интерфейс мог показать оба
+ * слоя рядом (FR-093, constitution IV.4).
+ *
+ * **Запись идёт в одну транзакцию**: сырые границы, рабочие сцены и планы
+ * фиксируются одним изменением. Частично записанный результат означал бы,
+ * что система «знает» о границах, которых нет.
+ *
+ * @property db доступ к базе сырым JDBC
+ * @property runStore хранилище прогонов
+ * @property boundaryStore хранилище сырых границ
+ * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+ */
+class StructureService(
+    private val db: Db,
+    private val runStore: AnalysisRunStore,
+    private val boundaryStore: RawBoundaryStore,
+) {
+    /**
+     * Записывает результат прогона как рабочую структуру серии.
+     *
+     * @param runId идентификатор прогона
+     * @param seriesId серия-владелец
+     * @param detection результат детекции
+     * @return число записанных сцен и планов
+     * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
+     */
+    fun applyDetection(
+        runId: Long,
+        seriesId: Long,
+        detection: DetectionResult,
+    ): Pair<Int, Int> {
+        val builder = StructureBuilder(detection, frameCountOf(seriesId))
+        val scenes =
+            builder.sceneSections().map { range ->
+                Scene(
+                    seriesId = seriesId,
+                    firstFrame = range.firstFrame,
+                    lastFrame = range.lastFrame,
+                    origin = BoundaryOrigin.AUTO,
+                    runId = runId,
+                )
+            }
+        val shots =
+            builder.shotSections().map { range ->
+                Shot(
+                    seriesId = seriesId,
+                    firstFrame = range.firstFrame,
+                    lastFrame = range.lastFrame,
+                    size = ShotSize.NONE,
+                    sizeOrigin = SizeOrigin.AUTO,
+                    origin = BoundaryOrigin.AUTO,
+                    runId = runId,
+                )
+            }
+        return db.useTransaction { connection ->
+            // Прежняя рабочая структура не удаляется, а помечается устаревшей:
+            // удаление уничтожило бы ручные правки оператора, которые он делал
+            // по старым границам (FR-090, SC-006).
+            connection
+                .prepareStatement("UPDATE $SCENE_TABLE SET is_stale = TRUE WHERE series_id = ?")
+                .use { statement ->
+                    statement.setLong(1, seriesId)
+                    statement.executeUpdate()
+                }
+            connection
+                .prepareStatement("UPDATE $SHOT_TABLE SET is_stale = TRUE WHERE series_id = ?")
+                .use { statement ->
+                    statement.setLong(1, seriesId)
+                    statement.executeUpdate()
+                }
+            boundaryStore.appendAll(
+                connection,
+                detection.sceneBoundaries.map { frame ->
+                    RawBoundary(
+                        runId = runId,
+                        level = BoundaryLevel.SCENE,
+                        firstFrame = frame,
+                        lastFrame = frame,
+                    )
+                },
+            )
+            boundaryStore.appendAll(
+                connection,
+                detection.shotBoundaries.map { frame ->
+                    RawBoundary(
+                        runId = runId,
+                        level = BoundaryLevel.SHOT,
+                        firstFrame = frame,
+                        lastFrame = frame,
+                    )
+                },
+            )
+            scenes.forEach { scene ->
+                Save.insertIfAbsent(connection, scene.toTable())
+            }
+            shots.forEach { shot ->
+                Save.insertIfAbsent(connection, shot.toTable())
+            }
+            scenes.size to shots.size
+        }
+    }
+
+    /**
+     * Читает рабочие сцены серии по возрастанию первого кадра.
+     *
+     * @param seriesId идентификатор серии
+     * @return сцены серии
+     */
+    fun listScenes(seriesId: Long): List<Scene> =
+        db.select(
+            "$SCENE_READ_SQL WHERE series_id = ? ORDER BY first_frame",
+            ::readScene,
+            seriesId,
+        )
+
+    /**
+     * Читает рабочие планы серии по возрастанию первого кадра.
+     *
+     * @param seriesId идентификатор серии
+     * @return планы серии
+     */
+    fun listShots(seriesId: Long): List<Shot> =
+        db.select(
+            "$SHOT_READ_SQL WHERE series_id = ? ORDER BY first_frame",
+            ::readShot,
+            seriesId,
+        )
+
+    /**
+     * Планы сцены, вычисленные по диапазонам кадров.
+     *
+     * Связь не хранится, а вычисляется: план принадлежит сцене тогда и
+     * только тогда, когда он лежит в её диапазоне целиком (ADR-0007). Возврат
+     * вычисленного значения вместо сохранённого — это и есть следствие
+     * запрета хранить связь.
+     *
+     * @param scene сцена
+     * @param shots планы серии
+     * @return планы, лежащие в сцене целиком
+     */
+    fun shotsInside(
+        scene: Scene,
+        shots: List<Shot>,
+    ): List<Shot> = shots.filter { it.firstFrame >= scene.firstFrame && it.lastFrame <= scene.lastFrame }
+
+    /** Число кадров серии: без него границы не в чем разобрать. */
+    private fun frameCountOf(seriesId: Long): Int =
+        db.selectOne(
+            "SELECT frame_count FROM series WHERE id = ?",
+            { it.int("frame_count") },
+            seriesId,
+        ) ?: throw ru.svoemesto.syp.core.db
+            .DbException("Серия $seriesId не найдена: не из чего собрать структуру")
+
+    /** Строит сцену из типизированной строки выборки. */
+    private fun readScene(row: Row): Scene =
+        Scene(
+            id = row.long("id"),
+            seriesId = row.long("series_id"),
+            firstFrame = row.int("first_frame"),
+            lastFrame = row.int("last_frame"),
+            locationId = row.longOrNull("location_id"),
+            origin = BoundaryOrigin.parse(row.string("origin")),
+            runId = row.longOrNull("run_id"),
+            isStale = row.booleanOrNull("is_stale") == true,
+            recordHash = row.stringOrNull("recordhash"),
+        )
+
+    /** Строит план из типизированной строки выборки. */
+    private fun readShot(row: Row): Shot =
+        Shot(
+            id = row.long("id"),
+            seriesId = row.long("series_id"),
+            firstFrame = row.int("first_frame"),
+            lastFrame = row.int("last_frame"),
+            size = ShotSize.parse(row.string("size")),
+            sizeOrigin = SizeOrigin.parse(row.string("size_origin")),
+            origin = BoundaryOrigin.parse(row.string("origin")),
+            runId = row.longOrNull("run_id"),
+            isStale = row.booleanOrNull("is_stale") == true,
+            recordHash = row.stringOrNull("recordhash"),
+        )
+
+    companion object {
+        /** Имя таблицы рабочих сцен. */
+        const val SCENE_TABLE: String = "scene"
+
+        /** Имя таблицы рабочих планов. */
+        const val SHOT_TABLE: String = "shot"
+
+        /** Записываемые столбцы сцены в порядке значений. */
+        val SCENE_COLUMNS: List<String> =
+            listOf(
+                "series_id",
+                "first_frame",
+                "last_frame",
+                "location_id",
+                "origin",
+                "run_id",
+                "is_stale",
+            )
+
+        /** Записываемые столбцы плана в порядке значений. */
+        val SHOT_COLUMNS: List<String> =
+            listOf(
+                "series_id",
+                "first_frame",
+                "last_frame",
+                "size",
+                "size_origin",
+                "origin",
+                "run_id",
+                "is_stale",
+            )
+
+        /** Текст запроса выборки сцены. */
+        val SCENE_READ_SQL: String = "SELECT ${Scene.READ_COLUMNS} FROM $SCENE_TABLE"
+
+        /** Текст запроса выборки плана. */
+        val SHOT_READ_SQL: String = "SELECT ${Shot.READ_COLUMNS} FROM $SHOT_TABLE"
+    }
+}
