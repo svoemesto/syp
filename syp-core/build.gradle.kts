@@ -19,6 +19,14 @@ dependencies {
     // сценариев лежат в MinIO (`docs/system/02-containers.md`).
     api("io.minio:minio:${rootProject.property("minioClientVersion")}")
 
+    // Разбор и запись JSON — общие для всех модулей, поэтому объявлены здесь,
+    // а не в каждом своём. Один разборщик на проект (см. `core/json/Json.kt`):
+    // разные разборщики в приложении и в тестах и означали, что тесты проходят,
+    // а живой ответ с датой падает.
+    api("com.fasterxml.jackson.core:jackson-databind")
+    api("com.fasterxml.jackson.module:jackson-module-kotlin")
+    api("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+
     // Контрактные тесты очереди требуют живой базы (задача T029).
     // Параметры подключения приходят через окружение; без них тесты
     // помечаются пропущенными, а не падают. Поднимает базу

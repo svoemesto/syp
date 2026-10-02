@@ -1,7 +1,5 @@
 package ru.svoemesto.syp.admin.catalog
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -10,6 +8,7 @@ import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorBody
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
+import ru.svoemesto.syp.core.json.Json
 import ru.svoemesto.syp.core.media.ExternalProgram
 import java.nio.file.Files
 import java.nio.file.Path
@@ -39,7 +38,7 @@ import kotlin.test.assertTrue
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CatalogControllerTest {
-    private val mapper = ObjectMapper().registerKotlinModule()
+    private val mapper = Json.mapper()
     private lateinit var db: Db
     private lateinit var serials: SerialStore
     private lateinit var seriesStore: SeriesStore
