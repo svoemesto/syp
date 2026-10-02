@@ -36,12 +36,15 @@ object SseConfiguration {
      *
      * @return интервал сердцебия
      */
-    fun heartbeatSeconds(): Long =
-        System.getenv(ENV_HEARTBEAT_SECONDS)
-            ?.trim()
-            ?.toLongOrNull()
-            ?.takeIf { it > 0 }
-            ?: DEFAULT_HEARTBEAT_SECONDS
+    fun heartbeatSeconds(): Long {
+        val seconds =
+            System
+                .getenv(ENV_HEARTBEAT_SECONDS)
+                ?.trim()
+                ?.toLongOrNull()
+                ?.takeIf { it > 0 }
+        return seconds ?: DEFAULT_HEARTBEAT_SECONDS
+    }
 
     /**
      * Интервал сердцебия как длительность.
