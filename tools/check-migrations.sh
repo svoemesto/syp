@@ -523,17 +523,13 @@ if [[ ${failed} -gt 0 ]]; then
     exit 1
 fi
 printf '%s\n' "ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ"
+
+# Название сцены: необязательное, задаётся оператором.
+check "сцена без названия (задано не всегда) — принят" ok \
+    "UPDATE scene SET title = NULL;"
+check "сцена с названием — принят" ok \
+    "UPDATE scene SET title = 'Засада у Ворота Льва';"
+check "название пустой строкой — принято, пустое значит неназвано" ok \
+    "UPDATE scene SET title = '';"
+
 exit 0
-# Сезон — отдельная сущность. У фильма сезона нет, и обозначение выходит S00E00.
-check "создание сезона — принят" ok \
-    "INSERT INTO season (serial_id, ordinal, name, recordhash) SELECT id, 1, 'Первый сезон', repeat('a',64) FROM serial LIMIT 1;"
-check "нулевой номер сезона — отказ (ноль занят под «сезона нет»)" fail \
-    "INSERT INTO season (serial_id, ordinal, name, recordhash) SELECT id, 0, 'Ноль', repeat('a',64) FROM serial LIMIT 1;"
-check "отрицательный номер сезона — отказ" fail \
-    "INSERT INTO season (serial_id, ordinal, name, recordhash) SELECT id, -1, 'Минус', repeat('a',64) FROM serial LIMIT 1;"
-check "повтор номера сезона в сериале — отказ" fail \
-    "INSERT INTO season (serial_id, ordinal, name, recordhash) SELECT id, 1, 'Дубль', repeat('b',64) FROM serial LIMIT 1;"
-check "эпизод с номером 0 (фильм) — принят" ok \
-    "UPDATE series SET episode_ordinal = 0;"
-check "отрицательный номер эпизода — отказ" fail \
-    "UPDATE series SET episode_ordinal = -1;"

@@ -154,6 +154,7 @@ data class Scene(
     val seriesId: Long,
     val firstFrame: Int,
     val lastFrame: Int,
+    val title: String? = null,
     val locationId: Long? = null,
     val origin: BoundaryOrigin = BoundaryOrigin.AUTO,
     val runId: Long? = null,
@@ -181,6 +182,7 @@ data class Scene(
                     seriesId,
                     firstFrame,
                     lastFrame,
+                    title,
                     locationId,
                     origin.name,
                     runId,
@@ -193,7 +195,7 @@ data class Scene(
     companion object {
         /** Столбцы сцены в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, series_id, first_frame, last_frame, location_id, origin, run_id, is_stale, recordhash"
+            "id, series_id, first_frame, last_frame, title, location_id, origin, run_id, is_stale, recordhash"
     }
 }
 
@@ -522,6 +524,7 @@ class StructureService(
             seriesId = row.long("series_id"),
             firstFrame = row.int("first_frame"),
             lastFrame = row.int("last_frame"),
+            title = row.stringOrNull("title"),
             locationId = row.longOrNull("location_id"),
             origin = BoundaryOrigin.parse(row.string("origin")),
             runId = row.longOrNull("run_id"),
@@ -557,6 +560,7 @@ class StructureService(
                 "series_id",
                 "first_frame",
                 "last_frame",
+                "title",
                 "location_id",
                 "origin",
                 "run_id",

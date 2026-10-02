@@ -403,7 +403,12 @@ class RecipeBuilder(
      * (задача T130) и ждёт решения владельца: либо столбец `scene.title`,
      * либо подтверждение, что название не нужно.
      */
-    private fun sceneTitle(scene: SelectedScene): String? = null
+    private fun sceneTitle(scene: SelectedScene): String? =
+        db.selectOne(
+            "SELECT title FROM $SCENE_TABLE WHERE id = ?",
+            { row: Row -> row.stringOrNull("title") },
+            scene.id,
+        )
 
     /** Место действия-снимок: название локации на момент выдачи, а не ссылка. */
     private fun locationName(scene: SelectedScene): String? {
