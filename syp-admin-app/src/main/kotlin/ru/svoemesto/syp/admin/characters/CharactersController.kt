@@ -239,7 +239,7 @@ class CharactersController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом `NOT_FOUND`,
      *   если эпизода нет
      */
-    @PostMapping("/api/episodes/{episodeId}/faces")
+    @PostMapping("/episodes/{episodeId}/faces")
     fun startFaceScan(
         @PathVariable episodeId: Long,
     ): ResponseEntity<FaceScanEnqueuedView> {
