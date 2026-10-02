@@ -111,6 +111,7 @@ class CharactersConfiguration {
         detector: FaceDetector,
         faceSinks: FaceSinkFactory,
         settingsStore: SerialSettingsStore,
+        planBinding: FacePlanBinding,
     ): FacesJob =
         FacesJob(
             seriesStore = seriesStore,
@@ -119,6 +120,7 @@ class CharactersConfiguration {
             detectorKey = detector.key,
             faceSinks = faceSinks,
             settingsStore = settingsStore,
+            planBinding = planBinding,
         )
 
     /**
@@ -207,6 +209,7 @@ class CharactersConfiguration {
      * @param seriesStore хранилище серий
      * @param serialStore хранилище сериалов
      * @param settingsStore настройки сериала
+     * @param planBinding пересчёт принадлежности лиц планам
      * @return контроллер домена персонажей
      */
     @Bean
