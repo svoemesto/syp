@@ -21,6 +21,7 @@ import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.ObjectStorage
 import java.nio.file.Files
 import java.nio.file.Path
+import ru.svoemesto.syp.admin.annotation.BoundaryEditing
 
 /**
  * Сборка домена разметки: прогоны, структура, листы превью, устаревание.
@@ -80,6 +81,25 @@ class AnalysisConfiguration {
         runStore: AnalysisRunStore,
         boundaryStore: RawBoundaryStore,
     ): StructureService = StructureService(database, runStore, boundaryStore)
+
+    /**
+     * Собирает сервис доводки границ сцены.
+     *
+     * Сервис был написан вместе с контроллером доводки, но бином не был
+     * объявлен: тесты создавали его руками, поэтому всё выглядело исправным
+     * и компилировалось, а приложение при старте падало с «required a bean of
+     * type BoundaryEditing». Сбой ждал живого стенда — тот же класс, что и
+     * пропуск проверок с базой в CI.
+     *
+     * @param database доступ к базе
+     * @param structure чтение и запись сцен
+     * @return сервис доводки границ
+     */
+    @Bean
+    fun boundaryEditing(
+        database: Db,
+        structure: StructureService,
+    ): BoundaryEditing = BoundaryEditing(database, structure)
 
     /**
      * Собирает пометку устаревания результатов.
