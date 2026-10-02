@@ -6,16 +6,31 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { formatDigest } from '../api/checksum'
-import { formatBytes, formatDate } from '../format/values'
+import StateBlock from '../components/StateBlock.vue'
 import { useChecksumStore } from '../stores/checksum'
+import { useNotify } from '../ui/notify'
 
 const route = useRoute()
 const router = useRouter()
 const store = useChecksumStore()
+const notify = useNotify()
 
 /** Идентификатор серии из адреса. */
 const seriesId = computed(() => Number(route.params.seriesId))
+
+/** Тон сообщения о состоянии подсчёта. */
+const toneClass = computed(() => {
+  switch (store.checksum.value?.stateTone) {
+    case 'success':
+      return 'alert-success'
+    case 'warning':
+      return 'alert-warning'
+    case 'danger':
+      return 'alert-danger'
+    default:
+      return 'alert-info'
+  }
+})
 
 onMounted(() => {
   void store.reload(seriesId.value)
@@ -25,186 +40,121 @@ watch(seriesId, (next) => {
   void store.reload(next)
 })
 
-/**
- * Пояснение состояния суммы словами.
- *
- * Отдельная надпись вместо кодов: оператор читает текст, а код нужен
- * интерфейсу, а не человеку.
- */
-const stateTitle = computed(() => {
-  const value = store.checksum.value
-  if (value === null) {
-    return 'Сумма не считалась'
+/** Ставит пересчёт и перечитывает состояние. */
+async function recalculate(): Promise<void> {
+  if (await store.recalculate(seriesId.value)) {
+    notify('Пересчёт поставлен в очередь. Экран можно закрыть — работа идёт заданием.', 'info')
   }
-  switch (value.state) {
-    case 'CREATING':
-      return 'Задание поставлено, чтение ещё не началось'
-    case 'WORKING':
-      return 'Идёт чтение файла и подсчёт'
-    case 'ERROR':
-      return 'Подсчёт не удался'
-    case 'DONE':
-      return value.isStale ? 'Сумма устарела: файл изменился после подсчёта' : 'Сумма актуальна'
-    default:
-      return value.state
-  }
-})
-
-/** Считается ли сумма прямо сейчас. */
-const isRunning = computed(() => {
-  const state = store.checksum.value?.state
-  return state === 'CREATING' || state === 'WORKING'
-})
-
-/**
- * Ставит пересчёт и перечитывает состояние.
- *
- * @returns `true`, если задание поставлено
- */
-async function recalculate(): Promise<boolean> {
-  return store.recalculate(seriesId.value)
 }
 </script>
 
 <template>
-  <section class="checksum">
-    <h2>Состояние суммы исходника</h2>
-    <p class="note">
-      Сумма <code>SHA-256</code> файла серии — эталон, с которым машина пользователя сверяет файл
-      <em>до</em> нарезки. Без актуальной суммы сценарий сборки выдавать нельзя.
-    </p>
-
-    <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
-
-    <p v-if="store.error.value" class="error" role="alert">
-      <span v-if="store.errorCode.value" class="code">{{ store.errorCode.value }}</span>
-      {{ store.error.value }}
-      <button type="button" @click="store.clearError()">скрыть</button>
-    </p>
-
-    <p class="state">
-      <strong>{{ stateTitle }}</strong>
-      <span v-if="isRunning" class="note">Подсчёт идёт заданием, экран не блокируется.</span>
-    </p>
-
-    <table v-if="store.checksum.value">
-      <tbody>
-        <tr>
-          <th>Алгоритм</th>
-          <td>{{ store.checksum.value.algorithm }}</td>
-        </tr>
-        <tr>
-          <th>Сумма</th>
-          <td class="digest">
-            {{ formatDigest(store.checksum.value.digest) }}
-          </td>
-        </tr>
-        <tr>
-          <th>Посчитана</th>
-          <td>{{ formatDate(store.checksum.value.computedAt) }}</td>
-        </tr>
-        <tr>
-          <th>Устарела</th>
-          <td>{{ store.checksum.value.isStale ? 'да, файл изменился после подсчёта' : 'нет' }}</td>
-        </tr>
-        <tr>
-          <th>Пригодна для сверки</th>
-          <td>{{ store.checksum.value.isUsable ? 'да' : 'нет' }}</td>
-        </tr>
-        <tr>
-          <th>Размер файла при подсчёте</th>
-          <td>{{ formatBytes(store.checksum.value.byteSize) }}</td>
-        </tr>
-        <tr>
-          <th>Время изменения файла</th>
-          <td>{{ formatDate(store.checksum.value.fileMtime) }}</td>
-        </tr>
-        <tr>
-          <th>Записей пересчётов</th>
-          <td>{{ store.checksum.value.historyCount }}</td>
-        </tr>
-        <tr v-if="store.checksum.value.errorText">
-          <th>Ошибка</th>
-          <td>{{ store.checksum.value.errorText }}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="form">
-      <button type="button" :disabled="store.loading.value" @click="recalculate">
-        поставить пересчёт
-      </button>
-      <button type="button" @click="router.back()">назад</button>
+  <section>
+    <div class="syp-page-head">
+      <div>
+        <h2 class="syp-page-title">Состояние суммы исходника</h2>
+        <p class="syp-page-lead">
+          Сумма <span class="syp-mono">SHA-256</span> файла серии — эталон, с которым машина
+          пользователя сверяет файл <em>до</em> нарезки. Без актуальной суммы сценарий сборки
+          выдавать нельзя.
+        </p>
+      </div>
+      <div class="btn-group">
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="store.loading.value"
+          @click="recalculate"
+        >
+          поставить пересчёт
+        </button>
+        <button type="button" class="btn btn-outline-secondary" @click="router.back()">
+          назад
+        </button>
+      </div>
     </div>
 
-    <p v-if="store.checksum.value" class="note">
-      Повторный пересчёт не затирает прежнюю запись: она остаётся в истории и помечается устаревшей.
-      Актуальной остаётся ровно одна сумма на серию.
-    </p>
-    <p v-if="store.checksum.value" class="note">
-      Проверить сумму у себя можно командой
-      <code>sha256sum путь/к/файлу</code> — формат значения совпадает.
-    </p>
-    <p class="note">Чтение файла 5,6 ГБ занимает около 32 секунд на этой машине.</p>
+    <StateBlock
+      :loading="store.loading.value && store.checksum.value === null"
+      :error="store.error.value"
+      :error-code="store.errorCode.value"
+      @dismiss="store.clearError()"
+    />
+
+    <div class="row g-4">
+      <div class="col-xxl-5">
+        <div v-if="store.checksum.value" class="card">
+          <div class="card-header">Подсчёт</div>
+          <div class="card-body">
+            <div class="alert mb-0" :class="toneClass" role="status">
+              <strong>{{ store.checksum.value.stateTitle }}</strong>
+              <div v-if="store.checksum.value.isRunning" class="form-text">
+                Подсчёт идёт заданием, экран не блокируется.
+              </div>
+              <div v-if="store.checksum.value.errorText" class="mt-2">
+                {{ store.checksum.value.errorText }}
+              </div>
+            </div>
+
+            <dl class="row mt-3 mb-0">
+              <dt class="col-sm-5">Алгоритм</dt>
+              <dd class="col-sm-7">{{ store.checksum.value.algorithm }}</dd>
+
+              <dt class="col-sm-5">Пригодна для сверки</dt>
+              <dd class="col-sm-7">
+                <span
+                  class="badge"
+                  :class="store.checksum.value.isUsable ? 'text-bg-success' : 'text-bg-secondary'"
+                >
+                  {{ store.checksum.value.isUsable ? 'да' : 'нет' }}
+                </span>
+              </dd>
+
+              <dt class="col-sm-5">Устарела</dt>
+              <dd class="col-sm-7">
+                {{ store.checksum.value.isStale ? 'да, файл изменился после подсчёта' : 'нет' }}
+              </dd>
+
+              <dt class="col-sm-5">Посчитана</dt>
+              <dd class="col-sm-7">{{ store.checksum.value.computedAt }}</dd>
+
+              <dt class="col-sm-5">Размер при подсчёте</dt>
+              <dd class="col-sm-7">{{ store.checksum.value.byteSize }}</dd>
+
+              <dt class="col-sm-5">Время изменения файла</dt>
+              <dd class="col-sm-7">{{ store.checksum.value.fileMtime }}</dd>
+
+              <dt class="col-sm-5">Записей пересчётов</dt>
+              <dd class="col-sm-7">{{ store.checksum.value.historyCount }}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-7">
+        <div class="card h-100">
+          <div class="card-header">Значение суммы</div>
+          <div class="card-body">
+            <template v-if="store.checksum.value">
+              <p class="syp-mono mb-3 text-break">{{ store.checksum.value.digest }}</p>
+            </template>
+            <p v-else class="mb-3 text-body-secondary">
+              Сумма ещё не считалась. Поставьте пересчёт — он пойдёт заданием и не заблокирует
+              экран.
+            </p>
+
+            <p class="form-text mb-2">
+              Проверить сумму у себя можно командой
+              <span class="syp-mono">sha256sum путь/к/файлу</span> — формат значения совпадает.
+              Чтение большого файла занимает десятки секунд, поэтому подсчёт идёт заданием.
+            </p>
+            <p class="form-text mb-0">
+              Повторный пересчёт не затирает прежнюю запись: она остаётся в истории и помечается
+              устаревшей. Актуальной остаётся ровно одна сумма на серию.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
-
-<style scoped>
-.checksum {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  max-width: 60rem;
-}
-
-table {
-  border-collapse: collapse;
-}
-
-th,
-td {
-  border-bottom: 1px solid #e6e6e6;
-  padding: 0.35rem 0.75rem 0.35rem 0;
-  text-align: left;
-  font-size: 0.9rem;
-  vertical-align: top;
-}
-
-th {
-  width: 16rem;
-  color: #444444;
-  font-weight: 500;
-}
-
-.digest {
-  font-family: monospace;
-  word-break: break-all;
-}
-
-.state {
-  display: flex;
-  gap: 0.75rem;
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-
-.error {
-  border-left: 3px solid #b3261e;
-  padding-left: 0.5rem;
-}
-
-.code {
-  font-family: monospace;
-  margin-right: 0.5rem;
-}
-
-.form {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.note {
-  color: #555555;
-  font-size: 0.85rem;
-}
-</style>

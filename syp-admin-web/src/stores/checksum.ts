@@ -1,17 +1,21 @@
-// Состояние суммы исходника серии.
+// Состояние экрана суммы исходника серии.
 //
 // Экран состояния суммы показывает не «есть сумма — да, нет — нет», а
-// состояние подсчёта: считается, посчитана, устарела, ошибка. Причина в том,
+// состояние подсчёта: считается, посчитано, устарела, ошибка. Причина в том,
 // что сценарий сборки выдаётся только при актуальной сумме (FR-089), и
 // оператор должен видеть, что происходит, а не гадать, почему сценарий не
 // выдаётся.
+//
+// В состоянии лежит строка экрана из `api/view-model.ts`, а не ответ
+// бэкенда: поля ответа читаются в одном месте (см. `api/view-model.ts`).
 
 import { ref } from 'vue'
-import { type ChecksumView, readChecksum, startChecksum } from '../api/checksum'
+import { readChecksum, startChecksum } from '../api/checksum'
 import { ApiError } from '../api/http'
+import { type ChecksumRow, toChecksumRow } from '../api/view-model'
 
-/** Состояние суммы серии. */
-const checksum = ref<ChecksumView | null>(null)
+/** Состояние суммы серии на экране; `null`, пока сумму не считали ни разу. */
+const checksum = ref<ChecksumRow | null>(null)
 
 /** Идёт ли обращение к бэкенду. */
 const loading = ref(false)
@@ -21,6 +25,9 @@ const error = ref('')
 
 /** Машинный код последней ошибки. */
 const errorCode = ref('')
+
+/** Считалась ли сумма у этой серии хотя бы раз. */
+const hasRecord = ref(false)
 
 /**
  * Сумма ещё не считалась ни разу.
@@ -50,7 +57,8 @@ export function useChecksumStore() {
   async function reload(seriesId: number): Promise<boolean> {
     loading.value = true
     try {
-      checksum.value = await readChecksum(seriesId)
+      checksum.value = toChecksumRow(await readChecksum(seriesId))
+      hasRecord.value = true
       error.value = ''
       errorCode.value = ''
       return true
@@ -58,6 +66,7 @@ export function useChecksumStore() {
       if (failure instanceof ApiError && isNotReady(failure.code)) {
         // Суммы нет: это состояние, а не отказ, и экран показывает его словами.
         checksum.value = null
+        hasRecord.value = false
         error.value = failure.message
         errorCode.value = failure.code
         return true
@@ -109,5 +118,5 @@ export function useChecksumStore() {
     errorCode.value = ''
   }
 
-  return { checksum, loading, error, errorCode, reload, recalculate, clearError }
+  return { checksum, hasRecord, loading, error, errorCode, reload, recalculate, clearError }
 }

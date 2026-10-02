@@ -1,54 +1,42 @@
-// Корневой компонент фронтенда админки SYP. // // Здесь только каркас: заголовок, навигация между
-экранами и область // содержимого. Вся работа экранов живёт в `views/`, обращение к бэкенду — в //
-`api/`, состояние — в `stores/`.
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-
-const route = useRoute()
-
-/**
- * Серия, для которой показывается ссылка на структуру.
- *
- * Ссылка появляется только на экране серии: с приёма структуру открывать
- * нечего, а пустая ссылка вела бы на пустую страницу.
- */
-const structureSeriesId = computed(() => {
-  const raw = route.params.seriesId
-  if (typeof raw === 'string' && raw !== '') {
-    return raw
-  }
-  return null
-})
+// Корневой компонент фронтенда админки SYP.
+//
+// Здесь только каркас: шапка с навигацией и рабочая область. Вся работа экранов
+// живёт в `views/`, обращение к бэкенду — в `api/`, состояние — в `stores/`,
+// оформление — в `theme/theme.css` поверх Bootstrap (ADR-0015).
+//
+// `BApp` обязателен: он устанавливает оркестратор тостов, которым пользуются
+// экраны постановки заданий.
+import { BApp } from 'bootstrap-vue-next'
+import AppHeader from './components/AppHeader.vue'
+import { RouterView } from 'vue-router'
 </script>
 
 <template>
-  <main>
-    <header>
-      <h1>SYP — админка</h1>
-      <nav>
-        <RouterLink :to="{ name: 'intake' }"> Приём сериалов и серий </RouterLink>
-        <RouterLink
-          v-if="structureSeriesId"
-          :to="{ name: 'structure', params: { seriesId: structureSeriesId } }"
-        >
-          Структура серии
-        </RouterLink>
-      </nav>
-    </header>
-    <RouterView />
-  </main>
+  <BApp>
+    <div class="syp-shell">
+      <AppHeader />
+      <main class="syp-content py-4">
+        <RouterView />
+      </main>
+      <footer class="syp-content">
+        <div class="syp-footer d-flex justify-content-between flex-wrap gap-2">
+          <span>SYP — подготовка данных: приём, анализ, разметка, выдача сценария</span>
+          <span>Видео на сервере не хранится и не передаётся (ADR-0009)</span>
+        </div>
+      </footer>
+    </div>
+  </BApp>
 </template>
 
 <style scoped>
-main {
-  font-family: system-ui, sans-serif;
-  margin: 1.5rem auto;
-  max-width: 72rem;
-  padding: 0 1rem;
+.syp-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
-nav a {
-  color: #1a4f8a;
+main {
+  flex: 1 0 auto;
 }
 </style>
