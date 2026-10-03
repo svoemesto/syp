@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.servlet.resource.NoResourceFoundException
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorBody
 import ru.svoemesto.syp.core.contract.ErrorCode
@@ -46,6 +47,24 @@ class ApiErrors {
         return ResponseEntity
             .status(ErrorCode.INTERNAL_ERROR.httpStatus)
             .body(ErrorBody.of(ErrorCode.INTERNAL_ERROR, "данные не прочитаны, обратитесь к журналу сервера"))
+    }
+
+    /**
+     * Отвечает на запрос по адресу, которого у публичного API нет.
+     *
+     * То же, что и в админке: адреса нет — это 404, а не 500. Иначе опечатка в
+     * адресе выглядит как падение сервера, и воркер пользователя начинает
+     * чинить то, что не сломано.
+     *
+     * @param failure запрос по несуществующему адресу
+     * @return тело ошибки с кодом `NOT_FOUND`
+     */
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun onAddressNotFound(failure: NoResourceFoundException): ResponseEntity<ErrorBody> {
+        logger.info("Запрос по несуществующему адресу: ${failure.resourcePath}")
+        return ResponseEntity
+            .status(ErrorCode.NOT_FOUND.httpStatus)
+            .body(ErrorBody.of(ErrorCode.NOT_FOUND, "по адресу «${failure.resourcePath}» в API ничего нет"))
     }
 
     /**

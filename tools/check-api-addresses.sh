@@ -39,4 +39,17 @@ else
     fail=1
 fi
 
+# 3. То же самое на публичной части: воркер пользователя ходит туда же.
+public_url="${SYP_PUBLIC_API_URL:-http://127.0.0.1:7913}"
+public_real="$(status "$public_url/api/recipes/verification-key")"
+public_missing_status="$(status "$public_url/api/адреса-такого-нет")"
+public_missing_body="$(curl -s --max-time 20 "$public_url/api/адреса-такого-нет")"
+if [ "$public_real" = "200" ] && [ "$public_missing_status" = "404" ] \
+    && printf '%s' "$public_missing_body" | grep -q 'NOT_FOUND'; then
+    echo "OK: публичная часть — настоящий адрес 200, несуществующий 404 с NOT_FOUND"
+else
+    echo "ОШИБКА: публичная часть — настоящий адрес $public_real, несуществующий $public_missing_status"
+    fail=1
+fi
+
 exit "$fail"
