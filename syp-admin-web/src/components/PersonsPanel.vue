@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { assignFacesToPerson, createPerson, readPersons, type PersonView } from '../api/characters'
+import {
+  assignFacesToPerson,
+  createPerson,
+  facePreviewUrl,
+  readPersons,
+  setPersonPhoto,
+  type PersonView,
+} from '../api/characters'
 
 /**
  * Панель персон видеофайла.
@@ -16,6 +23,8 @@ import { assignFacesToPerson, createPerson, readPersons, type PersonView } from 
 const props = defineProps<{
   videofileId: number
   projectId: number
+  /** Самое крупное лицо каждой персоны на текущей странице, по номеру персоны. */
+  biggestFaces: Record<number, { frameNumber: number }>
 }>()
 
 const persons = ref<PersonView[]>([])
@@ -74,6 +83,38 @@ async function drop(event: DragEvent, person: PersonView): Promise<void> {
   }
 }
 
+/**
+ * Ставит кадр персоны в её фото.
+ *
+ * В старом проекте это пункт меню на выделенных лицах. Здесь — кнопка у строки
+ * персоны: она берёт самое крупное лицо этой персоны на текущей странице, то есть
+ * кадр, где человек виден лучше всего. Перебор кадров по всем лицам здесь не
+ * делается — это отдельная работа, и она ничего не даёт оператору сверх выбора
+ * одного кадра из уже показанных.
+ *
+ * @param person персона
+ * @param face кадр с самым крупным её лицом
+ */
+async function makePhoto(
+  person: PersonView,
+  face: { frameNumber: number } | undefined,
+): Promise<void> {
+  if (!face || busy.value) {
+    return
+  }
+  busy.value = true
+  try {
+    await setPersonPhoto(props.videofileId, person.id, face.frameNumber)
+    notice.value = `фото персоны «${person.name}» взято с кадра ${face.frameNumber}`
+    error.value = ''
+    await reload()
+  } catch (failure) {
+    error.value = (failure as Error).message
+  } finally {
+    busy.value = false
+  }
+}
+
 onMounted(reload)
 </script>
 
@@ -97,9 +138,23 @@ onMounted(reload)
         @dragleave="overPerson = null"
         @drop.prevent="drop($event, person)"
       >
+        <img
+          v-if="person.photoFrameNumber !== null"
+          class="person-photo"
+          :src="facePreviewUrl(person.photoVideofileId ?? videofileId, person.photoFrameNumber)"
+          :alt="`Фото персоны ${person.name}`"
+        />
         <span class="person-name">{{ person.name }}</span>
         <small :title="person.isService ? 'служебная персона' : ''">({{ person.kind }})</small>
         <span class="syp-unit">перетащите лицо сюда</span>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary photo-button"
+          :disabled="busy || !props.biggestFaces[person.id]"
+          @click="makePhoto(person, props.biggestFaces[person.id])"
+        >
+          фото
+        </button>
       </li>
     </ul>
 
