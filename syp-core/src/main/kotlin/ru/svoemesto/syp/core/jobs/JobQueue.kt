@@ -501,9 +501,9 @@ class JobQueue(
                     note = resultSet.getString(columns.indexOf("progress_note") + 1) ?: "",
                 ),
             errorText = resultSet.getString(columns.indexOf("error_text") + 1),
-            createdAt = resultSet.getString(columns.indexOf("created_at") + 1),
-            startedAt = resultSet.getString(columns.indexOf("started_at") + 1),
-            finishedAt = resultSet.getString(columns.indexOf("finished_at") + 1),
+            createdAt = instantText(resultSet, columns, "created_at"),
+            startedAt = instantText(resultSet, columns, "started_at"),
+            finishedAt = instantText(resultSet, columns, "finished_at"),
         )
     }
 
@@ -536,5 +536,55 @@ class JobQueue(
                 "algorithm_version, progress_done, progress_total, progress_note, " +
                 "error_text, created_at, started_at, finished_at"
         )
+    }
+
+    /**
+     * Читает момент времени из результата запроса и отдаёт его в ISO-8601.
+     *
+     * Зачем: значение, прочитанное как строка, приходит в формате самой
+     * базы — «2026-10-02 18:46:29.165745+00». Формат не стандартный: вместо
+     * `T` стоит пробел, смещение без минут. Разбор такого момента в браузере
+     * даёт «неверная дата», и читатель не видит ни ошибки, ни подсказки, что
+     * время есть, но оно нечитаемо.
+     *
+     * @param resultSet результат запроса
+     * @param columns имена столбцов в порядке чтения
+     * @param name имя столбца
+     * @return момент времени в ISO-8601 либо `null`, если столбец пуст
+     */
+    private fun instantText(
+        resultSet: java.sql.ResultSet,
+        columns: List<String>,
+        name: String,
+    ): String {
+        val index = columns.indexOf(name) + 1
+        if (index <= 0) {
+            return ""
+        }
+        val moment = resultSet.getTimestamp(index) ?: return ""
+        return moment.toInstant().toString()
+    }
+
+    /**
+     * Читает момент времени из готовой строки и отдаёт его в ISO-8601.
+     *
+     * @param row готовая строка результата
+     * @param name имя столбца
+     * @return момент времени в ISO-8601 либо `null`, если столбец пуст
+     */
+    private fun instantText(
+        row: ru.svoemesto.syp.core.db.Row,
+        name: String,
+    ): String {
+        val raw = runCatching { row.stringOrNull(name) }.getOrNull() ?: return ""
+        if (raw.isBlank()) {
+            return ""
+        }
+        return runCatching {
+            java.time.OffsetDateTime
+                .parse(raw.replace(' ', 'T'))
+                .toInstant()
+                .toString()
+        }.getOrDefault(raw)
     }
 }
