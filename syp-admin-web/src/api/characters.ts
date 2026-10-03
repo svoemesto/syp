@@ -247,3 +247,26 @@ export function markFaceExamples(
     isExample,
   })
 }
+
+/** Ответ на назначение лиц персонам. */
+export interface FacesAssignedView {
+  facesAssigned: number
+  personId: number
+}
+
+/** Заводит персону по имени: имена от оператора работают и без модели распознавания. */
+export async function createPerson(videofileId: number, name: string): Promise<PersonView> {
+  return await request<PersonView>('POST', `/videofiles/${videofileId}/persons`, { name })
+}
+
+/** Назначает лица персонам: перенос ошибочно попавших к другой. */
+export async function assignFacesToPerson(
+  videofileId: number,
+  personId: number,
+  faceIds: number[],
+): Promise<FacesAssignedView> {
+  return await request<FacesAssignedView>('PATCH', `/videofiles/${videofileId}/faces/person`, {
+    personId,
+    faceIds,
+  })
+}

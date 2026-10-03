@@ -6,6 +6,7 @@
 FR-036). Если // бы они скрывались, оператор не видел бы, что детектор где-то ошибся.
 
 <script setup lang="ts">
+import PersonsPanel from '../components/PersonsPanel.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import FaceThumbnails from '../components/FaceThumbnails.vue'
@@ -330,6 +331,8 @@ function personKindTitle(kind: string): string {
       </ul>
     </section>
 
+    <PersonsPanel v-if="faces" :videofile-id="videofileId" :project-id="faces.projectId" />
+
     <section v-if="faces" class="groups">
       <h3>Лица по персонам</h3>
       <div v-for="[personId, group] in facesByPerson" :key="personId" class="group">
@@ -341,6 +344,7 @@ function personKindTitle(kind: string): string {
         <FaceThumbnails
           :videofile-id="videofileId"
           :faces="group.faces"
+          draggable
           :frame-width="faces.frameWidth"
           :frame-height="faces.frameHeight"
           markable
