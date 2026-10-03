@@ -187,7 +187,7 @@ data class JobSubject(
         val NONE: JobSubject = JobSubject(null, null)
 
         /** Задание работает с эпизодом. */
-        fun episode(episodeId: Long): JobSubject = JobSubject("EPISODE", episodeId)
+        fun videofile(videofileId: Long): JobSubject = JobSubject("EPISODE", videofileId)
 
         /** Задание работает с версией модели. */
         fun modelVersion(versionId: Long): JobSubject = JobSubject("MODEL_VERSION", versionId)

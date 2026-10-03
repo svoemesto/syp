@@ -34,20 +34,20 @@ import java.nio.file.Paths
  * несуществующая, сообщала бы «файла нет» — а дело в том, что каталог выбран не
  * тот, и оператор пошёл бы искать несуществующий файл вместо неверного корня.
  *
- * @property movies хранилище фильмов
- * @property episodeStore хранилище эпизодов
+ * @property projects хранилище фильмов
+ * @property videofileStore хранилище эпизодов
  * @property probe опрос файла эпизода
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class EpisodeRegistration(
-    private val movies: MovieStore,
-    private val episodeStore: EpisodeStore,
+class VideofileRegistration(
+    private val projects: ProjectStore,
+    private val videofileStore: VideofileStore,
     private val probe: SourceProbe,
 ) {
     /**
      * Регистрирует эпизод в фильме.
      *
-     * @param movieId фильм-владелец
+     * @param projectId фильм-владелец
      * @param sourcePath путь к исходному видеофайлу
      * @param name название эпизода; если не задано, берётся имя файла без
      *   расширения
@@ -57,28 +57,28 @@ class EpisodeRegistration(
      *   недоступен; с кодом `CONFLICT`, если такой файл уже зарегистрирован
      */
     fun register(
-        movieId: Long,
+        projectId: Long,
         sourcePath: String,
         name: String? = null,
         seasonId: Long? = null,
-        episodeOrdinal: Int = 0,
-    ): Episode {
-        val movie =
-            movies.find(movieId)
+        videofileOrdinal: Int = 0,
+    ): Videofile {
+        val project =
+            projects.find(projectId)
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
-                    "фильм $movieId не заведён: создайте фильм с корнем каталога и повторите",
+                    "фильм $projectId не заведён: создайте фильм с корнем каталога и повторите",
                 )
-        val file = requireInsideRoot(movie, sourcePath)
+        val file = requireInsideRoot(project, sourcePath)
         val parameters = probe.probe(file)
-        val episode =
-            Episode.of(
-                movieId = movie.id!!,
-                ordinal = movies.nextEpisodeOrdinal(movieId),
+        val videofile =
+            Videofile.of(
+                projectId = project.id!!,
+                ordinal = projects.nextVideofileOrdinal(projectId),
                 name = (name?.takeIf { it.isNotBlank() }) ?: file.fileName.toString().substringBeforeLast('.'),
                 seasonId = seasonId,
-                episodeOrdinal =
-                    episodeOrdinal.let { value ->
+                videofileOrdinal =
+                    videofileOrdinal.let { value ->
                         if (value >= 0) {
                             value
                         } else {
@@ -92,14 +92,14 @@ class EpisodeRegistration(
                 sourcePath = file.toString(),
                 parameters = parameters,
             )
-        return episodeStore.insert(episode)
+        return videofileStore.insert(videofile)
     }
 
     /**
      * Проверяет, что файл лежит внутри корня каталога фильма, и отдаёт его
      * настоящий путь.
      *
-     * @param movie фильм-владелец
+     * @param project фильм-владелец
      * @param sourcePath путь, указанный оператором
      * @return путь к файлу с раскрытыми символами
      * @throws DomainException с кодом `SOURCE_UNREADABLE`, если путь не
@@ -107,15 +107,15 @@ class EpisodeRegistration(
      *   каталог недоступен или самого файла нет
      */
     fun requireInsideRoot(
-        movie: Movie,
+        project: Project,
         sourcePath: String,
     ): Path {
-        val root = requireAccessibleRoot(movie)
+        val root = requireAccessibleRoot(project)
         val declared = requireAbsolute(sourcePath)
         val normalized = declared.normalize()
 
         if (!normalized.startsWith(root)) {
-            throw outsideRoot(movie, declared)
+            throw outsideRoot(project, declared)
         }
         if (!Files.isRegularFile(normalized)) {
             throw unreadableFile(
@@ -130,7 +130,7 @@ class EpisodeRegistration(
         val real = normalized.toRealPath()
         val realRoot = root.toRealPath()
         if (!real.startsWith(realRoot)) {
-            throw outsideRoot(movie, declared)
+            throw outsideRoot(project, declared)
         }
         if (!Files.isReadable(real)) {
             throw unreadableFile(declared, "файл не доступен для чтения: проверьте права на архив")
@@ -172,16 +172,16 @@ class EpisodeRegistration(
     /**
      * Проверяет, что корневой каталог фильма доступен.
      *
-     * @param movie фильм-владелец
+     * @param project фильм-владелец
      * @return настоящий путь корня
      * @throws DomainException с кодом `SOURCE_UNREADABLE`, если каталога нет
      */
-    private fun requireAccessibleRoot(movie: Movie): Path {
-        val root = Paths.get(movie.sourceRoot)
+    private fun requireAccessibleRoot(project: Project): Path {
+        val root = Paths.get(project.sourceRoot)
         if (!Files.isDirectory(root)) {
             throw DomainException(
                 ErrorCode.SOURCE_UNREADABLE,
-                "корневой каталог фильма «${movie.sourceRoot}» недоступен: " +
+                "корневой каталог фильма «${project.sourceRoot}» недоступен: " +
                     "каталога нет или он не смонтирован. Проверьте корень в карточке фильма",
             )
         }
@@ -191,17 +191,17 @@ class EpisodeRegistration(
     /**
      * Отказ «путь вне корня каталога фильма».
      *
-     * @param movie фильм-владелец
+     * @param project фильм-владелец
      * @param path путь, указанный оператором
      * @return исключение с кодом `SOURCE_UNREADABLE`
      */
     private fun outsideRoot(
-        movie: Movie,
+        project: Project,
         path: Path,
     ): DomainException =
         DomainException(
             ErrorCode.SOURCE_UNREADABLE,
-            "файл «$path» лежит вне корня каталога фильма «${movie.sourceRoot}»: " +
+            "файл «$path» лежит вне корня каталога фильма «${project.sourceRoot}»: " +
                 "сценарий сборки обращается к файлам по путям относительно этого корня, " +
                 "и путь вне его был бы выдуманным (FR-089a)",
         )

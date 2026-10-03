@@ -54,7 +54,7 @@ enum class SceneBoundaryAction {
  * сотни сцен, а менялись две (или одна из двух). Интерфейс не перезапрашивает
  * структуру целиком после каждой правки (`boundary-editing.md` § 7).
  *
- * @property episodeId эпизод
+ * @property videofileId эпизод
  * @property frame кадр, по которому выполнена операция: первый кадр второй
  *   сцены после сдвига или разделения, первый кадр поглощённой сцены при
  *   объединении
@@ -65,7 +65,7 @@ enum class SceneBoundaryAction {
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class SceneEditOutcome(
-    val episodeId: Long,
+    val videofileId: Long,
     val frame: Int,
     val action: SceneBoundaryAction,
     val affected: List<Scene>,
@@ -132,7 +132,7 @@ class BoundaryEditing(
      * последним кадром второй: сцена, отдающая кадры, вправе уйти вперёд, но
      * не может накрыть начало третьей — для этого сцены объединяют.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param fromFrame кадр, на котором граница стоит сейчас
      * @param toFrame кадр, на который её ставят
      * @return результат операции
@@ -141,14 +141,14 @@ class BoundaryEditing(
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun moveSceneBoundary(
-        episodeId: Long,
+        videofileId: Long,
         fromFrame: Int,
         toFrame: Int,
     ): SceneEditOutcome =
         db.useTransaction { connection ->
-            val state = readState(connection, episodeId)
+            val state = readState(connection, videofileId)
             val first = state.sceneEndingAt(fromFrame - 1, fromFrame)
-            val second = state.sceneStartingAt(fromFrame, episodeId)
+            val second = state.sceneStartingAt(fromFrame, videofileId)
             if (toFrame == fromFrame) {
                 throw DomainException(
                     ErrorCode.BOUNDARY_CONFLICT,
@@ -175,9 +175,9 @@ class BoundaryEditing(
             state.requirePlanBoundary(toFrame)
             val rebuilt = listOf(first.rebuilt(lastFrame = toFrame - 1), second.rebuilt(firstFrame = toFrame))
             val moved = rebuilt.map { updateScene(connection, it) }
-            val affected = readState(connection, episodeId).working.filter { it.id in moved }
+            val affected = readState(connection, videofileId).working.filter { it.id in moved }
             SceneEditOutcome(
-                episodeId = episodeId,
+                videofileId = videofileId,
                 frame = toFrame,
                 action = SceneBoundaryAction.MOVE,
                 affected = affected,
@@ -189,7 +189,7 @@ class BoundaryEditing(
     /**
      * Разделяет сцену на две по номеру кадра.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param frame первый кадр второй из получившихся сцен
      * @return результат операции
      * @throws DomainException если сцены с таким кадром нет, кадр стоит на её
@@ -197,16 +197,16 @@ class BoundaryEditing(
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun splitScene(
-        episodeId: Long,
+        videofileId: Long,
         frame: Int,
     ): SceneEditOutcome =
         db.useTransaction { connection ->
-            val state = readState(connection, episodeId)
+            val state = readState(connection, videofileId)
             val source =
                 state.working.firstOrNull { it.firstFrame <= frame && frame <= it.lastFrame }
                     ?: throw DomainException(
                         ErrorCode.NOT_FOUND,
-                        "кадра $frame в рабочей структуре эпизода $episodeId нет: разделять нечего",
+                        "кадра $frame в рабочей структуре эпизода $videofileId нет: разделять нечего",
                     )
             if (frame == source.firstFrame) {
                 throw DomainException(
@@ -217,13 +217,13 @@ class BoundaryEditing(
             }
             // Граница сцены, попавшая внутрь плана, не отвергается: план
             // делится, и граница сцены встаёт на уже существующую границу.
-            state.alignPlanBoundary(connection, episodeId, frame)
+            state.alignPlanBoundary(connection, videofileId, frame)
             updateScene(connection, source.copy(isStale = true))
             insertScene(connection, source.rebuilt(lastFrame = frame - 1).asNew())
             insertScene(connection, source.rebuilt(firstFrame = frame, title = null, locationId = null).asNew())
-            val affected = readState(connection, episodeId).working.inRange(source)
+            val affected = readState(connection, videofileId).working.inRange(source)
             SceneEditOutcome(
-                episodeId = episodeId,
+                videofileId = videofileId,
                 frame = frame,
                 action = SceneBoundaryAction.SPLIT,
                 affected = affected,
@@ -235,26 +235,26 @@ class BoundaryEditing(
     /**
      * Объединяет сцену, начинающуюся в указанном кадре, с предыдущей.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param frame первый кадр поглощаемой сцены
      * @return результат операции
      * @throws DomainException если такой сцены нет или перед ней нет другой
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun mergeScenes(
-        episodeId: Long,
+        videofileId: Long,
         frame: Int,
     ): SceneEditOutcome =
         db.useTransaction { connection ->
-            val state = readState(connection, episodeId)
-            val absorbed = state.sceneStartingAt(frame, episodeId)
+            val state = readState(connection, videofileId)
+            val absorbed = state.sceneStartingAt(frame, videofileId)
             val keeper = state.sceneEndingAt(frame - 1, frame)
             val merged = keeper.rebuilt(lastFrame = absorbed.lastFrame)
             val mergedId = updateScene(connection, merged)
             updateScene(connection, absorbed.copy(isStale = true))
-            val affected = readState(connection, episodeId).working.filter { it.id == mergedId }
+            val affected = readState(connection, videofileId).working.filter { it.id == mergedId }
             SceneEditOutcome(
-                episodeId = episodeId,
+                videofileId = videofileId,
                 frame = frame,
                 action = SceneBoundaryAction.MERGE,
                 affected = affected,
@@ -266,14 +266,14 @@ class BoundaryEditing(
     /**
      * Состояние рабочей структуры, прочитанное в текущей транзакции.
      *
-     * @property episodeId эпизод
+     * @property videofileId эпизод
      * @property working сцены, не выведенные из работы пометкой устаревания
      * @property shots планы эпизода: по ним проверяется, что граница сцены
      *   не разрезает план
      * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
      */
     private class EditState(
-        val episodeId: Long,
+        val videofileId: Long,
         val working: List<Scene>,
         val shots: List<Shot>,
         private val shotsEditor: ShotBoundaryEditing,
@@ -294,38 +294,38 @@ class BoundaryEditing(
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
                     "сцены, заканчивающейся кадром $lastFrame (граница на кадре $frame), " +
-                        "в рабочей структуре эпизода $episodeId нет",
+                        "в рабочей структуре эпизода $videofileId нет",
                 )
 
         /**
          * Сцена, начинающаяся с указанного кадра.
          *
          * @param firstFrame первый кадр искомой сцены
-         * @param episodeId эпизод: попадает в текст отказа
+         * @param videofileId эпизод: попадает в текст отказа
          * @return сцена
          * @throws DomainException если такой сцены нет
          */
         fun sceneStartingAt(
             firstFrame: Int,
-            episodeId: Long,
+            videofileId: Long,
         ): Scene =
             working.firstOrNull { it.firstFrame == firstFrame }
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
                     "сцены, начинающейся с кадра $firstFrame, в рабочей структуре эпизода " +
-                        "$episodeId нет",
+                        "$videofileId нет",
                 )
 
         /**
          * Согласует границу плана с кадром, разделив план при необходимости.
          *
          * @param connection открытое соединение
-         * @param episodeId эпизод
+         * @param videofileId эпизод
          * @param frame кадр границы
          */
         fun alignPlanBoundary(
             connection: java.sql.Connection,
-            episodeId: Long,
+            videofileId: Long,
             frame: Int,
         ) {
             if (shots.isEmpty()) {
@@ -335,7 +335,7 @@ class BoundaryEditing(
                 return
             }
             val inside = shots.firstOrNull { it.firstFrame < frame && frame < it.lastFrame } ?: return
-            shotsEditor.splitShotIn(connection, episodeId, frame)
+            shotsEditor.splitShotIn(connection, videofileId, frame)
         }
 
         fun requirePlanBoundary(frame: Int) {
@@ -350,7 +350,7 @@ class BoundaryEditing(
             throw DomainException(
                 ErrorCode.BOUNDARY_CONFLICT,
                 if (inside == null) {
-                    "кадра $frame нет ни в одном плане эпизода $episodeId: границу сцены " +
+                    "кадра $frame нет ни в одном плане эпизода $videofileId: границу сцены " +
                         "негде поставить"
                 } else {
                     "кадр $frame лежит внутри плана ${inside.range()}, а не на его границе: " +
@@ -364,16 +364,16 @@ class BoundaryEditing(
      * Читает состояние рабочей структуры в открытой транзакции.
      *
      * @param connection открытое соединение
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return состояние
      */
     private fun readState(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
     ): EditState =
         EditState(
-            episodeId = episodeId,
-            working = structure.listScenesIn(connection, episodeId).filter { !it.isStale },
+            videofileId = videofileId,
+            working = structure.listScenesIn(connection, videofileId).filter { !it.isStale },
             // Только актуальные планы.
             //
             // Зачем: чтение планов отдаёт и устаревшие — на стенде 4 458
@@ -382,7 +382,7 @@ class BoundaryEditing(
             // видела в них границу там, где живой план её не имеет.
             // Согласование из-за этого молча не срабатывало: сцена делилась,
             // план оставался прежним.
-            shots = structure.listShotsIn(connection, episodeId).filter { !it.isStale },
+            shots = structure.listShotsIn(connection, videofileId).filter { !it.isStale },
             shotsEditor = shots,
         )
 

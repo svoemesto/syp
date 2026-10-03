@@ -4,8 +4,8 @@ import ru.svoemesto.syp.admin.analysis.AnalysisKind
 import ru.svoemesto.syp.admin.analysis.AnalysisRun
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
 import ru.svoemesto.syp.admin.analysis.MonotonicProgress
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.admin.jobs.JobResult
 import ru.svoemesto.syp.core.contract.DomainException
@@ -43,7 +43,7 @@ import ru.svoemesto.syp.core.media.FrameChannelFailed
  * Прогресс монотонен и переживает перезапуск воркера — тем же счётчиком, что
  * и в задании `ANALYZE` (FR-003).
  *
- * @property episodeStore хранилище эпизодов: из него берётся предмет задания
+ * @property videofileStore хранилище эпизодов: из него берётся предмет задания
  * @property runStore хранилище прогонов анализа
  * @property scan проход по кадрам с детектором
  * @property detectorKey идентификатор детектора для прогона
@@ -52,12 +52,12 @@ import ru.svoemesto.syp.core.media.FrameChannelFailed
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class FacesJob(
-    private val episodeStore: EpisodeStore,
+    private val videofileStore: VideofileStore,
     private val runStore: AnalysisRunStore,
     private val scan: FaceScan,
     private val detectorKey: String,
     private val faceSinks: FaceSinkFactory? = null,
-    private val settingsStore: ru.svoemesto.syp.admin.catalog.MovieSettingsStore? = null,
+    private val settingsStore: ru.svoemesto.syp.admin.catalog.ProjectSettingsStore? = null,
     private val planBinding: FacePlanBinding? = null,
     /**
      * Чтение структуры: без него страж свежести разбора не проверяется, и это
@@ -76,16 +76,16 @@ class FacesJob(
      * встаёт в очередь первым и получает эпизод без планов — лица тогда
      * привязываются не к чему, а отчёт выглядит успешным.
      *
-     * @param episode эпизод задания
+     * @param videofile эпизод задания
      * @throws DomainException если живых планов нет
      */
-    private fun requireFreshStructure(episode: Episode) {
+    private fun requireFreshStructure(videofile: Videofile) {
         val service = structure ?: return
-        val live = service.listShots(episode.id!!).count { !it.isStale }
+        val live = service.listShots(videofile.id!!).count { !it.isStale }
         if (live == 0) {
             throw ru.svoemesto.syp.core.contract.DomainException(
                 ru.svoemesto.syp.core.contract.ErrorCode.CONFLICT,
-                "эпизод «${episode.name}» не разобран или разбор устарел: живых планов нет, " +
+                "эпизод «${videofile.name}» не разобран или разбор устарел: живых планов нет, " +
                     "искать лица не к чему привязывать. Сначала запустите «Разобрать заново»",
             )
         }
@@ -105,17 +105,17 @@ class FacesJob(
         job: Job,
         progress: (JobProgress) -> Unit,
     ): JobResult {
-        val episode = requireEpisode(job)
-        requireFreshStructure(episode)
-        val total = episode.frameCount.toLong()
+        val videofile = requireVideofile(job)
+        requireFreshStructure(videofile)
+        val total = videofile.frameCount.toLong()
         val report = MonotonicProgress(progress, job.progress, total)
         val run =
             runStore.begin(
                 AnalysisRun(
-                    episodeId = episode.id!!,
+                    videofileId = videofile.id!!,
                     kind = AnalysisKind.FACES,
                     algorithmVersion = detectorKey,
-                    paramsHash = paramsHashOf(episode, detectorKey),
+                    paramsHash = paramsHashOf(videofile, detectorKey),
                 ),
             )
         val runId =
@@ -129,7 +129,7 @@ class FacesJob(
         // фильма читаются здесь, а не на каждом из 88 643 кадров.
         val sink =
             if (faceSinks != null && settingsStore != null) {
-                faceSinks.forEpisode(episode, settingsStore.read(episode.movieId))
+                faceSinks.forVideofile(videofile, settingsStore.read(videofile.projectId))
             } else {
                 null
             }
@@ -137,7 +137,7 @@ class FacesJob(
         return try {
             val result =
                 scan.scan(
-                    episode = episode,
+                    videofile = videofile,
                     sink = sink,
                     progress = { done ->
                         // Отчёт идёт пачками: на 88 643 кадрах отчёт по
@@ -146,7 +146,7 @@ class FacesJob(
                         if (done.toLong() == total || done % PROGRESS_STEP == 0) {
                             report.report(
                                 done.toLong(),
-                                "поиск лиц: кадр $done из ${episode.frameCount}",
+                                "поиск лиц: кадр $done из ${videofile.frameCount}",
                             )
                         }
                     },
@@ -156,17 +156,17 @@ class FacesJob(
             // соответствие надо пересчитать здесь же: иначе лица остались бы
             // привязаны к плану, которого для них уже нет, до следующего
             // изменения границ — а оно может не наступить неделями.
-            val rebound = planBinding?.rebindEpisode(episode.id!!) ?: 0
+            val rebound = planBinding?.rebindVideofile(videofile.id!!) ?: 0
             val note =
                 if (rebound > 0) {
-                    "${result.note(episode.name)}; перепривязано лиц к планам: $rebound"
+                    "${result.note(videofile.name)}; перепривязано лиц к планам: $rebound"
                 } else {
-                    result.note(episode.name)
+                    result.note(videofile.name)
                 }
             report.report(total, note)
             runStore.complete(runId)
             JobResult(
-                note = result.note(episode.name),
+                note = result.note(videofile.name),
                 progressTotal = total,
             )
         } catch (interrupted: InterruptedException) {
@@ -190,19 +190,19 @@ class FacesJob(
      * @throws DomainException с кодом `NOT_FOUND`, если предмет задания не
      *   эпизод либо эпизод не зарегистрирована
      */
-    private fun requireEpisode(job: Job): Episode {
+    private fun requireVideofile(job: Job): Videofile {
         val subject = job.subject
-        val episodeId = subject.identifier
-        if (subject.type != SUBJECT_EPISODE || episodeId == null) {
+        val videofileId = subject.identifier
+        if (subject.type != SUBJECT_EPISODE || videofileId == null) {
             throw DomainException(
                 ErrorCode.BAD_REQUEST,
                 "заданию FACES нужен предмет «эпизод», а у него «${subject.type}»: искать лица не в чем",
             )
         }
-        return episodeStore.find(episodeId)
+        return videofileStore.find(videofileId)
             ?: throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "эпизод $episodeId не зарегистрирована: искать лица не в чем",
+                "эпизод $videofileId не зарегистрирована: искать лица не в чем",
             )
     }
 
@@ -220,13 +220,13 @@ class FacesJob(
          * детектором или в другом разрешении, нельзя выдавать за этот
          * (FR-090, Р-10).
          *
-         * @param episode эпизод
+         * @param videofile эпизод
          * @param detectorKey идентификатор детектора
          * @return 64 шестнадцатеричных символа в нижнем регистре
          */
         fun paramsHashOf(
-            episode: Episode,
+            videofile: Videofile,
             detectorKey: String,
-        ): String = ParamsHash.of(detectorKey, episode.width, episode.height)
+        ): String = ParamsHash.of(detectorKey, videofile.width, videofile.height)
     }
 }

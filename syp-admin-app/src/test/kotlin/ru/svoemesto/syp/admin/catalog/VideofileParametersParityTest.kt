@@ -32,7 +32,7 @@ import kotlin.test.assertTrue
  *
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class EpisodeParametersParityTest {
+class VideofileParametersParityTest {
     /**
      * Сверяет параметры определённые системой с прямым замером файла.
      *
@@ -41,17 +41,17 @@ class EpisodeParametersParityTest {
      */
     @Test
     fun `параметры эпизода совпадают с измеренными`() {
-        val episodePath = requireEpisode()
+        val videofilePath = requireVideofile()
         val ffprobe = requireProgram("ffprobe")
         val probe = SourceProbe(ExternalProgram(), ffprobe)
 
         val measured =
             probe.probe(
-                episodePath,
+                videofilePath,
             )
-        val direct = directMeasurements(ffprobe, episodePath)
+        val direct = directMeasurements(ffprobe, videofilePath)
 
-        println("=== СВЕРКА ПАРАМЕТРОВ ЭПИЗОДА: ${episodePath.fileName} ===")
+        println("=== СВЕРКА ПАРАМЕТРОВ ЭПИЗОДА: ${videofilePath.fileName} ===")
         println("--- измерение ffprobe напрямую ---")
         println("  число видеопакетов (count_packets): ${direct.packets}")
         println("  ключевых кадров (skip_frame nokey): ${direct.keyframes}")
@@ -76,7 +76,7 @@ class EpisodeParametersParityTest {
         assertEquals(direct.size, measured.byteSize, "размер файла разошся с измерением")
         assertEquals(KeyframeMap.requiredLength(measured.frameCount), measured.keyframes.byteLength)
 
-        if (episodePath.fileName.toString().startsWith(EXPECTED_S1E1_PREFIX)) {
+        if (videofilePath.fileName.toString().startsWith(EXPECTED_S1E1_PREFIX)) {
             println("--- сверка с числами спецификации для $EXPECTED_S1E1_PREFIX ---")
             assertEquals(EXPECTED_FRAMES, measured.frameCount, "число кадров $EXPECTED_S1E1_PREFIX разошлось со спецификацией")
             assertEquals(EXPECTED_WIDTH, measured.width)
@@ -113,12 +113,12 @@ class EpisodeParametersParityTest {
      * Снимает параметры файла напрямую, без участия системы.
      *
      * @param ffprobe путь к программе
-     * @param episodePath путь к файлу эпизода
+     * @param videofilePath путь к файлу эпизода
      * @return прямые измерения
      */
     private fun directMeasurements(
         ffprobe: String,
-        episodePath: Path,
+        videofilePath: Path,
     ): DirectMeasurements {
         val program = ExternalProgram()
         val packets =
@@ -135,7 +135,7 @@ class EpisodeParametersParityTest {
                         "stream=nb_read_packets",
                         "-of",
                         "csv=p=0",
-                        episodePath.toString(),
+                        videofilePath.toString(),
                     ),
                 ).output
                 .trim()
@@ -158,7 +158,7 @@ class EpisodeParametersParityTest {
                         "frame=best_effort_timestamp",
                         "-of",
                         "csv=p=0",
-                        episodePath.toString(),
+                        videofilePath.toString(),
                     ),
                 ).output
                 .lineSequence()
@@ -167,7 +167,7 @@ class EpisodeParametersParityTest {
             program
                 .runOrFail(
                     ffprobe,
-                    listOf("-v", "error", "-show_entries", "format=size", "-of", "csv=p=0", episodePath.toString()),
+                    listOf("-v", "error", "-show_entries", "format=size", "-of", "csv=p=0", videofilePath.toString()),
                 ).output
                 .trim()
                 .toLong()
@@ -181,7 +181,7 @@ class EpisodeParametersParityTest {
      * @throws org.opentest4j.TestAbortedException если переменный не задана или
      *   файла нет: сверять не с чем, и это не повод падать
      */
-    private fun requireEpisode(): Path {
+    private fun requireVideofile(): Path {
         val declared = System.getenv(ENV_EPISODE)
         assumeTrue(!declared.isNullOrBlank()) {
             "Переменная $ENV_EPISODE не задана: сверка параметров эпизода с измеренными пропущена. " +

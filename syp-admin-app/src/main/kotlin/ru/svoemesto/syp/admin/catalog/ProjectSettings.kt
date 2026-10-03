@@ -27,7 +27,7 @@ import java.time.OffsetDateTime
  * @property title назначение настройки человеческим языком
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-enum class MovieSetting(
+enum class ProjectSetting(
     val key: String,
     val kind: Kind,
     val title: String,
@@ -85,7 +85,7 @@ enum class MovieSetting(
          * @param key имя настройки
          * @return настройка или `null`, если такой настройки нет
          */
-        fun byKey(key: String): MovieSetting? = entries.firstOrNull { it.key == key }
+        fun byKey(key: String): ProjectSetting? = entries.firstOrNull { it.key == key }
 
         /** Сколько настроек получает новый фильм. */
         const val DEFAULT_COUNT: Int = 11
@@ -104,7 +104,7 @@ enum class MovieSetting(
  * @property values значения по именам настроек
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class MovieSettings(
+class ProjectSettings(
     val values: Map<String, JsonNode>,
 ) {
     /**
@@ -115,7 +115,7 @@ class MovieSettings(
      * @throws DomainException если настройка отсутствует: у фильма обязаны
      *   быть все настройки, и отсутствие — это дефект данных, а не «дефолт»
      */
-    fun node(setting: MovieSetting): JsonNode =
+    fun node(setting: ProjectSetting): JsonNode =
         values[setting.key]
             ?: throw DomainException(
                 ErrorCode.INTERNAL_ERROR,
@@ -129,7 +129,7 @@ class MovieSettings(
      * @param setting настройка
      * @return значение
      */
-    fun number(setting: MovieSetting): Double = node(setting).asDouble()
+    fun number(setting: ProjectSetting): Double = node(setting).asDouble()
 
     /**
      * Целое значение настройки.
@@ -137,7 +137,7 @@ class MovieSettings(
      * @param setting настройка
      * @return значение
      */
-    fun integer(setting: MovieSetting): Int = node(setting).asInt()
+    fun integer(setting: ProjectSetting): Int = node(setting).asInt()
 
     /**
      * Список дробных значений настройки.
@@ -145,20 +145,20 @@ class MovieSettings(
      * @param setting настройка
      * @return список значений в том же порядке, что и в базе
      */
-    fun numbers(setting: MovieSetting): List<Double> = node(setting).map { it.asDouble() }
+    fun numbers(setting: ProjectSetting): List<Double> = node(setting).map { it.asDouble() }
 
     /**
      * Проверяет, что присутствуют все настройки перечисления.
      *
-     * @param movieId фильм, у которого проверяются настройки
+     * @param projectId фильм, у которого проверяются настройки
      * @throws DomainException если какой-то настройки нет
      */
-    fun requireComplete(movieId: Long) {
-        val missing = MovieSetting.entries.map { it.key }.filterNot { values.containsKey(it) }
+    fun requireComplete(projectId: Long) {
+        val missing = ProjectSetting.entries.map { it.key }.filterNot { values.containsKey(it) }
         if (missing.isNotEmpty()) {
             throw DomainException(
                 ErrorCode.INTERNAL_ERROR,
-                "у фильма $movieId нет настроек: ${missing.joinToString(", ")}. " +
+                "у фильма $projectId нет настроек: ${missing.joinToString(", ")}. " +
                     "Значения по умолчанию создаёт триггер базы при заведении фильма",
             )
         }
@@ -176,40 +176,40 @@ class MovieSettings(
  *
  * Смена значения не трогает результаты анализа: их перевод в состояние
  * устаревших делает слой анализа, который знает, каким набором параметров они
- * получены ([MovieSettingsStore.update] отдаёт список изменённых ключей
+ * получены ([ProjectSettingsStore.update] отдаёт список изменённых ключей
  * именно для этого).
  *
  * @property db доступ к базе сырым JDBC
  * @property mapper разбор и запись значений JSON
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class MovieSettingsStore(
+class ProjectSettingsStore(
     private val db: Db,
     private val mapper: ObjectMapper = Json.mapper(),
 ) {
     /**
      * Читает настройки фильма.
      *
-     * @param movieId фильм
+     * @param projectId фильм
      * @param requireComplete требовать ли наличия всех настроек
      * @return настройки фильма
      * @throws DomainException если фильма нет либо настройки неполны
      */
     fun read(
-        movieId: Long,
+        projectId: Long,
         requireComplete: Boolean = true,
-    ): MovieSettings {
-        requireMovie(movieId)
+    ): ProjectSettings {
+        requireProject(projectId)
         val values =
             db
                 .select(
-                    "SELECT key, value FROM tbl_analysis_settings WHERE id_movie = ?",
+                    "SELECT key, value FROM tbl_analysis_settings WHERE id_project = ?",
                     { row -> row.string("key") to mapper.readTree(row.string("value")) },
-                    movieId,
+                    projectId,
                 ).toMap()
-        val settings = MovieSettings(values)
+        val settings = ProjectSettings(values)
         if (requireComplete) {
-            settings.requireComplete(movieId)
+            settings.requireComplete(projectId)
         }
         return settings
     }
@@ -222,24 +222,24 @@ class MovieSettingsStore(
      * по убыванию, сделали бы последующий анализ бессмысленным, а заметить
      * это можно было бы только через сорванные границы сцен.
      *
-     * @param movieId фильм
+     * @param projectId фильм
      * @param changes новые значения по именам настроек
      * @return имена настроек, значение которых действительно изменилось
      * @throws DomainException с кодом `BAD_REQUEST`, если ключ неизвестен или
      *   значение не проходит проверку
      */
     fun update(
-        movieId: Long,
+        projectId: Long,
         changes: Map<String, JsonNode>,
     ): List<String> {
-        requireMovie(movieId)
+        requireProject(projectId)
         if (changes.isEmpty()) {
             return emptyList()
         }
         val checked = changes.map { (key, value) -> key to validate(key, value) }
         return db.useTransaction { connection ->
             checked
-                .filter { (key, value) -> put(connection, movieId, key, value) }
+                .filter { (key, value) -> put(connection, projectId, key, value) }
                 .map { (key, _) -> key }
         }
     }
@@ -251,22 +251,22 @@ class MovieSettingsStore(
      * означало бы хранить её в jsonb вместе с числом, и тогда подпись значения
      * зависела бы от того, когда его переписали.
      *
-     * @param movieId фильм
+     * @param projectId фильм
      * @param setting настройка
      * @return дата записи или `null`, если настройки нет
      */
     fun updatedAt(
-        movieId: Long,
-        setting: MovieSetting,
+        projectId: Long,
+        setting: ProjectSetting,
     ): OffsetDateTime? =
         db.selectOne(
-            "SELECT updated_at FROM tbl_analysis_settings WHERE id_movie = ? AND key = ?",
+            "SELECT updated_at FROM tbl_analysis_settings WHERE id_project = ? AND key = ?",
             { row: Row ->
                 (row.raw("updated_at") as? java.sql.Timestamp)
                     ?.toInstant()
                     ?.atOffset(java.time.ZoneOffset.UTC)
             },
-            movieId,
+            projectId,
             setting.key,
         )
 
@@ -277,45 +277,45 @@ class MovieSettingsStore(
      * канонизирует числа без дробной части и ведущих нулей, и приводить их к
      * типу заранее значит потерять исходную запись.
      *
-     * @param movieId фильм
+     * @param projectId фильм
      * @param setting настройка
      * @return значение как оно лежит в базе
      * @throws DomainException если настройки нет
      */
     fun rawValue(
-        movieId: Long,
-        setting: MovieSetting,
+        projectId: Long,
+        setting: ProjectSetting,
     ): String =
         db.selectOne(
-            "SELECT value FROM tbl_analysis_settings WHERE id_movie = ? AND key = ?",
+            "SELECT value FROM tbl_analysis_settings WHERE id_project = ? AND key = ?",
             { row: Row -> row.string("value") },
-            movieId,
+            projectId,
             setting.key,
         ) ?: throw DomainException(
             ErrorCode.INTERNAL_ERROR,
-            "у фильма $movieId нет настройки «${setting.key}»",
+            "у фильма $projectId нет настройки «${setting.key}»",
         )
 
     /**
      * Записывает значение настройки, если оно изменилось.
      *
      * @param connection открытое соединение, транзакцией управляет вызывающий
-     * @param movieId фильм
+     * @param projectId фильм
      * @param key имя настройки
      * @param value новое значение
      * @return `true`, если строка переписана
      */
     private fun put(
         connection: java.sql.Connection,
-        movieId: Long,
+        projectId: Long,
         key: String,
         value: JsonNode,
     ): Boolean {
         val current =
             connection
-                .prepareStatement("SELECT value, recordhash FROM tbl_analysis_settings WHERE id_movie = ? AND key = ?")
+                .prepareStatement("SELECT value, recordhash FROM tbl_analysis_settings WHERE id_project = ? AND key = ?")
                 .use { statement ->
-                    statement.setLong(1, movieId)
+                    statement.setLong(1, projectId)
                     statement.setString(2, key)
                     statement.executeQuery().use { resultSet ->
                         if (resultSet.next()) {
@@ -328,7 +328,7 @@ class MovieSettingsStore(
 
         // Хеш считается по содержимому настройки, без даты обновления: дата —
         // следствие записи, а не свойство значения.
-        val table = Table(TABLE, listOf("id_movie", "key", "value"), { listOf(movieId, key, value.toString()) }, current?.second)
+        val table = Table(TABLE, listOf("id_project", "key", "value"), { listOf(projectId, key, value.toString()) }, current?.second)
         val hash = table.computeRecordHash()
         if (current?.second == hash) {
             return false
@@ -337,10 +337,10 @@ class MovieSettingsStore(
         if (current == null) {
             connection
                 .prepareStatement(
-                    "INSERT INTO $TABLE (id_movie, key, value, updated_at, recordhash) " +
+                    "INSERT INTO $TABLE (id_project, key, value, updated_at, recordhash) " +
                         "VALUES (?, ?, ?::jsonb, now(), ?)",
                 ).use { statement ->
-                    statement.setLong(1, movieId)
+                    statement.setLong(1, projectId)
                     statement.setString(2, key)
                     statement.setString(3, value.toString())
                     statement.setString(4, hash)
@@ -350,11 +350,11 @@ class MovieSettingsStore(
             connection
                 .prepareStatement(
                     "UPDATE $TABLE SET value = ?::jsonb, updated_at = now(), recordhash = ? " +
-                        "WHERE id_movie = ? AND key = ?",
+                        "WHERE id_project = ? AND key = ?",
                 ).use { statement ->
                     statement.setString(1, value.toString())
                     statement.setString(2, hash)
-                    statement.setLong(3, movieId)
+                    statement.setLong(3, projectId)
                     statement.setString(4, key)
                     statement.executeUpdate()
                 }
@@ -377,10 +377,10 @@ class MovieSettingsStore(
         value: JsonNode?,
     ): JsonNode {
         val setting =
-            MovieSetting.byKey(key)
+            ProjectSetting.byKey(key)
                 ?: throw DomainException(
                     ErrorCode.BAD_REQUEST,
-                    "настройки «$key» нет. Доступны: ${MovieSetting.entries.joinToString(", ") { it.key }}",
+                    "настройки «$key» нет. Доступны: ${ProjectSetting.entries.joinToString(", ") { it.key }}",
                 )
         val node =
             value
@@ -389,15 +389,15 @@ class MovieSettingsStore(
             throw DomainException(ErrorCode.BAD_REQUEST, "у настройки «$key» значение null")
         }
         return when (setting.kind) {
-            MovieSetting.Kind.NUMBER -> numberOf(setting, node)
-            MovieSetting.Kind.INTEGER -> integerOf(setting, node)
-            MovieSetting.Kind.NUMBER_LIST -> numberListOf(setting, node)
+            ProjectSetting.Kind.NUMBER -> numberOf(setting, node)
+            ProjectSetting.Kind.INTEGER -> integerOf(setting, node)
+            ProjectSetting.Kind.NUMBER_LIST -> numberListOf(setting, node)
         }
     }
 
     /** Проверяет и приводит дробное значение. */
     private fun numberOf(
-        setting: MovieSetting,
+        setting: ProjectSetting,
         node: JsonNode,
     ): JsonNode {
         val value = requireNumber(setting, node)
@@ -410,7 +410,7 @@ class MovieSettingsStore(
 
     /** Проверяет и приводит целое значение. */
     private fun integerOf(
-        setting: MovieSetting,
+        setting: ProjectSetting,
         node: JsonNode,
     ): JsonNode {
         if (!node.isIntegralNumber) {
@@ -429,7 +429,7 @@ class MovieSettingsStore(
 
     /** Проверяет и приводит список дробных значений. */
     private fun numberListOf(
-        setting: MovieSetting,
+        setting: ProjectSetting,
         node: JsonNode,
     ): JsonNode {
         if (!node.isArray) {
@@ -472,7 +472,7 @@ class MovieSettingsStore(
 
     /** Требует, чтобы значение было числом. */
     private fun requireNumber(
-        setting: MovieSetting,
+        setting: ProjectSetting,
         node: JsonNode,
     ): Double {
         if (!node.isNumber) {
@@ -500,21 +500,21 @@ class MovieSettingsStore(
 
     /** Смысловая проверка дробной настройки: возвращает текст проблемы либо `null`. */
     private fun problemOfNumber(
-        setting: MovieSetting,
+        setting: ProjectSetting,
         value: Double,
     ): String? =
         when (setting) {
-            MovieSetting.SCENE_THRESHOLD, MovieSetting.SHOT_THRESHOLD ->
+            ProjectSetting.SCENE_THRESHOLD, ProjectSetting.SHOT_THRESHOLD ->
                 if (value <= 0.0) "порог должен быть положительным, задано $value" else null
 
-            MovieSetting.FACE_NOT_PERSON_ASPECT ->
+            ProjectSetting.FACE_NOT_PERSON_ASPECT ->
                 if (value <= 1.0) {
                     "пропорция должна быть больше единицы, задано $value"
                 } else {
                     null
                 }
 
-            MovieSetting.FACE_DETECT_THRESHOLD, MovieSetting.CLUSTER_MERGE_THRESHOLD ->
+            ProjectSetting.FACE_DETECT_THRESHOLD, ProjectSetting.CLUSTER_MERGE_THRESHOLD ->
                 if (value <= 0.0 || value > 1.0) {
                     "порог должен лежать в интервале (0; 1], задано $value"
                 } else {
@@ -526,14 +526,14 @@ class MovieSettingsStore(
 
     /** Смысловая проверка целой настройки: возвращает текст проблемы либо `null`. */
     private fun problemOfInteger(
-        setting: MovieSetting,
+        setting: ProjectSetting,
         value: Long,
     ): String? =
         when (setting) {
-            MovieSetting.CLUSTER_COUNT,
-            MovieSetting.PREVIEW_SHEET_COLS,
-            MovieSetting.PREVIEW_SHEET_ROWS,
-            MovieSetting.RECIPE_SCHEMA_VERSION,
+            ProjectSetting.CLUSTER_COUNT,
+            ProjectSetting.PREVIEW_SHEET_COLS,
+            ProjectSetting.PREVIEW_SHEET_ROWS,
+            ProjectSetting.RECIPE_SCHEMA_VERSION,
             ->
                 if (value <= 0) {
                     "значение должно быть положительным, задано $value"
@@ -541,7 +541,7 @@ class MovieSettingsStore(
                     null
                 }
 
-            MovieSetting.RECIPE_AUDIO_TRACK_COUNT ->
+            ProjectSetting.RECIPE_AUDIO_TRACK_COUNT ->
                 if (value < 0) {
                     "число аудиодорожек не может быть отрицательным, задано $value"
                 } else {
@@ -552,17 +552,17 @@ class MovieSettingsStore(
         }
 
     /** Проверяет, что фильм заведён. */
-    private fun requireMovie(movieId: Long) {
+    private fun requireProject(projectId: Long) {
         val exists =
             db.selectOne(
-                "SELECT count(*) AS total FROM tbl_movies WHERE id = ?",
+                "SELECT count(*) AS total FROM tbl_projects WHERE id = ?",
                 { row: Row -> row.int("total") },
-                movieId,
+                projectId,
             ) ?: 0
         if (exists == 0) {
             throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "фильм $movieId не заведён: настройки задаются только заведённому фильму",
+                "фильм $projectId не заведён: настройки задаются только заведённому фильму",
             )
         }
     }

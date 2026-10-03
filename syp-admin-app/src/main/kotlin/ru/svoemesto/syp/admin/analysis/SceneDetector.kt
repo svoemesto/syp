@@ -1,8 +1,8 @@
 package ru.svoemesto.syp.admin.analysis
 
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.MovieSetting
-import ru.svoemesto.syp.admin.catalog.MovieSettings
+import ru.svoemesto.syp.admin.catalog.ProjectSetting
+import ru.svoemesto.syp.admin.catalog.ProjectSettings
+import ru.svoemesto.syp.admin.catalog.Videofile
 import ru.svoemesto.syp.core.jobs.JobProgress
 import ru.svoemesto.syp.core.jobs.ParamsHash
 import ru.svoemesto.syp.core.media.ExternalProgram
@@ -82,7 +82,7 @@ class SceneDetector(
     /**
      * Находит границы сцен и планов одним проходом.
      *
-     * @param episode эпизод, файл которой разбирается
+     * @param videofile эпизод, файл которой разбирается
      * @param sceneThreshold порог границы сцены: оценка не ниже него считается
      *   границей сцены
      * @param shotThreshold порог границы плана: оценка не ниже него считается
@@ -96,7 +96,7 @@ class SceneDetector(
      *   завершилась с ненулевым кодом
      */
     fun detect(
-        episode: Episode,
+        videofile: Videofile,
         sceneThreshold: Double,
         shotThreshold: Double,
         progress: (JobProgress) -> Unit = {},
@@ -117,7 +117,7 @@ class SceneDetector(
                         "-hide_banner",
                         "-nostdin",
                         "-i",
-                        episode.sourcePath,
+                        videofile.sourcePath,
                         "-vf",
                         "scdet=threshold=" + minOf(sceneThreshold, shotThreshold),
                         "-f",
@@ -132,7 +132,7 @@ class SceneDetector(
                 .ExternalProgramFailed(output, PROGRAM_NAME)
         }
 
-        val scores = parseScores(output.output, episode)
+        val scores = parseScores(output.output, videofile)
         return DetectionResult(
             sceneBoundaries = scores.filter { it.score >= sceneThreshold }.map { it.frame }.sorted(),
             shotBoundaries = scores.filter { it.score >= shotThreshold }.map { it.frame }.sorted(),
@@ -163,14 +163,14 @@ class SceneDetector(
      * `Double` на длинном эпизоде давало бы расхождение в десятки кадров.
      *
      * @param output объединённый вывод программы
-     * @param episode эпизод, для которой сняты параметры времени
+     * @param videofile эпизод, для которой сняты параметры времени
      * @return оценки с номерами кадров по возрастанию
      */
     private fun parseScores(
         output: String,
-        episode: Episode,
+        videofile: Videofile,
     ): List<Score> {
-        val frameDuration = BigDecimal(episode.timeBaseNum).divide(BigDecimal(episode.timeBaseDen), 12, RoundingMode.HALF_UP)
+        val frameDuration = BigDecimal(videofile.timeBaseNum).divide(BigDecimal(videofile.timeBaseDen), 12, RoundingMode.HALF_UP)
         val scores = mutableListOf<Score>()
         output.lineSequence().forEach { line ->
             val score = SCORE.find(line) ?: return@forEach
@@ -179,11 +179,11 @@ class SceneDetector(
                 seconds
                     .divide(frameDuration, 0, RoundingMode.HALF_UP)
                     .toInt()
-            if (frame < 0 || frame >= episode.frameCount) {
+            if (frame < 0 || frame >= videofile.frameCount) {
                 throw IllegalArgumentException(
                     "Отметка границы ${score.groupValues[2]} с сохранённой оценкой " +
                         "${score.groupValues[1]} сходится на кадр $frame, а эпизод содержит " +
-                        "${episode.frameCount} кадров: число кадров и частокадровая база не согласуются",
+                        "${videofile.frameCount} кадров: число кадров и частокадровая база не согласуются",
                 )
             }
             scores.add(Score(frame, BigDecimal(score.groupValues[1]).toDouble()))
@@ -228,10 +228,10 @@ class SceneDetector(
          * @param settings настройки фильма
          * @return 64 шестнадцатеричных символов в нижнем регистре
          */
-        fun paramsHashOf(settings: MovieSettings): String =
+        fun paramsHashOf(settings: ProjectSettings): String =
             paramsHashOf(
-                settings.number(MovieSetting.SCENE_THRESHOLD),
-                settings.number(MovieSetting.SHOT_THRESHOLD),
+                settings.number(ProjectSetting.SCENE_THRESHOLD),
+                settings.number(ProjectSetting.SHOT_THRESHOLD),
             )
 
         /** Шаблон строки оценки: `lavfi.scd.score: 12.345, lavfi.scd.time: 5.96`. */

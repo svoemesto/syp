@@ -2,10 +2,10 @@ package ru.svoemesto.syp.admin.characters
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import ru.svoemesto.syp.admin.catalog.Episode
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
 import ru.svoemesto.syp.admin.catalog.SourceParameters
 import ru.svoemesto.syp.admin.catalog.SourceProbe
+import ru.svoemesto.syp.admin.catalog.Videofile
 import ru.svoemesto.syp.core.media.ExternalProgram
 import ru.svoemesto.syp.core.media.FrameChannel
 import java.nio.file.Path
@@ -67,18 +67,18 @@ class FacesParallelismTest {
         }
         val ffmpeg = System.getenv(ENV_FFMPEG)?.takeIf { it.isNotBlank() } ?: "ffmpeg"
         val probed = SourceProbe(ExternalProgram(), "ffprobe").probe(Path.of(source))
-        val episode = episodeOf(probed, source)
+        val videofile = videofileOf(probed, source)
         val levels = parallelLevels()
 
         println("ЗАМЕР ПАРАЛЛЕЛИЗМА ОЧЕРЕДИ (М-05)")
         println("файл: $source")
-        println("кадров: ${episode.frameCount}, разрешение: ${episode.width}x${episode.height}")
+        println("кадров: ${videofile.frameCount}, разрешение: ${videofile.width}x${videofile.height}")
         println("детектор: ${StubFaceDetector.KEY} (заглушка, нагрузка нулевая)")
         println("декодер: $ffmpeg")
         println("уровни параллелизма: ${levels.joinToString(", ")}")
 
         levels.forEach { level ->
-            val measurement = measure(ffmpeg, episode, level)
+            val measurement = measure(ffmpeg, videofile, level)
             println(
                 "ИТОГ параллелизм=$level всего_кадров=${measurement.frames} " +
                     "общее_время_с=${measurement.wallSeconds} " +
@@ -94,13 +94,13 @@ class FacesParallelismTest {
      * Прогоняет N проходов по эпизоду одновременно и меряет.
      *
      * @param ffmpeg путь к декодеру
-     * @param episode эпизод
+     * @param videofile эпизод
      * @param level сколько проходов одновременно
      * @return результат замера
      */
     private fun measure(
         ffmpeg: String,
-        episode: Episode,
+        videofile: Videofile,
         level: Int,
     ): Measurement {
         val pool =
@@ -113,9 +113,9 @@ class FacesParallelismTest {
                     Callable {
                         val started = System.nanoTime()
                         val scan = FaceScan(FrameChannel(ffmpeg), StubFaceDetector())
-                        val result = scan.scan(episode)
+                        val result = scan.scan(videofile)
                         assertEquals(
-                            episode.frameCount,
+                            videofile.frameCount,
                             result.frames,
                             "проход обязан обработать все кадры эпизода: частичный результат " +
                                 "не является замером",
@@ -138,7 +138,7 @@ class FacesParallelismTest {
             }
             val seconds = futures.map { it.get() }
             val wall = (System.nanoTime() - started) / 1_000_000_000.0
-            val frames = episode.frameCount.toLong() * level
+            val frames = videofile.frameCount.toLong() * level
             val slowest = seconds.max()
             return Measurement(
                 frames = frames,
@@ -146,7 +146,7 @@ class FacesParallelismTest {
                 fastestSeconds = "%.1f".format(seconds.min()),
                 slowestSeconds = "%.1f".format(slowest),
                 totalFps = "%.1f".format(frames / wall),
-                slowestFps = "%.1f".format(episode.frameCount / slowest),
+                slowestFps = "%.1f".format(videofile.frameCount / slowest),
             )
         } finally {
             pool.shutdownNow()
@@ -160,12 +160,12 @@ class FacesParallelismTest {
      * @param source путь к файлу
      * @return эпизод
      */
-    private fun episodeOf(
+    private fun videofileOf(
         probed: SourceParameters,
         source: String,
-    ): Episode =
-        Episode(
-            movieId = 1,
+    ): Videofile =
+        Videofile(
+            projectId = 1,
             ordinal = 0,
             name = Path.of(source).fileName.toString(),
             sourcePath = source,

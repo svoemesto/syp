@@ -40,8 +40,8 @@ class RecipeFormatTest {
             sceneTitle = sceneTitle,
             location = location,
             persons = persons,
-            episodeId = 7,
-            episodeName = "GOT.S01E01",
+            videofileId = 7,
+            videofileName = "GOT.S01E01",
             relativePath = "GOT.S01/GOT.S01E01.BDRip.1080p.mkv",
             sourceSha256 = "3f786850e387550fdab836ed7e6dc881de23001b1a2c3d4e5f60718293a4b5c6",
             firstFrame = 1200,
@@ -53,8 +53,8 @@ class RecipeFormatTest {
     /** Документ сценария целиком. */
     private fun document(items: List<RecipeItemDocument> = listOf(firstItem())): RecipeDocument =
         RecipeDocument(
-            movieId = 4,
-            movieName = "Игры Престолов",
+            projectId = 4,
+            projectName = "Игры Престолов",
             recipeId = 55,
             recipeName = "Джейми — выходы",
             signingKeyId = "syp-2026-10",
@@ -84,8 +84,8 @@ class RecipeFormatTest {
         val order =
             listOf(
                 "schemaVersion",
-                "movieId",
-                "movieName",
+                "projectId",
+                "projectName",
                 "recipeId",
                 "recipeName",
                 "signingKeyId",
@@ -198,9 +198,9 @@ class RecipeFormatTest {
             "",
         ).forEach { path ->
             assertFailsWith<IllegalArgumentException>("путь «$path» обязан быть отвергнут") {
-                RecipePaths.requireInsideMovieTree(path)
+                RecipePaths.requireInsideProjectTree(path)
             }
         }
-        RecipePaths.requireInsideMovieTree("GOT.S01/GOT.S01E01.BDRip.1080p.mkv")
+        RecipePaths.requireInsideProjectTree("GOT.S01/GOT.S01E01.BDRip.1080p.mkv")
     }
 }

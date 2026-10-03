@@ -13,12 +13,12 @@ import ru.svoemesto.syp.admin.analysis.Shot
 import ru.svoemesto.syp.admin.analysis.ShotSize
 import ru.svoemesto.syp.admin.analysis.SizeOrigin
 import ru.svoemesto.syp.admin.analysis.StructureService
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.characters.FacePlanBinding
 import ru.svoemesto.syp.admin.characters.FaceStore
 import ru.svoemesto.syp.admin.characters.PersonService
@@ -62,22 +62,22 @@ class ShotBoundaryEditingTest {
     private lateinit var db: Db
     private lateinit var structure: StructureService
     private lateinit var editing: ShotBoundaryEditing
-    private lateinit var episodes: EpisodeStore
+    private lateinit var videofiles: VideofileStore
     private lateinit var persons: PersonService
 
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
         structure = StructureService(db, AnalysisRunStore(db), RawBoundaryStore(db))
-        episodes = EpisodeStore(db)
+        videofiles = VideofileStore(db)
         persons = PersonService(db)
         editing =
             ShotBoundaryEditing(
                 db = db,
                 structure = structure,
                 binding = FacePlanBinding(db),
-                episodes = episodes,
-                settings = MovieSettingsStore(db),
+                videofiles = videofiles,
+                settings = ProjectSettingsStore(db),
             )
     }
 
@@ -93,14 +93,14 @@ class ShotBoundaryEditingTest {
      *
      * @return эпизод с записанной структурой
      */
-    private fun analysed(): Episode {
+    private fun analysed(): Videofile {
         val frameCount = 600
         val token = System.nanoTime()
-        val movie = MovieStore(db).create("Доводка плана $token", "/srv/got")
-        val episode =
-            episodes.insert(
-                Episode(
-                    movieId = movie.id!!,
+        val project = ProjectStore(db).create("Доводка плана $token", "/srv/got")
+        val videofile =
+            videofiles.insert(
+                Videofile(
+                    projectId = project.id!!,
                     ordinal = 0,
                     name = "S1E1-$token.mkv",
                     sourcePath = "/srv/got/S1E1-$token.mkv",
@@ -123,7 +123,7 @@ class ShotBoundaryEditingTest {
             AnalysisRunStore(db)
                 .begin(
                     AnalysisRun(
-                        episodeId = episode.id!!,
+                        videofileId = videofile.id!!,
                         kind = AnalysisKind.STRUCTURE,
                         algorithmVersion = DetectionResult.ALGORITHM_VERSION,
                         paramsHash = "e".repeat(64),
@@ -131,7 +131,7 @@ class ShotBoundaryEditingTest {
                 ).id!!
         structure.applyDetection(
             runId = run,
-            episodeId = episode.id,
+            videofileId = videofile.id,
             detection =
                 DetectionResult(
                     sceneBoundaries = listOf(120, 300, 480),
@@ -139,31 +139,31 @@ class ShotBoundaryEditingTest {
                     scores = frameCount,
                 ),
         )
-        return episode
+        return videofile
     }
 
     /**
      * Заводит лицо заданного размера в указанном кадре.
      *
-     * @param episodeId эпизод
-     * @param movieId фильм-владелец персоны
+     * @param videofileId эпизод
+     * @param projectId фильм-владелец персоны
      * @param frame номер кадра
      * @param width ширина рамки в пикселях
      * @param height высота рамки в пикселях
      */
     private fun insertFace(
-        episodeId: Long,
-        movieId: Long,
+        videofileId: Long,
+        projectId: Long,
         frame: Int,
         width: Int,
         height: Int,
     ) {
-        val person = persons.create(movieId, "Персона $frame", "p$frame-${System.nanoTime()}")
+        val person = persons.create(projectId, "Персона $frame", "p$frame-${System.nanoTime()}")
         db.update(
             "INSERT INTO ${FaceStore.TABLE} " +
-                "(id_episode, frame_number, face_index, x1, y1, x2, y2, person_id, origin) " +
+                "(id_videofile, frame_number, face_index, x1, y1, x2, y2, person_id, origin) " +
                 "VALUES (?, ?, 0, 0, 0, ?, ?, ?, 'AUTO')",
-            episodeId,
+            videofileId,
             frame,
             width,
             height,
@@ -174,10 +174,10 @@ class ShotBoundaryEditingTest {
     /**
      * Рабочие планы эпизода по возрастанию первого кадра.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @return рабочие планы
      */
-    private fun working(episodeId: Long): List<Shot> = structure.listShots(episodeId).filter { !it.isStale }.sortedBy { it.firstFrame }
+    private fun working(videofileId: Long): List<Shot> = structure.listShots(videofileId).filter { !it.isStale }.sortedBy { it.firstFrame }
 
     /**
      * Требует непрерывного покрытия участка планами.
@@ -210,30 +210,30 @@ class ShotBoundaryEditingTest {
     /**
      * План, которому принадлежит лицо в указанном кадре.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param frame кадр с лицом
      * @return идентификатор плана либо `null`, если план не определён
      */
     private fun shotOfFace(
-        episodeId: Long,
+        videofileId: Long,
         frame: Int,
     ): Long? =
         db.selectOne(
-            "SELECT shot_id FROM ${FaceStore.TABLE} WHERE id_episode = ? AND frame_number = ?",
+            "SELECT shot_id FROM ${FaceStore.TABLE} WHERE id_videofile = ? AND frame_number = ?",
             { it.longOrNull("shot_id") },
-            episodeId,
+            videofileId,
             frame,
         )
 
     @Test
     fun `разделение плана даёт два плана оператора и не рвёт покрытие`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val before = working(episodeId)
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val before = working(videofileId)
         val source = before.first { it.firstFrame <= 330 && 330 <= it.lastFrame }
         assertEquals(300, source.firstFrame, "проверка ждёт план, начинающийся с кадра 300")
 
-        val outcome = editing.splitShot(episodeId, 330)
+        val outcome = editing.splitShot(videofileId, 330)
 
         assertEquals(ShotBoundaryAction.SPLIT, outcome.action)
         assertEquals(2, outcome.affected.size, "после разделения на границе два плана")
@@ -245,50 +245,50 @@ class ShotBoundaryEditingTest {
             assertEquals(BoundaryOrigin.OPERATOR, it.origin, "границу поставил оператор")
             assertEquals(null, it.runId, "у решения оператора нет породившего его прогона")
         }
-        val after = working(episodeId)
+        val after = working(videofileId)
         assertEquals(before.size + 1, after.size, "разделение добавляет один план")
-        assertCovers(after, 0, episode.frameCount - 1)
+        assertCovers(after, 0, videofile.frameCount - 1)
         assertTrue(
-            structure.listShots(episodeId).any { it.id == source.id && it.isStale },
+            structure.listShots(videofileId).any { it.id == source.id && it.isStale },
             "прежний план обязан остаться в базе помеченным устаревшим, а не исчезнуть",
         )
     }
 
     @Test
     fun `объединение возвращает прежние границы и оставляет прежний план устаревшим`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val before = working(episodeId)
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val before = working(videofileId)
         val keeper = before.first { it.lastFrame == 359 }
         val absorbed = before.first { it.firstFrame == 360 }
 
-        val outcome = editing.mergeShots(episodeId, 360)
+        val outcome = editing.mergeShots(videofileId, 360)
 
         assertEquals(ShotBoundaryAction.MERGE, outcome.action)
         assertEquals(1, outcome.affected.size, "после объединения остаётся один план")
         assertEquals(keeper.firstFrame, outcome.affected.single().firstFrame)
         assertEquals(absorbed.lastFrame, outcome.affected.single().lastFrame)
         assertEquals(BoundaryOrigin.OPERATOR, outcome.affected.single().origin)
-        val after = working(episodeId)
+        val after = working(videofileId)
         assertEquals(before.size - 1, after.size, "объединение убирает один план из работы")
-        assertCovers(after, 0, episode.frameCount - 1)
+        assertCovers(after, 0, videofile.frameCount - 1)
         assertTrue(
-            structure.listShots(episodeId).any { it.id == absorbed.id && it.isStale },
+            structure.listShots(videofileId).any { it.id == absorbed.id && it.isStale },
             "поглощённый план обязан остаться в базе помеченным устаревшим",
         )
     }
 
     @Test
     fun `сдвиг границы на кадр внутри плана отвергается`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val left = working(episodeId).first { it.firstFrame == 240 }
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val left = working(videofileId).first { it.firstFrame == 240 }
 
         // 300 — начало сцены 300…479: сдвиг границы оттуда оставил бы сцену,
         // начинающуюся с середины плана 240…329.
         val failure =
             assertFailsWith<DomainException> {
-                editing.moveShotBoundary(episodeId, fromFrame = 300, toFrame = 330)
+                editing.moveShotBoundary(videofileId, fromFrame = 300, toFrame = 330)
             }
 
         assertEquals(ErrorCode.BOUNDARY_CONFLICT, failure.code)
@@ -300,19 +300,19 @@ class ShotBoundaryEditingTest {
             failure.message.orEmpty().contains("${left.firstFrame}…${left.lastFrame}"),
             "отказ должен называть, между какими планами граница должна встать: ${failure.message}",
         )
-        assertCovers(working(episodeId), 0, episode.frameCount - 1)
+        assertCovers(working(videofileId), 0, videofile.frameCount - 1)
     }
 
     @Test
     fun `сдвиг границы плана переносит кадры между соседними планами`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val before = working(episodeId)
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val before = working(videofileId)
         val second = before.first { it.firstFrame == 420 }
 
         // Граница 420 стоит внутри сцены 300…479: сдвинуть её можно в любой кадр
         // между границами соседних планов, и сцена по-прежнему начинается планом.
-        val outcome = editing.moveShotBoundary(episodeId, fromFrame = 420, toFrame = 450)
+        val outcome = editing.moveShotBoundary(videofileId, fromFrame = 420, toFrame = 450)
 
         assertEquals(ShotBoundaryAction.MOVE, outcome.action)
         assertEquals(2, outcome.affected.size, "сдвиг меняет оба соседних плана")
@@ -323,78 +323,78 @@ class ShotBoundaryEditingTest {
             assertEquals(BoundaryOrigin.OPERATOR, it.origin, "границу поставил оператор")
             assertEquals(null, it.runId, "у решения оператора нет породившего его прогона")
         }
-        val after = working(episodeId)
+        val after = working(videofileId)
         assertEquals(before.size, after.size, "сдвиг не меняет числа планов")
-        assertCovers(after, 0, episode.frameCount - 1)
+        assertCovers(after, 0, videofile.frameCount - 1)
     }
 
     @Test
     fun `после разделения лица следуют за планами, а не за прежними границами`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        insertFace(episodeId, episode.movieId, frame = 250, width = 100, height = 100)
-        insertFace(episodeId, episode.movieId, frame = 345, width = 100, height = 100)
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        insertFace(videofileId, videofile.projectId, frame = 250, width = 100, height = 100)
+        insertFace(videofileId, videofile.projectId, frame = 345, width = 100, height = 100)
 
-        editing.splitShot(episodeId, 330)
+        editing.splitShot(videofileId, 330)
 
-        val after = working(episodeId)
+        val after = working(videofileId)
         val untouched = after.first { it.firstFrame == 240 }
         val tail = after.first { it.firstFrame == 330 }
-        assertEquals(untouched.id, shotOfFace(episodeId, 250), "соседний план не тронут")
-        assertEquals(tail.id, shotOfFace(episodeId, 345), "лицо второй части обязано уйти в новый план")
+        assertEquals(untouched.id, shotOfFace(videofileId, 250), "соседний план не тронут")
+        assertEquals(tail.id, shotOfFace(videofileId, 345), "лицо второй части обязано уйти в новый план")
     }
 
     @Test
     fun `после объединения лицо из поглощённой части переходит в оставшийся план`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        insertFace(episodeId, episode.movieId, frame = 250, width = 100, height = 100)
-        insertFace(episodeId, episode.movieId, frame = 320, width = 100, height = 100)
-        insertFace(episodeId, episode.movieId, frame = 345, width = 100, height = 100)
-        editing.splitShot(episodeId, 330)
-        val keeper = working(episodeId).first { it.firstFrame == 300 }
-        val untouched = working(episodeId).first { it.firstFrame == 240 }
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        insertFace(videofileId, videofile.projectId, frame = 250, width = 100, height = 100)
+        insertFace(videofileId, videofile.projectId, frame = 320, width = 100, height = 100)
+        insertFace(videofileId, videofile.projectId, frame = 345, width = 100, height = 100)
+        editing.splitShot(videofileId, 330)
+        val keeper = working(videofileId).first { it.firstFrame == 300 }
+        val untouched = working(videofileId).first { it.firstFrame == 240 }
 
-        editing.mergeShots(episodeId, 330)
+        editing.mergeShots(videofileId, 330)
 
         assertEquals(
             keeper.id,
-            shotOfFace(episodeId, 320),
+            shotOfFace(videofileId, 320),
             "лицо оставшейся части обязано остаться в том же плане",
         )
         assertEquals(
             keeper.id,
-            shotOfFace(episodeId, 345),
+            shotOfFace(videofileId, 345),
             "лицо поглощённой части обязано перейти в оставшийся план",
         )
-        assertEquals(untouched.id, shotOfFace(episodeId, 250), "соседний план не тронут")
+        assertEquals(untouched.id, shotOfFace(videofileId, 250), "соседний план не тронут")
     }
 
     @Test
     fun `после разделения размеры планов пересчитаны по шкале`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
+        val videofile = analysed()
+        val videofileId = videofile.id!!
         // Кадр 1920 на 1080 — площадь кадра 2 073 600.
         // Лицо 1100 на 900 = 990 000, доля 0,477: выше порога 0,35 — это ECU.
         // Лицо 250 на 250 = 62 500, доля 0,030: между 0,04 и 0,02 — это MLS.
-        insertFace(episodeId, episode.movieId, frame = 220, width = 1100, height = 900)
-        insertFace(episodeId, episode.movieId, frame = 200, width = 250, height = 250)
+        insertFace(videofileId, videofile.projectId, frame = 220, width = 1100, height = 900)
+        insertFace(videofileId, videofile.projectId, frame = 200, width = 250, height = 250)
 
-        val outcome = editing.splitShot(episodeId, 210)
+        val outcome = editing.splitShot(videofileId, 210)
 
         val byStart = outcome.affected.associateBy { it.firstFrame }
         assertEquals(ShotSize.MLS, byStart.getValue(180).size, "план с мелким лицом — MLS")
         assertEquals(ShotSize.ECU, byStart.getValue(210).size, "план с самым крупным лицом — ECU")
-        val persisted = working(episodeId).associateBy { it.firstFrame }
+        val persisted = working(videofileId).associateBy { it.firstFrame }
         assertEquals(ShotSize.MLS, persisted.getValue(180).size, "пересчитанный размер обязан лежать в базе")
         assertEquals(ShotSize.ECU, persisted.getValue(210).size, "пересчитанный размер обязан лежать в базе")
     }
 
     @Test
     fun `план без лиц получает размер NONE`() {
-        val episode = analysed()
+        val videofile = analysed()
 
-        val outcome = editing.mergeShots(episodeId = episode.id!!, frame = 360)
+        val outcome = editing.mergeShots(videofileId = videofile.id!!, frame = 360)
 
         assertEquals(ShotSize.NONE, outcome.affected.single().size, "в плане нет лиц — размер не определён (ADR-0003)")
         assertEquals(SizeOrigin.AUTO, outcome.affected.single().sizeOrigin)
@@ -402,54 +402,54 @@ class ShotBoundaryEditingTest {
 
     @Test
     fun `размер выбранный оператором пересчётом не затирается`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        insertFace(episodeId, episode.movieId, frame = 150, width = 1100, height = 900)
-        val source = working(episodeId).first { it.firstFrame == 120 }
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        insertFace(videofileId, videofile.projectId, frame = 150, width = 1100, height = 900)
+        val source = working(videofileId).first { it.firstFrame == 120 }
         db.update(
             "UPDATE tbl_shots SET size = 'CU', size_origin = 'OPERATOR' WHERE id = ?",
             requireNotNull(source.id),
         )
 
-        editing.splitShot(episodeId, 150)
+        editing.splitShot(videofileId, 150)
 
-        val head = working(episodeId).first { it.firstFrame == 120 }
+        val head = working(videofileId).first { it.firstFrame == 120 }
         assertEquals(ShotSize.CU, head.size, "ручной размер оператора пересчёт затирать не должен")
         assertEquals(SizeOrigin.OPERATOR, head.sizeOrigin, "происхождение размера остаётся операторским")
     }
 
     @Test
     fun `разделение на первом кадре плана отвергается`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
+        val videofile = analysed()
+        val videofileId = videofile.id!!
 
-        val failure = assertFailsWith<DomainException> { editing.splitShot(episodeId, 300) }
+        val failure = assertFailsWith<DomainException> { editing.splitShot(videofileId, 300) }
 
         assertEquals(ErrorCode.BOUNDARY_CONFLICT, failure.code)
-        assertCovers(working(episodeId), 0, episode.frameCount - 1)
+        assertCovers(working(videofileId), 0, videofile.frameCount - 1)
     }
 
     @Test
     fun `сдвиг за пределы второго плана отвергается`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val second = working(episodeId).first { it.firstFrame == 300 }
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val second = working(videofileId).first { it.firstFrame == 300 }
 
         val failure =
             assertFailsWith<DomainException> {
-                editing.moveShotBoundary(episodeId, fromFrame = 300, toFrame = second.lastFrame + 60)
+                editing.moveShotBoundary(videofileId, fromFrame = 300, toFrame = second.lastFrame + 60)
             }
 
         assertEquals(ErrorCode.BOUNDARY_CONFLICT, failure.code)
-        assertCovers(working(episodeId), 0, episode.frameCount - 1)
+        assertCovers(working(videofileId), 0, videofile.frameCount - 1)
     }
 
     @Test
     fun `размер плана без лиц после сдвига остаётся NONE`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
+        val videofile = analysed()
+        val videofileId = videofile.id!!
 
-        val outcome = editing.moveShotBoundary(episodeId, fromFrame = 420, toFrame = 450)
+        val outcome = editing.moveShotBoundary(videofileId, fromFrame = 420, toFrame = 450)
 
         val notNull = assertNotNull(outcome.affected.firstOrNull())
         assertEquals(ShotSize.NONE, notNull.size, "в плане нет лиц — размер не определён (ADR-0003)")

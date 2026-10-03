@@ -124,13 +124,13 @@ class FaceEmbeddingStore(
     /**
      * Читает векторы лиц эпизода **один модели**.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param modelKey ключ модели эмбеддингов
      * @return векторы в порядке идентификаторов лиц
      * @throws IllegalArgumentException если ключ модели пуст
      */
-    fun listByEpisode(
-        episodeId: Long,
+    fun listByVideofile(
+        videofileId: Long,
         modelKey: String,
     ): List<FaceEmbedding> {
         require(modelKey.isNotBlank()) {
@@ -140,9 +140,9 @@ class FaceEmbeddingStore(
             "SELECT e.face_id, e.embedding_model_key, e.vector " +
                 "FROM ${FaceEmbeddingStore.TABLE} e " +
                 "JOIN ${FaceStore.TABLE} f ON f.id = e.face_id " +
-                "WHERE f.id_episode = ? AND e.embedding_model_key = ? ORDER BY e.face_id",
+                "WHERE f.id_videofile = ? AND e.embedding_model_key = ? ORDER BY e.face_id",
             ::readRow,
-            episodeId,
+            videofileId,
             modelKey,
         )
     }
@@ -169,20 +169,20 @@ class FaceEmbeddingStore(
     /**
      * Считает векторы эпизода заданный модели.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param modelKey ключ модели эмбеддингов
      * @return число векторов
      */
-    fun countByEpisode(
-        episodeId: Long,
+    fun countByVideofile(
+        videofileId: Long,
         modelKey: String,
     ): Int =
         db.selectOne(
             "SELECT count(*) AS total FROM ${FaceEmbeddingStore.TABLE} e " +
                 "JOIN ${FaceStore.TABLE} f ON f.id = e.face_id " +
-                "WHERE f.id_episode = ? AND e.embedding_model_key = ?",
+                "WHERE f.id_videofile = ? AND e.embedding_model_key = ?",
             { it.int("total") },
-            episodeId,
+            videofileId,
             modelKey,
         ) ?: 0
 

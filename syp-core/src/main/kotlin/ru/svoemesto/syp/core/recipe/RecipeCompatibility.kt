@@ -11,7 +11,7 @@ package ru.svoemesto.syp.core.recipe
  * Ни одна величина здесь не вводится оператором: она снята с файла и
  * принадлежит эпизоду, а не подборке.
  *
- * @property episodeId идентификатор эпизода
+ * @property videofileId идентификатор эпизода
  * @property name название эпизода
  * @property width ширина кадра в пикселях
  * @property height высота кадра в пикселях
@@ -25,8 +25,8 @@ package ru.svoemesto.syp.core.recipe
  * @property audioSampleRate частота дискретизации; `null` у эпизода без звука
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class EpisodeParameters(
-    val episodeId: Long,
+data class VideofileParameters(
+    val videofileId: Long,
     val name: String,
     val width: Int,
     val height: Int,
@@ -64,8 +64,8 @@ data class EpisodeParameters(
  *   от опорной
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class IncompatibleEpisode(
-    val parameters: EpisodeParameters,
+data class IncompatibleVideofile(
+    val parameters: VideofileParameters,
     val differingAttributes: List<String>,
 )
 
@@ -78,8 +78,8 @@ data class IncompatibleEpisode(
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class CompatibilityReport(
-    val reference: EpisodeParameters,
-    val incompatible: List<IncompatibleEpisode>,
+    val reference: VideofileParameters,
+    val incompatible: List<IncompatibleVideofile>,
 ) {
     /** Все эпизоды совпадают: подборку можно выдавать. */
     val isCompatible: Boolean
@@ -112,19 +112,19 @@ object RecipeCompatibility {
      * Опорный считается первый эпизод списка: порядок определяется выдачей, а не
      * сортировкой, иначе отчёт зависел бы от того, как отсортировали эпизода.
      *
-     * @param episode эпизода подборки
+     * @param videofile эпизода подборки
      * @return отчёт; при пустом списке — отказ, а не «всё совместимо»
      * @throws IllegalArgumentException если список эпизодов пуст
      */
-    fun check(episode: List<EpisodeParameters>): CompatibilityReport {
-        require(episode.isNotEmpty()) {
+    fun check(videofile: List<VideofileParameters>): CompatibilityReport {
+        require(videofile.isNotEmpty()) {
             "Проверять совместимость нечего: список эпизодов подборки пуст"
         }
-        val reference = episode.first()
+        val reference = videofile.first()
         val incompatible =
-            episode
+            videofile
                 .drop(1)
-                .map { candidate -> IncompatibleEpisode(candidate, differences(reference, candidate)) }
+                .map { candidate -> IncompatibleVideofile(candidate, differences(reference, candidate)) }
                 .filter { it.differingAttributes.isNotEmpty() }
         return CompatibilityReport(reference, incompatible)
     }
@@ -140,8 +140,8 @@ object RecipeCompatibility {
      * @return имена различающихся признаков
      */
     fun differences(
-        reference: EpisodeParameters,
-        candidate: EpisodeParameters,
+        reference: VideofileParameters,
+        candidate: VideofileParameters,
     ): List<String> =
         buildList {
             if (reference.width != candidate.width) add("width")

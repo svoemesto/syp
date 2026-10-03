@@ -55,7 +55,7 @@ class OrphanJobRecoveryTest {
         val jobId =
             queue.enqueue(
                 kind = JobKind.FACES,
-                subject = JobSubject.episode(1),
+                subject = JobSubject.videofile(1),
                 paramsJson = "{}",
                 paramsHash = "h",
             )

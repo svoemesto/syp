@@ -2,7 +2,7 @@ package ru.svoemesto.syp.admin.analysis
 
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
-import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.Videofile
 import ru.svoemesto.syp.core.media.ExternalProgram
 import java.nio.file.Files
 import java.nio.file.Path
@@ -58,8 +58,8 @@ class SceneDetectorTest {
      *
      * @return путь к файлу, который удаляет вызывающий
      */
-    private fun syntheticEpisode(): Path {
-        val target = Files.createTempDirectory("syp-scdet").resolve("episode.mkv")
+    private fun syntheticVideofile(): Path {
+        val target = Files.createTempDirectory("syp-scdet").resolve("videofile.mkv")
         ExternalProgram()
             .runOrFail(
                 requireProgram("ffmpeg"),
@@ -101,13 +101,13 @@ class SceneDetectorTest {
      * @param file проверочный файл
      * @return эпизод для опроса
      */
-    private fun episodeOf(file: Path): Episode {
+    private fun videofileOf(file: Path): Videofile {
         val parameters =
             ru.svoemesto.syp.admin.catalog
                 .SourceProbe(ExternalProgram(), requireProgram("ffprobe"))
                 .probe(file)
-        return Episode(
-            movieId = 0,
+        return Videofile(
+            projectId = 0,
             ordinal = 0,
             name = "проверочная",
             sourcePath = file.toString(),
@@ -129,13 +129,13 @@ class SceneDetectorTest {
 
     @Test
     fun `один проход даёт сцены по высокому порогу и планы по низкому`() {
-        val file = syntheticEpisode()
+        val file = syntheticVideofile()
         try {
-            val episode = episodeOf(file)
+            val videofile = videofileOf(file)
             val detector = SceneDetector(ExternalProgram(), requireProgram("ffmpeg"))
 
-            val scenesOnly = detector.detect(episode, sceneThreshold = 10.0, shotThreshold = 10.0)
-            val both = detector.detect(episode, sceneThreshold = 10.0, shotThreshold = 0.05)
+            val scenesOnly = detector.detect(videofile, sceneThreshold = 10.0, shotThreshold = 10.0)
+            val both = detector.detect(videofile, sceneThreshold = 10.0, shotThreshold = 0.05)
 
             assertTrue(scenesOnly.sceneBoundaries.isNotEmpty(), "на проверочном ролике смена сцены обязана найтись")
             assertEquals(scenesOnly.sceneBoundaries, both.sceneBoundaries, "высокий порог даёт одни и те же сцены")
@@ -148,7 +148,7 @@ class SceneDetectorTest {
                 "при равных порогах границы сцен входят в границы планов",
             )
             assertTrue(
-                both.shotBoundaries.all { it in 0 until episode.frameCount },
+                both.shotBoundaries.all { it in 0 until videofile.frameCount },
                 "все границы попадают внутрь эпизода: номера кадров, а не отметки времени",
             )
             assertTrue(both.scores > 0, "детектор вернул оценки смены сцены")
@@ -159,14 +159,14 @@ class SceneDetectorTest {
 
     @Test
     fun `порог плана выше порога сцены отвергается`() {
-        val file = syntheticEpisode()
+        val file = syntheticVideofile()
         try {
-            val episode = episodeOf(file)
+            val videofile = videofileOf(file)
             val detector = SceneDetector(ExternalProgram(), requireProgram("ffmpeg"))
 
             val failure =
                 assertFailsWith<IllegalArgumentException> {
-                    detector.detect(episode, sceneThreshold = 5.0, shotThreshold = 50.0)
+                    detector.detect(videofile, sceneThreshold = 5.0, shotThreshold = 50.0)
                 }
 
             assertTrue(

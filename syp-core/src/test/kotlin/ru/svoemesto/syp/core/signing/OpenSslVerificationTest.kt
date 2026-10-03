@@ -36,7 +36,7 @@ class OpenSslVerificationTest {
     private val recipe =
         CanonicalObject.of(
             "schemaVersion" to 1,
-            "movieName" to "Игры Престолов",
+            "projectName" to "Игры Престолов",
             "items" to
                 listOf(
                     CanonicalObject.of(

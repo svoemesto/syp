@@ -55,7 +55,7 @@ class PreviewSheetTest {
 
     @Test
     fun `листы идут подряд без пропусков и перекрытий`() {
-        val sheets = PreviewSheet.all(episodeId = 7, frameCount = s1e1Frames)
+        val sheets = PreviewSheet.all(videofileId = 7, frameCount = s1e1Frames)
 
         assertEquals(347, sheets.size)
         assertEquals(0, sheets.first().firstFrame)
@@ -74,7 +74,7 @@ class PreviewSheetTest {
 
     @Test
     fun `последний лист урезан по числу кадров`() {
-        val sheets = PreviewSheet.all(episodeId = 7, frameCount = s1e1Frames)
+        val sheets = PreviewSheet.all(videofileId = 7, frameCount = s1e1Frames)
         val last = sheets.last()
 
         assertEquals(88_576, last.firstFrame, "88 576 — начало 347-го листа при 256 кадрах на лист")
@@ -84,7 +84,7 @@ class PreviewSheetTest {
 
     @Test
     fun `положение кадра в раскладке считается по порядку кадров`() {
-        val sheet = PreviewSheet.of(episodeId = 7, index = 1, frameCount = s1e1Frames)
+        val sheet = PreviewSheet.of(videofileId = 7, index = 1, frameCount = s1e1Frames)
 
         assertEquals(256, sheet.firstFrame)
         assertEquals(511, sheet.lastFrame)
@@ -99,7 +99,7 @@ class PreviewSheetTest {
     fun `ключи листа отражают эпизод и номер листа`(
         @TempDir root: Path,
     ) {
-        val sheet = PreviewSheet.of(episodeId = 42, index = 3, frameCount = s1e1Frames)
+        val sheet = PreviewSheet.of(videofileId = 42, index = 3, frameCount = s1e1Frames)
 
         assertTrue(sheet.finalKey().contains("/42/"), "ключ содержит эпизод: ${sheet.finalKey()}")
         assertTrue(
@@ -116,7 +116,7 @@ class PreviewSheetTest {
     ) {
         val storage = FileSystemStorage(root)
         val builder = PreviewSheetBuilder(storage)
-        val sheet = PreviewSheet.of(episodeId = 42, index = 0, frameCount = 600)
+        val sheet = PreviewSheet.of(videofileId = 42, index = 0, frameCount = 600)
         val expected = sheet.layout.framesPerSheet
         val built = mutableListOf<Int>()
 
@@ -146,7 +146,7 @@ class PreviewSheetTest {
     ) {
         val storage = FileSystemStorage(root)
         val builder = PreviewSheetBuilder(storage)
-        val sheet = PreviewSheet.of(episodeId = 42, index = 0, frameCount = 600)
+        val sheet = PreviewSheet.of(videofileId = 42, index = 0, frameCount = 600)
 
         val failure =
             assertFailsWith<java.io.IOException> {

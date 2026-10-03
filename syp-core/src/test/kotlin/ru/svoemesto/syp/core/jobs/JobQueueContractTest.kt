@@ -355,22 +355,22 @@ class JobQueueContractTest {
     @DisplayName("Свойство 8: прерванный подсчёт суммы не оставляет DONE")
     fun interruptedChecksumLeavesNoDoneRow() {
         val db = TestDb.assumeDatabase()
-        val episodeId = createEpisode(db)
+        val videofileId = createVideofile(db)
         val jobId = enqueue(JobKind.HASH, "свойство-8")
 
         // Подсчёт начат и прерван: запись остаётся не в состоянии DONE.
         db.update(
             """
-            INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state)
+            INSERT INTO tbl_source_file_checksums (id_videofile, algorithm, digest, byte_size, file_mtime, state)
             VALUES (?, 'SHA-256', repeat('a', 64), 100, now(), 'WORKING')
             """.trimIndent(),
-            episodeId,
+            videofileId,
         )
         val row =
             db.selectOne(
-                "SELECT id, state FROM tbl_source_file_checksums WHERE id_episode = ?",
+                "SELECT id, state FROM tbl_source_file_checksums WHERE id_videofile = ?",
                 { it.long("id") to it.string("state") },
-                episodeId,
+                videofileId,
             )
         assertNotNull(row)
         assertEquals("WORKING", row.second, "прерванный подсчёт не должен давать DONE")
@@ -378,19 +378,19 @@ class JobQueueContractTest {
         // Две актуальные суммы в базу не попадают: частичный уникальный индекс.
         db.update(
             """
-            INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
+            INSERT INTO tbl_source_file_checksums (id_videofile, algorithm, digest, byte_size, file_mtime, state, computed_at)
             VALUES (?, 'SHA-256', repeat('b', 64), 100, now(), 'DONE', now())
             """.trimIndent(),
-            episodeId,
+            videofileId,
         )
         val second =
             runCatching {
                 db.update(
                     """
-                    INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, file_mtime, state, computed_at)
+                    INSERT INTO tbl_source_file_checksums (id_videofile, algorithm, digest, byte_size, file_mtime, state, computed_at)
                     VALUES (?, 'SHA-256', repeat('c', 64), 100, now(), 'DONE', now())
                     """.trimIndent(),
-                    episodeId,
+                    videofileId,
                 )
             }
         assertTrue(second.isFailure, "вторая актуальная сумма того же эпизода должна отклоняться базой")
@@ -398,12 +398,12 @@ class JobQueueContractTest {
         // Первая актуальная сумма на месте, устаревших — сколько угодно.
         val current =
             db.select(
-                "SELECT digest FROM tbl_source_file_checksums WHERE id_episode = ? AND state = 'DONE' AND is_stale = FALSE",
+                "SELECT digest FROM tbl_source_file_checksums WHERE id_videofile = ? AND state = 'DONE' AND is_stale = FALSE",
                 { it.string("digest") },
-                episodeId,
+                videofileId,
             )
         assertEquals(1, current.size, "актуальная сумма должна быть ровно одна")
-        assertTrue(db.update("DELETE FROM tbl_episodes WHERE id = ?", episodeId) >= 0)
+        assertTrue(db.update("DELETE FROM tbl_videofiles WHERE id = ?", videofileId) >= 0)
         assertEquals(jobId, jobId)
     }
 
@@ -437,8 +437,8 @@ class JobQueueContractTest {
     @Test
     @DisplayName("Свойство: лица ждут разбора того же эпизода")
     fun facesWaitsForOwnAnalysis() {
-        val faces = enqueueFor(JobKind.FACES, "лица-раньше", episodeId = 1)
-        enqueueFor(JobKind.ANALYZE, "разбор-позже", episodeId = 1)
+        val faces = enqueueFor(JobKind.FACES, "лица-раньше", videofileId = 1)
+        enqueueFor(JobKind.ANALYZE, "разбор-позже", videofileId = 1)
 
         assertNull(
             queue.claim(listOf(JobKind.FACES)),
@@ -464,9 +464,9 @@ class JobQueueContractTest {
      */
     @Test
     @DisplayName("Свойство: разбор чужого эпизода не задерживает лица")
-    fun otherEpisodeAnalysisDoesNotBlock() {
-        val faces = enqueueFor(JobKind.FACES, "лица-эпизод-1", episodeId = 1)
-        enqueueFor(JobKind.ANALYZE, "разбор-эпизод-2", episodeId = 2)
+    fun otherVideofileAnalysisDoesNotBlock() {
+        val faces = enqueueFor(JobKind.FACES, "лица-эпизод-1", videofileId = 1)
+        enqueueFor(JobKind.ANALYZE, "разбор-эпизод-2", videofileId = 2)
 
         val claimed = queue.claim(listOf(JobKind.FACES))
         assertNotNull(claimed, "разбор другого эпизода не должен ждать лица этого")
@@ -482,8 +482,8 @@ class JobQueueContractTest {
     @Test
     @DisplayName("Свойство: упавший разбор не держит лица")
     fun failedAnalysisDoesNotBlockForever() {
-        enqueueFor(JobKind.FACES, "лица-после-сбоя", episodeId = 3)
-        enqueueFor(JobKind.ANALYZE, "разбор-упадёт", episodeId = 3)
+        enqueueFor(JobKind.FACES, "лица-после-сбоя", videofileId = 3)
+        enqueueFor(JobKind.ANALYZE, "разбор-упадёт", videofileId = 3)
         val analysis = queue.claim(listOf(JobKind.ANALYZE))
         assertNotNull(analysis, "разбор должен браться в работу")
         queue.startWork(analysis.id)
@@ -500,36 +500,36 @@ class JobQueueContractTest {
     private fun enqueue(
         kind: JobKind,
         label: String,
-    ): Long = enqueueFor(kind, label, episodeId = null)
+    ): Long = enqueueFor(kind, label, videofileId = null)
 
     /**
      * Ставит задание в очередь с указанным эпизодом.
      *
      * @param kind вид задания
      * @param label метка для параметров
-     * @param episodeId эпизод; `null` — задание без предмета
+     * @param videofileId эпизод; `null` — задание без предмета
      * @return идентификатор задания
      */
     private fun enqueueFor(
         kind: JobKind,
         label: String,
-        episodeId: Long?,
+        videofileId: Long?,
     ): Long =
         queue.enqueue(
             kind = kind,
-            subject = if (episodeId == null) JobSubject.NONE else JobSubject.episode(episodeId),
+            subject = if (videofileId == null) JobSubject.NONE else JobSubject.videofile(videofileId),
             paramsJson = """{"метка":"$label"}""",
             paramsHash = ParamsHash.of(label, System.nanoTime()),
             algorithmVersion = "contract-test-1",
         )
 
     /** Создаёт эпизод для проверок справочника сумм. */
-    private fun createEpisode(db: ru.svoemesto.syp.core.db.Db): Long {
-        val movieId =
+    private fun createVideofile(db: ru.svoemesto.syp.core.db.Db): Long {
+        val projectId =
             db.use { connection ->
                 connection
                     .prepareStatement(
-                        "INSERT INTO tbl_movies (name, source_root) VALUES (?, ?) RETURNING id",
+                        "INSERT INTO tbl_projects (name, source_root) VALUES (?, ?) RETURNING id",
                     ).use { statement ->
                         statement.setString(1, "Контракт ${System.nanoTime()}")
                         statement.setString(2, "/srv/contract")
@@ -543,14 +543,14 @@ class JobQueueContractTest {
             connection
                 .prepareStatement(
                     """
-                    INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime,
+                    INSERT INTO tbl_videofiles (id_project, ordinal, name, source_path, file_size, file_mtime,
                                         frame_count, time_base_num, time_base_den, width, height,
                                         duration_num, duration_den, video_codec, pixel_format)
                     VALUES (?, 1, 'S01E01', ?, 100, now(), 88643, 1001, 24000, 1920, 1080, 10, 1, 'h264', 'yuv420p')
                     RETURNING id
                     """.trimIndent(),
                 ).use { statement ->
-                    statement.setLong(1, movieId)
+                    statement.setLong(1, projectId)
                     statement.setString(2, "/srv/contract/S01E01.mkv")
                     statement.executeQuery().use { resultSet ->
                         resultSet.next()

@@ -88,7 +88,7 @@ enum class AnalysisState {
  * понять, что именно изменилось — алгоритм, пороги или сам файл (FR-093).
  *
  * @property id идентификатор прогона; `null`, пока не записан
- * @property episodeId эпизод, которую разбирали
+ * @property videofileId эпизод, которую разбирали
  * @property kind вид прогона
  * @property algorithmVersion версия алгоритма, которой получен результат
  * @property paramsHash хеш входов задания: по нему видно, при каких порогах
@@ -104,7 +104,7 @@ enum class AnalysisState {
  */
 data class AnalysisRun(
     val id: Long? = null,
-    val episodeId: Long,
+    val videofileId: Long,
     val kind: AnalysisKind,
     val algorithmVersion: String,
     val paramsHash: String,
@@ -140,7 +140,7 @@ data class AnalysisRun(
             AnalysisRunStore.COLUMNS,
             {
                 listOf(
-                    episodeId,
+                    videofileId,
                     kind.name,
                     algorithmVersion,
                     paramsHash,
@@ -157,7 +157,7 @@ data class AnalysisRun(
     companion object {
         /** Столбцы прогона в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, id_episode, kind, algorithm_version, params_hash, state, started_at, " +
+            "id, id_videofile, kind, algorithm_version, params_hash, state, started_at, " +
                 "finished_at, error_text, is_stale, recordhash"
     }
 }
@@ -255,19 +255,19 @@ class AnalysisRunStore(
      * версии алгоритма делает прежний результат устаревшим, но **не удаляет**
      * его — удаление уничтожило бы ручные правки оператора (FR-090, SC-006).
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param kind вид прогона
      * @param paramsHash актуальный хеш параметров
      * @return число помеченных прогонов
      */
     fun markStaleExcept(
-        episodeId: Long,
+        videofileId: Long,
         kind: AnalysisKind,
         paramsHash: String,
     ): Int =
         db.update(
-            "UPDATE $NAME SET is_stale = TRUE WHERE id_episode = ? AND kind = ? AND params_hash <> ?",
-            episodeId,
+            "UPDATE $NAME SET is_stale = TRUE WHERE id_videofile = ? AND kind = ? AND params_hash <> ?",
+            videofileId,
             kind.name,
             paramsHash,
         )
@@ -283,32 +283,32 @@ class AnalysisRunStore(
     /**
      * Последний прогон эпизода заданного вида.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param kind вид прогона
      * @return последний по идентификатору прогон либо `null`
      */
     fun latest(
-        episodeId: Long,
+        videofileId: Long,
         kind: AnalysisKind,
     ): AnalysisRun? =
         db.selectOne(
-            "$READ_SQL WHERE id_episode = ? AND kind = ? ORDER BY id DESC LIMIT 1",
+            "$READ_SQL WHERE id_videofile = ? AND kind = ? ORDER BY id DESC LIMIT 1",
             ::readRow,
-            episodeId,
+            videofileId,
             kind.name,
         )
 
     /**
      * Все прогоны эпизода, свежие первыми.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return прогоны в обратном порядке идентификаторов
      */
-    fun listByEpisode(episodeId: Long): List<AnalysisRun> =
+    fun listByVideofile(videofileId: Long): List<AnalysisRun> =
         db.select(
-            "$READ_SQL WHERE id_episode = ? ORDER BY id DESC",
+            "$READ_SQL WHERE id_videofile = ? ORDER BY id DESC",
             ::readRow,
-            episodeId,
+            videofileId,
         )
 
     /** Читает идентификатор только что записанного прогона. */
@@ -318,10 +318,10 @@ class AnalysisRunStore(
     ): Long =
         connection
             .prepareStatement(
-                "SELECT id FROM $NAME WHERE id_episode = ? AND kind = ? AND params_hash = ? " +
+                "SELECT id FROM $NAME WHERE id_videofile = ? AND kind = ? AND params_hash = ? " +
                     "ORDER BY id DESC LIMIT 1",
             ).use { statement ->
-                statement.setLong(1, run.episodeId)
+                statement.setLong(1, run.videofileId)
                 statement.setString(2, run.kind.name)
                 statement.setString(3, run.paramsHash)
                 statement.executeQuery().use { resultSet ->
@@ -339,7 +339,7 @@ class AnalysisRunStore(
     private fun readRow(row: Row): AnalysisRun =
         AnalysisRun(
             id = row.long("id"),
-            episodeId = row.long("id_episode"),
+            videofileId = row.long("id_videofile"),
             kind = AnalysisKind.parse(row.string("kind")),
             algorithmVersion = row.string("algorithm_version"),
             paramsHash = row.string("params_hash"),
@@ -361,7 +361,7 @@ class AnalysisRunStore(
         /** Записываемые столбцы прогона в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "id_episode",
+                "id_videofile",
                 "kind",
                 "algorithm_version",
                 "params_hash",

@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import ru.svoemesto.syp.admin.analysis.DetectionResult
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
-import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.jobs.JobKind
@@ -42,11 +42,11 @@ data class PersonView(
 /**
  * Персоны фильма в ответе.
  *
- * @property movieId фильм
+ * @property projectId фильм
  * @property persons персоны: сначала служебные, затем именованные по имени
  */
 data class PersonsView(
-    val movieId: Long,
+    val projectId: Long,
     val persons: List<PersonView>,
 )
 
@@ -95,8 +95,8 @@ data class FaceView(
  * ответ занял бы мегабайты и положил бы вкладку оператора
  * (`admin-api.md` § 1.5).
  *
- * @property episodeId эпизод
- * @property movieId фильм-владелец: по нему клиент читает справочник персон
+ * @property videofileId эпизод
+ * @property projectId фильм-владелец: по нему клиент читает справочник персон
  * @property frameWidth ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру
  * @property frameHeight высота кадра эпизода
  * @property facesTotal сколько лиц у эпизода всего
@@ -105,8 +105,8 @@ data class FaceView(
  * @property faces лица выборки
  */
 data class FacesView(
-    val episodeId: Long,
-    val movieId: Long,
+    val videofileId: Long,
+    val projectId: Long,
     val frameWidth: Int,
     val frameHeight: Int,
     val facesTotal: Int,
@@ -136,7 +136,7 @@ data class FaceClusterView(
  * Отдаются **без имени**: кластер, которому оператор дал имя, стал персоной
  * и в списке кластеров безымянных не показывается (FR-031).
  *
- * @property episodeId эпизод
+ * @property videofileId эпизод
  * @property frameWidth ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру
  * @property frameHeight высота кадра эпизода
  * @property embeddingModelKey ключ модели эмбеддингов, которой получены векторы
@@ -144,7 +144,7 @@ data class FaceClusterView(
  * @property clusters кластеры по убыванию числа лиц
  */
 data class FaceClustersView(
-    val episodeId: Long,
+    val videofileId: Long,
     val frameWidth: Int,
     val frameHeight: Int,
     val embeddingModelKey: String,
@@ -226,8 +226,8 @@ data class RenamePersonRequest(
  * @property embeddings хранилище эмбеддингов
  * @property clustering кластеризация на холодном старте
  * @property persons сервис персон
- * @property episodeStore хранилище эпизодов
- * @property movies хранилище фильмов
+ * @property videofileStore хранилище эпизодов
+ * @property projects хранилище фильмов
  * @property settingsStore настройки фильма
  * @property embeddingModelKey ключ модели эмбеддингов из конфигурации развёртывания
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -239,9 +239,9 @@ class CharactersController(
     private val embeddings: FaceEmbeddingStore,
     private val clustering: Clustering,
     private val persons: PersonService,
-    private val episodeStore: EpisodeStore,
-    private val movies: MovieStore,
-    private val settingsStore: MovieSettingsStore,
+    private val videofileStore: VideofileStore,
+    private val projects: ProjectStore,
+    private val settingsStore: ProjectSettingsStore,
     private val embeddingModelKey: String,
     private val queue: JobQueue,
 ) {
@@ -256,55 +256,55 @@ class CharactersController(
      * отбрасывает совпадающее по параметрам задание эпизода, которое ещё не
      * закончено.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return номер задания и его состояние
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом `NOT_FOUND`,
      *   если эпизода нет
      */
-    @PostMapping("/episodes/{episodeId}/faces")
+    @PostMapping("/videofiles/{videofileId}/faces")
     fun startFaceScan(
-        @PathVariable episodeId: Long,
+        @PathVariable videofileId: Long,
     ): ResponseEntity<FaceScanEnqueuedView> {
-        val episode = requireEpisode(episodeId)
+        val videofile = requireVideofile(videofileId)
         val jobId =
             queue.enqueue(
                 kind = JobKind.FACES,
-                subject = JobSubject.episode(episode.id!!),
+                subject = JobSubject.videofile(videofile.id!!),
                 paramsJson = """{"embeddingModelKey":"$embeddingModelKey"}""",
                 paramsHash = embeddingModelKey,
                 algorithmVersion = DetectionResult.ALGORITHM_VERSION,
             )
         return ResponseEntity
             .status(HttpStatus.ACCEPTED)
-            .body(FaceScanEnqueuedView(jobId = jobId, episodeId = episode.id, embeddingModelKey = embeddingModelKey))
+            .body(FaceScanEnqueuedView(jobId = jobId, videofileId = videofile.id, embeddingModelKey = embeddingModelKey))
     }
 
     /**
      * Отдаёт лица эпизода.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param offset смещение выборки
      * @param limit размер выборки
      * @return страница лиц эпизода
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    @GetMapping("/episodes/{episodeId}/faces")
+    @GetMapping("/videofiles/{videofileId}/faces")
     fun readFaces(
-        @PathVariable episodeId: Long,
+        @PathVariable videofileId: Long,
         @RequestParam(defaultValue = "0") offset: Int,
         @RequestParam(defaultValue = "200") limit: Int,
     ): FacesView {
-        val episode = requireEpisode(episodeId)
+        val videofile = requireVideofile(videofileId)
         val start = offset.coerceAtLeast(0)
         val size = limit.coerceIn(1, MAX_PAGE)
-        val page = faces.listByEpisode(episodeId, start, size)
+        val page = faces.listByVideofile(videofileId, start, size)
         val byId = namedPersons(page.map { it.personId }.distinct())
         return FacesView(
-            episodeId = episodeId,
-            movieId = episode.movieId,
-            frameWidth = episode.width,
-            frameHeight = episode.height,
-            facesTotal = faces.countByEpisode(episodeId),
+            videofileId = videofileId,
+            projectId = videofile.projectId,
+            frameWidth = videofile.width,
+            frameHeight = videofile.height,
+            facesTotal = faces.countByVideofile(videofileId),
             offset = start,
             limit = size,
             faces = page.map { face -> face.toView(byId[face.personId]) },
@@ -322,22 +322,22 @@ class CharactersController(
      * «распознано, имя не подтверждено»: «нет персоны» выражается заглушкой,
      * а не пустой ссылкой (Р-12).
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return кластеры эпизода
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    @GetMapping("/episodes/{episodeId}/faces/clusters")
+    @GetMapping("/videofiles/{videofileId}/faces/clusters")
     fun readClusters(
-        @PathVariable episodeId: Long,
+        @PathVariable videofileId: Long,
     ): FaceClustersView {
-        val episode = requireEpisode(episodeId)
+        val videofile = requireVideofile(videofileId)
         val namedKeys =
-            persons.listByMovie(episode.movieId).mapNotNull { it.recognizerKey }.toSet()
-        val unnamed = clustersOf(episodeId).filter { it.id !in namedKeys }
+            persons.listByProject(videofile.projectId).mapNotNull { it.recognizerKey }.toSet()
+        val unnamed = clustersOf(videofileId).filter { it.id !in namedKeys }
         return FaceClustersView(
-            episodeId = episodeId,
-            frameWidth = episode.width,
-            frameHeight = episode.height,
+            videofileId = videofileId,
+            frameWidth = videofile.width,
+            frameHeight = videofile.height,
             embeddingModelKey = embeddingModelKey,
             clustersTotal = unnamed.size,
             clusters =
@@ -361,7 +361,7 @@ class CharactersController(
      * увидел бы в справочнике и удалил руками, не понимая, откуда она взялась.
      * Откат не отменяет исходной ошибки — она и есть причина отказа.
      *
-     * @param clusterId ключ кластера из `GET /api/episode/{episodeId}/faces/clusters`
+     * @param clusterId ключ кластера из `GET /api/videofile/{videofileId}/faces/clusters`
      * @param request имя персоны
      * @return созданная персона с числом назначенных лиц
      * @throws DomainException с кодом `NOT_FOUND`, если кластера нет; с кодом
@@ -381,16 +381,16 @@ class CharactersController(
                         "и ни одного его лица не осталось",
                 )
         val cluster =
-            clustersOf(anchor.episodeId).firstOrNull { it.id == clusterId }
+            clustersOf(anchor.videofileId).firstOrNull { it.id == clusterId }
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
                     "Лицо $anchorId ещё есть, но кластера «$clusterId» уже нет: состав лиц " +
                         "эпизода изменился, перечитайте список кластеров",
                 )
-        val movieId = requireEpisode(anchor.episodeId).movieId
+        val projectId = requireVideofile(anchor.videofileId).projectId
         val person =
             persons.create(
-                movieId = movieId,
+                projectId = projectId,
                 name = request.name,
                 recognizerKey = request.recognizerKey?.takeIf { it.isNotBlank() } ?: clusterId,
             )
@@ -419,23 +419,23 @@ class CharactersController(
      * пользуется и вынесено за пределы адреса намеренно: переобучение — это
      * отдельная долгая операция, а не правка одного лица.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param request лица и новое значение метки
      * @return сколько лиц изменилось
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      * @throws DomainException с кодом `BAD_REQUEST`, если лица не его
      * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
      */
-    @PatchMapping("/episodes/{episodeId}/faces/example")
+    @PatchMapping("/videofiles/{videofileId}/faces/example")
     fun markFaceExamples(
-        @PathVariable episodeId: Long,
+        @PathVariable videofileId: Long,
         @RequestBody request: MarkExamplesRequest,
     ): FaceExamplesMarkedView {
-        requireEpisode(episodeId)
+        requireVideofile(videofileId)
         if (request.faceIds.isEmpty()) {
             throw DomainException(ErrorCode.BAD_REQUEST, "не выбрано ни одного лица: помечать нечего")
         }
-        val mine = faces.listByIds(request.faceIds).filter { it.episodeId == episodeId }
+        val mine = faces.listByIds(request.faceIds).filter { it.videofileId == videofileId }
         if (mine.size != request.faceIds.distinct().size) {
             throw DomainException(
                 ErrorCode.BAD_REQUEST,
@@ -449,18 +449,18 @@ class CharactersController(
     /**
      * Отдаёт персон фильма.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return персоны фильма
      * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
-    @GetMapping("/movies/{movieId}/persons")
+    @GetMapping("/projects/{projectId}/persons")
     fun readPersons(
-        @PathVariable movieId: Long,
+        @PathVariable projectId: Long,
     ): PersonsView {
-        requireMovie(movieId)
+        requireProject(projectId)
         return PersonsView(
-            movieId = movieId,
-            persons = persons.listByMovie(movieId).map { it.toView() },
+            projectId = projectId,
+            persons = persons.listByProject(projectId).map { it.toView() },
         )
     }
 
@@ -505,13 +505,13 @@ class CharactersController(
     /**
      * Кластеры эпизода по её эмбеддингам.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @return кластеры эпизода
      */
-    private fun clustersOf(episodeId: Long): List<FaceCluster> =
+    private fun clustersOf(videofileId: Long): List<FaceCluster> =
         clustering.cluster(
-            embeddings.listByEpisode(episodeId, embeddingModelKey).map { ClusterPoint(it.faceId, it.vector) },
-            settingsStore.read(requireEpisode(episodeId).movieId),
+            embeddings.listByVideofile(videofileId, embeddingModelKey).map { ClusterPoint(it.faceId, it.vector) },
+            settingsStore.read(requireVideofile(videofileId).projectId),
         )
 
     /**
@@ -542,23 +542,23 @@ class CharactersController(
     /**
      * Требует эпизод.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return эпизод
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    private fun requireEpisode(episodeId: Long): Episode =
-        episodeStore.find(episodeId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "Эпизод $episodeId не зарегистрирована")
+    private fun requireVideofile(videofileId: Long): Videofile =
+        videofileStore.find(videofileId)
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "Эпизод $videofileId не зарегистрирована")
 
     /**
      * Требует фильм.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
-    private fun requireMovie(movieId: Long) {
-        if (movies.find(movieId) == null) {
-            throw DomainException(ErrorCode.NOT_FOUND, "Фильм $movieId не заведён")
+    private fun requireProject(projectId: Long) {
+        if (projects.find(projectId) == null) {
+            throw DomainException(ErrorCode.NOT_FOUND, "Фильм $projectId не заведён")
         }
     }
 
@@ -616,11 +616,11 @@ class CharactersController(
  * шапке по подписке на уведомления.
  *
  * @property jobId номер задания в очереди
- * @property episodeId эпизод, для которого задано задание
+ * @property videofileId эпизод, для которого задано задание
  * @property embeddingModelKey ключ модели эмбеддингов, которой считались вектора
  */
 data class FaceScanEnqueuedView(
     val jobId: Long,
-    val episodeId: Long?,
+    val videofileId: Long?,
     val embeddingModelKey: String,
 )

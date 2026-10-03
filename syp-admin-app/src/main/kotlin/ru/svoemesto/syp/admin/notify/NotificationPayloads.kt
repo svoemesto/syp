@@ -73,7 +73,7 @@ data class QueueStatePayload(
  * @see <a href="../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class ChecksumChangedPayload(
-    val episodeId: Long,
+    val videofileId: Long,
     val state: String,
     val digest: String?,
     val isStale: Boolean,

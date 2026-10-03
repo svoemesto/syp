@@ -6,9 +6,9 @@ import ru.svoemesto.syp.admin.analysis.Shot
 import ru.svoemesto.syp.admin.analysis.ShotSize
 import ru.svoemesto.syp.admin.analysis.SizeOrigin
 import ru.svoemesto.syp.admin.analysis.StructureService
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
-import ru.svoemesto.syp.admin.catalog.MovieSetting
-import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.catalog.ProjectSetting
+import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.characters.FacePlanBinding
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
@@ -57,7 +57,7 @@ enum class ShotBoundaryAction {
  * сотни планов, а менялись два из них. Интерфейс не перезапрашивает структуру
  * целиком после каждой правки (`boundary-editing.md` § 7).
  *
- * @property episodeId эпизод
+ * @property videofileId эпизод
  * @property frame кадр, по которому выполнена операция: первый кадр второго
  *   плана после сдвига или разделения, первый кадр поглощённого плана при
  *   объединении
@@ -71,7 +71,7 @@ enum class ShotBoundaryAction {
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class ShotEditOutcome(
-    val episodeId: Long,
+    val videofileId: Long,
     val frame: Int,
     val action: ShotBoundaryAction,
     val affected: List<Shot>,
@@ -203,7 +203,7 @@ class ShotSizeScale(
  * @property db доступ к базе сырым JDBC
  * @property structure чтение рабочих сцен и планов
  * @property binding пересчёт принадлежности лиц планам
- * @property episodes чтение эпизода: из него берутся фильм и площадь кадра
+ * @property videofiles чтение эпизода: из него берутся фильм и площадь кадра
  * @property settings настройки фильма: из них берутся пороги размера плана
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
@@ -211,35 +211,35 @@ class ShotBoundaryEditing(
     private val db: Db,
     private val structure: StructureService,
     private val binding: FacePlanBinding,
-    private val episodes: EpisodeStore,
-    private val settings: MovieSettingsStore,
+    private val videofiles: VideofileStore,
+    private val settings: ProjectSettingsStore,
 ) {
     /**
      * Площадь кадра эпизода: переводит площадь рамки лица в долю кадра.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return площадь в квадратных пикселях
      * @throws DomainException если эпизода нет
      */
-    private fun frameAreaOf(episodeId: Long): Int {
-        val episode =
-            episodes.find(episodeId)
-                ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $episodeId не зарегистрирован")
-        return episode.width * episode.height
+    private fun frameAreaOf(videofileId: Long): Int {
+        val videofile =
+            videofiles.find(videofileId)
+                ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $videofileId не зарегистрирован")
+        return videofile.width * videofile.height
     }
 
     /**
      * Шкала размера плана фильма эпизода.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return шкала по порогам из настроек фильма
      * @throws DomainException если эпизода или настроек нет
      */
-    private fun scaleOf(episodeId: Long): ShotSizeScale {
-        val episode =
-            episodes.find(episodeId)
-                ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $episodeId не зарегистрирован")
-        return ShotSizeScale(settings.read(episode.movieId).numbers(MovieSetting.SHOT_SIZE_THRESHOLDS))
+    private fun scaleOf(videofileId: Long): ShotSizeScale {
+        val videofile =
+            videofiles.find(videofileId)
+                ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $videofileId не зарегистрирован")
+        return ShotSizeScale(settings.read(videofile.projectId).numbers(ProjectSetting.SHOT_SIZE_THRESHOLDS))
     }
 
     /**
@@ -250,7 +250,7 @@ class ShotBoundaryEditing(
      * начинается второй из них, поэтому `fromFrame` — кадр, который оператор
      * видит как «граница планов», а `toFrame` — куда он её ставит.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param fromFrame кадр, на котором граница стоит сейчас
      * @param toFrame кадр, на который её ставят
      * @return результат операции
@@ -259,14 +259,14 @@ class ShotBoundaryEditing(
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun moveShotBoundary(
-        episodeId: Long,
+        videofileId: Long,
         fromFrame: Int,
         toFrame: Int,
     ): ShotEditOutcome =
         db.useTransaction { connection ->
-            val state = readState(connection, episodeId)
+            val state = readState(connection, videofileId)
             val first = state.shotEndingAt(fromFrame - 1, fromFrame)
-            val second = state.shotStartingAt(fromFrame, episodeId)
+            val second = state.shotStartingAt(fromFrame, videofileId)
             if (toFrame == fromFrame) {
                 throw DomainException(
                     ErrorCode.BOUNDARY_CONFLICT,
@@ -298,12 +298,12 @@ class ShotBoundaryEditing(
             val secondMoved = second.rebuilt(firstFrame = toFrame)
             updateShot(connection, firstMoved)
             updateShot(connection, secondMoved)
-            val settled = settle(connection, episodeId, listOf(firstMoved, secondMoved))
+            val settled = settle(connection, videofileId, listOf(firstMoved, secondMoved))
             ShotEditOutcome(
-                episodeId = episodeId,
+                videofileId = videofileId,
                 frame = toFrame,
                 action = ShotBoundaryAction.MOVE,
-                affected = workingShots(connection, episodeId, first.firstFrame, second.lastFrame),
+                affected = workingShots(connection, videofileId, first.firstFrame, second.lastFrame),
                 superseded = emptyList(),
                 shotIds = listOf(firstMoved.id!!, secondMoved.id!!),
                 facesRebound = settled.facesRebound,
@@ -319,7 +319,7 @@ class ShotBoundaryEditing(
      * строго внутри исходного плана: кадр, равный его первому кадру,
      * границей не является, и разделить нечем.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param frame первый кадр второго из получившихся планов
      * @return результат операции
      * @throws DomainException если плана, содержащего кадр, нет или кадр стоит
@@ -327,9 +327,9 @@ class ShotBoundaryEditing(
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun splitShot(
-        episodeId: Long,
+        videofileId: Long,
         frame: Int,
-    ): ShotEditOutcome = db.useTransaction { connection -> splitShotIn(connection, episodeId, frame) }
+    ): ShotEditOutcome = db.useTransaction { connection -> splitShotIn(connection, videofileId, frame) }
 
     /**
      * Разделяет план в уже открытом соединении.
@@ -339,22 +339,22 @@ class ShotBoundaryEditing(
      * молча ничего не делает.
      *
      * @param connection открытое соединение
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param frame кадр, по которому разделяется план
      * @return результат правки планов
      */
     fun splitShotIn(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
         frame: Int,
     ): ShotEditOutcome =
         run {
-            val state = readState(connection, episodeId)
+            val state = readState(connection, videofileId)
             val source =
                 state.working.firstOrNull { it.firstFrame <= frame && frame <= it.lastFrame }
                     ?: throw DomainException(
                         ErrorCode.NOT_FOUND,
-                        "кадра $frame в рабочей структуре эпизода $episodeId нет: разделять нечего",
+                        "кадра $frame в рабочей структуре эпизода $videofileId нет: разделять нечего",
                     )
             if (frame == source.firstFrame) {
                 throw DomainException(
@@ -371,15 +371,15 @@ class ShotBoundaryEditing(
             // Строки перечитываются перед пересчётом размера: у только что
             // вставленных нет ни идентификатора, ни хеша, а пересчёт пишет
             // обратно именно их.
-            val inserted = workingShots(connection, episodeId, source.firstFrame, source.lastFrame)
-            val settled = settle(connection, episodeId, inserted)
+            val inserted = workingShots(connection, videofileId, source.firstFrame, source.lastFrame)
+            val settled = settle(connection, videofileId, inserted)
             ShotEditOutcome(
-                episodeId = episodeId,
+                videofileId = videofileId,
                 frame = frame,
                 action = ShotBoundaryAction.SPLIT,
                 // Ответ собирается после пересчёта: иначе в нём уехали бы
                 // размеры, каких уже нет.
-                affected = workingShots(connection, episodeId, source.firstFrame, source.lastFrame),
+                affected = workingShots(connection, videofileId, source.firstFrame, source.lastFrame),
                 superseded = listOf(source.copy(isStale = true)),
                 shotIds = inserted.mapNotNull { it.id },
                 facesRebound = settled.facesRebound,
@@ -390,19 +390,19 @@ class ShotBoundaryEditing(
     /**
      * Объединяет план, начинающийся в указанном кадре, с предыдущим.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param frame первый кадр поглощаемого плана
      * @return результат операции
      * @throws DomainException если такого плана нет или перед ним нет другого
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun mergeShots(
-        episodeId: Long,
+        videofileId: Long,
         frame: Int,
     ): ShotEditOutcome =
         db.useTransaction { connection ->
-            val state = readState(connection, episodeId)
-            val absorbed = state.shotStartingAt(frame, episodeId)
+            val state = readState(connection, videofileId)
+            val absorbed = state.shotStartingAt(frame, videofileId)
             val keeper = state.shotEndingAt(frame - 1, frame)
             state.requireScenesStartAtPlans(
                 spans = listOf(keeper.firstFrame..absorbed.lastFrame),
@@ -412,12 +412,12 @@ class ShotBoundaryEditing(
             val merged = keeper.rebuilt(lastFrame = absorbed.lastFrame)
             updateShot(connection, merged)
             updateShot(connection, absorbed.copy(isStale = true))
-            val settled = settle(connection, episodeId, listOf(merged))
+            val settled = settle(connection, videofileId, listOf(merged))
             ShotEditOutcome(
-                episodeId = episodeId,
+                videofileId = videofileId,
                 frame = frame,
                 action = ShotBoundaryAction.MERGE,
-                affected = workingShots(connection, episodeId, keeper.firstFrame, absorbed.lastFrame),
+                affected = workingShots(connection, videofileId, keeper.firstFrame, absorbed.lastFrame),
                 superseded = listOf(absorbed.copy(isStale = true)),
                 shotIds = listOf(merged.id!!),
                 facesRebound = settled.facesRebound,
@@ -428,14 +428,14 @@ class ShotBoundaryEditing(
     /**
      * Состояние рабочей структуры, прочитанное в текущей транзакции.
      *
-     * @property episodeId эпизод
+     * @property videofileId эпизод
      * @property working планы, не выведенные из работы пометкой устаревания
      * @property scenes сцены, не выведенные из работы: по ним проверяется, что
      *   после правки сцена по-прежнему начинается планом
      * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
      */
     private class EditState(
-        val episodeId: Long,
+        val videofileId: Long,
         val working: List<Shot>,
         val scenes: List<Scene>,
     ) {
@@ -455,26 +455,26 @@ class ShotBoundaryEditing(
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
                     "плана, заканчивающегося кадром $lastFrame (граница на кадре $frame), " +
-                        "в рабочей структуре эпизода $episodeId нет",
+                        "в рабочей структуре эпизода $videofileId нет",
                 )
 
         /**
          * План, начинающийся с указанного кадра.
          *
          * @param firstFrame первый кадр искомого плана
-         * @param episodeId эпизод: попадает в текст отказа
+         * @param videofileId эпизод: попадает в текст отказа
          * @return план
          * @throws DomainException если такого плана нет
          */
         fun shotStartingAt(
             firstFrame: Int,
-            episodeId: Long,
+            videofileId: Long,
         ): Shot =
             working.firstOrNull { it.firstFrame == firstFrame }
                 ?: throw DomainException(
                     ErrorCode.NOT_FOUND,
                     "плана, начинающегося с кадра $firstFrame, в рабочей структуре эпизода " +
-                        "$episodeId нет",
+                        "$videofileId нет",
                 )
 
         /**
@@ -530,17 +530,17 @@ class ShotBoundaryEditing(
      * Читает состояние рабочей структуры в открытой транзакции.
      *
      * @param connection открытое соединение
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return состояние
      */
     private fun readState(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
     ): EditState =
         EditState(
-            episodeId = episodeId,
-            working = structure.listShotsIn(connection, episodeId).filter { !it.isStale },
-            scenes = structure.listScenesIn(connection, episodeId).filter { !it.isStale },
+            videofileId = videofileId,
+            working = structure.listShotsIn(connection, videofileId).filter { !it.isStale },
+            scenes = structure.listScenesIn(connection, videofileId).filter { !it.isStale },
         )
 
     /**
@@ -556,18 +556,18 @@ class ShotBoundaryEditing(
      * размера порядок не должен был бы иметь значения.
      *
      * @param connection открытое соединение
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param shots планы, размер которых пересчитывается
      * @return сколько строк лица и планов перезаписано
      */
     private fun settle(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
         shots: List<Shot>,
     ): Settled {
-        val facesRebound = binding.rebindInConnection(connection, episodeId)
-        val scale = scaleOf(episodeId)
-        val frameArea = frameAreaOf(episodeId)
+        val facesRebound = binding.rebindInConnection(connection, videofileId)
+        val scale = scaleOf(videofileId)
+        val frameArea = frameAreaOf(videofileId)
         val sizesRecomputed =
             shots.count { shot ->
                 if (shot.sizeOrigin == SizeOrigin.OPERATOR) {
@@ -577,7 +577,7 @@ class ShotBoundaryEditing(
                     return@count false
                 }
                 val computed =
-                    largestFaceShare(connection, episodeId, shot, frameArea).let { share ->
+                    largestFaceShare(connection, videofileId, shot, frameArea).let { share ->
                         if (share == null) ShotSize.NONE else scale.sizeOf(share)
                     }
                 if (shot.size == computed) {
@@ -593,7 +593,7 @@ class ShotBoundaryEditing(
      * Доля площади кадра у самого крупного лица плана.
      *
      * @param connection открытое соединение
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param shot план
      * @param frameArea площадь кадра эпизода в квадратных пикселях
      * @return доля площади кадра либо `null`, если в плане нет лиц: у плана без
@@ -601,16 +601,16 @@ class ShotBoundaryEditing(
      */
     private fun largestFaceShare(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
         shot: Shot,
         frameArea: Int,
     ): Double? =
         connection
             .prepareStatement(
                 "SELECT max((x2 - x1)::float8 * (y2 - y1)::float8) AS biggest FROM $FACE_TABLE " +
-                    "WHERE id_episode = ? AND frame_number >= ? AND frame_number <= ?",
+                    "WHERE id_videofile = ? AND frame_number >= ? AND frame_number <= ?",
             ).use { statement ->
-                statement.setLong(1, episodeId)
+                statement.setLong(1, videofileId)
                 statement.setInt(2, shot.firstFrame)
                 statement.setInt(3, shot.lastFrame)
                 statement.executeQuery().use { resultSet ->
@@ -661,19 +661,19 @@ class ShotBoundaryEditing(
      * Рабочие планы участка, заданного границами кадров.
      *
      * @param connection открытое соединение
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param from первый кадр участка
      * @param to последний кадр участка
      * @return рабочие планы, пересекающие участок
      */
     private fun workingShots(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
         from: Int,
         to: Int,
     ): List<Shot> =
         structure
-            .listShotsIn(connection, episodeId)
+            .listShotsIn(connection, videofileId)
             .filter { !it.isStale && it.lastFrame >= from && it.firstFrame <= to }
             .sortedBy { it.firstFrame }
 

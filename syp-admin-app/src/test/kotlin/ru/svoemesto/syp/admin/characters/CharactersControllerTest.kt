@@ -4,12 +4,12 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
 import java.time.OffsetDateTime
@@ -30,9 +30,9 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CharactersControllerTest {
     private lateinit var db: Db
-    private lateinit var movies: MovieStore
-    private lateinit var episodeStore: EpisodeStore
-    private lateinit var settingsStore: MovieSettingsStore
+    private lateinit var projects: ProjectStore
+    private lateinit var videofileStore: VideofileStore
+    private lateinit var settingsStore: ProjectSettingsStore
     private lateinit var faces: FaceStore
     private lateinit var embeddings: FaceEmbeddingStore
     private lateinit var persons: PersonService
@@ -50,9 +50,9 @@ class CharactersControllerTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        movies = MovieStore(db)
-        episodeStore = EpisodeStore(db)
-        settingsStore = MovieSettingsStore(db)
+        projects = ProjectStore(db)
+        videofileStore = VideofileStore(db)
+        settingsStore = ProjectSettingsStore(db)
         faces = FaceStore(db)
         embeddings = FaceEmbeddingStore(db)
         persons = PersonService(db)
@@ -70,8 +70,8 @@ class CharactersControllerTest {
                 embeddings = embeddings,
                 clustering = Clustering(),
                 persons = persons,
-                episodeStore = episodeStore,
-                movies = movies,
+                videofileStore = videofileStore,
+                projects = projects,
                 settingsStore = settingsStore,
                 embeddingModelKey = embeddingModelKey,
                 queue = JobQueue(db),
@@ -80,11 +80,11 @@ class CharactersControllerTest {
 
     @Test
     fun `лица эпизода отдаются с рамкой, планом и персоной`() {
-        val episode = newEpisode()
-        val episodeId = requireNotNull(episode.id)
-        seedFaces(episodeId, episode.movieId, 3)
+        val videofile = newVideofile()
+        val videofileId = requireNotNull(videofile.id)
+        seedFaces(videofileId, videofile.projectId, 3)
 
-        val view = controller.readFaces(episodeId, 0, 100)
+        val view = controller.readFaces(videofileId, 0, 100)
 
         assertEquals(3, view.facesTotal, "у эпизода три лица")
         assertEquals(3, view.faces.size)
@@ -99,20 +99,20 @@ class CharactersControllerTest {
 
     @Test
     fun `удаление персоны переводит её лица в неопознанных и не удаляет их`() {
-        val episode = newEpisode()
-        val episodeId = requireNotNull(episode.id)
-        seedFaces(episodeId, episode.movieId, 2)
+        val videofile = newVideofile()
+        val videofileId = requireNotNull(videofile.id)
+        seedFaces(videofileId, videofile.projectId, 2)
         val person =
             persons.create(
-                movieId = episode.movieId,
+                projectId = videofile.projectId,
                 name = "Джейми ${System.nanoTime() % 1000}",
                 recognizerKey = "jamie-${System.nanoTime()}",
             )
-        faces.assignPerson(requireNotNull(person.id), faces.listByEpisode(episodeId).map { requireNotNull(it.id) })
+        faces.assignPerson(requireNotNull(person.id), faces.listByVideofile(videofileId).map { requireNotNull(it.id) })
 
-        val before = faces.listByEpisode(episodeId).size
+        val before = faces.listByVideofile(videofileId).size
         controller.deletePerson(requireNotNull(person.id))
-        val after = controller.readFaces(episodeId, 0, 100)
+        val after = controller.readFaces(videofileId, 0, 100)
 
         assertEquals(before, after.faces.size, "лица не удаляются: их столько же, сколько было")
         assertTrue(
@@ -124,8 +124,8 @@ class CharactersControllerTest {
 
     @Test
     fun `переименование персоны не ломает модель`() {
-        val episode = newEpisode()
-        val person = persons.create(episode.movieId, "Джейми ${System.nanoTime() % 1000}", "jamie-key")
+        val videofile = newVideofile()
+        val person = persons.create(videofile.projectId, "Джейми ${System.nanoTime() % 1000}", "jamie-key")
         val key = person.recognizerKey
 
         val renamed = controller.renamePerson(requireNotNull(person.id), RenamePersonRequest("Серена ${System.nanoTime() % 1000}"))
@@ -135,8 +135,8 @@ class CharactersControllerTest {
 
     @Test
     fun `служебную персону переименовать и удалить нельзя`() {
-        val episode = newEpisode()
-        val service = persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED)
+        val videofile = newVideofile()
+        val service = persons.servicePerson(videofile.projectId, PersonKind.UNRECOGNIZED)
 
         assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> {
             controller.renamePerson(requireNotNull(service.id), RenamePersonRequest("Кто-то"))
@@ -148,9 +148,9 @@ class CharactersControllerTest {
 
     @Test
     fun `кластеры эпизода строятся до появления обученной модели`() {
-        val episode = newEpisode()
-        val episodeId = requireNotNull(episode.id)
-        val seeded = seedFaces(episodeId, episode.movieId, 4)
+        val videofile = newVideofile()
+        val videofileId = requireNotNull(videofile.id)
+        val seeded = seedFaces(videofileId, videofile.projectId, 4)
         // Четыре лица: три почти одного направления, одно перпендикулярное.
         embeddings.save(
             FaceEmbedding(seeded[0], embeddingModelKey, floatArrayOf(1f, 0f)),
@@ -165,7 +165,7 @@ class CharactersControllerTest {
             FaceEmbedding(seeded[3], embeddingModelKey, floatArrayOf(0f, 1f)),
         )
 
-        val view = controller.readClusters(episodeId)
+        val view = controller.readClusters(videofileId)
 
         assertEquals(
             2,
@@ -183,14 +183,14 @@ class CharactersControllerTest {
 
     @Test
     fun `дать кластеру имя заводит персону и назначает её лицам`() {
-        val episode = newEpisode()
-        val episodeId = requireNotNull(episode.id)
-        val seeded = seedFaces(episodeId, episode.movieId, 3)
+        val videofile = newVideofile()
+        val videofileId = requireNotNull(videofile.id)
+        val seeded = seedFaces(videofileId, videofile.projectId, 3)
         embeddings.save(FaceEmbedding(seeded[0], embeddingModelKey, floatArrayOf(1f, 0f)))
         embeddings.save(FaceEmbedding(seeded[1], embeddingModelKey, floatArrayOf(0.999f, 0.02f)))
         embeddings.save(FaceEmbedding(seeded[2], embeddingModelKey, floatArrayOf(0f, 1f)))
 
-        val cluster = controller.readClusters(episodeId).clusters.first()
+        val cluster = controller.readClusters(videofileId).clusters.first()
         val response =
             controller.nameCluster(
                 cluster.id,
@@ -199,7 +199,7 @@ class CharactersControllerTest {
 
         assertEquals(cluster.size, response.facesAssigned, "лица кластера переведены этой персоне")
         assertEquals(cluster.id, response.recognizerKey, "ключ класса в модели — ключ кластера")
-        val personsView = controller.readPersons(episode.movieId)
+        val personsView = controller.readPersons(videofile.projectId)
         val named = personsView.persons.first { it.id == response.personId }
         assertEquals(response.name, named.name)
         assertTrue(!named.isService, "новый кластер стал именованной персоной")
@@ -207,18 +207,18 @@ class CharactersControllerTest {
 
     @Test
     fun `названный кластер уходит из списка кластеров без имени`() {
-        val episode = newEpisode()
-        val episodeId = requireNotNull(episode.id)
-        val seeded = seedFaces(episodeId, episode.movieId, 2)
+        val videofile = newVideofile()
+        val videofileId = requireNotNull(videofile.id)
+        val seeded = seedFaces(videofileId, videofile.projectId, 2)
         embeddings.save(FaceEmbedding(seeded[0], embeddingModelKey, floatArrayOf(1f, 0f)))
         embeddings.save(FaceEmbedding(seeded[1], embeddingModelKey, floatArrayOf(0.999f, 0.02f)))
-        val cluster = controller.readClusters(episodeId).clusters.first()
+        val cluster = controller.readClusters(videofileId).clusters.first()
 
         controller.nameCluster(cluster.id, NameClusterRequest(name = "Один ${System.nanoTime() % 1000}"))
 
         assertEquals(
             0,
-            controller.readClusters(episodeId).clustersTotal,
+            controller.readClusters(videofileId).clustersTotal,
             "кластер с именем стал персоной и в списке безымянных кластеров не остаётся",
         )
     }
@@ -242,11 +242,11 @@ class CharactersControllerTest {
      *
      * @return записанный эпизод
      */
-    private fun newEpisode(): Episode {
-        val movie = movies.create("Персоны ${System.nanoTime()}", "/srv/got")
-        return episodeStore.insert(
-            Episode(
-                movieId = requireNotNull(movie.id),
+    private fun newVideofile(): Videofile {
+        val project = projects.create("Персоны ${System.nanoTime()}", "/srv/got")
+        return videofileStore.insert(
+            Videofile(
+                projectId = requireNotNull(project.id),
                 ordinal = 0,
                 name = "S01E0${System.nanoTime() % 10}",
                 sourcePath = "/srv/got/лица-${System.nanoTime()}.mkv",
@@ -270,25 +270,25 @@ class CharactersControllerTest {
     /**
      * Заводит лица эпизода у служебный персоны «распознано, имя не подтверждено».
      *
-     * @param episodeId эпизод
-     * @param movieId фильм-владелец
+     * @param videofileId эпизод
+     * @param projectId фильм-владелец
      * @param count сколько лиц завести
      * @return идентификаторы заведённых лиц по возрастанию
      */
     private fun seedFaces(
-        episodeId: Long,
-        movieId: Long,
+        videofileId: Long,
+        projectId: Long,
         count: Int,
     ): List<Long> {
-        val unrecognized = requireNotNull(persons.servicePerson(movieId, PersonKind.UNRECOGNIZED).id)
+        val unrecognized = requireNotNull(persons.servicePerson(projectId, PersonKind.UNRECOGNIZED).id)
         faces.saveFrame(
-            episodeId = episodeId,
+            videofileId = videofileId,
             frameNumber = 10,
             found = List(count) { index -> DetectedFace(10, 10, 110, 110, 0.9) },
             personOf = { unrecognized },
             frameWidth = frameWidth,
             frameHeight = frameHeight,
         )
-        return faces.listByEpisode(episodeId).map { requireNotNull(it.id) }
+        return faces.listByVideofile(videofileId).map { requireNotNull(it.id) }
     }
 }

@@ -8,9 +8,9 @@ import ru.svoemesto.syp.admin.analysis.LocationView
 import ru.svoemesto.syp.admin.analysis.SceneView
 import ru.svoemesto.syp.admin.analysis.StructureService
 import ru.svoemesto.syp.admin.analysis.toView
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.LocationStore
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 
@@ -43,7 +43,7 @@ data class SceneMoveRequest(
  * оператор после правки должен видеть результат немедленно
  * (`boundary-editing.md` § 7).
  *
- * @property episodeId эпизод
+ * @property videofileId эпизод
  * @property frame кадр, по которому выполнена операция
  * @property action вид операции словами: `MOVE`, `SPLIT` или `MERGE`
  * @property actionTitle вид операции словами для оператора
@@ -55,7 +55,7 @@ data class SceneMoveRequest(
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class SceneBoundaryView(
-    val episodeId: Long,
+    val videofileId: Long,
     val frame: Int,
     val action: String,
     val actionTitle: String,
@@ -78,7 +78,7 @@ data class SceneBoundaryView(
  * ответ приходит сразу после операции (`boundary-editing.md` § 6).
  *
  * @property editing доводка границы
- * @property episodeStore хранилище эпизодов
+ * @property videofileStore хранилище эпизодов
  * @property structure чтение рабочей структуры: из неё берутся планы сцен и
  *   счётчики в ответе
  * @property locations справочник мест действия фильма
@@ -87,79 +87,79 @@ data class SceneBoundaryView(
 @RestController
 class SceneBoundaryController(
     private val editing: BoundaryEditing,
-    private val episodeStore: EpisodeStore,
+    private val videofileStore: VideofileStore,
     private val structure: StructureService,
     private val locations: LocationStore,
 ) {
     /**
      * Сдвигает границу между двумя соседними сценами.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param request кадр, на котором граница стоит, и кадр, на который её
      *   ставят
      * @return изменённый участок структуры
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода или такой
      *   границы нет, и с кодом `CONFLICT`, если двигать некуда
      */
-    @PostMapping("/api/episodes/{episodeId}/scenes/boundary/move")
+    @PostMapping("/api/videofiles/{videofileId}/scenes/boundary/move")
     fun moveSceneBoundary(
-        @PathVariable episodeId: Long,
+        @PathVariable videofileId: Long,
         @RequestBody request: SceneMoveRequest,
     ): SceneBoundaryView =
         view(
-            episodeId,
-            editing.moveSceneBoundary(episodeId, request.fromFrame, request.toFrame),
+            videofileId,
+            editing.moveSceneBoundary(videofileId, request.fromFrame, request.toFrame),
         )
 
     /**
      * Разделяет сцену на две по номеру кадра.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param frame кадр: первый кадр второй из получившихся сцен
      * @return изменённый участок структуры
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет, и с кодом
      *   `CONFLICT`, если разделять нечего
      */
-    @PostMapping("/api/episodes/{episodeId}/scenes/{frame}/split")
+    @PostMapping("/api/videofiles/{videofileId}/scenes/{frame}/split")
     fun splitScene(
-        @PathVariable episodeId: Long,
+        @PathVariable videofileId: Long,
         @PathVariable frame: Int,
-    ): SceneBoundaryView = view(episodeId, editing.splitScene(episodeId, frame))
+    ): SceneBoundaryView = view(videofileId, editing.splitScene(videofileId, frame))
 
     /**
      * Объединяет сцену, начинающуюся в указанном кадре, с предыдущей.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param frame кадр: первый кадр поглощаемой сцены
      * @return изменённый участок структуры
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет, и с кодом
      *   `CONFLICT`, если объединять нечего
      */
-    @PostMapping("/api/episodes/{episodeId}/scenes/{frame}/merge")
+    @PostMapping("/api/videofiles/{videofileId}/scenes/{frame}/merge")
     fun mergeScenes(
-        @PathVariable episodeId: Long,
+        @PathVariable videofileId: Long,
         @PathVariable frame: Int,
-    ): SceneBoundaryView = view(episodeId, editing.mergeScenes(episodeId, frame))
+    ): SceneBoundaryView = view(videofileId, editing.mergeScenes(videofileId, frame))
 
     /**
      * Приводит результат операции к ответу.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param outcome результат операции
      * @return ответ с изменённым участком и планами
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
     private fun view(
-        episodeId: Long,
+        videofileId: Long,
         outcome: SceneEditOutcome,
     ): SceneBoundaryView {
-        val episode = requireEpisode(episodeId)
-        val shots = structure.listShots(episodeId)
-        val working = structure.listScenes(episodeId).filter { !it.isStale }
+        val videofile = requireVideofile(videofileId)
+        val shots = structure.listShots(videofileId)
+        val working = structure.listScenes(videofileId).filter { !it.isStale }
         val placeNames =
-            locationsOf(episode, outcome.affected.mapNotNull { it.locationId } + outcome.superseded.mapNotNull { it.locationId })
+            locationsOf(videofile, outcome.affected.mapNotNull { it.locationId } + outcome.superseded.mapNotNull { it.locationId })
         return SceneBoundaryView(
-            episodeId = episodeId,
+            videofileId = videofileId,
             frame = outcome.frame,
             action = outcome.action.name,
             actionTitle = actionTitle(outcome.action),
@@ -167,7 +167,7 @@ class SceneBoundaryController(
             supersededSceneIds = outcome.superseded.mapNotNull { it.id },
             scenesTotal = working.size,
             shotsTotal = shots.size,
-            frameCount = episode.frameCount,
+            frameCount = videofile.frameCount,
         )
     }
 
@@ -187,12 +187,12 @@ class SceneBoundaryController(
     /**
      * Справочник мест действия по идентификаторам.
      *
-     * @param episode эпизод: из него берётся фильм-владелец локаций
+     * @param videofile эпизод: из него берётся фильм-владелец локаций
      * @param ids идентификаторы локаций, которые нужны в ответе
      * @return описания локаций по идентификаторам
      */
     private fun locationsOf(
-        episode: Episode,
+        videofile: Videofile,
         ids: List<Long>,
     ): Map<Long, LocationView> {
         if (ids.isEmpty()) {
@@ -200,7 +200,7 @@ class SceneBoundaryController(
         }
         val wanted = ids.toSet()
         return locations
-            .listByMovie(episode.movieId)
+            .listByProject(videofile.projectId)
             .filter { it.id in wanted }
             .associate { it.id!! to it.toView() }
     }
@@ -208,11 +208,11 @@ class SceneBoundaryController(
     /**
      * Читает эпизод или отказывает.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return эпизод
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    private fun requireEpisode(episodeId: Long): Episode =
-        episodeStore.find(episodeId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $episodeId не зарегистрирован")
+    private fun requireVideofile(videofileId: Long): Videofile =
+        videofileStore.find(videofileId)
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $videofileId не зарегистрирован")
 }

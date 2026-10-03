@@ -58,7 +58,7 @@ enum class RecipeState {
  * он подписан (FR-089c).
  *
  * @property id идентификатор сценария; `null`, пока не записан
- * @property movieId фильм-владелец
+ * @property projectId фильм-владелец
  * @property name название сценария
  * @property schemaVersion версия формата сценария
  * @property state состояние выдачи
@@ -79,7 +79,7 @@ enum class RecipeState {
  */
 data class BuildRecipe(
     val id: Long? = null,
-    val movieId: Long,
+    val projectId: Long,
     val name: String,
     val schemaVersion: Int = RecipeFormat.SCHEMA_VERSION,
     val state: RecipeState,
@@ -111,7 +111,7 @@ data class BuildRecipe(
             RecipeStore.COLUMNS,
             {
                 listOf(
-                    movieId,
+                    projectId,
                     name,
                     schemaVersion,
                     state.name,
@@ -134,7 +134,7 @@ data class BuildRecipe(
     companion object {
         /** Столбцы сценария в порядке чтения из базы, вместе со служебным хешем. */
         val READ_COLUMNS: String =
-            "id, id_movie, name, schema_version, state, artifact_id, content_sha256, " +
+            "id, id_project, name, schema_version, state, artifact_id, content_sha256, " +
                 "signature, signing_key_id, item_count, expected_duration_ms, " +
                 "expected_frame_count, created_at, finished_at, error_text, is_stale, recordhash"
     }
@@ -150,8 +150,8 @@ data class BuildRecipe(
  * @property recipeId сценарий-владелец
  * @property ordinal порядковый номер фрагмента, с единицы
  * @property sceneId сцена-источник
- * @property episodeId эпизод-источник
- * @property episodeName название эпизода-снимок
+ * @property videofileId эпизод-источник
+ * @property videofileName название эпизода-снимок
  * @property relativePath путь к файлу эпизода от корня фильма
  * @property sourceSha256 снимок эталонной суммы на момент выдачи
  * @property firstFrame расчётная граница начала
@@ -168,8 +168,8 @@ data class BuildRecipeItem(
     val recipeId: Long,
     val ordinal: Int,
     val sceneId: Long,
-    val episodeId: Long,
-    val episodeName: String,
+    val videofileId: Long,
+    val videofileName: String,
     val relativePath: String,
     val sourceSha256: String,
     val firstFrame: Int,
@@ -195,8 +195,8 @@ data class BuildRecipeItem(
                     recipeId,
                     ordinal,
                     sceneId,
-                    episodeId,
-                    episodeName,
+                    videofileId,
+                    videofileName,
                     relativePath,
                     sourceSha256,
                     firstFrame,
@@ -220,8 +220,8 @@ data class BuildRecipeItem(
             sceneTitle = sceneTitle,
             location = locationName,
             persons = personNames,
-            episodeId = episodeId,
-            episodeName = episodeName,
+            videofileId = videofileId,
+            videofileName = videofileName,
             relativePath = relativePath,
             sourceSha256 = sourceSha256,
             firstFrame = firstFrame,
@@ -236,7 +236,7 @@ data class BuildRecipeItem(
 
         /** Столбцы фрагмента в порядке чтения из базы, вместе со служебным хешем. */
         val READ_COLUMNS: String =
-            "recipe_id, ordinal, scene_id, id_episode, episode_name, relative_path, " +
+            "recipe_id, ordinal, scene_id, id_videofile, videofile_name, relative_path, " +
                 "source_sha256, first_frame, last_frame, cut_first_frame, cut_last_frame, " +
                 "scene_title, location_name, person_names, recordhash"
     }
@@ -268,19 +268,19 @@ class RecipeStore(
     /**
      * Перечисляет сценарии фильма, свежие сверху.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @param limit сколько сценариев вернуть
      * @return сценарии в порядке убывания времени выдачи
      */
-    fun listByMovie(
-        movieId: Long,
+    fun listByProject(
+        projectId: Long,
         limit: Int,
     ): List<BuildRecipe> =
         db.select(
-            "SELECT ${BuildRecipe.READ_COLUMNS} FROM $TABLE WHERE id_movie = ? " +
+            "SELECT ${BuildRecipe.READ_COLUMNS} FROM $TABLE WHERE id_project = ? " +
                 "ORDER BY created_at DESC, id DESC LIMIT ?",
             ::readRow,
-            movieId,
+            projectId,
             limit,
         )
 
@@ -430,7 +430,7 @@ class RecipeStore(
     private fun readRow(row: Row): BuildRecipe =
         BuildRecipe(
             id = row.long("id"),
-            movieId = row.long("id_movie"),
+            projectId = row.long("id_project"),
             name = row.string("name"),
             schemaVersion = row.int("schema_version"),
             state = RecipeState.parse(row.string("state")),
@@ -454,8 +454,8 @@ class RecipeStore(
             recipeId = row.long("recipe_id"),
             ordinal = row.int("ordinal"),
             sceneId = row.long("scene_id"),
-            episodeId = row.long("id_episode"),
-            episodeName = row.string("episode_name"),
+            videofileId = row.long("id_videofile"),
+            videofileName = row.string("videofile_name"),
             relativePath = row.string("relative_path"),
             sourceSha256 = row.string("source_sha256"),
             firstFrame = row.int("first_frame"),
@@ -494,7 +494,7 @@ class RecipeStore(
         /** Записываемые столбцы сценария в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "id_movie",
+                "id_project",
                 "name",
                 "schema_version",
                 "state",
@@ -517,8 +517,8 @@ class RecipeStore(
                 "recipe_id",
                 "ordinal",
                 "scene_id",
-                "id_episode",
-                "episode_name",
+                "id_videofile",
+                "videofile_name",
                 "relative_path",
                 "source_sha256",
                 "first_frame",

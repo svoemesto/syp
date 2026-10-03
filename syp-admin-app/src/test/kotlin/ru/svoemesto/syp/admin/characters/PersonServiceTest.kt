@@ -3,11 +3,11 @@ package ru.svoemesto.syp.admin.characters
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
@@ -38,8 +38,8 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PersonServiceTest {
     private lateinit var db: Db
-    private lateinit var movies: MovieStore
-    private lateinit var episodeStore: EpisodeStore
+    private lateinit var projects: ProjectStore
+    private lateinit var videofileStore: VideofileStore
     private lateinit var persons: PersonService
 
     /**
@@ -50,15 +50,15 @@ class PersonServiceTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        movies = MovieStore(db)
-        episodeStore = EpisodeStore(db)
+        projects = ProjectStore(db)
+        videofileStore = VideofileStore(db)
         persons = PersonService(db)
     }
 
     @Test
     fun `у нового фильма сразу есть обе служебные персоны`() {
-        val movie = movies.create("Персоны ${System.nanoTime()}", "/srv/got")
-        val service = persons.listByMovie(movie.id!!).filter { it.kind.isService }
+        val project = projects.create("Персоны ${System.nanoTime()}", "/srv/got")
+        val service = persons.listByProject(project.id!!).filter { it.kind.isService }
 
         assertEquals(2, service.size, "у фильма обязаны быть обе служебные персоны")
         assertEquals(
@@ -74,9 +74,9 @@ class PersonServiceTest {
 
     @Test
     fun `повторный вызов не заводит вторые заглушки`() {
-        val movie = movies.create("Повтор ${System.nanoTime()}", "/srv/got")
-        val first = persons.ensureServicePersons(movie.id!!)
-        val second = persons.ensureServicePersons(movie.id!!)
+        val project = projects.create("Повтор ${System.nanoTime()}", "/srv/got")
+        val first = persons.ensureServicePersons(project.id!!)
+        val second = persons.ensureServicePersons(project.id!!)
 
         assertEquals(
             first.map { it.id },
@@ -85,15 +85,15 @@ class PersonServiceTest {
         )
         assertEquals(
             2,
-            persons.listByMovie(movie.id).count { it.kind.isService },
+            persons.listByProject(project.id).count { it.kind.isService },
             "служебных персон у фильма должно быть ровно две",
         )
     }
 
     @Test
     fun `служебную персону удалить нельзя`() {
-        val movie = movies.create("Удаление ${System.nanoTime()}", "/srv/got")
-        val unrecognized = persons.servicePerson(movie.id!!, PersonKind.UNRECOGNIZED)
+        val project = projects.create("Удаление ${System.nanoTime()}", "/srv/got")
+        val unrecognized = persons.servicePerson(project.id!!, PersonKind.UNRECOGNIZED)
 
         val failure =
             assertFailsWith<DomainException> {
@@ -110,8 +110,8 @@ class PersonServiceTest {
 
     @Test
     fun `служебную персону нельзя переименовать`() {
-        val movie = movies.create("Переименование ${System.nanoTime()}", "/srv/got")
-        val nonPerson = persons.servicePerson(movie.id!!, PersonKind.NONPERSON)
+        val project = projects.create("Переименование ${System.nanoTime()}", "/srv/got")
+        val nonPerson = persons.servicePerson(project.id!!, PersonKind.NONPERSON)
 
         val failure =
             assertFailsWith<DomainException> {
@@ -123,11 +123,11 @@ class PersonServiceTest {
 
     @Test
     fun `под именем заглушки нельзя завести именованную персону`() {
-        val movie = movies.create("Занятое имя ${System.nanoTime()}", "/srv/got")
+        val project = projects.create("Занятое имя ${System.nanoTime()}", "/srv/got")
 
         val failure =
             assertFailsWith<DomainException> {
-                persons.create(movie.id!!, PersonService.NON_PERSON_NAME, "jamie")
+                persons.create(project.id!!, PersonService.NON_PERSON_NAME, "jamie")
             }
 
         assertEquals(ErrorCode.CONFLICT, failure.code, "имя заглушки занято")
@@ -135,23 +135,23 @@ class PersonServiceTest {
 
     @Test
     fun `удаление именованной персоны переводит её лица в неопознанных`() {
-        val movie = movies.create("Лица персоны ${System.nanoTime()}", "/srv/got")
-        val episode = newEpisode(movie.id!!)
-        val jamie = persons.create(movie.id, "Джейми", "jamie")
-        val other = persons.create(movie.id, "Серион", "seryon")
-        insertFace(episode.id!!, frame = 10, personId = requireNotNull(jamie.id))
-        insertFace(episode.id, frame = 20, personId = requireNotNull(other.id))
+        val project = projects.create("Лица персоны ${System.nanoTime()}", "/srv/got")
+        val videofile = newVideofile(project.id!!)
+        val jamie = persons.create(project.id, "Джейми", "jamie")
+        val other = persons.create(project.id, "Серион", "seryon")
+        insertFace(videofile.id!!, frame = 10, personId = requireNotNull(jamie.id))
+        insertFace(videofile.id, frame = 20, personId = requireNotNull(other.id))
 
         assertTrue(persons.delete(requireNotNull(jamie.id)), "именованная персона удаляется")
 
         val faces =
             db.select(
-                "SELECT id, person_id FROM tbl_faces WHERE id_episode = ? ORDER BY frame_number",
+                "SELECT id, person_id FROM tbl_faces WHERE id_videofile = ? ORDER BY frame_number",
                 { it.long("id") to it.long("person_id") },
-                episode.id,
+                videofile.id,
             )
         assertEquals(2, faces.size, "лица не должны пропасть вместе с персоной (FR-036)")
-        val unrecognized = persons.servicePerson(movie.id, PersonKind.UNRECOGNIZED)
+        val unrecognized = persons.servicePerson(project.id, PersonKind.UNRECOGNIZED)
         assertEquals(
             requireNotNull(unrecognized.id),
             faces[0].second,
@@ -167,16 +167,16 @@ class PersonServiceTest {
 
     @Test
     fun `у лица ссылка на персону всегда непустая`() {
-        val movie = movies.create("Пустая ссылка ${System.nanoTime()}", "/srv/got")
-        val episode = newEpisode(movie.id!!)
-        val unrecognized = persons.servicePerson(movie.id, PersonKind.UNRECOGNIZED)
-        insertFace(episode.id!!, frame = 0, personId = requireNotNull(unrecognized.id))
+        val project = projects.create("Пустая ссылка ${System.nanoTime()}", "/srv/got")
+        val videofile = newVideofile(project.id!!)
+        val unrecognized = persons.servicePerson(project.id, PersonKind.UNRECOGNIZED)
+        insertFace(videofile.id!!, frame = 0, personId = requireNotNull(unrecognized.id))
 
         val failure =
             assertFailsWith<java.sql.SQLException> {
                 db.update(
-                    "UPDATE tbl_faces SET person_id = NULL WHERE id_episode = ?",
-                    episode.id,
+                    "UPDATE tbl_faces SET person_id = NULL WHERE id_videofile = ?",
+                    videofile.id,
                 )
             }
 
@@ -190,13 +190,13 @@ class PersonServiceTest {
     /**
      * Заводит эпизод в фильме.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return записанный эпизод
      */
-    private fun newEpisode(movieId: Long): Episode =
-        episodeStore.insert(
-            Episode(
-                movieId = movieId,
+    private fun newVideofile(projectId: Long): Videofile =
+        videofileStore.insert(
+            Videofile(
+                projectId = projectId,
                 ordinal = 0,
                 name = "S01E0${System.nanoTime() % 10}",
                 sourcePath = "/srv/got/лица-${System.nanoTime()}.mkv",
@@ -219,19 +219,19 @@ class PersonServiceTest {
     /**
      * Заводит лицо, отнесённое к персонам.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param frame номер кадра
      * @param personId идентификатор персоны
      */
     private fun insertFace(
-        episodeId: Long,
+        videofileId: Long,
         frame: Int,
         personId: Long,
     ) {
         db.update(
-            "INSERT INTO tbl_faces (id_episode, frame_number, face_index, x1, y1, x2, y2, person_id, origin) " +
+            "INSERT INTO tbl_faces (id_videofile, frame_number, face_index, x1, y1, x2, y2, person_id, origin) " +
                 "VALUES (?, ?, 0, 10, 10, 20, 20, ?, 'AUTO')",
-            episodeId,
+            videofileId,
             frame,
             personId,
         )

@@ -1,9 +1,9 @@
 package ru.svoemesto.syp.admin.analysis
 
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
-import ru.svoemesto.syp.admin.catalog.MovieSetting
-import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.catalog.ProjectSetting
+import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.admin.jobs.JobResult
 import ru.svoemesto.syp.core.contract.DomainException
@@ -56,7 +56,7 @@ import java.security.MessageDigest
  * при этом проходит заново: поток `scdet` нельзя продолжить с середины, и
  * честнее сказать об этом в отчёте, чем показать нулевой прогресс.
  *
- * @property episodeStore хранилище эпизодов: из него берётся путь и число кадров
+ * @property videofileStore хранилище эпизодов: из него берётся путь и число кадров
  * @property runStore хранилище прогонов
  * @property structure запись рабочей структуры по результату детекции
  * @property frames хранилище значимых кадров
@@ -71,14 +71,14 @@ import java.security.MessageDigest
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class StructureJob(
-    private val episodeStore: EpisodeStore,
+    private val videofileStore: VideofileStore,
     private val runStore: AnalysisRunStore,
     private val structure: StructureService,
     private val frames: FrameSignificanceStore,
     private val detector: SceneDetector,
     private val program: ExternalProgram,
     private val ffmpegPath: String,
-    private val settingsStore: MovieSettingsStore,
+    private val settingsStore: ProjectSettingsStore,
     private val artifactRegistry: ArtifactRegistry,
     private val staleness: Staleness,
     private val storage: ObjectStorage,
@@ -101,19 +101,19 @@ class StructureJob(
         job: Job,
         progress: (JobProgress) -> Unit,
     ): JobResult {
-        val episode = requireEpisode(job)
-        val settings = settingsStore.read(episode.movieId)
-        val sceneThreshold = settings.number(MovieSetting.SCENE_THRESHOLD)
-        val shotThreshold = settings.number(MovieSetting.SHOT_THRESHOLD)
-        val layout = layoutOf(settings.integer(MovieSetting.PREVIEW_SHEET_COLS), settings.integer(MovieSetting.PREVIEW_SHEET_ROWS))
+        val videofile = requireVideofile(job)
+        val settings = settingsStore.read(videofile.projectId)
+        val sceneThreshold = settings.number(ProjectSetting.SCENE_THRESHOLD)
+        val shotThreshold = settings.number(ProjectSetting.SHOT_THRESHOLD)
+        val layout = layoutOf(settings.integer(ProjectSetting.PREVIEW_SHEET_COLS), settings.integer(ProjectSetting.PREVIEW_SHEET_ROWS))
         val paramsHash = SceneDetector.paramsHashOf(settings)
-        val total = episode.frameCount.toLong() * PHASES
+        val total = videofile.frameCount.toLong() * PHASES
         val report = MonotonicProgress(progress, job.progress, total)
 
         val run =
             runStore.begin(
                 AnalysisRun(
-                    episodeId = episode.id!!,
+                    videofileId = videofile.id!!,
                     kind = AnalysisKind.STRUCTURE,
                     algorithmVersion = DetectionResult.ALGORITHM_VERSION,
                     paramsHash = paramsHash,
@@ -130,37 +130,37 @@ class StructureJob(
             // Фаза 1. Детекция границ.
             val detection =
                 detector.detect(
-                    episode = episode,
+                    videofile = videofile,
                     sceneThreshold = sceneThreshold,
                     shotThreshold = shotThreshold,
                     progress = { streamed ->
                         report.report(
                             streamed.done,
-                            "детекция границ: кадр ${streamed.done} из ${episode.frameCount}",
+                            "детекция границ: кадр ${streamed.done} из ${videofile.frameCount}",
                         )
                     },
                 )
             report.report(
-                episode.frameCount.toLong(),
+                videofile.frameCount.toLong(),
                 "детекция границ: найдено ${detection.sceneBoundaries.size} сцен и " +
                     "${detection.shotBoundaries.size} планов, разбор структуры",
             )
-            val episodeId = episode.id!!
-            val (sceneCount, shotCount) = structure.applyDetection(runId, episodeId, detection)
-            frames.markSceneBoundaries(episodeId, detection.sceneBoundaries)
-            frames.markShotBoundaries(episodeId, detection.shotBoundaries)
+            val videofileId = videofile.id!!
+            val (sceneCount, shotCount) = structure.applyDetection(runId, videofileId, detection)
+            frames.markSceneBoundaries(videofileId, detection.sceneBoundaries)
+            frames.markShotBoundaries(videofileId, detection.shotBoundaries)
 
             // Фаза 2. Листы превью.
-            val sheets = buildPreviewSheets(job.id, episode, layout, report)
+            val sheets = buildPreviewSheets(job.id, videofile, layout, report)
 
             runStore.complete(runId)
             // Прогоны, сделанные при других входах, помечаются устаревшими —
             // после того, как новый результат записан, а не вместо него.
-            staleness.markStaleExcept(episodeId, AnalysisKind.STRUCTURE, paramsHash)
+            staleness.markStaleExcept(videofileId, AnalysisKind.STRUCTURE, paramsHash)
 
             JobResult(
                 note =
-                    "структура эпизода «${episode.name}»: сцен $sceneCount, планов $shotCount, " +
+                    "структура эпизода «${videofile.name}»: сцен $sceneCount, планов $shotCount, " +
                         "листов превью ${sheets.built} из ${sheets.expected}" +
                         if (sheets.skipped > 0) ", готовых ранее ${sheets.skipped}" else "",
                 progressTotal = total,
@@ -192,7 +192,7 @@ class StructureJob(
      * начала (FR-003, T056).
      *
      * @param jobId задание-владелец артефактов
-     * @param episode эпизод
+     * @param videofile эпизод
      * @param layout раскладка листа
      * @param report счётчик прогресса
      * @return число собранных, пропущенных и ожидаемых листов
@@ -201,20 +201,20 @@ class StructureJob(
      */
     private fun buildPreviewSheets(
         jobId: Long,
-        episode: Episode,
+        videofile: Videofile,
         layout: PreviewLayout,
         report: MonotonicProgress,
     ): SheetOutcome {
-        val sheetCount = PreviewSheet.sheetCount(episode.frameCount, layout)
-        val episodeId = episode.id!!
+        val sheetCount = PreviewSheet.sheetCount(videofile.frameCount, layout)
+        val videofileId = videofile.id!!
         val pending =
             (0 until sheetCount)
-                .map { PreviewSheet.of(episodeId, it, episode.frameCount, layout) }
+                .map { PreviewSheet.of(videofileId, it, videofile.frameCount, layout) }
                 .filterNot { artifactRegistry.findReady(ArtifactKind.PREVIEW_SHEET, it.finalKey()) != null }
         val skipped = sheetCount - pending.size
         if (pending.isEmpty()) {
             report.report(
-                episode.frameCount.toLong() * PHASES,
+                videofile.frameCount.toLong() * PHASES,
                 "листы превью: все $sheetCount готовы ранее",
             )
             return SheetOutcome(built = 0, skipped = skipped, expected = sheetCount)
@@ -231,7 +231,7 @@ class StructureJob(
                             "-hide_banner",
                             "-nostdin",
                             "-i",
-                            episode.sourcePath,
+                            videofile.sourcePath,
                             "-vf",
                             "scale=${layout.cellWidth}:${layout.cellHeight},tile=${layout.columns}x${layout.rows}",
                             "-fps_mode",
@@ -243,8 +243,8 @@ class StructureJob(
                     progressReader = JobProgress::parseFfmpegProgress,
                     onProgress = { streamed ->
                         report.report(
-                            episode.frameCount.toLong() + streamed.done,
-                            "листы превью: кадр ${streamed.done} из ${episode.frameCount}",
+                            videofile.frameCount.toLong() + streamed.done,
+                            "листы превью: кадр ${streamed.done} из ${videofile.frameCount}",
                         )
                     },
                 )
@@ -254,7 +254,7 @@ class StructureJob(
                 val produced = directory.resolve(SHEET_NAME_TEMPLATE.format(sheet.index))
                 if (!Files.isRegularFile(produced)) {
                     throw IOException(
-                        "внешняя программа не выдала лист ${sheet.index} эпизода ${episode.id}: " +
+                        "внешняя программа не выдала лист ${sheet.index} эпизода ${videofile.id}: " +
                             "ожидался файл ${produced.fileName}. Листов ожидалось $sheetCount",
                     )
                 }
@@ -275,7 +275,7 @@ class StructureJob(
                 built++
             }
             report.report(
-                episode.frameCount.toLong() * PHASES,
+                videofile.frameCount.toLong() * PHASES,
                 "листы превью: собрано $built, готово ранее $skipped, всего $sheetCount",
             )
             return SheetOutcome(built = built, skipped = skipped, expected = sheetCount)
@@ -337,20 +337,20 @@ class StructureJob(
      * @throws DomainException с кодом `NOT_FOUND`, если предмет задания не
      *   эпизод либо эпизод не зарегистрирована
      */
-    private fun requireEpisode(job: Job): Episode {
+    private fun requireVideofile(job: Job): Videofile {
         val subject = job.subject
-        val episodeId = subject.identifier
-        if (subject.type != SUBJECT_EPISODE || episodeId == null) {
+        val videofileId = subject.identifier
+        if (subject.type != SUBJECT_EPISODE || videofileId == null) {
             throw DomainException(
                 ErrorCode.BAD_REQUEST,
                 "заданию ANALYZE нужен предмет «эпизод», а у него «${subject.type}»: " +
                     "анализировать нечего",
             )
         }
-        return episodeStore.find(episodeId)
+        return videofileStore.find(videofileId)
             ?: throw DomainException(
                 ErrorCode.NOT_FOUND,
-                "эпизод $episodeId не зарегистрирована: структуру разбирать нечего",
+                "эпизод $videofileId не зарегистрирована: структуру разбирать нечего",
             )
     }
 

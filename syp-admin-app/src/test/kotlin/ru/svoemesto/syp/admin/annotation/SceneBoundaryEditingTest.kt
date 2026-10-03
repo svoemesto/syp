@@ -11,11 +11,11 @@ import ru.svoemesto.syp.admin.analysis.DetectionResult
 import ru.svoemesto.syp.admin.analysis.RawBoundaryStore
 import ru.svoemesto.syp.admin.analysis.Scene
 import ru.svoemesto.syp.admin.analysis.StructureService
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
@@ -65,12 +65,12 @@ class SceneBoundaryEditingTest {
                     binding =
                         ru.svoemesto.syp.admin.characters
                             .FacePlanBinding(db),
-                    episodes =
+                    videofiles =
                         ru.svoemesto.syp.admin.catalog
-                            .EpisodeStore(db),
+                            .VideofileStore(db),
                     settings =
                         ru.svoemesto.syp.admin.catalog
-                            .MovieSettingsStore(db),
+                            .ProjectSettingsStore(db),
                 ),
             )
     }
@@ -86,9 +86,9 @@ class SceneBoundaryEditingTest {
      *
      * @return эпизод с записанной структурой
      */
-    private fun analysed(): Episode {
+    private fun analysed(): Videofile {
         val frameCount = 600
-        val store = EpisodeStore(db)
+        val store = VideofileStore(db)
         // Один уникальный признак на весь вызов, и имя фильма, имя эпизода и
         // путь к файлу берутся из него. Путь обязан быть уникальным: база
         // требует один эпизод на один файл, и проверка на одинаковый путь
@@ -96,11 +96,11 @@ class SceneBoundaryEditingTest {
         // занимал файл, а остальные четыре падали с отказом `CONFLICT` — мимо
         // самой доводки границ, в заведении эпизода.
         val token = System.nanoTime()
-        val movie = MovieStore(db).create("Доводка $token", "/srv/got")
-        val episode =
+        val project = ProjectStore(db).create("Доводка $token", "/srv/got")
+        val videofile =
             store.insert(
-                Episode(
-                    movieId = movie.id!!,
+                Videofile(
+                    projectId = project.id!!,
                     ordinal = 0,
                     name = "S1E1-$token.mkv",
                     sourcePath = "/srv/got/S1E1-$token.mkv",
@@ -123,7 +123,7 @@ class SceneBoundaryEditingTest {
             AnalysisRunStore(db)
                 .begin(
                     AnalysisRun(
-                        episodeId = episode.id!!,
+                        videofileId = videofile.id!!,
                         kind = AnalysisKind.STRUCTURE,
                         algorithmVersion = DetectionResult.ALGORITHM_VERSION,
                         paramsHash = "d".repeat(64),
@@ -133,7 +133,7 @@ class SceneBoundaryEditingTest {
         val sceneBoundaries = shotBoundaries.filter { it in listOf(120, 240, 360, 480, 540) }
         structure.applyDetection(
             runId = run,
-            episodeId = episode.id,
+            videofileId = videofile.id,
             detection =
                 DetectionResult(
                     sceneBoundaries = sceneBoundaries,
@@ -141,17 +141,18 @@ class SceneBoundaryEditingTest {
                     scores = frameCount,
                 ),
         )
-        return episode
+        return videofile
     }
 
     /**
      * Рабочие сцены эпизода: те, что не выведены из работы пометкой
      * устаревания.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @return рабочие сцены по возрастанию первого кадра
      */
-    private fun working(episodeId: Long): List<Scene> = structure.listScenes(episodeId).filter { !it.isStale }.sortedBy { it.firstFrame }
+    private fun working(videofileId: Long): List<Scene> =
+        structure.listScenes(videofileId).filter { !it.isStale }.sortedBy { it.firstFrame }
 
     /**
      * Требует непрерывного покрытия участка сценами.
@@ -183,13 +184,13 @@ class SceneBoundaryEditingTest {
 
     @Test
     fun `разделение сцены даёт две сцены оператора и не рвёт покрытие`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val before = working(episodeId)
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val before = working(videofileId)
         val source = before.first { it.firstFrame <= 300 && 300 <= it.lastFrame }
         assertEquals(240, source.firstFrame, "проверка ждёт сцену, начинающуюся с кадра 240")
 
-        val outcome = editing.splitScene(episodeId, 300)
+        val outcome = editing.splitScene(videofileId, 300)
 
         assertEquals(SceneBoundaryAction.SPLIT, outcome.action)
         assertEquals(2, outcome.affected.size, "после разделения на границе две сцены")
@@ -201,77 +202,77 @@ class SceneBoundaryEditingTest {
             assertEquals(BoundaryOrigin.OPERATOR, scene.origin, "границу поставил оператор")
             assertEquals(null, scene.runId, "у решения оператора нет породившего его прогона")
         }
-        val after = working(episodeId)
+        val after = working(videofileId)
         assertEquals(before.size + 1, after.size, "разделение добавляет одну сцену")
-        assertCovers(after, 0, episode.frameCount - 1)
+        assertCovers(after, 0, videofile.frameCount - 1)
         assertTrue(
-            structure.listScenes(episodeId).any { it.id == source.id && it.isStale },
+            structure.listScenes(videofileId).any { it.id == source.id && it.isStale },
             "прежняя сцена обязана остаться в базе помеченной устаревшей, а не исчезнуть",
         )
     }
 
     @Test
     fun `граница сцены внутри плана согласована, а не отвергнута`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val shots = structure.listShots(episodeId).filter { !it.isStale }
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val shots = structure.listShots(videofileId).filter { !it.isStale }
         val inside = shots.first { it.firstFrame <= 310 && 310 <= it.lastFrame }
         assertTrue(
             inside.firstFrame < 310 && 310 < inside.lastFrame,
             "проверке нужен кадр СТРОГО внутри плана, а на краю согласование не требуется: " +
                 "план ${inside.firstFrame}…${inside.lastFrame}",
         )
-        val shotsBefore = structure.listShots(episodeId).count { !it.isStale }
+        val shotsBefore = structure.listShots(videofileId).count { !it.isStale }
 
         // Правило изменилось: граница сцены, попавшая внутрь плана, больше не
         // отвергается — план делится, и граница встаёт на границу плана.
         val failure =
-            runCatching { editing.splitScene(episodeId, 310) }.exceptionOrNull()
+            runCatching { editing.splitScene(videofileId, 310) }.exceptionOrNull()
         assertTrue(
             failure == null,
             "граница сцены внутри плана обязана согласоваться разделением плана, а отказало: ${failure?.message}",
         )
         assertEquals(
             shotsBefore + 1,
-            structure.listShots(episodeId).count { !it.isStale },
+            structure.listShots(videofileId).count { !it.isStale },
             "согласование обязано было разделить план",
         )
     }
 
     @Test
     fun `объединение возвращает прежние границы`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val before = working(episodeId)
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val before = working(videofileId)
         val keeper = before.first { it.lastFrame == 239 }
         val absorbed = before.first { it.firstFrame == 240 }
 
-        val outcome = editing.mergeScenes(episodeId, 240)
+        val outcome = editing.mergeScenes(videofileId, 240)
 
         assertEquals(SceneBoundaryAction.MERGE, outcome.action)
         assertEquals(1, outcome.affected.size, "после объединения остаётся одна сцена")
         assertEquals(keeper.firstFrame, outcome.affected.single().firstFrame)
         assertEquals(absorbed.lastFrame, outcome.affected.single().lastFrame)
         assertEquals(BoundaryOrigin.OPERATOR, outcome.affected.single().origin)
-        val after = working(episodeId)
+        val after = working(videofileId)
         assertEquals(before.size - 1, after.size, "объединение убирает одну сцену из работы")
-        assertCovers(after, 0, episode.frameCount - 1)
+        assertCovers(after, 0, videofile.frameCount - 1)
         assertTrue(
-            structure.listScenes(episodeId).any { it.id == absorbed.id && it.isStale },
+            structure.listScenes(videofileId).any { it.id == absorbed.id && it.isStale },
             "поглощённая сцена обязана остаться в базе помеченной устаревшей",
         )
     }
 
     @Test
     fun `сдвиг границы переносит её на соседнюю границу плана`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val before = working(episodeId)
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val before = working(videofileId)
         val keeper = before.first { it.lastFrame == 239 }
         val absorbed = before.first { it.firstFrame == 240 }
         assertEquals(120, keeper.firstFrame, "проверка ждёт сцену 120…239")
 
-        val outcome = editing.moveSceneBoundary(episodeId, fromFrame = 240, toFrame = 180)
+        val outcome = editing.moveSceneBoundary(videofileId, fromFrame = 240, toFrame = 180)
 
         assertEquals(SceneBoundaryAction.MOVE, outcome.action)
         assertEquals(2, outcome.affected.size, "сдвиг меняет обе соседние сцены")
@@ -281,9 +282,9 @@ class SceneBoundaryEditingTest {
         outcome.affected.forEach { scene ->
             assertEquals(BoundaryOrigin.OPERATOR, scene.origin, "границу поставил оператор")
         }
-        val after = working(episodeId)
+        val after = working(videofileId)
         assertEquals(before.size, after.size, "сдвиг не меняет числа сцен")
-        assertCovers(after, 0, episode.frameCount - 1)
+        assertCovers(after, 0, videofile.frameCount - 1)
         assertTrue(
             after.any { it.firstFrame == 120 && it.lastFrame == 179 },
             "сцена 120…239 обязана стать сценой 120…179",
@@ -296,23 +297,23 @@ class SceneBoundaryEditingTest {
 
     @Test
     fun `сдвиг за пределы второй сцены отвергается`() {
-        val episode = analysed()
-        val episodeId = episode.id!!
-        val second = working(episodeId).first { it.firstFrame == 240 }
+        val videofile = analysed()
+        val videofileId = videofile.id!!
+        val second = working(videofileId).first { it.firstFrame == 240 }
 
         val failure =
             assertFailsWith<DomainException> {
-                editing.moveSceneBoundary(episodeId, fromFrame = 240, toFrame = second.lastFrame + 60)
+                editing.moveSceneBoundary(videofileId, fromFrame = 240, toFrame = second.lastFrame + 60)
             }
 
         assertEquals(ErrorCode.BOUNDARY_CONFLICT, failure.code)
-        assertCovers(working(episodeId), 0, episode.frameCount - 1)
+        assertCovers(working(videofileId), 0, videofile.frameCount - 1)
     }
 
     @Test
     fun `граница сцены внутри плана согласована разделением плана`() {
-        val episodeId = analysed().id!!
-        val active = structure.listShots(episodeId).filter { !it.isStale }
+        val videofileId = analysed().id!!
+        val active = structure.listShots(videofileId).filter { !it.isStale }
         val frame =
             (1 until 2000)
                 .firstOrNull { candidate ->
@@ -323,16 +324,16 @@ class SceneBoundaryEditingTest {
             frame != null,
             "на этих планах нет кадра строго внутри плана и не на границе",
         )
-        val before = structure.listShots(episodeId).count { !it.isStale }
+        val before = structure.listShots(videofileId).count { !it.isStale }
 
         val failure =
-            runCatching { editing.splitScene(episodeId, frame!!) }.exceptionOrNull()
+            runCatching { editing.splitScene(videofileId, frame!!) }.exceptionOrNull()
         assertTrue(
             failure == null,
             "разделение сцены по кадру $frame обязано согласовать границу плана, а отказало: ${failure?.message}",
         )
 
-        val after = structure.listShots(episodeId).filter { !it.isStale }
+        val after = structure.listShots(videofileId).filter { !it.isStale }
         assertEquals(
             before + 1,
             after.size,
@@ -346,8 +347,8 @@ class SceneBoundaryEditingTest {
 
     @Test
     fun `устаревший план не выдаёт себя за границу живой сцены`() {
-        val episodeId = analysed().id!!
-        val active = structure.listShots(episodeId).filter { !it.isStale }
+        val videofileId = analysed().id!!
+        val active = structure.listShots(videofileId).filter { !it.isStale }
         val frame =
             (1 until 2000)
                 .firstOrNull { candidate ->
@@ -366,10 +367,10 @@ class SceneBoundaryEditingTest {
 
         // Устаревший план убран, но граница сцены на кадре frame всё равно
         // обязана встать: проверка обязана смотреть только на живые планы.
-        val before = structure.listShots(episodeId).count { !it.isStale }
+        val before = structure.listShots(videofileId).count { !it.isStale }
         val inside =
             structure
-                .listShots(episodeId)
+                .listShots(videofileId)
                 .filter { !it.isStale }
                 .firstOrNull { it.firstFrame < frame!! && frame!! < it.lastFrame }
         org.junit.jupiter.api.Assumptions.assumeTrue(
@@ -377,9 +378,9 @@ class SceneBoundaryEditingTest {
             "после удаления плана кадр оказался вне живых планов — проверке нужен другой кадр",
         )
 
-        editing.splitScene(episodeId, frame!!)
+        editing.splitScene(videofileId, frame!!)
 
-        val after = structure.listShots(episodeId).count { !it.isStale }
+        val after = structure.listShots(videofileId).count { !it.isStale }
         assertEquals(
             before + 1,
             after,

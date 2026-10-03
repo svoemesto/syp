@@ -3,7 +3,7 @@ package ru.svoemesto.syp.admin.config
 import io.minio.MinioClient
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.integrity.ChecksumController
 import ru.svoemesto.syp.admin.integrity.ChecksumEnqueuer
 import ru.svoemesto.syp.admin.integrity.ChecksumRegistry
@@ -55,45 +55,45 @@ class IntegrityConfiguration {
     /**
      * Собирает исполнитель подсчёта суммы.
      *
-     * @param episodeStore хранилище эпизодов
+     * @param videofileStore хранилище эпизодов
      * @param registry справочник сумм
      * @return исполнитель задания `HASH`
      */
     @Bean
     fun hashJob(
-        episodeStore: EpisodeStore,
+        videofileStore: VideofileStore,
         registry: ChecksumRegistry,
-    ): HashJob = HashJob(episodeStore, registry)
+    ): HashJob = HashJob(videofileStore, registry)
 
     /**
      * Собирает постановщик пересчёта.
      *
      * @param queue очередь заданий
-     * @param episodeStore хранилище эпизодов
+     * @param videofileStore хранилище эпизодов
      * @param registry справочник сумм
      * @return постановщик подсчёта
      */
     @Bean
     fun checksumEnqueuer(
         queue: JobQueue,
-        episodeStore: EpisodeStore,
+        videofileStore: VideofileStore,
         registry: ChecksumRegistry,
-    ): ChecksumEnqueuer = ChecksumEnqueuer(queue, episodeStore, registry)
+    ): ChecksumEnqueuer = ChecksumEnqueuer(queue, videofileStore, registry)
 
     /**
      * Собирает эндпоинты сверки целостности.
      *
      * @param enqueuer постановщик пересчёта
      * @param registry справочник сумм
-     * @param episodeStore хранилище эпизодов
+     * @param videofileStore хранилище эпизодов
      * @return контроллер суммы
      */
     @Bean
     fun checksumController(
         enqueuer: ChecksumEnqueuer,
         registry: ChecksumRegistry,
-        episodeStore: EpisodeStore,
-    ): ChecksumController = ChecksumController(enqueuer, registry, episodeStore)
+        videofileStore: VideofileStore,
+    ): ChecksumController = ChecksumController(enqueuer, registry, videofileStore)
 
     /**
      * Собирает хранилище артефактов.
