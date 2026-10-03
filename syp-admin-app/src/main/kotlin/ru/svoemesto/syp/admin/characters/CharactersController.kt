@@ -23,16 +23,6 @@ import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.jobs.JobSubject
 
 /**
- * Персона в ответе.
- *
- * @property id идентификатор персоны
- * @property name отображаемое имя
- * @property kind вид: именованная или служебная заглушка
- * @property isService служебная ли это персона
- * @property recognizerKey ключ класса в модели; пуст у служебных
- */
-
-/**
  * Запрос «назначить лица персоне».
  *
  * @property personId персона-получатель
@@ -55,6 +45,16 @@ data class FacesAssignedView(
 )
 
 /**
+/**
+ * Персона в ответе.
+ *
+ * @property id идентификатор персоны
+ * @property name отображаемое имя
+ * @property kind вид: именованная или служебная заглушка
+ * @property isService служебная ли это персона
+ * @property recognizerKey ключ класса в модели; пуст у служебных
+ */
+
  * Запрос «завести персону».
  *
  * @property name имя персоны; вводит оператор
@@ -293,6 +293,24 @@ class CharactersController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом `NOT_FOUND`,
      *   если эпизода нет
      */
+    @PostMapping("/videofiles/{videofileId}/faces")
+    fun startFaceScan(
+        @PathVariable videofileId: Long,
+    ): ResponseEntity<FaceScanEnqueuedView> {
+        val videofile = requireVideofile(videofileId)
+        val jobId =
+            queue.enqueue(
+                kind = JobKind.FACES,
+                subject = JobSubject.videofile(videofile.id!!),
+                paramsJson = """{"embeddingModelKey":"$embeddingModelKey"}""",
+                paramsHash = embeddingModelKey,
+                algorithmVersion = DetectionResult.ALGORITHM_VERSION,
+            )
+        return ResponseEntity
+            .status(HttpStatus.ACCEPTED)
+            .body(FaceScanEnqueuedView(jobId = jobId, videofileId = videofile.id, embeddingModelKey = embeddingModelKey))
+    }
+
     /**
      * Назначает лица персонам.
      *
@@ -339,24 +357,6 @@ class CharactersController(
             throw DomainException(ErrorCode.BAD_REQUEST, "имя персоны не может быть пустым")
         }
         return persons.create(videofile.projectId, name, "").toView()
-    }
-
-    @PostMapping("/videofiles/{videofileId}/faces")
-    fun startFaceScan(
-        @PathVariable videofileId: Long,
-    ): ResponseEntity<FaceScanEnqueuedView> {
-        val videofile = requireVideofile(videofileId)
-        val jobId =
-            queue.enqueue(
-                kind = JobKind.FACES,
-                subject = JobSubject.videofile(videofile.id!!),
-                paramsJson = """{"embeddingModelKey":"$embeddingModelKey"}""",
-                paramsHash = embeddingModelKey,
-                algorithmVersion = DetectionResult.ALGORITHM_VERSION,
-            )
-        return ResponseEntity
-            .status(HttpStatus.ACCEPTED)
-            .body(FaceScanEnqueuedView(jobId = jobId, videofileId = videofile.id, embeddingModelKey = embeddingModelKey))
     }
 
     /**
