@@ -13,13 +13,13 @@ import { formatBytes, formatDuration } from '../format/values'
 const store = useCatalogStore()
 const router = useRouter()
 
-const movieName = ref('')
-const movieRoot = ref('')
-const episodePath = ref('')
-const episodeName = ref('')
+const projectName = ref('')
+const projectRoot = ref('')
+const videofilePath = ref('')
+const videofileName = ref('')
 
 onMounted(() => {
-  void store.reloadMovies()
+  void store.reloadProjects()
 })
 
 /**
@@ -27,8 +27,8 @@ onMounted(() => {
  *
  * @returns `true`, если фильм создан
  */
-async function submitMovie(): Promise<boolean> {
-  return store.addMovie(movieName.value.trim(), movieRoot.value.trim())
+async function submitProject(): Promise<boolean> {
+  return store.addProject(projectName.value.trim(), projectRoot.value.trim())
 }
 
 /**
@@ -36,11 +36,11 @@ async function submitMovie(): Promise<boolean> {
  *
  * @returns `true`, если эпизод зарегистрирована
  */
-async function submitEpisode(): Promise<boolean> {
-  const created = await store.addEpisode(episodePath.value.trim(), episodeName.value.trim())
+async function submitVideofile(): Promise<boolean> {
+  const created = await store.addVideofile(videofilePath.value.trim(), videofileName.value.trim())
   if (created) {
-    episodePath.value = ''
-    episodeName.value = ''
+    videofilePath.value = ''
+    videofileName.value = ''
   }
   return created
 }
@@ -48,10 +48,10 @@ async function submitEpisode(): Promise<boolean> {
 /**
  * Открывает экран состояния суммы для эпизода.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  */
-function openChecksum(episodeId: number): void {
-  void router.push({ name: 'checksum', params: { episodeId: String(episodeId) } })
+function openChecksum(videofileId: number): void {
+  void router.push({ name: 'checksum', params: { videofileId: String(videofileId) } })
 }
 
 /**
@@ -62,19 +62,19 @@ function openChecksum(episodeId: number): void {
  * после выбора фильма. Оператору сценарий «открыл фильм — посмотрел сцены»
  * обрывался, и найти экран было нечем.
  *
- * @param episodeId эпизод
+ * @param videofileId эпизод
  */
-function openStructure(episodeId: number): void {
-  void router.push({ name: 'structure', params: { episodeId: String(episodeId) } })
+function openStructure(videofileId: number): void {
+  void router.push({ name: 'structure', params: { videofileId: String(videofileId) } })
 }
 
 /**
  * Открывает экран лиц эпизода.
  *
- * @param episodeId эпизод
+ * @param videofileId эпизод
  */
-function openFaces(episodeId: number): void {
-  void router.push({ name: 'faces', params: { episodeId: String(episodeId) } })
+function openFaces(videofileId: number): void {
+  void router.push({ name: 'faces', params: { videofileId: String(videofileId) } })
 }
 </script>
 
@@ -102,30 +102,30 @@ function openFaces(episodeId: number): void {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="movie in store.movies.value" :key="movie.id">
-            <td>{{ movie.name }}</td>
+          <tr v-for="project in store.projects.value" :key="project.id">
+            <td>{{ project.name }}</td>
             <td class="path">
-              {{ movie.sourceRoot }}
+              {{ project.sourceRoot }}
             </td>
-            <td>{{ movie.episodeCount }}</td>
+            <td>{{ project.videofileCount }}</td>
             <td>
-              <button type="button" @click="store.openMovie(movie.id)">открыть</button>
+              <button type="button" @click="store.openProject(project.id)">открыть</button>
             </td>
           </tr>
-          <tr v-if="store.movies.value.length === 0">
+          <tr v-if="store.projects.value.length === 0">
             <td colspan="4" class="note">Фильмов пока нет</td>
           </tr>
         </tbody>
       </table>
 
       <div class="form">
-        <input v-model="movieName" type="text" placeholder="Название фильма" />
+        <input v-model="projectName" type="text" placeholder="Название фильма" />
         <input
-          v-model="movieRoot"
+          v-model="projectRoot"
           type="text"
           placeholder="Корень каталога, например /disks/HDD_16Tb_Clouds/GOT"
         />
-        <button type="button" :disabled="store.loading.value" @click="submitMovie">
+        <button type="button" :disabled="store.loading.value" @click="submitProject">
           создать фильм
         </button>
       </div>
@@ -136,7 +136,7 @@ function openFaces(episodeId: number): void {
     </fieldset>
 
     <fieldset v-if="store.current.value">
-      <legend>Эпизода фильма «{{ store.current.value.movie.name }}»</legend>
+      <legend>Эпизода фильма «{{ store.current.value.project.name }}»</legend>
       <table>
         <thead>
           <tr>
@@ -152,24 +152,24 @@ function openFaces(episodeId: number): void {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="episode in store.episode.value" :key="episode.id">
-            <td>{{ episode.name }}</td>
+          <tr v-for="videofile in store.videofile.value" :key="videofile.id">
+            <td>{{ videofile.name }}</td>
             <td class="path">
-              {{ episode.relativePath ?? episode.sourcePath }}
+              {{ videofile.relativePath ?? videofile.sourcePath }}
             </td>
-            <td>{{ episode.frameCount.toLocaleString('ru-RU') }}</td>
-            <td>{{ episode.width }}×{{ episode.height }}</td>
-            <td>{{ episode.frameRate }}</td>
-            <td>{{ formatDuration(episode.durationSeconds) }}</td>
-            <td>{{ formatBytes(episode.byteSize, 'байт', 0) }}</td>
-            <td>{{ episode.keyframeCount }}</td>
+            <td>{{ videofile.frameCount.toLocaleString('ru-RU') }}</td>
+            <td>{{ videofile.width }}×{{ videofile.height }}</td>
+            <td>{{ videofile.frameRate }}</td>
+            <td>{{ formatDuration(videofile.durationSeconds) }}</td>
+            <td>{{ formatBytes(videofile.byteSize, 'байт', 0) }}</td>
+            <td>{{ videofile.keyframeCount }}</td>
             <td class="go">
-              <button type="button" @click="openChecksum(episode.id)">сумма</button>
-              <button type="button" @click="openStructure(episode.id)">сцены</button>
-              <button type="button" @click="openFaces(episode.id)">лица</button>
+              <button type="button" @click="openChecksum(videofile.id)">сумма</button>
+              <button type="button" @click="openStructure(videofile.id)">сцены</button>
+              <button type="button" @click="openFaces(videofile.id)">лица</button>
             </td>
           </tr>
-          <tr v-if="store.episode.value.length === 0">
+          <tr v-if="store.videofile.value.length === 0">
             <td colspan="9" class="note">Эпизодов пока нет</td>
           </tr>
         </tbody>
@@ -177,15 +177,15 @@ function openFaces(episodeId: number): void {
 
       <div class="form">
         <input
-          v-model="episodePath"
+          v-model="videofilePath"
           type="text"
           placeholder="Путь к файлу эпизода внутри корня фильма"
         />
-        <input v-model="episodeName" type="text" placeholder="Название эпизода (необязательно)" />
+        <input v-model="videofileName" type="text" placeholder="Название эпизода (необязательно)" />
         <button
           type="button"
-          :disabled="!store.canRegisterEpisode.value || store.loading.value"
-          @click="submitEpisode"
+          :disabled="!store.canRegisterVideofile.value || store.loading.value"
+          @click="submitVideofile"
         >
           добавить эпизод
         </button>

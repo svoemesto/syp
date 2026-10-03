@@ -19,7 +19,7 @@ import { type FaceView, facePreviewUrl } from '../api/characters'
 
 const props = defineProps<{
   /** Эпизод-владелец лиц. */
-  episodeId: number
+  videofileId: number
   /** Лица для показа. */
   faces: FaceView[]
   /** Разрешение кадра эпизода: по нему считается положение рамки. */
@@ -44,7 +44,7 @@ const props = defineProps<{
 async function toggleExample(faceId: number): Promise<void> {
   const face = props.faces.find((item) => item.id === faceId)
   if (!face) return
-  const result = await markFaceExamples(props.episodeId, [faceId], !face.isExample)
+  const result = await markFaceExamples(props.videofileId, [faceId], !face.isExample)
   face.isExample = !face.isExample
   emit('example', { faceId, marked: face.isExample, changed: result.changed })
 }
@@ -85,7 +85,7 @@ function caption(face: FaceView): string {
     >
       <img
         class="frame"
-        :src="facePreviewUrl(episodeId, face.frameNumber)"
+        :src="facePreviewUrl(videofileId, face.frameNumber)"
         :alt="caption(face)"
         loading="lazy"
       />

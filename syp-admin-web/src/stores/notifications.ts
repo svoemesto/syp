@@ -112,10 +112,10 @@ function handle(name: string, payload: unknown): void {
       // событию, а не по таймеру (ADR-0017). Предмет работы приходит в событии
       // идентификатором, и без него счётчик поднять не на чем.
       if (dto.kind === 'ANALYZE' && dto.subjectType === 'EPISODE' && dto.subjectId !== null) {
-        const episodeId = dto.subjectId
+        const videofileId = dto.subjectId
         analysisRevisions.value = {
           ...analysisRevisions.value,
-          [episodeId]: (analysisRevisions.value[episodeId] ?? 0) + 1,
+          [videofileId]: (analysisRevisions.value[videofileId] ?? 0) + 1,
         }
       }
       const message = toJobNotice(dto)
@@ -132,7 +132,7 @@ function handle(name: string, payload: unknown): void {
       const dto = payload as ChecksumChangedPayload
       checksumRevisions.value = {
         ...checksumRevisions.value,
-        [dto.episodeId]: (checksumRevisions.value[dto.episodeId] ?? 0) + 1,
+        [dto.videofileId]: (checksumRevisions.value[dto.videofileId] ?? 0) + 1,
       }
       const message = toChecksumNotice(dto)
       publish(message.tone, message.title, message.text)
@@ -237,21 +237,21 @@ export function connectionIsAttention(): boolean {
 /**
  * Счётчик изменений суммы указанной серии.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @returns номер изменения, `0`, если изменений не было
  */
-export function checksumRevision(episodeId: number): number {
-  return checksumRevisions.value[episodeId] ?? 0
+export function checksumRevision(videofileId: number): number {
+  return checksumRevisions.value[videofileId] ?? 0
 }
 
 /**
  * Счётчик изменений структуры указанного эпизода.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @returns номер изменения, `0`, если изменений не было
  */
-export function analysisRevision(episodeId: number): number {
-  return analysisRevisions.value[episodeId] ?? 0
+export function analysisRevision(videofileId: number): number {
+  return analysisRevisions.value[videofileId] ?? 0
 }
 
 /** Заметка для показа: заголовок и текст последнего уведомления. */

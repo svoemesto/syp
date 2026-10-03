@@ -13,7 +13,7 @@ export type ChecksumState = 'CREATING' | 'WORKING' | 'DONE' | 'ERROR'
 /** Состояние суммы эпизода в ответе. */
 export interface ChecksumView {
   /** Идентификатор эпизода. */
-  episodeId: number
+  videofileId: number
   /** Состояние подсчёта. */
   state: ChecksumState
   /** Алгоритм подсчёта; в модели только `SHA-256`. */
@@ -45,7 +45,7 @@ export interface ChecksumEnqueuedView {
   /** Идентификатор поставленного задания. */
   jobId: number
   /** Эпизод, для которой считается сумма. */
-  episodeId: number
+  videofileId: number
   /** Состояние задания на момент постановки. */
   state: string
   /** Зачем поставлен пересчёт. */
@@ -59,11 +59,11 @@ export interface ChecksumEnqueuedView {
  * ошибка экрана, а его обычное состояние, и интерфейс показывает «поставьте
  * пересчёт» вместо пустой страницы.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @returns состояние суммы эпизода
  */
-export function readChecksum(episodeId: number): Promise<ChecksumView> {
-  return request<ChecksumView>('GET', `/episodes/${episodeId}/checksum`)
+export function readChecksum(videofileId: number): Promise<ChecksumView> {
+  return request<ChecksumView>('GET', `/videofiles/${videofileId}/checksum`)
 }
 
 /**
@@ -72,11 +72,11 @@ export function readChecksum(episodeId: number): Promise<ChecksumView> {
  * Работа идёт заданием: чтение 5,6 ГБ не должно держать соединение
  * интерфейса (constitution IV.1, FR-003).
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @returns поставленное задание
  */
-export function startChecksum(episodeId: number): Promise<ChecksumEnqueuedView> {
-  return request<ChecksumEnqueuedView>('POST', `/episodes/${episodeId}/checksum`)
+export function startChecksum(videofileId: number): Promise<ChecksumEnqueuedView> {
+  return request<ChecksumEnqueuedView>('POST', `/videofiles/${videofileId}/checksum`)
 }
 
 /**

@@ -174,29 +174,29 @@ const selectedScene = computed(() => {
  * поля ответа бэкенда читаются здесь, в представлении, и нигде больше
  * (ADR-0015).
  *
- * @param episodeId эпизод-владелец листа
+ * @param videofileId эпизод-владелец листа
  * @returns строка экрана либо `null`, если лист не открыт
  */
-function sheetFrameRow(episodeId: number): PreviewSheetFrameRow | null {
+function sheetFrameRow(videofileId: number): PreviewSheetFrameRow | null {
   return sheet.value === null
     ? null
-    : toPreviewSheetFrameRow(sheet.value, episodeId, selectedFrame.value)
+    : toPreviewSheetFrameRow(sheet.value, videofileId, selectedFrame.value)
 }
 
 /** Эпизод, которому принадлежат загруженные рамки. */
-const lastThumbEpisode = ref(0)
+const lastThumbVideofile = ref(0)
 
 /**
  * Рамки первых кадров планов выбранной сцены для показа.
  *
- * @param episodeId эпизод-владелец листов
+ * @param videofileId эпизод-владелец листов
  * @returns рамки по номеру кадра: значения приведены к виду экрана
  */
 const thumbs = computed<Record<number, ShotThumbRow>>(() => {
   const result: Record<number, ShotThumbRow> = {}
   for (const [frame, found] of Object.entries(thumbCrops.value)) {
     result[Number(frame)] = toShotThumbRow(
-      lastThumbEpisode.value,
+      lastThumbVideofile.value,
       found.sheetIndex,
       found.sheetWidth,
       found.sheetHeight,
@@ -253,14 +253,14 @@ export function useStructureStore() {
   /**
    * Перечитывает оба слоя структуры эпизода.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @returns `true`, если структура прочитана
    */
-  async function reload(episodeId: number): Promise<boolean> {
+  async function reload(videofileId: number): Promise<boolean> {
     loading.value = true
     try {
-      structure.value = await readStructure(episodeId, offset.value, pageSize)
-      raw.value = await readRawBoundaries(episodeId, undefined, 0, pageSize)
+      structure.value = await readStructure(videofileId, offset.value, pageSize)
+      raw.value = await readRawBoundaries(videofileId, undefined, 0, pageSize)
       error.value = ''
       errorCode.value = ''
       return true
@@ -275,40 +275,40 @@ export function useStructureStore() {
   /**
    * Переходит на следующую страницу сцен.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    */
-  async function nextPage(episodeId: number): Promise<void> {
+  async function nextPage(videofileId: number): Promise<void> {
     const total = structure.value?.scenesTotal ?? 0
     if (offset.value + pageSize >= total) {
       return
     }
     offset.value += pageSize
-    await reload(episodeId)
+    await reload(videofileId)
   }
 
   /**
    * Возвращается на предыдущую страницу сцен.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    */
-  async function previousPage(episodeId: number): Promise<void> {
+  async function previousPage(videofileId: number): Promise<void> {
     if (offset.value === 0) {
       return
     }
     offset.value = Math.max(0, offset.value - pageSize)
-    await reload(episodeId)
+    await reload(videofileId)
   }
 
   /**
    * Ставит анализ структуры заново.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @returns `true`, если задание поставлено
    */
-  async function analyse(episodeId: number): Promise<boolean> {
+  async function analyse(videofileId: number): Promise<boolean> {
     loading.value = true
     try {
-      await startAnalysis(episodeId)
+      await startAnalysis(videofileId)
       error.value = ''
       errorCode.value = ''
       return true
@@ -349,19 +349,19 @@ export function useStructureStore() {
    * запрашивается кадр, если он выбран: сервер возвращает его область
    * кадрирования, и клиенту не нужно знать, как устроен лист.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param index номер листа, с нуля
    * @param frame кадр для подсветки либо `null`
    * @returns `true`, если лист открыт
    */
   async function openSheet(
-    episodeId: number,
+    videofileId: number,
     index: number,
     frame: number | null = null,
   ): Promise<boolean> {
     loading.value = true
     try {
-      sheet.value = await readPreviewUrl(episodeId, index, frame ?? undefined)
+      sheet.value = await readPreviewUrl(videofileId, index, frame ?? undefined)
       if (frame !== null) {
         selectedFrame.value = frame
       }
@@ -379,53 +379,53 @@ export function useStructureStore() {
   /**
    * Открывает первый лист превью.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @returns `true`, если лист открыт
    */
-  async function openFirstSheet(episodeId: number): Promise<boolean> {
-    return openSheet(episodeId, 0)
+  async function openFirstSheet(videofileId: number): Promise<boolean> {
+    return openSheet(videofileId, 0)
   }
 
   /**
    * Листает превью вперёд или назад.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param step куда листать: `1` — вперёд, `-1` — назад
    * @returns `true`, если лист сменился
    */
-  async function stepSheet(episodeId: number, step: 1 | -1): Promise<boolean> {
+  async function stepSheet(videofileId: number, step: 1 | -1): Promise<boolean> {
     const current = sheet.value
     if (current === null) {
-      return openFirstSheet(episodeId)
+      return openFirstSheet(videofileId)
     }
     const next = current.index + step
     if (next < 0 || next >= current.sheetCount) {
       return false
     }
-    return openSheet(episodeId, next, selectedFrame.value)
+    return openSheet(videofileId, next, selectedFrame.value)
   }
 
   /**
    * Открывает лист превью, в котором лежит кадр.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param frame номер кадра
    * @returns `true`, если лист открыт
    */
-  async function openSheetForFrame(episodeId: number, frame: number): Promise<boolean> {
+  async function openSheetForFrame(videofileId: number, frame: number): Promise<boolean> {
     const current = sheet.value
     if (current === null) {
-      return openFirstSheet(episodeId)
+      return openFirstSheet(videofileId)
     }
     if (frame >= current.firstFrame && frame <= current.lastFrame) {
-      return openSheet(episodeId, current.index, frame)
+      return openSheet(videofileId, current.index, frame)
     }
     // Раскладка листа принадлежит серверу, поэтому номер листа запрашивается у
     // него же одним вызовом с кадром: клиент не угадывает, на каком листе
     // лежит кадр, и не делает два обращения там, где хватает одного.
     loading.value = true
     try {
-      sheet.value = await readPreviewUrl(episodeId, undefined, frame)
+      sheet.value = await readPreviewUrl(videofileId, undefined, frame)
       selectedFrame.value = frame
       error.value = ''
       errorCode.value = ''
@@ -441,35 +441,35 @@ export function useStructureStore() {
   /**
    * Выбирает сцену и догружает рамки первых кадров её планов.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param sceneId идентификатор сцены либо `null`, чтобы снять выбор
    * @returns `true`, если сцена выбрана
    */
-  async function selectScene(episodeId: number, sceneId: number | null): Promise<boolean> {
+  async function selectScene(videofileId: number, sceneId: number | null): Promise<boolean> {
     selectedSceneId.value = sceneId
     if (sceneId === null) {
       return true
     }
-    return loadThumbs(episodeId, sceneId)
+    return loadThumbs(videofileId, sceneId)
   }
 
   /**
    * Догружает рамки первых кадров планов сцены.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param sceneId идентификатор сцены
    * @returns `true`, если рамки загружены
    */
-  async function loadThumbs(episodeId: number, sceneId: number): Promise<boolean> {
+  async function loadThumbs(videofileId: number, sceneId: number): Promise<boolean> {
     const scene = selectedScene.value
     if (scene === null || scene.id !== sceneId) {
       return false
     }
     thumbCrops.value = {}
-    lastThumbEpisode.value = episodeId
+    lastThumbVideofile.value = videofileId
     try {
       const loaded = await Promise.all(
-        scene.shots.map((shot) => readPreviewUrl(episodeId, undefined, shot.firstFrame)),
+        scene.shots.map((shot) => readPreviewUrl(videofileId, undefined, shot.firstFrame)),
       )
       const next: Record<number, FrameCrop> = {}
       loaded.forEach((found, position) => {
@@ -500,11 +500,11 @@ export function useStructureStore() {
   /**
    * Переходит к кадру: открывает его лист и выбирает содержащую сцену.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param frame номер кадра
    * @returns `true`, если кадр показан
    */
-  async function goToFrame(episodeId: number, frame: number): Promise<boolean> {
+  async function goToFrame(videofileId: number, frame: number): Promise<boolean> {
     const total = structure.value?.frameCount ?? 0
     if (!Number.isInteger(frame) || frame < 0 || frame >= total) {
       // Проверка на клиенте, а не отказ сервера: машинного кода у неё нет, и
@@ -515,10 +515,10 @@ export function useStructureStore() {
       return false
     }
     selectedFrame.value = frame
-    const opened = await openSheetForFrame(episodeId, frame)
+    const opened = await openSheetForFrame(videofileId, frame)
     const scene = sceneAtFrame(frame)
     if (scene !== null) {
-      await selectScene(episodeId, scene.id)
+      await selectScene(videofileId, scene.id)
     }
     return opened
   }
@@ -554,77 +554,77 @@ export function useStructureStore() {
   /**
    * Сдвигает границу сцены.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param fromFrame кадр, на котором граница стоит
    * @param toFrame кадр, на который её ставят
    * @returns `true`, если правка выполнена
    */
   async function moveBoundary(
-    episodeId: number,
+    videofileId: number,
     fromFrame: number,
     toFrame: number,
   ): Promise<boolean> {
-    return applyEdit(episodeId, () => moveSceneBoundary(episodeId, fromFrame, toFrame))
+    return applyEdit(videofileId, () => moveSceneBoundary(videofileId, fromFrame, toFrame))
   }
 
   /**
    * Разделяет сцену по кадру.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param frame первый кадр второй из получившихся сцен
    * @returns `true`, если правка выполнена
    */
-  async function split(episodeId: number, frame: number): Promise<boolean> {
-    return applyEdit(episodeId, () => splitScene(episodeId, frame))
+  async function split(videofileId: number, frame: number): Promise<boolean> {
+    return applyEdit(videofileId, () => splitScene(videofileId, frame))
   }
 
   /**
    * Объединяет сцену, начинающуюся с кадра, с предыдущей.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param frame первый кадр поглощаемой сцены
    * @returns `true`, если правка выполнена
    */
-  async function merge(episodeId: number, frame: number): Promise<boolean> {
-    return applyEdit(episodeId, () => mergeScenes(episodeId, frame))
+  async function merge(videofileId: number, frame: number): Promise<boolean> {
+    return applyEdit(videofileId, () => mergeScenes(videofileId, frame))
   }
 
   /**
    * Сдвигает границу плана.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param fromFrame кадр, на котором граница стоит
    * @param toFrame кадр, на который её ставят
    * @returns `true`, если правка выполнена
    */
   async function moveShotEdge(
-    episodeId: number,
+    videofileId: number,
     fromFrame: number,
     toFrame: number,
   ): Promise<boolean> {
-    return applyShotEdit(episodeId, () => moveShotBoundary(episodeId, fromFrame, toFrame))
+    return applyShotEdit(videofileId, () => moveShotBoundary(videofileId, fromFrame, toFrame))
   }
 
   /**
    * Разделяет план по кадру.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param frame первый кадр второго из получившихся планов
    * @returns `true`, если правка выполнена
    */
-  async function splitShotAt(episodeId: number, frame: number): Promise<boolean> {
-    return applyShotEdit(episodeId, () => splitShot(episodeId, frame))
+  async function splitShotAt(videofileId: number, frame: number): Promise<boolean> {
+    return applyShotEdit(videofileId, () => splitShot(videofileId, frame))
   }
 
   /**
    * Объединяет план, начинающийся с кадра, с предыдущим.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param frame первый кадр поглощаемого плана
    * @returns `true`, если правка выполнена
    */
-  async function mergeShotAt(episodeId: number, frame: number): Promise<boolean> {
-    return applyShotEdit(episodeId, () => mergeShots(episodeId, frame))
+  async function mergeShotAt(videofileId: number, frame: number): Promise<boolean> {
+    return applyShotEdit(videofileId, () => mergeShots(videofileId, frame))
   }
 
   /**
@@ -634,12 +634,12 @@ export function useStructureStore() {
    * сцены: правка отвечает изменённым участком, а состав планов на странице
    * после неё меняется.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param operation операция правки
    * @returns `true`, если правка выполнена
    */
   async function applyShotEdit(
-    episodeId: number,
+    videofileId: number,
     operation: () => Promise<ShotBoundaryView>,
   ): Promise<boolean> {
     editing.value = true
@@ -647,7 +647,7 @@ export function useStructureStore() {
       lastShotEdit.value = toShotBoundaryRow(await operation())
       error.value = ''
       errorCode.value = ''
-      await reload(episodeId)
+      await reload(videofileId)
       return true
     } catch (failure) {
       remember(failure)
@@ -664,12 +664,12 @@ export function useStructureStore() {
    * меняется по составу, поэтому страница перечитывается целиком: иначе в
    * таблице остались бы строки, выведенные из работы, а новых не было бы видно.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @param operation операция правки
    * @returns `true`, если правка выполнена
    */
   async function applyEdit(
-    episodeId: number,
+    videofileId: number,
     operation: () => Promise<SceneBoundaryView>,
   ): Promise<boolean> {
     editing.value = true
@@ -677,7 +677,7 @@ export function useStructureStore() {
       lastEdit.value = toSceneBoundaryRow(await operation())
       error.value = ''
       errorCode.value = ''
-      await reload(episodeId)
+      await reload(videofileId)
       return true
     } catch (failure) {
       remember(failure)

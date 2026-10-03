@@ -44,13 +44,13 @@ export function useChecksumStore() {
   /**
    * Перечитывает состояние суммы эпизода.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @returns `true`, если состояние прочитано
    */
-  async function reload(episodeId: number): Promise<boolean> {
+  async function reload(videofileId: number): Promise<boolean> {
     loading.value = true
     try {
-      checksum.value = await readChecksum(episodeId)
+      checksum.value = await readChecksum(videofileId)
       error.value = ''
       errorCode.value = ''
       return true
@@ -78,13 +78,13 @@ export function useChecksumStore() {
   /**
    * Ставит пересчёт суммы и сразу перечитывает состояние.
    *
-   * @param episodeId идентификатор эпизода
+   * @param videofileId идентификатор эпизода
    * @returns `true`, если задание поставлено
    */
-  async function recalculate(episodeId: number): Promise<boolean> {
+  async function recalculate(videofileId: number): Promise<boolean> {
     loading.value = true
     try {
-      await startChecksum(episodeId)
+      await startChecksum(videofileId)
       error.value = ''
       errorCode.value = ''
       return true
@@ -99,7 +99,7 @@ export function useChecksumStore() {
       return false
     } finally {
       loading.value = false
-      await reload(episodeId)
+      await reload(videofileId)
     }
   }
 

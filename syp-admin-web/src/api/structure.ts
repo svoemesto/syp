@@ -57,7 +57,7 @@ export interface SceneView {
 /** Ответ о структуре эпизода. */
 export interface StructureView {
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Число кадров эпизода. */
   frameCount: number
   /** Устарел ли результат. */
@@ -99,7 +99,7 @@ export interface RawBoundaryView {
 /** Ответ с сырыми границами. */
 export interface RawBoundariesView {
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Прогон либо `null`, если прогона ещё не было. */
   runId: number | null
   /** Смещение выборки. */
@@ -133,7 +133,7 @@ export interface FrameView {
 /** Страница значимых кадров. */
 export interface FramesView {
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Сколько значимых кадров у эпизода. */
   total: number
   /** Смещение выборки. */
@@ -149,7 +149,7 @@ export interface AnalysisEnqueuedView {
   /** Поставленное задание. */
   jobId: number
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Состояние задания на момент постановки. */
   state: string
   /** Порог границы сцены. */
@@ -185,7 +185,7 @@ export interface CellCropView {
 /** Адрес листа превью и его раскладка. */
 export interface PreviewUrlView {
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Номер листа, с нуля. */
   index: number
   /** Первый кадр листа. */
@@ -231,7 +231,7 @@ export interface PreviewUrlView {
  */
 export interface SceneBoundaryView {
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Кадр, на котором теперь стоит граница. */
   frame: number
   /** Вид операции: `MOVE`, `SPLIT` или `MERGE`. */
@@ -256,39 +256,43 @@ export interface SceneBoundaryView {
  * Работа идёт заданием очереди и занимает минуты, поэтому ответ приходит
  * сразу: кнопка, ждущая окончания, в интерфейсе недопустима (FR-003).
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @returns поставленное задание
  */
-export function startAnalysis(episodeId: number): Promise<AnalysisEnqueuedView> {
-  return request<AnalysisEnqueuedView>('POST', `/episodes/${episodeId}/analysis`)
+export function startAnalysis(videofileId: number): Promise<AnalysisEnqueuedView> {
+  return request<AnalysisEnqueuedView>('POST', `/videofiles/${videofileId}/analysis`)
 }
 
 /**
  * Читает структуру эпизода.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param offset смещение выборки сцен
  * @param limit размер выборки сцен
  * @returns страница структуры
  */
-export function readStructure(episodeId: number, offset = 0, limit = 200): Promise<StructureView> {
+export function readStructure(
+  videofileId: number,
+  offset = 0,
+  limit = 200,
+): Promise<StructureView> {
   return request<StructureView>(
     'GET',
-    `/episodes/${episodeId}/structure?offset=${offset}&limit=${limit}`,
+    `/videofiles/${videofileId}/structure?offset=${offset}&limit=${limit}`,
   )
 }
 
 /**
  * Читает сырые границы результата автоматики.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param level уровень границ: `SCENE`, `SHOT` или оба
  * @param offset смещение выборки
  * @param limit размер выборки
  * @returns страница сырых границ
  */
 export function readRawBoundaries(
-  episodeId: number,
+  videofileId: number,
   level?: string,
   offset = 0,
   limit = 200,
@@ -296,20 +300,23 @@ export function readRawBoundaries(
   const levelQuery = level === undefined ? '' : `&level=${level}`
   return request<RawBoundariesView>(
     'GET',
-    `/episodes/${episodeId}/raw-boundaries?offset=${offset}&limit=${limit}${levelQuery}`,
+    `/videofiles/${videofileId}/raw-boundaries?offset=${offset}&limit=${limit}${levelQuery}`,
   )
 }
 
 /**
  * Читает страницу значимых кадров эпизода.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param offset смещение выборки
  * @param limit размер выборки
  * @returns страница значимых кадров
  */
-export function readFrames(episodeId: number, offset = 0, limit = 200): Promise<FramesView> {
-  return request<FramesView>('GET', `/episodes/${episodeId}/frames?offset=${offset}&limit=${limit}`)
+export function readFrames(videofileId: number, offset = 0, limit = 200): Promise<FramesView> {
+  return request<FramesView>(
+    'GET',
+    `/videofiles/${videofileId}/frames?offset=${offset}&limit=${limit}`,
+  )
 }
 
 /**
@@ -321,13 +328,13 @@ export function readFrames(episodeId: number, offset = 0, limit = 200): Promise<
  * запрошенного, а молчаливо заданный нулевой индекс при кадре с другого листа
  * увёл бы сервер не туда, и область кадрирования не пришла бы вовсе.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param index номер листа, с нуля; без него лист определяется по кадру
  * @param frame кадр, для которого нужна область кадрирования
  * @returns описание листа превью
  */
 export function readPreviewUrl(
-  episodeId: number,
+  videofileId: number,
   index?: number,
   frame?: number,
 ): Promise<PreviewUrlView> {
@@ -338,7 +345,7 @@ export function readPreviewUrl(
   if (frame !== undefined) {
     parts.push(`frame=${frame}`)
   }
-  return request<PreviewUrlView>('GET', `/episodes/${episodeId}/preview-url?${parts.join('&')}`)
+  return request<PreviewUrlView>('GET', `/videofiles/${videofileId}/preview-url?${parts.join('&')}`)
 }
 
 /**
@@ -347,17 +354,17 @@ export function readPreviewUrl(
  * Границы передаются номерами кадров, а не идентификаторами сцен: оператор
  * видит кадры, и требовать от него знания внутренних ключей незачем (ADR-0001).
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param fromFrame кадр, на котором граница стоит сейчас
  * @param toFrame кадр, на который её ставят
  * @returns изменённый участок структуры
  */
 export function moveSceneBoundary(
-  episodeId: number,
+  videofileId: number,
   fromFrame: number,
   toFrame: number,
 ): Promise<SceneBoundaryView> {
-  return request<SceneBoundaryView>('POST', `/episodes/${episodeId}/scenes/boundary/move`, {
+  return request<SceneBoundaryView>('POST', `/videofiles/${videofileId}/scenes/boundary/move`, {
     fromFrame,
     toFrame,
   })
@@ -366,23 +373,23 @@ export function moveSceneBoundary(
 /**
  * Разделяет сцену по номеру кадра.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param frame первый кадр второй из получившихся сцен
  * @returns изменённый участок структуры
  */
-export function splitScene(episodeId: number, frame: number): Promise<SceneBoundaryView> {
-  return request<SceneBoundaryView>('POST', `/episodes/${episodeId}/scenes/${frame}/split`)
+export function splitScene(videofileId: number, frame: number): Promise<SceneBoundaryView> {
+  return request<SceneBoundaryView>('POST', `/videofiles/${videofileId}/scenes/${frame}/split`)
 }
 
 /**
  * Объединяет сцену, начинающуюся с указанного кадра, с предыдущей.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param frame первый кадр поглощаемой сцены
  * @returns изменённый участок структуры
  */
-export function mergeScenes(episodeId: number, frame: number): Promise<SceneBoundaryView> {
-  return request<SceneBoundaryView>('POST', `/episodes/${episodeId}/scenes/${frame}/merge`)
+export function mergeScenes(videofileId: number, frame: number): Promise<SceneBoundaryView> {
+  return request<SceneBoundaryView>('POST', `/videofiles/${videofileId}/scenes/${frame}/merge`)
 }
 
 /**
@@ -396,7 +403,7 @@ export function mergeScenes(episodeId: number, frame: number): Promise<SceneBoun
  */
 export interface ShotBoundaryView {
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Кадр, по которому выполнена операция. */
   frame: number
   /** Вид операции: `MOVE`, `SPLIT` или `MERGE`. */
@@ -425,17 +432,17 @@ export interface ShotBoundaryView {
  * Границы передаются номерами кадров, а не идентификаторами планов: оператор
  * видит кадры, и требовать от него знания внутренних ключей незачем (ADR-0001).
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param fromFrame кадр, на котором граница стоит сейчас
  * @param toFrame кадр, на который её ставят
  * @returns изменённый участок структуры с пересчитанными размерами
  */
 export function moveShotBoundary(
-  episodeId: number,
+  videofileId: number,
   fromFrame: number,
   toFrame: number,
 ): Promise<ShotBoundaryView> {
-  return request<ShotBoundaryView>('POST', `/episodes/${episodeId}/shots/boundary/move`, {
+  return request<ShotBoundaryView>('POST', `/videofiles/${videofileId}/shots/boundary/move`, {
     fromFrame,
     toFrame,
   })
@@ -444,23 +451,23 @@ export function moveShotBoundary(
 /**
  * Разделяет план по номеру кадра.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param frame первый кадр второго из получившихся планов
  * @returns изменённый участок структуры с пересчитанными размерами
  */
-export function splitShot(episodeId: number, frame: number): Promise<ShotBoundaryView> {
-  return request<ShotBoundaryView>('POST', `/episodes/${episodeId}/shots/${frame}/split`)
+export function splitShot(videofileId: number, frame: number): Promise<ShotBoundaryView> {
+  return request<ShotBoundaryView>('POST', `/videofiles/${videofileId}/shots/${frame}/split`)
 }
 
 /**
  * Объединяет план, начинающийся с указанного кадра, с предыдущим.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param frame первый кадр поглощаемого плана
  * @returns изменённый участок структуры с пересчитанными размерами
  */
-export function mergeShots(episodeId: number, frame: number): Promise<ShotBoundaryView> {
-  return request<ShotBoundaryView>('POST', `/episodes/${episodeId}/shots/${frame}/merge`)
+export function mergeShots(videofileId: number, frame: number): Promise<ShotBoundaryView> {
+  return request<ShotBoundaryView>('POST', `/videofiles/${videofileId}/shots/${frame}/merge`)
 }
 
 /**
@@ -469,10 +476,10 @@ export function mergeShots(episodeId: number, frame: number): Promise<ShotBounda
  * Отдельная функция вместо строки в шаблоне: адрес собирается в одном месте,
  * и переименование пути не потребует правок по экрану.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param index номер листа, с нуля
  * @returns адрес листа
  */
-export function previewSheetUrl(episodeId: number, index: number): string {
-  return `/api/episodes/${episodeId}/preview-sheets/${index}`
+export function previewSheetUrl(videofileId: number, index: number): string {
+  return `/api/videofiles/${videofileId}/preview-sheets/${index}`
 }

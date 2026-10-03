@@ -7,21 +7,21 @@
 
 import { computed, ref } from 'vue'
 import {
-  type MovieDetailView,
-  type MovieView,
-  type EpisodeView,
-  createMovie,
-  listMovies,
-  readMovie,
-  registerEpisode,
+  type ProjectDetailView,
+  type ProjectView,
+  type VideofileView,
+  createProject,
+  listProjects,
+  readProject,
+  registerVideofile,
 } from '../api/catalog'
 import { ApiError } from '../api/http'
 
 /** Список фильмов. */
-const movies = ref<MovieView[]>([])
+const projects = ref<ProjectView[]>([])
 
 /** Раскрытый фильм с его эпизодами и настройками. */
-const current = ref<MovieDetailView | null>(null)
+const current = ref<ProjectDetailView | null>(null)
 
 /** Идёт ли обращение к бэкенду: показывается работа, а не пустой экран. */
 const loading = ref(false)
@@ -51,10 +51,10 @@ function remember(failure: unknown): void {
 }
 
 /** Эпизода раскрытого фильма; пустой список, если фильм не выбран. */
-const episode = computed<EpisodeView[]>(() => current.value?.episode ?? [])
+const videofile = computed<VideofileView[]>(() => current.value?.videofile ?? [])
 
 /** Можно ли ставить новый эпизод: фильм должен быть выбран. */
-const canRegisterEpisode = computed(() => current.value !== null)
+const canRegisterVideofile = computed(() => current.value !== null)
 
 /**
  * Состояние экрана приёма и действия над ним.
@@ -67,10 +67,10 @@ export function useCatalogStore() {
    *
    * @returns `true`, если список прочитан
    */
-  async function reloadMovies(): Promise<boolean> {
+  async function reloadProjects(): Promise<boolean> {
     loading.value = true
     try {
-      movies.value = await listMovies()
+      projects.value = await listProjects()
       error.value = ''
       errorCode.value = ''
       return true
@@ -89,12 +89,12 @@ export function useCatalogStore() {
    * @param sourceRoot корневой каталог фильма на машине администратора
    * @returns `true`, если фильм создан и показан
    */
-  async function addMovie(name: string, sourceRoot: string): Promise<boolean> {
+  async function addProject(name: string, sourceRoot: string): Promise<boolean> {
     loading.value = true
     try {
-      const created = await createMovie(name, sourceRoot)
-      await openMovie(created.movie.id)
-      await reloadMovies()
+      const created = await createProject(name, sourceRoot)
+      await openProject(created.project.id)
+      await reloadProjects()
       return true
     } catch (failure) {
       remember(failure)
@@ -107,13 +107,13 @@ export function useCatalogStore() {
   /**
    * Открывает фильм: эпизода и настройки.
    *
-   * @param movieId идентификатор фильма
+   * @param projectId идентификатор фильма
    * @returns `true`, если фильм прочитан
    */
-  async function openMovie(movieId: number): Promise<boolean> {
+  async function openProject(projectId: number): Promise<boolean> {
     loading.value = true
     try {
-      current.value = await readMovie(movieId)
+      current.value = await readProject(projectId)
       error.value = ''
       errorCode.value = ''
       return true
@@ -132,7 +132,7 @@ export function useCatalogStore() {
    * @param name название эпизода; если не задано, берётся имя файла
    * @returns `true`, если эпизод зарегистрирована
    */
-  async function addEpisode(sourcePath: string, name?: string): Promise<boolean> {
+  async function addVideofile(sourcePath: string, name?: string): Promise<boolean> {
     if (current.value === null) {
       errorCode.value = 'BAD_REQUEST'
       error.value = 'Сначала откройте фильм: эпизод заводится только в нём'
@@ -140,8 +140,8 @@ export function useCatalogStore() {
     }
     loading.value = true
     try {
-      await registerEpisode(current.value.movie.id, sourcePath, name)
-      await openMovie(current.value.movie.id)
+      await registerVideofile(current.value.project.id, sourcePath, name)
+      await openProject(current.value.project.id)
       return true
     } catch (failure) {
       remember(failure)
@@ -158,17 +158,17 @@ export function useCatalogStore() {
   }
 
   return {
-    movies,
+    projects,
     current,
-    episode,
+    videofile,
     loading,
     error,
     errorCode,
-    canRegisterEpisode,
-    reloadMovies,
-    addMovie,
-    openMovie,
-    addEpisode,
+    canRegisterVideofile,
+    reloadProjects,
+    addProject,
+    openProject,
+    addVideofile,
     clearError,
   }
 }

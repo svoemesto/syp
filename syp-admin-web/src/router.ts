@@ -8,7 +8,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ChecksumStatusView from './views/ChecksumStatusView.vue'
 import FacesView from './views/FacesView.vue'
-import EpisodeIntakeView from './views/EpisodeIntakeView.vue'
+import VideofileIntakeView from './views/VideofileIntakeView.vue'
 import StructureView from './views/StructureView.vue'
 
 /** Маршруты админки. */
@@ -18,22 +18,22 @@ export const router = createRouter({
     {
       path: '/',
       name: 'intake',
-      component: EpisodeIntakeView,
+      component: VideofileIntakeView,
     },
     {
-      path: '/episodes/:episodeId/checksum',
+      path: '/videofiles/:videofileId/checksum',
       name: 'checksum',
       component: ChecksumStatusView,
       props: true,
     },
     {
-      path: '/episodes/:episodeId/structure',
+      path: '/videofiles/:videofileId/structure',
       name: 'structure',
       component: StructureView,
       props: true,
     },
     {
-      path: '/episodes/:episodeId/faces',
+      path: '/videofiles/:videofileId/faces',
       name: 'faces',
       component: FacesView,
       props: true,

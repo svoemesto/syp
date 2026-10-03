@@ -87,7 +87,7 @@ export interface QueueStatePayload {
 /** Тело события «изменилась сумма исходника». */
 export interface ChecksumChangedPayload {
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Состояние подсчёта. */
   state: string
   /** Посчитанная сумма либо `null`. */

@@ -203,25 +203,25 @@ export function toJobNotice(dto: JobStatePayload): NoticeView | null {
 export function toChecksumNotice(dto: ChecksumChangedPayload): NoticeView {
   if (dto.state === 'DONE' && !dto.isStale) {
     return {
-      id: dto.episodeId * 100 + 3,
+      id: dto.videofileId * 100 + 3,
       tone: 'success',
       title: 'Сумма посчитана',
-      text: `Эпизод №${dto.episodeId}: сумма актуальна, сценарий сборки можно выдавать`,
+      text: `Эпизод №${dto.videofileId}: сумма актуальна, сценарий сборки можно выдавать`,
     }
   }
   if (dto.state === 'ERROR') {
     return {
-      id: dto.episodeId * 100 + 4,
+      id: dto.videofileId * 100 + 4,
       tone: 'danger',
       title: 'Сумма не посчитана',
-      text: `Эпизод №${dto.episodeId}: ${dto.errorText ?? 'причина не сообщена'}`,
+      text: `Эпизод №${dto.videofileId}: ${dto.errorText ?? 'причина не сообщена'}`,
     }
   }
   return {
-    id: dto.episodeId * 100 + 5,
+    id: dto.videofileId * 100 + 5,
     tone: 'info',
     title: 'Сумма считается',
-    text: `Эпизод №${dto.episodeId}: подсчёт идёт`,
+    text: `Эпизод №${dto.videofileId}: подсчёт идёт`,
   }
 }
 
