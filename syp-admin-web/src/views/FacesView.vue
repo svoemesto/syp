@@ -423,12 +423,24 @@ function personKindTitle(kind: string): string {
 .group h4 {
   margin: 12px 0 4px;
   font-weight: 600;
+  /* Имя и счётчик — разными строками.
+   *
+   * Зачем: имя неподтверждённого лица — длинное («Распознано, имя не
+   * подтверждено»), и счётчик вставал на ту же строку поверх него. Читалось
+   * как «на странице» впереди и «на странице» позади — два разных числа на
+   * одном месте. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  line-height: 1.5;
 }
 
 .count {
   font-weight: 400;
   color: #777777;
   font-size: 12px;
+  flex: 0 0 100%;
 }
 
 .pager {
