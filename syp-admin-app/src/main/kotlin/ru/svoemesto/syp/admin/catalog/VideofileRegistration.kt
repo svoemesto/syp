@@ -60,7 +60,7 @@ class VideofileRegistration(
         projectId: Long,
         sourcePath: String,
         name: String? = null,
-        seasonId: Long? = null,
+        seasonNumber: Int? = null,
         videofileOrdinal: Int = 0,
     ): Videofile {
         val project =
@@ -76,7 +76,7 @@ class VideofileRegistration(
                 projectId = project.id!!,
                 ordinal = projects.nextVideofileOrdinal(projectId),
                 name = (name?.takeIf { it.isNotBlank() }) ?: file.fileName.toString().substringBeforeLast('.'),
-                seasonId = seasonId,
+                seasonNumber = seasonNumber,
                 videofileOrdinal =
                     videofileOrdinal.let { value ->
                         if (value >= 0) {
