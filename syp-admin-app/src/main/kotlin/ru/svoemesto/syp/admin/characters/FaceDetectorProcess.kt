@@ -177,7 +177,15 @@ class FaceDetectorProcess(
             val x2 = buffer.short.toInt()
             val y2 = buffer.short.toInt()
             val confidence = buffer.float.toDouble()
-            faces.add(DetectedFace(x1, y1, x2, y2, confidence))
+            val points =
+                FacePoints(
+                    eyeLeft = IntPoint(buffer.short.toInt(), buffer.short.toInt()),
+                    eyeRight = IntPoint(buffer.short.toInt(), buffer.short.toInt()),
+                    nose = IntPoint(buffer.short.toInt(), buffer.short.toInt()),
+                    mouthLeft = IntPoint(buffer.short.toInt(), buffer.short.toInt()),
+                    mouthRight = IntPoint(buffer.short.toInt(), buffer.short.toInt()),
+                )
+            faces.add(DetectedFace(x1, y1, x2, y2, confidence, points))
         }
         return faces
     }
@@ -493,7 +501,7 @@ class FaceDetectorProcess(
         const val ANSWER_HEADER_BYTES: Int = 12
 
         /** Число байт на одно лицо в ответе. */
-        const val ANSWER_FACE_BYTES: Int = 12
+        const val ANSWER_FACE_BYTES: Int = 32
 
         /** Смещение номера кадра в заголовке ответа. */
         const val HEADER_OFFSET_NUMBER: Int = 0

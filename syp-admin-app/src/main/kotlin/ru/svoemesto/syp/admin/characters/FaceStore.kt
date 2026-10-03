@@ -58,6 +58,7 @@ data class Face(
     val origin: FaceOrigin = FaceOrigin.AUTO,
     val isExample: Boolean = false,
     val detectConfidence: Double? = null,
+    val points: FacePoints = FacePoints(),
     val recordHash: String? = null,
 ) {
     init {
@@ -128,6 +129,16 @@ data class Face(
                     origin.name,
                     isExample,
                     detectConfidence,
+                    points.eyeLeft.x,
+                    points.eyeLeft.y,
+                    points.eyeRight.x,
+                    points.eyeRight.y,
+                    points.nose.x,
+                    points.nose.y,
+                    points.mouthLeft.x,
+                    points.mouthLeft.y,
+                    points.mouthRight.x,
+                    points.mouthRight.y,
                 )
             },
             recordHash,
@@ -523,6 +534,7 @@ class FaceStore(
                     personId = personOf(detected),
                     origin = FaceOrigin.AUTO,
                     detectConfidence = detected.confidence,
+                    points = detected.points,
                 )
             if (Save.insertIfAbsent(connection, face.toTable())) written++
         }
@@ -616,6 +628,16 @@ class FaceStore(
                 "origin",
                 "is_example",
                 "detect_confidence",
+                "eye_left_x",
+                "eye_left_y",
+                "eye_right_x",
+                "eye_right_y",
+                "nose_x",
+                "nose_y",
+                "mouth_left_x",
+                "mouth_left_y",
+                "mouth_right_x",
+                "mouth_right_y",
             )
 
         /** Выборка одного лица по идентификатору. */

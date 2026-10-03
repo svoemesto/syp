@@ -3,6 +3,33 @@ package ru.svoemesto.syp.admin.characters
 import ru.svoemesto.syp.core.media.RawFrame
 
 /**
+ * Пять точек лица от детектора.
+ *
+ * Нужны эмбеддеру: модель распознавания учится на лицах, выровненных по этим
+ * точкам, и без них вектор получается мусором. Порядок — левый глаз, правый глаз,
+ * нос, левый и правый уголки рта; он один и в питоне, и здесь.
+ *
+ * @property eyeLeft левый глаз
+ * @property eyeRight правый глаз
+ * @property nose нос
+ * @property mouthLeft левый угол рта
+ * @property mouthRight правый угол рта
+ */
+data class FacePoints(
+    val eyeLeft: IntPoint = IntPoint(),
+    val eyeRight: IntPoint = IntPoint(),
+    val nose: IntPoint = IntPoint(),
+    val mouthLeft: IntPoint = IntPoint(),
+    val mouthRight: IntPoint = IntPoint(),
+)
+
+/** Точка на кадре. */
+data class IntPoint(
+    val x: Int = 0,
+    val y: Int = 0,
+)
+
+/**
  * Лицо, найденное в кадре.
  *
  * Значение описывает **рамку в координатах кадра полного разрешения**: и
@@ -28,6 +55,8 @@ data class DetectedFace(
     val x2: Int,
     val y2: Int,
     val confidence: Double,
+    /** Пять точек лица: левый глаз, правый глаз, нос, уголки рта. */
+    val points: FacePoints = FacePoints(),
 ) {
     init {
         require(x1 < x2 && y1 < y2) {
