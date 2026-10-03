@@ -363,116 +363,6 @@ class BoundaryEditing(
         )
 
     /**
-     * Вставляет новый план.
-     *
-     * @param connection соединение
-     * @param shot план для вставки
-     * @return идентификатор вставленного плана
-     */
-    private fun insertShot(
-        connection: Connection,
-        shot: Shot,
-    ): Long {
-        if (shot.id != null) {
-            throw IllegalStateException("Новый план не должен иметь идентификатора: ${shot.id}")
-        }
-        Save.insertIfAbsent(connection, shot.toTable())
-        val id =
-            structure
-                .listShotsIn(connection, shot.episodeId)
-                .firstOrNull { it.firstFrame == shot.firstFrame && it.lastFrame == shot.lastFrame }
-                ?.id
-                ?: throw IllegalStateException("План ${shot.range()} не появился после вставки")
-        return id
-    }
-
-    /**
-     * Разделяет план по кадру.
-     *
-     * Зачем: сцена не может разрезать план, и потому сцену, не превышающую
-     * один план, разделить нечем. На стенде это сцена 0…790 — треть кадров
-     * эпизода. Пока планы не правятся, границы сцен вынуждены совпадать с
-     * границами планов, и владелец структуры упирается в то, чего изменить
-     * не может.
-     *
-     * Проверки те же, что и у сцен: кадр должен лежать строго внутри плана, и
-     * планы не должны пересекаться или оставлять промежутков.
-     *
-     * @param episodeId эпизод
-     * @param frame кадр, по которому разделяется план
-     * @return результат правки структуры
-     * @throws DomainException если кадра нет в плане или он на границе
-     */
-    fun splitShot(
-        episodeId: Long,
-        frame: Int,
-    ): SceneEditOutcome =
-        db.useTransaction { connection ->
-            val state = readState(connection, episodeId)
-            val source =
-                state.shots.firstOrNull { it.firstFrame <= frame && frame <= it.lastFrame }
-                    ?: throw DomainException(
-                        ErrorCode.NOT_FOUND,
-                        "кадра $frame нет ни в одном плане эпизода $episodeId, разделить нечего",
-                    )
-            if (frame == source.firstFrame || frame == source.lastFrame) {
-                throw DomainException(
-                    ErrorCode.BOUNDARY_CONFLICT,
-                    "кадр $frame — край плана ${source.firstFrame}…${source.lastFrame}, " +
-                        "а не его середина: на краю делить нечего",
-                )
-            }
-            // Первая половина — это сам исходный план с подвинутой границей,
-            // а не новый: вставка обеих половин давала две записи 0…28
-            // рядом и разрыв в потоке планов.
-            val second =
-                source.copy(
-                    id = null,
-                    firstFrame = frame,
-                    recordHash = null,
-                )
-            updateShot(connection, source.copy(lastFrame = frame - 1))
-            insertShot(connection, second)
-            val after = readState(connection, episodeId).shots.sortedBy { it.firstFrame }
-            for ((left, right) in after.zipWithNext()) {
-                if (right.firstFrame != left.lastFrame + 1) {
-                    throw DomainException(
-                        ErrorCode.BOUNDARY_CONFLICT,
-                        "после разделения планы не идут подряд: ${left.range()} и ${right.range()}. " +
-                            "Между ними ${right.firstFrame - left.lastFrame - 1} кадров без плана",
-                    )
-                }
-            }
-            val working = readState(connection, episodeId).working
-            SceneEditOutcome(
-                episodeId = episodeId,
-                frame = frame,
-                action = SceneBoundaryAction.SPLIT,
-                affected = working,
-                superseded = emptyList(),
-                sceneIds = working.mapNotNull { it.id },
-            )
-        }
-
-    /**
-     * Сохраняет существующий план.
-     *
-     * @param connection соединение
-     * @param shot план для сохранения
-     * @return идентификатор сохранённого плана
-     */
-    private fun updateShot(
-        connection: Connection,
-        shot: Shot,
-    ): Long {
-        val id =
-            shot.id
-                ?: throw IllegalStateException("План без идентификатора не сохраняется: ${shot.range()}")
-        Save.saveIfChanged(connection, shot.toTable(), listOf("id"), listOf(id))
-        return id
-    }
-
-    /**
      * Обновляет существующую сцену по различию значений.
      *
      * У сцены, полученной правкой, `recordHash` прежний, и сохранение
@@ -484,7 +374,6 @@ class BoundaryEditing(
      * @return идентификатор записанной строки
      * @throws IllegalStateException если у сцены нет идентификатора
      */
-
     private fun updateScene(
         connection: Connection,
         scene: Scene,
