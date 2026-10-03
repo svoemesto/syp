@@ -3,6 +3,7 @@ package ru.svoemesto.syp.admin.characters
 import ru.svoemesto.syp.admin.catalog.Videofile
 import ru.svoemesto.syp.core.media.FrameChannel
 import ru.svoemesto.syp.core.media.FrameFormat
+import ru.svoemesto.syp.core.media.RawFrame
 
 /**
  * Итог прохода по кадрам эпизода.
@@ -72,6 +73,7 @@ fun interface FaceSink {
         width: Int,
         height: Int,
         found: List<DetectedFace>,
+        frame: RawFrame,
     )
 }
 
@@ -190,7 +192,7 @@ class FaceScan(
                     // Приёмник вызывается на каждом кадре, в том числе на
                     // кадре без лиц: иначе проход по кадрам эпизода, где лиц
                     // почти нет, выглядел бы как «кадров нет вообще».
-                    sink?.accept(frame.number, format.width, format.height, found)
+                    sink?.accept(frame.number, format.width, format.height, found, frame)
                     processed = frame.number + 1
                     progress(processed)
                 },

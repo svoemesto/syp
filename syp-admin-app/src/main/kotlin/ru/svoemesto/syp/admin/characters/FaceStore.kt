@@ -378,6 +378,28 @@ class FaceStore(
     }
 
     /**
+     * Читает лица одного кадра в порядке их номеров.
+     *
+     * Нужно эмбеддеру: он узнаёт номер лица в базе только после вставки, а
+     * вектор считается по порядку отдачи детектора, и связать одно с другим
+     * можно только по номеру лица в кадре.
+     *
+     * @param videofileId видеофайл
+     * @param frameNumber номер кадра
+     * @return лица кадра, по возрастанию номера
+     */
+    fun listOfFrame(
+        videofileId: Long,
+        frameNumber: Int,
+    ): List<Face> =
+        db.select(
+            "$SELECT_ALL WHERE id_videofile = ? AND frame_number = ? ORDER BY face_index",
+            ::readRow,
+            videofileId,
+            frameNumber,
+        )
+
+    /**
      * Читает лицо по идентификатору.
      *
      * @param faceId идентификатор лица
