@@ -248,14 +248,14 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     embedder = Embedder(args.model, args.provider)
-    if not sys.stdin.isatty():
-        first = sys.stdin.readline()
-        if first.strip() == "":
-            print(embedder.greeting())
-            return 0
+    # Приветствие печатается сразу, до чтения ввода. Иначе программа молча
+    # ждала бы первого кадра, а бэкенд ждал бы приветствия: оба ждут друг
+    # друга, и видно это только по таймауту через две минуты.
+    out = sys.stdout.buffer
+    out.write(embedder.greeting().encode("utf-8") + b"\n")
+    out.flush()
 
     stream = sys.stdin.buffer
-    out = sys.stdout.buffer
     number = 0
     while True:
         head = read_exactly(stream, REQUEST.size)
