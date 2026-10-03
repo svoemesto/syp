@@ -127,19 +127,6 @@ class SceneBoundaryController(
     ): SceneBoundaryView = view(episodeId, editing.splitScene(episodeId, frame))
 
     /**
-     * Разделяет план по кадру.
-     *
-     * @param episodeId эпизод
-     * @param frame кадр, по которому разделяется план
-     * @return результат правки структуры
-     */
-    @PostMapping("/api/episodes/{episodeId}/shots/{frame}/split")
-    fun splitShot(
-        @PathVariable episodeId: Long,
-        @PathVariable frame: Int,
-    ): SceneBoundaryView = view(episodeId, editing.splitShot(episodeId, frame))
-
-    /**
      * Объединяет сцену, начинающуюся в указанном кадре, с предыдущей.
      *
      * @param episodeId идентификатор эпизода
