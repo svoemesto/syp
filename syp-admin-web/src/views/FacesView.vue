@@ -32,6 +32,17 @@ const faces = ref<FacesView | null>(null)
 const clusters = ref<FaceClustersView | null>(null)
 
 /** Персоны проекта. */
+/**
+ * Фильтр лиц по метке эталона: все, эталоны, не эталоны.
+ *
+ * В старом проекте здесь четыре чекбокса: «не эталон», «эталон», «не ручное»,
+ * «ручное». Три переносятся один в один, четвёртый — нет: ручных лиц в нашей
+ * модели нет, создавать лицо вручную пока нечем, и фильтровать не по чему.
+ */
+type ExampleFilter = 'all' | 'example' | 'not-example'
+
+const exampleFilter = ref<ExampleFilter>('all')
+
 const persons = ref<PersonsView | null>(null)
 
 /** Текст ошибки для оператора. */
@@ -85,7 +96,16 @@ const hasPreviousPage = computed(() => (faces.value?.offset ?? 0) > 0)
  */
 const facesByPerson = computed(() => {
   const groups = new Map<number, { name: string; kind: string; faces: FacesView['faces'] }>()
-  for (const face of faceList.value) {
+  const wanted = faceList.value.filter((face) => {
+    if (exampleFilter.value === 'example') {
+      return face.isExample
+    }
+    if (exampleFilter.value === 'not-example') {
+      return !face.isExample
+    }
+    return true
+  })
+  for (const face of wanted) {
     const group = groups.get(face.personId) ?? {
       name: face.personName,
       kind: face.personKind,
@@ -310,6 +330,12 @@ function personKindTitle(kind: string): string {
       Лиц не найдено. Это не «лиц нет в видеофайле»: детекция могла не выполняться или оборваться.
       Проверьте задание <code>FACES</code> в очереди.
     </p>
+
+    <nav class="face-filters" aria-label="Фильтр лиц по метке эталона">
+      <label><input v-model="exampleFilter" type="radio" value="all" /> все</label>
+      <label><input v-model="exampleFilter" type="radio" value="example" /> эталоны</label>
+      <label><input v-model="exampleFilter" type="radio" value="not-example" /> не эталоны</label>
+    </nav>
 
     <section v-if="clusters && clusters.clusters.length > 0" class="clusters">
       <h3>Кластеры похожих лиц без имени</h3>
