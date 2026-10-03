@@ -213,3 +213,34 @@ export function deletePerson(personId: number): Promise<null> {
 export function facePreviewUrl(episodeId: number, frame: number): string {
   return `/api/episodes/${episodeId}/preview-sheets/0?frame=${frame}`
 }
+
+/** Ответ на пометку эталонов. */
+export interface FaceExamplesMarkedView {
+  /** Сколько лиц реально изменилось. */
+  changed: number
+  /** Новое значение метки. */
+  isExample: boolean
+}
+
+/**
+ * Ставит или снимает метку эталона на лицах.
+ *
+ * Эталон — подтверждение оператора, что это знакомый человек. Метку ставит
+ * человек, а не алгоритм: проставленный автоматически эталон обучил бы модель
+ * на её же предположении.
+ *
+ * @param episodeId эпизод-владелец лиц
+ * @param faceIds лица, которым меняют метку
+ * @param isExample новое значение метки
+ * @returns сколько лиц изменилось
+ */
+export function markFaceExamples(
+  episodeId: number,
+  faceIds: number[],
+  isExample: boolean,
+): Promise<FaceExamplesMarkedView> {
+  return request<FaceExamplesMarkedView>('PATCH', `/episodes/${episodeId}/faces/example`, {
+    faceIds,
+    isExample,
+  })
+}
