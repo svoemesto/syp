@@ -475,3 +475,11 @@ body {
 .border {
   border-color: var(--syp-border-control) !important;
 }
+
+/* Полоса шапки: фон берётся из токена темы, а не задаётся прямо.
+   Раньше стоял `bg-white`, и на тёмной схеме шапка оставалась белой полосой
+   над тёмной страницей: схему выбрали тёмной, а полосу задали цветом. */
+.syp-header__bar {
+  background-color: var(--syp-surface);
+  color: var(--syp-text);
+}
