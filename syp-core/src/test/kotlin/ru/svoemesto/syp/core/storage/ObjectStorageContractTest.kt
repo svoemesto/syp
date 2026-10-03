@@ -40,7 +40,10 @@ class ObjectStorageContractTest {
 
             assertFalse(storage.exists(key), "$name: отсутствующий объект должен читаться как «нет»")
             val payload = "байты".toByteArray()
-            storage.put(key, payload.inputStream(), "image/png", size = payload.size.toLong())
+            // Без размера: длина потока неизвестна заранее. Так пишет всё,
+            // что не знает длину заранее, и этот случай падал с
+            // «valid part size must be provided when object size is unknown».
+            storage.put(key, payload.inputStream(), "image/png")
             assertTrue(storage.exists(key), "$name: записанный объект должен находиться")
             assertContentEquals(payload, storage.get(key).readAll(), "$name: прочитанное не равно записанному")
 
