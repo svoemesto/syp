@@ -296,7 +296,24 @@ def main(argv: list[str]) -> int:
         vectors = []
         for index in range(count):
             face = REQUEST_FACE.unpack_from(faces_raw, index * REQUEST_FACE.size)
-            vectors.append(embedder.vector(gray, np.array(face, dtype=np.float32)))
+            # Одно плохое лицо не должно убивать весь проход. Раньше программа
+            # на нём просто завершалась, и всё, что было дальше по потоку,
+            # читалось как мусор: ответ приходил на другой кадр, и ни одно лицо
+            # дальше не считалось. Здесь сбойное лицо даёт нулевой вектор, его
+            # видно по нулю, а поток остаётся согласованным.
+            try:
+                vector = embedder.vector(gray, np.array(face, dtype=np.float32))
+            # Ловим и SystemExit: расчёт вызывает fail(), а он бросает именно
+            # его, а не Exception, и такой выход проскочил бы мимо перехвата.
+            except (Exception, SystemExit) as error:
+                print(
+                    f"SYP: эмбеддер лиц: кадр {number}, лицо {index} не посчитано: "
+                    f"{type(error).__name__}: {error}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                vector = np.zeros(DIMENSION, dtype=np.float32)
+            vectors.append(vector)
         out.write(ANSWER.pack(number, len(vectors)))
         for vector in vectors:
             out.write(ANSWER_VECTOR.pack(*[float(v) for v in vector]))

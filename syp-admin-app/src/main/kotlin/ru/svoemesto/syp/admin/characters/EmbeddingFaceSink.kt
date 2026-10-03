@@ -87,7 +87,19 @@ class EmbeddingFaceSink(
         val rows =
             found.mapIndexedNotNull { index, _ ->
                 val face = byIndex[index] ?: return@mapIndexedNotNull null
-                vectors[index].let { FaceEmbedding(face.id!!, modelKey, it) }
+                // Нулевой вектор — это не признак лица, а отказ программы посчитать:
+                // она так отвечает на вырожденные точки, чтобы не рвать проход. Такое
+                // в базу не пишется — иначе нули сравнимы с любым лицом и при
+                // сравнении подменяют настоящие признаки.
+                val vector = vectors[index]
+                if (vector.all { it == 0f }) {
+                    logger.error(
+                        "Кадр $frameNumber, лицо ${face.id}: эмбеддер вернул нулевой вектор, " +
+                            "лицо не сохранено",
+                    )
+                    return@mapIndexedNotNull null
+                }
+                FaceEmbedding(face.id!!, modelKey, vector)
             }
         if (rows.isEmpty()) {
             logger.error(
