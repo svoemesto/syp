@@ -524,9 +524,9 @@ class JobQueue(
                     note = row.stringOrNull("progress_note") ?: "",
                 ),
             errorText = row.stringOrNull("error_text"),
-            createdAt = row.string("created_at"),
-            startedAt = row.stringOrNull("started_at"),
-            finishedAt = row.stringOrNull("finished_at"),
+            createdAt = instantText(row, "created_at"),
+            startedAt = instantText(row, "started_at"),
+            finishedAt = instantText(row, "finished_at"),
         )
 
     private companion object {
