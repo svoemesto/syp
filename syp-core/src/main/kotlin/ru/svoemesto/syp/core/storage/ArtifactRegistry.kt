@@ -6,6 +6,15 @@ import java.io.InputStream
 import java.security.MessageDigest
 
 /**
+ * Прежние и нынешние префиксы ключей объектов: что было и что стало.
+ *
+ * Записи по старым префиксам не переносятся — они читаются как есть, см.
+ * [findReady].
+ */
+private val LEGACY_KEY_PREFIXES: List<Pair<String, String>> =
+    listOf("videofile/" to "episode/", "project/" to "series/")
+
+/**
  * Регистрация артефактов заданий.
  *
  * Реестр даёт атомарность (FR-091): пока состояние не [ArtifactState.READY],
@@ -328,15 +337,50 @@ class ArtifactRegistry(
         objectKey: String,
     ): Artifact? {
         val artifact =
-            db.selectOne(
-                "SELECT id, job_id, kind, object_key, content_type, byte_size, checksum, state " +
-                    "FROM tbl_artifacts WHERE kind = ? AND object_key = ? AND state = 'READY'",
-                ::readRow,
-                kind.name,
-                objectKey,
-            ) ?: return null
+            findRow(kind, objectKey)
+                ?: legacyKey(objectKey)?.let { findRow(kind, it) }
+                ?: return null
         return if (storage.exists(artifact.objectKey)) artifact else null
     }
+
+    /**
+     * Ищет запись артефакта по точному ключу.
+     *
+     * @param kind вид артефакта
+     * @param objectKey ключ объекта
+     * @return запись либо `null`
+     */
+    private fun findRow(
+        kind: ArtifactKind,
+        objectKey: String,
+    ): Artifact? =
+        db.selectOne(
+            "SELECT id, job_id, kind, object_key, content_type, byte_size, checksum, state " +
+                "FROM tbl_artifacts WHERE kind = ? AND object_key = ? AND state = 'READY'",
+            ::readRow,
+            kind.name,
+            objectKey,
+        )
+
+    /**
+     * Возвращает ключ, каким этот же объект мог быть записан раньше.
+     *
+     * Переименование «сериал → проект» и «эпизод → видеофайл» прошло по таблицам и
+     * столбцам, а ключи объектов собираются в коде строкой — мимо такой проверки.
+     * Из-за этого листы превью лежат под прежним префиксом, а код ищет их под
+     * новым, и показ лиц и фото персон не работает вовсе.
+     *
+     * Перенос данных не делается: старые объекты работают как есть, новые пишутся
+     * под новым префиксом. Исключение уберётся само, когда объекты будут
+     * перезаписаны новым запуском анализа.
+     *
+     * @param objectKey новый ключ
+     * @return прежний ключ того же объекта либо `null`, если прежнего нет
+     */
+    private fun legacyKey(objectKey: String): String? =
+        LEGACY_KEY_PREFIXES
+            .firstOrNull { objectKey.startsWith(it.first) }
+            ?.let { (new, old) -> old + objectKey.removePrefix(new) }
 
     /**
      * Перечисляет артефакты задания с указанными состояниями.
