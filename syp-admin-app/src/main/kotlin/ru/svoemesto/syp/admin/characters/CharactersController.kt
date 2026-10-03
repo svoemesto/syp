@@ -23,6 +23,17 @@ import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.jobs.JobSubject
 
 /**
+ * Запрос «записать кадр персоны».
+ *
+ * @property videofileId видеофайл, которому принадлежит кадр
+ * @property frameNumber номер кадра
+ */
+data class SetPhotoRequest(
+    val videofileId: Long,
+    val frameNumber: Long,
+)
+
+/**
  * Ключ распознавателя для персон, заведённых руками.
  *
  * Именованная персона обязана принадлежать какому-то распознавателю — иначе
@@ -70,6 +81,7 @@ data class FacesAssignedView(
  *
  * @property name имя персоны; вводит оператор
  */
+
 data class CreatePersonRequest(
     val name: String,
 )
@@ -80,6 +92,10 @@ data class PersonView(
     val kind: String,
     val isService: Boolean,
     val recognizerKey: String?,
+    /** Кадр, на котором персона видна: фото, выбранное оператором. */
+    val photoVideofileId: Long? = null,
+    /** Номер кадра фото. */
+    val photoFrameNumber: Long? = null,
 )
 
 /**
@@ -368,6 +384,30 @@ class CharactersController(
             throw DomainException(ErrorCode.BAD_REQUEST, "имя персоны не может быть пустым")
         }
         return persons.create(videofile.projectId, name, MANUAL_RECOGNIZER_KEY).toView()
+    }
+
+    /**
+     * Записывает кадр, на котором персона видна.
+     *
+     * Фото персоны выбирает оператор из выделенных лиц, как в старом проекте: там
+     * это пункт меню «Set as person picture», который писал в персону номер файла и
+     * кадра. Модель распознавания для этого не нужна, поэтому фото работает уже
+     * сейчас, пока группировки нет.
+     *
+     * @param personId персона
+     * @param request видеофайл и номер кадра
+     * @return обновлённая персона
+     * @throws ru.svoemesto.syp.core.contract.DomainException с кодом `NOT_FOUND`,
+     *   если персоны нет
+     */
+    @PatchMapping("/persons/{personId}/photo")
+    fun setPersonPhoto(
+        @PathVariable personId: Long,
+        @RequestBody request: SetPhotoRequest,
+    ): PersonView {
+        persons.setPhoto(personId, request.videofileId, request.frameNumber)
+        return persons.find(personId)?.toView()
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "персоны $personId нет")
     }
 
     /**
@@ -689,6 +729,8 @@ class CharactersController(
             kind = kind.name,
             isService = kind.isService,
             recognizerKey = recognizerKey,
+            photoVideofileId = photoVideofileId,
+            photoFrameNumber = photoFrameNumber,
         )
 
     companion object {

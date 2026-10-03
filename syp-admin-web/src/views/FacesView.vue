@@ -94,6 +94,25 @@ const hasPreviousPage = computed(() => (faces.value?.offset ?? 0) > 0)
  * по персонам, и человек с одиннадцатью тысячами неопознанных лиц подряд
  * ничего в нём не найдёт.
  */
+/**
+ * Самое крупное лицо каждой персоны на странице.
+ *
+ * По нему оператор ставит фото персоны: на кадре с самым крупным лицом человек
+ * виден лучше всего.
+ */
+const biggestFaces = computed(() => {
+  const out: Record<number, { frameNumber: number }> = {}
+  for (const [personId, group] of facesByPerson.value) {
+    const biggest = [...group.faces].sort(
+      (a, b) => (b.x2 - b.x1) * (b.y2 - b.y1) - (a.x2 - a.x1) * (a.y2 - a.y1),
+    )[0]
+    if (biggest) {
+      out[personId] = { frameNumber: biggest.frameNumber }
+    }
+  }
+  return out
+})
+
 const facesByPerson = computed(() => {
   const groups = new Map<number, { name: string; kind: string; faces: FacesView['faces'] }>()
   const wanted = faceList.value.filter((face) => {
@@ -357,7 +376,12 @@ function personKindTitle(kind: string): string {
       </ul>
     </section>
 
-    <PersonsPanel v-if="faces" :videofile-id="videofileId" :project-id="faces.projectId" />
+    <PersonsPanel
+      v-if="faces"
+      :videofile-id="videofileId"
+      :project-id="faces.projectId"
+      :biggest-faces="biggestFaces"
+    />
 
     <section v-if="faces" class="groups">
       <h3>Лица по персонам</h3>

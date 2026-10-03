@@ -68,6 +68,8 @@ data class Person(
     val name: String,
     val recognizerKey: String?,
     val kind: PersonKind,
+    val photoVideofileId: Long? = null,
+    val photoFrameNumber: Long? = null,
     val recordHash: String? = null,
 ) {
     init {
@@ -176,6 +178,33 @@ class PersonService(
      * @return персона или `null`, если её нет
      */
     fun find(personId: Long): Person? = db.selectOne(SELECT_BY_ID, ::readRow, personId)
+
+    /**
+     * Записывает кадр, на котором персона видна.
+     *
+     * Выбирает оператор из выделенных лиц — так же, как в старом проекте, где
+     * пункт меню назывался «Set as person picture» и писал в персону номер файла и
+     * кадра. Модель распознавания для этого не нужна: кадр выбирает человек,
+     * поэтому фото работает уже сейчас, пока группировки нет.
+     *
+     * @param personId персона
+     * @param videofileId видеофайл, которому принадлежит кадр
+     * @param frameNumber номер кадра
+     */
+    fun setPhoto(
+        personId: Long,
+        videofileId: Long,
+        frameNumber: Long,
+    ) {
+        requirePerson(personId)
+        db.update(
+            "UPDATE $TABLE SET id_videofile_preview = ?, frame_number_preview = ?, " +
+                "recordhash = NULL WHERE id = ?",
+            videofileId,
+            frameNumber,
+            personId,
+        )
+    }
 
     /**
      * Читает всех персон фильма: сначала служебные, затем именованные по
@@ -496,6 +525,8 @@ class PersonService(
             name = row.string("name"),
             recognizerKey = row.stringOrNull("recognizer_key"),
             kind = PersonKind.of(row.string("kind")),
+            photoVideofileId = row.longOrNull("id_videofile_preview"),
+            photoFrameNumber = row.longOrNull("frame_number_preview"),
             recordHash = row.stringOrNull(Table.RECORD_HASH_COLUMN),
         )
 
@@ -536,7 +567,8 @@ class PersonService(
 
         /** Столбцы персоны в порядке чтения из базы. */
         private const val READ_COLUMNS: String =
-            "id, id_project, name, recognizer_key, kind, ${Table.RECORD_HASH_COLUMN}"
+            "id, id_project, name, recognizer_key, kind, " +
+                "id_videofile_preview, frame_number_preview, ${Table.RECORD_HASH_COLUMN}"
 
         /** Выборка одной персоны по идентификатору. */
         val SELECT_BY_ID: String = "SELECT $READ_COLUMNS FROM $TABLE WHERE id = ?"

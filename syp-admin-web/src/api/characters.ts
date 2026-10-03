@@ -21,6 +21,10 @@ export interface PersonView {
   isService: boolean
   /** Ключ класса в модели; у служебных персон пуст. */
   recognizerKey: string | null
+  /** Видеофайл кадра фото. */
+  photoVideofileId: number | null
+  /** Номер кадра фото. */
+  photoFrameNumber: number | null
 }
 
 /** Персоны проекта. */
@@ -268,5 +272,17 @@ export async function assignFacesToPerson(
   return await request<FacesAssignedView>('PATCH', `/videofiles/${videofileId}/faces/person`, {
     personId,
     faceIds,
+  })
+}
+
+/** Записывает кадр, на котором персона видна: фото, выбранное оператором. */
+export async function setPersonPhoto(
+  videofileId: number,
+  personId: number,
+  frameNumber: number,
+): Promise<PersonView> {
+  return await request<PersonView>('PATCH', `/persons/${personId}/photo`, {
+    videofileId,
+    frameNumber,
   })
 }
