@@ -26,7 +26,7 @@ export interface PersonView {
 /** Персоны фильма. */
 export interface PersonsView {
   /** Фильм. */
-  movieId: number
+  projectId: number
   /** Персоны: сначала служебные, затем именованные по имени. */
   persons: PersonView[]
 }
@@ -66,9 +66,9 @@ export interface FaceView {
 /** Страница лиц эпизода. */
 export interface FacesView {
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Фильм-владелец: по нему клиент читает справочник персон. */
-  movieId: number
+  projectId: number
   /** Ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру. */
   frameWidth: number
   /** Высота кадра эпизода. */
@@ -98,7 +98,7 @@ export interface FaceClusterView {
 /** Кластеры эпизода. */
 export interface FaceClustersView {
   /** Эпизод. */
-  episodeId: number
+  videofileId: number
   /** Ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру. */
   frameWidth: number
   /** Высота кадра эпизода. */
@@ -126,23 +126,26 @@ export interface ClusterNamedView {
 /**
  * Читает лица эпизода.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param offset смещение выборки
  * @param limit размер выборки
  * @returns страница лиц эпизода
  */
-export function readFaces(episodeId: number, offset = 0, limit = 200): Promise<FacesView> {
-  return request<FacesView>('GET', `/episodes/${episodeId}/faces?offset=${offset}&limit=${limit}`)
+export function readFaces(videofileId: number, offset = 0, limit = 200): Promise<FacesView> {
+  return request<FacesView>(
+    'GET',
+    `/videofiles/${videofileId}/faces?offset=${offset}&limit=${limit}`,
+  )
 }
 
 /**
  * Читает кластеры похожих лиц эпизода без имени.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @returns кластеры эпизода
  */
-export function readClusters(episodeId: number): Promise<FaceClustersView> {
-  return request<FaceClustersView>('GET', `/episodes/${episodeId}/faces/clusters`)
+export function readClusters(videofileId: number): Promise<FaceClustersView> {
+  return request<FaceClustersView>('GET', `/videofiles/${videofileId}/faces/clusters`)
 }
 
 /**
@@ -170,11 +173,11 @@ export function nameCluster(
 /**
  * Читает персон фильма.
  *
- * @param movieId идентификатор фильма
+ * @param projectId идентификатор фильма
  * @returns персоны фильма
  */
-export function readPersons(movieId: number): Promise<PersonsView> {
-  return request<PersonsView>('GET', `/movies/${movieId}/persons`)
+export function readPersons(projectId: number): Promise<PersonsView> {
+  return request<PersonsView>('GET', `/projects/${projectId}/persons`)
 }
 
 /**
@@ -206,12 +209,12 @@ export function deletePerson(personId: number): Promise<null> {
  * Отдельная функция вместо строки в шаблоне: адрес собирается в одном месте,
  * и переименование пути не потребует правок по экрану.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @param frame номер кадра
  * @returns адрес листа превью
  */
-export function facePreviewUrl(episodeId: number, frame: number): string {
-  return `/api/episodes/${episodeId}/preview-sheets/0?frame=${frame}`
+export function facePreviewUrl(videofileId: number, frame: number): string {
+  return `/api/videofiles/${videofileId}/preview-sheets/0?frame=${frame}`
 }
 
 /** Ответ на пометку эталонов. */
@@ -229,17 +232,17 @@ export interface FaceExamplesMarkedView {
  * человек, а не алгоритм: проставленный автоматически эталон обучил бы модель
  * на её же предположении.
  *
- * @param episodeId эпизод-владелец лиц
+ * @param videofileId эпизод-владелец лиц
  * @param faceIds лица, которым меняют метку
  * @param isExample новое значение метки
  * @returns сколько лиц изменилось
  */
 export function markFaceExamples(
-  episodeId: number,
+  videofileId: number,
   faceIds: number[],
   isExample: boolean,
 ): Promise<FaceExamplesMarkedView> {
-  return request<FaceExamplesMarkedView>('PATCH', `/episodes/${episodeId}/faces/example`, {
+  return request<FaceExamplesMarkedView>('PATCH', `/videofiles/${videofileId}/faces/example`, {
     faceIds,
     isExample,
   })

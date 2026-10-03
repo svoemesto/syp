@@ -8,7 +8,7 @@
 import { request } from './http'
 
 /** Описание фильма в ответе. */
-export interface MovieView {
+export interface ProjectView {
   /** Идентификатор фильма. */
   id: number
   /** Отображаемое имя фильма. */
@@ -18,15 +18,15 @@ export interface MovieView {
   /** Дата создания фильма. */
   createdAt?: string | null
   /** Сколько эпизодов заведено в фильме. */
-  episodeCount: number
+  videofileCount: number
 }
 
 /** Описание эпизода в ответе со всеми измеренными параметрами. */
-export interface EpisodeView {
+export interface VideofileView {
   /** Идентификатор эпизода. */
   id: number
   /** Идентификатор фильма-владельца. */
-  movieId: number
+  projectId: number
   /** Порядковый номер эпизода в фильме. */
   ordinal: number
   /** Отображаемое имя эпизода. */
@@ -88,19 +88,19 @@ export interface SettingView {
 }
 
 /** Ответ на создание фильма: сам фильм и его настройки по умолчанию. */
-export interface CreatedMovieView {
+export interface CreatedProjectView {
   /** Созданный фильм. */
-  movie: MovieView
+  project: ProjectView
   /** Значения настроек по умолчанию. */
   settings: SettingView[]
 }
 
 /** Ответ на чтение фильма вместе с его содержимым. */
-export interface MovieDetailView {
+export interface ProjectDetailView {
   /** Фильм. */
-  movie: MovieView
+  project: ProjectView
   /** Эпизода фильма. */
-  episode: EpisodeView[]
+  videofile: VideofileView[]
   /** Настройки фильма. */
   settings: SettingView[]
 }
@@ -110,8 +110,8 @@ export interface MovieDetailView {
  *
  * @returns список фильмов
  */
-export function listMovies(): Promise<MovieView[]> {
-  return request<MovieView[]>('GET', '/movies')
+export function listProjects(): Promise<ProjectView[]> {
+  return request<ProjectView[]>('GET', '/projects')
 }
 
 /**
@@ -122,18 +122,18 @@ export function listMovies(): Promise<MovieView[]> {
  *   относительный путь к файлу, который попадёт в сценарий сборки (FR-089a)
  * @returns созданный фильм вместе с настройками по умолчанию
  */
-export function createMovie(name: string, sourceRoot: string): Promise<CreatedMovieView> {
-  return request<CreatedMovieView>('POST', '/movies', { name, sourceRoot })
+export function createProject(name: string, sourceRoot: string): Promise<CreatedProjectView> {
+  return request<CreatedProjectView>('POST', '/projects', { name, sourceRoot })
 }
 
 /**
  * Читает фильм, его эпизода и настройки.
  *
- * @param movieId идентификатор фильма
+ * @param projectId идентификатор фильма
  * @returns фильм с содержимым
  */
-export function readMovie(movieId: number): Promise<MovieDetailView> {
-  return request<MovieDetailView>('GET', `/movies/${movieId}`)
+export function readProject(projectId: number): Promise<ProjectDetailView> {
+  return request<ProjectDetailView>('GET', `/projects/${projectId}`)
 }
 
 /**
@@ -141,20 +141,20 @@ export function readMovie(movieId: number): Promise<MovieDetailView> {
  *
  * Файлы архива при этом не трогаются: они принадлежат не системе.
  *
- * @param movieId идентификатор фильма
+ * @param projectId идентификатор фильма
  */
-export function deleteMovie(movieId: number): Promise<null> {
-  return request<null>('DELETE', `/movies/${movieId}`)
+export function deleteProject(projectId: number): Promise<null> {
+  return request<null>('DELETE', `/projects/${projectId}`)
 }
 
 /**
  * Перечисляет эпизоды фильма.
  *
- * @param movieId идентификатор фильма
+ * @param projectId идентификатор фильма
  * @returns эпизода в порядке порядковых номеров
  */
-export function listEpisode(movieId: number): Promise<EpisodeView[]> {
-  return request<EpisodeView[]>('GET', `/movies/${movieId}/episodes`)
+export function listVideofile(projectId: number): Promise<VideofileView[]> {
+  return request<VideofileView[]>('GET', `/projects/${projectId}/videofiles`)
 }
 
 /**
@@ -164,17 +164,17 @@ export function listEpisode(movieId: number): Promise<EpisodeView[]> {
  * обязан лежать внутри корня фильма, иначе ответ — ошибка
  * `SOURCE_UNREADABLE` с путём в тексте.
  *
- * @param movieId идентификатор фильма
+ * @param projectId идентификатор фильма
  * @param sourcePath абсолютный путь к файлу внутри корня фильма
  * @param name название эпизода; если не задано, берётся имя файла
  * @returns зарегистрированный эпизод с измеренными параметрами
  */
-export function registerEpisode(
-  movieId: number,
+export function registerVideofile(
+  projectId: number,
   sourcePath: string,
   name?: string,
-): Promise<EpisodeView> {
-  return request<EpisodeView>('POST', `/movies/${movieId}/episodes`, {
+): Promise<VideofileView> {
+  return request<VideofileView>('POST', `/projects/${projectId}/videofiles`, {
     sourcePath,
     name: name ?? null,
   })
@@ -183,42 +183,42 @@ export function registerEpisode(
 /**
  * Читает параметры эпизода и состояние готовности.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  * @returns параметры эпизода
  */
-export function readEpisode(episodeId: number): Promise<EpisodeView> {
-  return request<EpisodeView>('GET', `/episodes/${episodeId}`)
+export function readVideofile(videofileId: number): Promise<VideofileView> {
+  return request<VideofileView>('GET', `/videofiles/${videofileId}`)
 }
 
 /**
  * Снимает эпизод с учёта; файл источника не трогается.
  *
- * @param episodeId идентификатор эпизода
+ * @param videofileId идентификатор эпизода
  */
-export function deleteEpisode(episodeId: number): Promise<null> {
-  return request<null>('DELETE', `/episodes/${episodeId}`)
+export function deleteVideofile(videofileId: number): Promise<null> {
+  return request<null>('DELETE', `/videofiles/${videofileId}`)
 }
 
 /**
  * Читает настройки анализа и выдачи сценария.
  *
- * @param movieId идентификатор фильма
+ * @param projectId идентификатор фильма
  * @returns настройки фильма
  */
-export function readSettings(movieId: number): Promise<SettingView[]> {
-  return request<SettingView[]>('GET', `/movies/${movieId}/settings`)
+export function readSettings(projectId: number): Promise<SettingView[]> {
+  return request<SettingView[]>('GET', `/projects/${projectId}/settings`)
 }
 
 /**
  * Изменяет настройки анализа и выдачи сценария.
  *
- * @param movieId идентификатор фильма
+ * @param projectId идентификатор фильма
  * @param changes новые значения по именам настроек
  * @returns настройки после изменения и список действительно изменившихся
  */
 export function updateSettings(
-  movieId: number,
+  projectId: number,
   changes: Record<string, unknown>,
 ): Promise<{ settings: SettingView[]; changedKeys: string[] }> {
-  return request('PUT', `/movies/${movieId}/settings`, changes)
+  return request('PUT', `/projects/${projectId}/settings`, changes)
 }

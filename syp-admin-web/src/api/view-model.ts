@@ -2,11 +2,11 @@
 //
 // Зачем файл существует. Поля ответов сейчас называются так, как их назвал
 // бэкенд: `serialId`, `seriesId`, `sourceRoot`. Переименование `Serial` →
-// `Movie`, `Series` → `Episode` идёт параллельно в ветке `037-rename`. Если бы
+// `Project`, `Series` → `Videofile` идёт параллельно в ветке `037-rename`. Если бы
 // экраны читали поля напрямую, правка растянулась бы на каждый шаблон.
 //
 // Здесь каждое поле ответа читается **один раз** и отдаётся экрану в виде,
-// который говорит предметно: `movieTitle`, `episodeTitle`, `sourcePath`. После
+// который говорит предметно: `projectTitle`, `videofileTitle`, `sourcePath`. После
 // переименования меняются DTO и эти функции — экран не трогается.
 //
 // Правило файла: ни один компонент в `views/` и `components/` не обращается к
@@ -15,7 +15,7 @@
 // Формат ответов — контракт `specs/001-first-vertical-slice/contracts/admin-api.md`.
 
 import { formatBytes, formatDate, formatDuration, formatNumber } from '../format/values'
-import type { MovieView, EpisodeView } from './catalog'
+import type { ProjectView, VideofileView } from './catalog'
 import type { ChecksumView } from './checksum'
 import type {
   FaceClusterView,
@@ -42,7 +42,7 @@ export interface SerialRow {
   /** Корень каталога сериала на машине администратора. */
   sourceRoot: string
   /** Сколько серий заведено. */
-  episodeCount: number
+  videofileCount: number
   /** Дата создания либо прочерк. */
   createdAt: string
   /** Есть ли у сериала хотя бы одна серия. */
@@ -360,14 +360,14 @@ function describeLevel(level: string): string {
  * @param dto сериал из ответа бэкенда
  * @returns строка экрана
  */
-export function toSerialRow(dto: MovieView): SerialRow {
+export function toSerialRow(dto: ProjectView): SerialRow {
   return {
     id: dto.id,
     name: dto.name,
     sourceRoot: dto.sourceRoot,
-    episodeCount: dto.episodeCount,
+    videofileCount: dto.videofileCount,
     createdAt: formatDate(dto.createdAt),
-    hasSeries: dto.episodeCount > 0,
+    hasSeries: dto.videofileCount > 0,
   }
 }
 
@@ -381,10 +381,10 @@ export function toSerialRow(dto: MovieView): SerialRow {
  * @param dto серия из ответа бэкенда
  * @returns строка экрана
  */
-export function toSeriesRow(dto: EpisodeView): SeriesRow {
+export function toSeriesRow(dto: VideofileView): SeriesRow {
   return {
     id: dto.id,
-    serialId: dto.movieId,
+    serialId: dto.projectId,
     ordinal: dto.ordinal,
     name: dto.name,
     displayPath: dto.relativePath ?? dto.sourcePath,
@@ -434,7 +434,7 @@ export function toChecksumRow(dto: ChecksumView): ChecksumRow {
       stateTitle = dto.state
   }
   return {
-    seriesId: dto.episodeId,
+    seriesId: dto.videofileId,
     stateTitle,
     stateTone: tone,
     isRunning: running,
@@ -555,7 +555,7 @@ export function toRawBoundaryRow(
 export function toStructureRow(dto: StructureView): StructureRow {
   const scenes = dto.scenes.map((scene, position) => toSceneRow(scene, dto.offset + position + 1))
   return {
-    seriesId: dto.episodeId,
+    seriesId: dto.videofileId,
     summary:
       `сцен: ${formatNumber(dto.scenesTotal)}, планов: ${formatNumber(dto.shotsTotal)}, ` +
       `кадров: ${formatNumber(dto.frameCount)}`,
@@ -765,8 +765,8 @@ export function toFaceRow(dto: FaceView): FaceRow {
  */
 export function toFacesRow(dto: FacesView): FacesRow {
   return {
-    seriesId: dto.episodeId,
-    serialId: dto.movieId,
+    seriesId: dto.videofileId,
+    serialId: dto.projectId,
     frameWidth: dto.frameWidth,
     frameHeight: dto.frameHeight,
     summary: `лиц найдено: ${formatNumber(dto.facesTotal)}, разрешение кадра: ${dto.frameWidth}×${dto.frameHeight}`,
@@ -889,13 +889,13 @@ export function toPersonFaceGroups(faces: FaceRow[]): PersonFaceGroup[] {
  * кадрирования (FR-022).
  *
  * @param dto лист из ответа бэкенда
- * @param episodeId эпизод-владелец листа: нужен для адреса картинки
+ * @param videofileId эпизод-владелец листа: нужен для адреса картинки
  * @param highlightFrame кадр для подсветки либо `null`
  * @returns строка экрана
  */
 export function toPreviewSheetFrameRow(
   dto: PreviewUrlView,
-  episodeId: number,
+  videofileId: number,
   highlightFrame: number | null,
 ): PreviewSheetFrameRow {
   const crop = dto.crop
@@ -903,7 +903,7 @@ export function toPreviewSheetFrameRow(
     index: dto.index,
     caption: toPreviewSheetCaption(dto),
     alt: toPreviewSheetAlt(dto),
-    url: `/api/episodes/${episodeId}/preview-sheets/${dto.index}`,
+    url: `/api/videofiles/${videofileId}/preview-sheets/${dto.index}`,
     sheetWidth: dto.sheetWidth,
     sheetHeight: dto.sheetHeight,
     columns: dto.columns,
@@ -926,7 +926,7 @@ export function toPreviewSheetFrameRow(
 /**
  * Приводит область кадрирования кадра к рамке плана.
  *
- * @param episodeId эпизод-владелец листа
+ * @param videofileId эпизод-владелец листа
  * @param sheetIndex номер листа, на котором лежит кадр
  * @param sheetWidth ширина листа в пикселях
  * @param sheetHeight высота листа в пикселях
@@ -934,14 +934,14 @@ export function toPreviewSheetFrameRow(
  * @returns строка экрана
  */
 export function toShotThumbRow(
-  episodeId: number,
+  videofileId: number,
   sheetIndex: number,
   sheetWidth: number,
   sheetHeight: number,
   crop: { x: number; y: number; width: number; height: number },
 ): ShotThumbRow {
   return {
-    url: `/api/episodes/${episodeId}/preview-sheets/${sheetIndex}`,
+    url: `/api/videofiles/${videofileId}/preview-sheets/${sheetIndex}`,
     width: `${crop.width}px`,
     height: `${crop.height}px`,
     backgroundSize: `${sheetWidth}px ${sheetHeight}px`,

@@ -30,7 +30,7 @@ const editNotice = ref('')
 const selectedShotId = ref<number | null>(null)
 
 /** Идентификатор эпизода из адреса. */
-const episodeId = computed(() => Number(route.params.episodeId))
+const videofileId = computed(() => Number(route.params.videofileId))
 
 /** Сцены текущей страницы для показа. */
 const scenes = computed(() => store.visibleScenes.value)
@@ -76,11 +76,11 @@ const fullFrame = ref<number | null>(null)
 const fullFrameUrl = computed(() =>
   fullFrame.value === null
     ? ''
-    : `/api/episodes/${episodeId.value}/frames/${fullFrame.value}/image?width=720`,
+    : `/api/videofiles/${videofileId.value}/frames/${fullFrame.value}/image?width=720`,
 )
 
 /** Открытый лист превью приведённый к строке экрана. */
-const sheetFrame = computed(() => store.sheetFrameRow(episodeId.value))
+const sheetFrame = computed(() => store.sheetFrameRow(videofileId.value))
 
 /** Есть ли следующая страница сцен. */
 const hasNextPage = computed(() => store.row.value?.hasNextPage === true)
@@ -100,8 +100,8 @@ const staleOnPage = computed(
  * результат, а не пустой экран с одним заголовком.
  */
 function reloadAll(): void {
-  void store.reload(episodeId.value)
-  void store.openFirstSheet(episodeId.value)
+  void store.reload(videofileId.value)
+  void store.openFirstSheet(videofileId.value)
 }
 
 /**
@@ -109,7 +109,7 @@ function reloadAll(): void {
  */
 function goToFrame(): void {
   if (frameInput.value !== null) {
-    void store.goToFrame(episodeId.value, frameInput.value)
+    void store.goToFrame(videofileId.value, frameInput.value)
   }
 }
 
@@ -120,7 +120,7 @@ function goToFrame(): void {
  */
 function pickFrame(frame: number): void {
   frameInput.value = frame
-  void store.goToFrame(episodeId.value, frame)
+  void store.goToFrame(videofileId.value, frame)
 }
 
 /**
@@ -129,7 +129,7 @@ function pickFrame(frame: number): void {
  * @param sceneId идентификатор сцены
  */
 function selectScene(sceneId: number): void {
-  void store.selectScene(episodeId.value, sceneId)
+  void store.selectScene(videofileId.value, sceneId)
 }
 
 /**
@@ -186,16 +186,16 @@ function onKeydown(event: KeyboardEvent): void {
   }
   if (event.key === 'ArrowLeft') {
     event.preventDefault()
-    void store.stepSheet(episodeId.value, -1)
+    void store.stepSheet(videofileId.value, -1)
   }
   if (event.key === 'ArrowRight') {
     event.preventDefault()
-    void store.stepSheet(episodeId.value, 1)
+    void store.stepSheet(videofileId.value, 1)
   }
 }
 
 /** Номер изменения структуры: по нему экран перечитывает данные сам. */
-const revision = computed(() => analysisRevision(episodeId.value))
+const revision = computed(() => analysisRevision(videofileId.value))
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
@@ -206,7 +206,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
 })
 
-watch(episodeId, () => {
+watch(videofileId, () => {
   reloadAll()
 })
 
@@ -239,7 +239,7 @@ watch(revision, () => {
           type="button"
           class="btn btn-sm btn-primary"
           :disabled="store.loading.value"
-          @click="store.analyse(episodeId)"
+          @click="store.analyse(videofileId)"
         >
           Разобрать эпизод заново
         </button>
@@ -304,7 +304,7 @@ watch(revision, () => {
               type="button"
               class="btn btn-sm btn-outline-secondary"
               :disabled="!hasPreviousPage"
-              @click="store.previousPage(episodeId)"
+              @click="store.previousPage(videofileId)"
             >
               предыдущие
             </button>
@@ -317,7 +317,7 @@ watch(revision, () => {
               type="button"
               class="btn btn-sm btn-outline-secondary"
               :disabled="!hasNextPage"
-              @click="store.nextPage(episodeId)"
+              @click="store.nextPage(videofileId)"
             >
               следующие
             </button>
@@ -392,16 +392,16 @@ watch(revision, () => {
             @select="(shotId: number) => (selectedShotId = shotId)"
             @split="
               (frame: number) =>
-                applyEdit(() => store.split(episodeId, frame), `Разделение на кадре ${frame}`)
+                applyEdit(() => store.split(videofileId, frame), `Разделение на кадре ${frame}`)
             "
             @merge="
               (frame: number) =>
-                applyEdit(() => store.merge(episodeId, frame), `Объединение с кадра ${frame}`)
+                applyEdit(() => store.merge(videofileId, frame), `Объединение с кадра ${frame}`)
             "
             @move="
               (from: number, to: number) =>
                 applyEdit(
-                  () => store.moveBoundary(episodeId, from, to),
+                  () => store.moveBoundary(videofileId, from, to),
                   `Сдвиг границы с ${from} на ${to}`,
                 )
             "
@@ -417,21 +417,21 @@ watch(revision, () => {
             @split="
               (frame: number) =>
                 applyShotEdit(
-                  () => store.splitShotAt(episodeId, frame),
+                  () => store.splitShotAt(videofileId, frame),
                   `Разделение плана на кадре ${frame}`,
                 )
             "
             @merge="
               (frame: number) =>
                 applyShotEdit(
-                  () => store.mergeShotAt(episodeId, frame),
+                  () => store.mergeShotAt(videofileId, frame),
                   `Объединение плана с кадра ${frame}`,
                 )
             "
             @move="
               (from: number, to: number) =>
                 applyShotEdit(
-                  () => store.moveShotEdge(episodeId, from, to),
+                  () => store.moveShotEdge(videofileId, from, to),
                   `Сдвиг границы плана с ${from} на ${to}`,
                 )
             "
@@ -455,7 +455,7 @@ watch(revision, () => {
               type="button"
               class="btn btn-sm btn-outline-secondary"
               :disabled="store.loading.value || !store.sheetNav.value?.hasPrevious"
-              @click="store.stepSheet(episodeId, -1)"
+              @click="store.stepSheet(videofileId, -1)"
             >
               предыдущий лист
             </button>
@@ -463,7 +463,7 @@ watch(revision, () => {
               type="button"
               class="btn btn-sm btn-outline-secondary"
               :disabled="store.loading.value || !store.sheetNav.value?.hasNext"
-              @click="store.stepSheet(episodeId, 1)"
+              @click="store.stepSheet(videofileId, 1)"
             >
               следующий лист
             </button>
