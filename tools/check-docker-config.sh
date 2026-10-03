@@ -33,8 +33,14 @@ if [[ "${1:-}" == "--scan" ]]; then
                 "${file}" "${EXPECTED}" >&2
             errors=1
         fi
+        # Каталоги вне контроля версий исключены явно: `grep` не читает
+        # `.gitignore`, и без исключения проверка заходила в рабочие копии
+        # субагентов. Их скопии скриптов — не то, что проверяет правило, и
+        # одна прерванная порция делала правило непроходимым для всех.
     done < <(grep -rlE '(^|[^_[:alnum:]])docker (build|compose|pull|buildx)' \
-        --include='*.sh' --include='*.yml' . 2>/dev/null)
+        --include='*.sh' --include='*.yml' \
+        --exclude-dir=.worktrees --exclude-dir=.data --exclude-dir=.scratch \
+        . 2>/dev/null)
 else
     if [[ -z "${DOCKER_CONFIG:-}" ]]; then
         printf 'НАРУШЕНИЕ R-373: DOCKER_CONFIG не задан, ожидается %s\n' "${EXPECTED}" >&2
