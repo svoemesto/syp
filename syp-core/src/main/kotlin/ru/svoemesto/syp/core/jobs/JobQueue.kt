@@ -102,6 +102,13 @@ class JobQueue(
                 .prepareStatement(
                     "SELECT $JOB_COLUMNS FROM tbl_jobs " +
                         "WHERE state = 'WAITING' AND kind IN ($placeholders) " +
+                        // Лица ждут разбора того же самого предмета. Правило
+                        // «разборы вперёд» было бы голодным: один зависший
+                        // ANALYZE заблокировал бы все FACES разом. Здесь ждёт
+                        // только тот FACES, у которого впереди разбор его же
+                        // эпизода, и как только разбор дойдёт до конца — снимет
+                        // ожидание.
+                        FACES_AWAITS_ANALYSIS_SQL +
                         "ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED",
                 ).use { statement ->
                     kinds.forEachIndexed { index, kind -> statement.setString(index + 1, kind.name) }
@@ -536,6 +543,27 @@ class JobQueue(
                 "algorithm_version, progress_done, progress_total, progress_note, " +
                 "error_text, created_at, started_at, finished_at"
         )
+
+        /**
+         * Условие «лица ждут разбора своего предмета».
+         *
+         * Задание `FACES` не берётся в работу, пока по тому же эпизоду есть
+         * недоделанный `ANALYZE`. Само правило в очереди одно: порядок заданий
+         * задан временем создания, и без этого условия лица, поставленные раньше
+         * разбора, вставали в очередь первыми и получали эпизод без планов.
+         *
+         * Ожидание снимается, когда разбор доходит до конца: условие смотрит
+         * только на незавершённые состояния, поэтому упавший разбор (`ERROR`)
+         * лица не блокирует — иначе один неудачный разбор остановил бы работу
+         * навсегда.
+         */
+        const val FACES_AWAITS_ANALYSIS_SQL: String =
+            "AND NOT (kind = 'FACES' AND EXISTS (" +
+                "SELECT 1 FROM tbl_jobs ahead " +
+                "WHERE ahead.kind = 'ANALYZE' " +
+                "AND ahead.subject_type = tbl_jobs.subject_type " +
+                "AND ahead.subject_id = tbl_jobs.subject_id " +
+                "AND ahead.state IN ('CREATING', 'WAITING', 'WORKING'))) "
     }
 
     /**
