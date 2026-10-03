@@ -1,7 +1,7 @@
 # SYP Project Guidelines (Claude Code)
 
-> **Версия**: 0.8.0 | **2026-10-03**
-> Только ссылки. **Single source of truth**: `AGENTS.md` v0.8.0.
+> **Версия**: 0.9.0 | **2026-10-03**
+> Только ссылки. **Single source of truth**: `AGENTS.md` v0.9.0.
 
 ## Все правила — в `AGENTS.md`
 
@@ -55,6 +55,7 @@
 | Знания о старом проекте (читать, код не тащить) | `/home/nsa/ivfx4/legacy-analysis/` |
 | Задачи и тикеты | OpenProject, проект `syp` (id 4), через `tools/tracker.sh` |
 | Исходное видео | `/disks/HDD_16Tb_Clouds/GOT` |
+| Плейбук от обрывов вложенных агентов | `docs/howto/subagent-drops/playbook.md` |
 | Guards проекта | `tools/check-*`; полный список — § Tier-2 «Каталог guards» в `AGENTS.md` |
 | Единственная точка сборки и запуска | `deploy/do.sh` |
 | Порты развёртывания | `deploy/.env.example` и § Tier-1 «Precise paths» в `AGENTS.md` |
