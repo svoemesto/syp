@@ -181,6 +181,28 @@ data class NameClusterRequest(
 )
 
 /**
+ * Запрос «пометить лица эталонами».
+ *
+ * @property faceIds идентификаторы лиц
+ * @property isExample новое значение метки
+ */
+data class MarkExamplesRequest(
+    val faceIds: List<Long>,
+    val isExample: Boolean,
+)
+
+/**
+ * Ответ на пометку эталонов.
+ *
+ * @property changed сколько лиц реально изменилось
+ * @property isExample новое значение метки
+ */
+data class FaceExamplesMarkedView(
+    val changed: Int,
+    val isExample: Boolean,
+)
+
+/**
  * Запрос «переименовать персону».
  *
  * @property name новое отображаемое имя
@@ -386,6 +408,42 @@ class CharactersController(
             recognizerKey = person.recognizerKey!!,
             facesAssigned = assigned,
         )
+    }
+
+    /**
+     * Ставит или снимает метку эталона на лицах эпизода.
+     *
+     * Метку ставит оператор, а не алгоритм: эталон — это подтверждение
+     * «этот человек известен», и проставленный автоматически эталон обучил бы
+     * модель на её же предположении. Само обучение модели этими метками
+     * пользуется и вынесено за пределы адреса намеренно: переобучение — это
+     * отдельная долгая операция, а не правка одного лица.
+     *
+     * @param episodeId идентификатор эпизода
+     * @param request лица и новое значение метки
+     * @return сколько лиц изменилось
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
+     * @throws DomainException с кодом `BAD_REQUEST`, если лица не его
+     * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+     */
+    @PatchMapping("/episodes/{episodeId}/faces/example")
+    fun markFaceExamples(
+        @PathVariable episodeId: Long,
+        @RequestBody request: MarkExamplesRequest,
+    ): FaceExamplesMarkedView {
+        requireEpisode(episodeId)
+        if (request.faceIds.isEmpty()) {
+            throw DomainException(ErrorCode.BAD_REQUEST, "не выбрано ни одного лица: помечать нечего")
+        }
+        val mine = faces.listByIds(request.faceIds).filter { it.episodeId == episodeId }
+        if (mine.size != request.faceIds.distinct().size) {
+            throw DomainException(
+                ErrorCode.BAD_REQUEST,
+                "часть лиц принадлежит другому эпизоду: лица ${request.faceIds.distinct().size - mine.size} отклонены",
+            )
+        }
+        val changed = faces.markExamples(mine.map { requireNotNull(it.id) }, request.isExample)
+        return FaceExamplesMarkedView(changed = changed, isExample = request.isExample)
     }
 
     /**

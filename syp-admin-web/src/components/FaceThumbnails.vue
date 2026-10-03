@@ -9,6 +9,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { markFaceExamples } from '../api/characters'
+
+const emit = defineEmits<{
+  /** Лицо помечено эталоном или метка снята. */
+  example: [payload: { faceId: number; marked: boolean; changed: number }]
+}>()
 import { type FaceView, facePreviewUrl } from '../api/characters'
 
 const props = defineProps<{
@@ -20,9 +26,28 @@ const props = defineProps<{
   frameWidth: number
   /** Высота кадра эпизода. */
   frameHeight: number
+  /** Показывать ли кнопку метки эталона. */
+  markable?: boolean
   /** Считать ли рамки рамками, а не заливкой: так показывают нарисованные вручную. */
   outlined?: boolean
 }>()
+
+/**
+ * Меняет метку эталона на одном лице.
+ *
+ * Вызов идёт здесь, а не в потребителе: адрес и правило «метку ставит человек»
+ * относятся к метке, а не к экрану. Потребителю достаётся событие с
+ * результатом — чтобы он мог показать, сколько лиц изменилось.
+ *
+ * @param faceId лицо
+ */
+async function toggleExample(faceId: number): Promise<void> {
+  const face = props.faces.find((item) => item.id === faceId)
+  if (!face) return
+  const result = await markFaceExamples(props.episodeId, [faceId], !face.isExample)
+  face.isExample = !face.isExample
+  emit('example', { faceId, marked: face.isExample, changed: result.changed })
+}
 
 /**
  * Положение и размер рамок в процентах миниатюры.
@@ -65,6 +90,21 @@ function caption(face: FaceView): string {
         loading="lazy"
       />
       <span class="box" :style="boxes[index]" />
+      <button
+        v-if="markable === true"
+        type="button"
+        class="example"
+        :class="{ on: face.isExample }"
+        :aria-pressed="face.isExample"
+        :title="
+          face.isExample
+            ? 'Эталон: снять метку «этот человек известен»'
+            : 'Пометить эталоном: подтвердить, что это этот человек'
+        "
+        @click="toggleExample(face.id)"
+      >
+        эталон
+      </button>
       <span class="caption">
         кадр {{ face.frameNumber }}
         <span v-if="face.origin === 'OPERATOR'" class="operator" title="рамку нарисовал оператор">

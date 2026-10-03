@@ -160,6 +160,21 @@ function startRenaming(person: PersonView): void {
 }
 
 /**
+ * Сообщает о пометке эталона.
+ *
+ * Отдельная подпись нужна, потому что метка неочевидна: оператор должен видеть,
+ * что действие состоялось, иначе «эталон» выглядит как декоративная кнопка.
+ *
+ * @param payload помеченное лицо и число изменившихся лиц
+ */
+function onExample(payload: { faceId: number; marked: boolean; changed: number }): void {
+  error.value = null
+  notice.value = payload.marked
+    ? `Лицо ${payload.faceId} помечено эталоном: на нём модель будет учиться узнавать этого человека`
+    : `Метка эталона снята с лица ${payload.faceId}`
+}
+
+/**
  * Даёт кластеру имя.
  *
  * @param clusterId ключ кластера
@@ -328,6 +343,8 @@ function personKindTitle(kind: string): string {
           :faces="group.faces"
           :frame-width="faces.frameWidth"
           :frame-height="faces.frameHeight"
+          markable
+          @example="onExample"
         />
       </div>
     </section>

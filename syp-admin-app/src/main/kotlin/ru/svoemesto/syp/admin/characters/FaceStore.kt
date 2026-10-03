@@ -424,6 +424,39 @@ class FaceStore(
     }
 
     /**
+     * Ставит или снимает метку эталона на лицах.
+     *
+     * Эталон — лицо, на котором оператор подтверждает, что это знакомый
+     * человек. Само обучение модели этим флагом пользуется, поэтому метка
+     * обязана ставиться вручную и сниматься так же: автоматически проставленный
+     * эталон обучил бы модель на собственном предположении.
+     *
+     * @param faceIds идентификаторы лиц
+     * @param isExample новое значение метки
+     * @return сколько лиц реально изменилось
+     */
+    fun markExamples(
+        faceIds: List<Long>,
+        isExample: Boolean,
+    ): Int {
+        if (faceIds.isEmpty()) return 0
+        return db.useTransaction { connection ->
+            var changed = 0
+            connection
+                .prepareStatement(
+                    "UPDATE $TABLE SET is_example = ?, recordhash = NULL WHERE id = ?",
+                ).use { statement ->
+                    faceIds.forEach { faceId ->
+                        statement.setBoolean(1, isExample)
+                        statement.setLong(2, faceId)
+                        changed += statement.executeUpdate()
+                    }
+                }
+            changed
+        }
+    }
+
+    /**
      * Читает лица эпизода по идентификаторам.
      *
      * @param faceIds идентификаторы лиц

@@ -11,6 +11,7 @@ import ru.svoemesto.syp.core.db.Db
 import java.time.OffsetDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -93,6 +94,41 @@ class FaceStoreTest {
                         .build(frames, listOf(0)),
             ),
         )
+    }
+
+    @Test
+    fun `метка эталона ставится и снимается оператором`() {
+        val episode = newEpisode()
+        val episodeId = requireNotNull(episode.id)
+        val unrecognized =
+            requireNotNull(persons.servicePerson(episode.movieId, PersonKind.UNRECOGNIZED).id)
+        faces.saveFrame(
+            episodeId = episodeId,
+            frameNumber = 7,
+            found = listOf(DetectedFace(x1 = 10, y1 = 10, x2 = 90, y2 = 90, confidence = 0.8)),
+            personOf = { unrecognized },
+            frameWidth = frameWidth,
+            frameHeight = frameHeight,
+        )
+        val faceId = requireNotNull(faces.listByEpisode(episodeId).first { it.frameNumber == 7 }.id)
+
+        assertFalse(
+            requireNotNull(faces.find(faceId)).isExample,
+            "новое лицо не должно начинать эталоном: метку ставит оператор, а не алгоритм",
+        )
+
+        val marked = faces.markExamples(listOf(faceId), isExample = true)
+        assertEquals(1, marked, "пометка обязана затронуть лицо")
+        assertTrue(requireNotNull(faces.find(faceId)).isExample, "метка эталона обязана сохраниться")
+
+        val cleared = faces.markExamples(listOf(faceId), isExample = false)
+        assertEquals(1, cleared, "снятие метки обязано затронуть лицо")
+        assertFalse(requireNotNull(faces.find(faceId)).isExample, "метка обязана сниматься так же, как ставится")
+    }
+
+    @Test
+    fun `пустой список лиц не помечает ничего`() {
+        assertEquals(0, faces.markExamples(emptyList(), isExample = true), "помечать нечего — и вернуться нечему")
     }
 
     @Test
