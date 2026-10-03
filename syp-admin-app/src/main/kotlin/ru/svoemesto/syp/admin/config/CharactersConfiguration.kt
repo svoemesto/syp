@@ -112,6 +112,7 @@ class CharactersConfiguration {
         detector: FaceDetector,
         faceSinks: FaceSinkFactory,
         settingsStore: MovieSettingsStore,
+        structure: ru.svoemesto.syp.admin.analysis.StructureService,
     ): FacesJob =
         FacesJob(
             episodeStore = episodeStore,
@@ -120,6 +121,7 @@ class CharactersConfiguration {
             detectorKey = detector.key,
             faceSinks = faceSinks,
             settingsStore = settingsStore,
+            structure = structure,
         )
 
     /**

@@ -130,6 +130,29 @@ class FacesJobTest {
     }
 
     @Test
+    fun `эпизод без разбора даёт отказ, а не пустой результат`() {
+        // Очередь упорядочена только по времени создания, поэтому FACES может
+        // встать раньше ANALYZE. Без стража лица тогда ищутся, привязываться им
+        // не к чему, и задание выглядит успешным на пустом месте.
+        val episode = newEpisode(frames = 4, withStructure = false)
+        val decoder = FakeDecoder.write(decoderRoot.resolve("nostructure"), frames = 4)
+        val worker = workerFor(decoder)
+        val job = enqueueAndClaim(episode)
+
+        val done = worker.runJob(job)
+        val stored = assertNotNull(queue.find(job.id))
+        val errorText = stored.errorText ?: ""
+
+        assertFalse(done, "эпизод без разбора не может дать задание в успех")
+        assertEquals(JobState.ERROR, stored.state, "эпизод без разбора — это отказ, а не результат")
+        assertTrue(
+            errorText.contains("не разобран") && errorText.contains("Разобрать заново"),
+            "отказ обязан называть причину и что делать оператору, а не «внутренняя ошибка». " +
+                "Получено: $errorText",
+        )
+    }
+
+    @Test
     fun `ненулевой код декодера переводит задание в ошибку с текстом`() {
         val episode = newEpisode(frames = 4)
         val decoder = FakeDecoder.write(decoderRoot.resolve("broken"), frames = 4, exit = 1)
@@ -170,6 +193,14 @@ class FacesJobTest {
                 runStore = runStore,
                 scan = FaceScan(FrameChannel(decoder.toString()), detector),
                 detectorKey = detector.key,
+                structure =
+                    ru.svoemesto.syp.admin.analysis.StructureService(
+                        db = db,
+                        runStore = runStore,
+                        boundaryStore =
+                            ru.svoemesto.syp.admin.analysis
+                                .RawBoundaryStore(db),
+                    ),
             )
         return AdminJobWorker(
             queue = queue,
@@ -189,29 +220,58 @@ class FacesJobTest {
      * @param frames число кадров эпизода
      * @return записанный эпизод
      */
-    private fun newEpisode(frames: Int): Episode {
+    private fun newEpisode(frames: Int): Episode = newEpisode(frames, withStructure = true)
+
+    /**
+     * Заводит эпизод, у которого разбор либо есть, либо отсутствует.
+     *
+     * @param frames число кадров
+     * @param withStructure заводить ли один живой план
+     * @return записанный эпизод
+     */
+    private fun newEpisode(
+        frames: Int,
+        withStructure: Boolean,
+    ): Episode {
         val movie = MovieStore(db).create("Лица ${System.nanoTime()}", "/srv/got")
-        return episodeStore.insert(
-            Episode(
-                movieId = movie.id!!,
-                ordinal = 0,
-                name = "S01E01",
-                sourcePath = "/srv/got/S01E01-${System.nanoTime()}.mkv",
-                byteSize = 1000,
-                fileMtime = OffsetDateTime.parse("2024-11-05T10:00:00Z"),
-                frameCount = frames,
-                timeBaseNum = 1001,
-                timeBaseDen = 24_000,
-                width = 4,
-                height = 2,
-                durationNum = frames.toLong() * 1001,
-                durationDen = 24_000,
-                videoCodec = "h264",
-                videoProfile = "High",
-                pixelFormat = "yuv420p",
-                keyframeMap = KeyframeMap.build(frames, listOf(0)),
-            ),
-        )
+        val episode =
+            episodeStore.insert(
+                Episode(
+                    movieId = movie.id!!,
+                    ordinal = 0,
+                    name = "S01E01",
+                    sourcePath = "/srv/got/S01E01-${System.nanoTime()}.mkv",
+                    byteSize = 1000,
+                    fileMtime = OffsetDateTime.parse("2024-11-05T10:00:00Z"),
+                    frameCount = frames,
+                    timeBaseNum = 1001,
+                    timeBaseDen = 24_000,
+                    width = 4,
+                    height = 2,
+                    durationNum = frames.toLong() * 1001,
+                    durationDen = 24_000,
+                    videoCodec = "h264",
+                    videoProfile = "High",
+                    pixelFormat = "yuv420p",
+                    keyframeMap = KeyframeMap.build(frames, listOf(0)),
+                ),
+            )
+        if (withStructure) {
+            // Один живой план на весь эпизод: лицам нужно к чему привязываться,
+            // иначе страж свежести разбора откажет — и правильно.
+            db.use { connection ->
+                connection
+                    .prepareStatement(
+                        "INSERT INTO tbl_shots (id_episode, first_frame, last_frame, size, size_origin, origin) " +
+                            "VALUES (?, 0, ?, 'NONE', 'AUTO', 'AUTO')",
+                    ).use { statement ->
+                        statement.setLong(1, episode.id!!)
+                        statement.setInt(2, (frames - 1).coerceAtLeast(0))
+                        statement.executeUpdate()
+                    }
+            }
+        }
+        return episode
     }
 
     /**

@@ -59,9 +59,37 @@ class FacesJob(
     private val faceSinks: FaceSinkFactory? = null,
     private val settingsStore: ru.svoemesto.syp.admin.catalog.MovieSettingsStore? = null,
     private val planBinding: FacePlanBinding? = null,
+    /**
+     * Чтение структуры: без него страж свежести разбора не проверяется, и это
+     * допустимо только в проверках, где структура заведена заранее.
+     */
+    private val structure: ru.svoemesto.syp.admin.analysis.StructureService? = null,
 ) : JobHandler {
     /** Вид задания, который обрабатывает исполнитель. */
     override val kind: JobKind = JobKind.FACES
+
+    /**
+     * Не даёт искать лица по неразобранному или устаревшему эпизоду.
+     *
+     * Очередь упорядочена только по времени создания: правила «сначала разбор,
+     * потом лица» в ней нет. Задание `FACES`, поставленное раньше `ANALYZE`,
+     * встаёт в очередь первым и получает эпизод без планов — лица тогда
+     * привязываются не к чему, а отчёт выглядит успешным.
+     *
+     * @param episode эпизод задания
+     * @throws DomainException если живых планов нет
+     */
+    private fun requireFreshStructure(episode: Episode) {
+        val service = structure ?: return
+        val live = service.listShots(episode.id!!).count { !it.isStale }
+        if (live == 0) {
+            throw ru.svoemesto.syp.core.contract.DomainException(
+                ru.svoemesto.syp.core.contract.ErrorCode.CONFLICT,
+                "эпизод «${episode.name}» не разобран или разбор устарел: живых планов нет, " +
+                    "искать лица не к чему привязывать. Сначала запустите «Разобрать заново»",
+            )
+        }
+    }
 
     /**
      * Проводит эпизод через детектор лиц.
@@ -78,6 +106,7 @@ class FacesJob(
         progress: (JobProgress) -> Unit,
     ): JobResult {
         val episode = requireEpisode(job)
+        requireFreshStructure(episode)
         val total = episode.frameCount.toLong()
         val report = MonotonicProgress(progress, job.progress, total)
         val run =
