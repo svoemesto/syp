@@ -45,6 +45,16 @@ const selected = computed(() => store.selectedScene.value)
  * не то, что оператор открыл, а показывать блок доводки над чужим планом —
  * ещё хуже.
  */
+watch(
+  () => selected.value?.firstFrame ?? store.row.value?.scenes?.[0]?.firstFrame ?? null,
+  (frame) => {
+    if (frame !== null) {
+      fullFrame.value = frame
+    }
+  },
+  { immediate: true },
+)
+
 const selectedShot = computed(() => {
   const scene = selected.value
   if (scene === null) {
@@ -54,7 +64,20 @@ const selectedShot = computed(() => {
 })
 
 /** Число кадров эпизода: им ограничивается ввод номера кадра. */
+/** Планы выбранной сцены — для левой панели. */
+const shotsOfSelection = computed(() => selected.value?.shots ?? [])
+
 const frameCount = computed(() => store.row.value?.frameCount ?? 0)
+
+/** Номер кадра для крупного изображения. */
+const fullFrame = ref<number | null>(null)
+
+/** Есть ли кадр для крупного изображения. */
+const fullFrameUrl = computed(() =>
+  fullFrame.value === null
+    ? ''
+    : `/api/episodes/${episodeId.value}/frames/${fullFrame.value}/image?width=720`,
+)
 
 /** Открытый лист превью приведённый к строке экрана. */
 const sheetFrame = computed(() => store.sheetFrameRow(episodeId.value))
@@ -247,7 +270,31 @@ watch(revision, () => {
 
     <p v-if="editNotice" class="notice" role="status">{{ editNotice }}</p>
 
-    <div class="columns">
+    <div class="legacy-window">
+      <div class="card column-left">
+        <div class="card-body">
+          <div class="syp-card-title">Планы</div>
+          <div class="legacy-shots">
+            <span v-for="shot in shotsOfSelection" :key="shot.id" class="legacy-shot">
+              {{ shot.firstFrame }}…{{ shot.lastFrame }}
+            </span>
+            <span v-if="shotsOfSelection.length === 0" class="syp-unit">
+              Выберите сцену — покажем её планы
+            </span>
+          </div>
+          <div class="syp-card-title">Кадр</div>
+          <img
+            v-if="fullFrameUrl"
+            class="legacy-full-frame"
+            :src="fullFrameUrl"
+            alt="Кадр целиком"
+            width="720"
+            height="400"
+          />
+          <p v-else class="syp-unit">Кадр не выбран</p>
+        </div>
+      </div>
+
       <div class="card column-main">
         <div class="card-body">
           <div class="syp-card-title">Сцены</div>
@@ -505,11 +552,42 @@ watch(revision, () => {
   color: var(--syp-success);
 }
 
-.columns {
+/* Раскладка повторяет окно «Редактор планов» старого проекта: слева узкая
+   панель с планами и крупным кадром, справа широкая рабочая часть. */
+.legacy-window {
   align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(320px, 730px) minmax(0, 1fr);
+}
+
+.legacy-shots {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.legacy-shot {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  font-family: var(--syp-mono, monospace);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.35rem;
+}
+
+.legacy-full-frame {
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: block;
+  height: auto;
+  max-width: 100%;
+  width: 720px;
+}
+
+.column-left,
+.column-main {
+  min-width: 0;
 }
 
 .column-main {
