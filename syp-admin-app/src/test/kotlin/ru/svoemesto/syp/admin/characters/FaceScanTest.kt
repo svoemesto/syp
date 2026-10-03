@@ -8,6 +8,7 @@ import ru.svoemesto.syp.core.media.FrameChannelFailed
 import ru.svoemesto.syp.core.media.RawFrame
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
 import java.time.OffsetDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -138,6 +139,51 @@ class FaceScanTest {
             "неполный кадр обязан называться в отказе: такой поток результатом быть не может (SC-005). " +
                 "Получено: ${failure.message}",
         )
+    }
+
+    @Test
+    fun `зависший декодер даёт отказ с номером кадра и выводом программы`() {
+        val directory = Files.createTempDirectory("syp-faces-scan-stalled")
+        // Декодер жив, но не отдаёт ни кадра, ни байта: ровно то состояние,
+        // при котором задание раньше висело в состоянии «идёт работа».
+        val decoder = FakeDecoder.write(directory, frames = 0, hangSeconds = 20)
+        val scan = FaceScan(FrameChannel(decoder.toString(), stallTimeout = Duration.ofSeconds(2)), StubFaceDetector())
+        val pidFile = directory.resolve("fake-decoder.pid")
+
+        val startedAt = System.nanoTime()
+        val failure =
+            assertFailsWith<FrameChannelFailed> {
+                scan.scan(episode(frames = 4))
+            }
+        val elapsedSeconds = (System.nanoTime() - startedAt) / 1_000_000_000
+
+        assertTrue(
+            elapsedSeconds < 15,
+            "зависший декодер обязан обрываться за минуты, а не висеть до общего таймаута в шесть часов. " +
+                "Прошло $elapsedSeconds с",
+        )
+        val text = failure.message.orEmpty()
+        assertTrue(
+            text.contains("не отдаёт данных") && text.contains("кадре 0"),
+            "отказ обязан называть, что декодер молчит, и на каком кадре это случилось. Получено: $text",
+        )
+        assertTrue(
+            text.contains("молчу 20 с"),
+            "вывод программы обязан попасть в текст отказа — иначе оператор не увидит причину (FR-092). " +
+                "Получено: $text",
+        )
+        // Зависший декодер обязан быть уничтожен: он иначе остаётся висеть
+        // после отказа и ест память контейнера.
+        val pid = Files.readString(pidFile).trim().toLong()
+        val childPid = Files.readString(directory.resolve("fake-decoder.child.pid")).trim().toLong()
+        listOf("декодер" to pid, "его дочерний процесс" to childPid).forEach { (what, number) ->
+            val alive = ProcessHandle.of(number).map { it.isAlive }.orElse(false)
+            assertTrue(
+                !alive,
+                "зависший декодер обязан быть уничтожен вместе с потомками, а $what $number жив. " +
+                    "Живой потомок держит конец трубы, и задание снова зависнет",
+            )
+        }
     }
 
     @Test
