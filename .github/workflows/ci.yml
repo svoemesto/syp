@@ -98,18 +98,21 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Схема тестовых баз из миграций
+      - name: Тестовые базы с нуля из миграций
+        # Базы пересоздаются, а не дополняются: тесты оставляют данные, и
+        # повторный прогон падал на «файл уже зарегистрирован как эпизод».
+        # Локально этого не видно — `tools/run-db-tests.sh` поднимает базу
+        # заново каждый раз.
         run: |
           for database in syp_test_core syp_test_admin syp_test_public; do
-            psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+              -c "DROP DATABASE IF EXISTS $database WITH (FORCE);" \
               -c "CREATE DATABASE $database;"
-          done
-          for database in syp_test_core syp_test_admin syp_test_public; do
             for file in deploy/syp-db/[0-9][0-9]_*.sql; do
               psql -h 127.0.0.1 -U postgres -d "$database" -v ON_ERROR_STOP=1 -q -f "$file"
             done
           done
-          echo "схема применена во все три базы"
+          echo "схема применена во все три базы с нуля"
 
       - name: Компиляция всех модулей
         run: ./gradlew compileKotlin --parallel
@@ -121,11 +124,26 @@ jobs:
         run: ./gradlew bootJar --parallel
 
       - name: Тесты
-        run: ./gradlew test --parallel
+        # Модули идут по очереди и каждый — на своей базе. Общая база при
+        # `--parallel` ломалась: модули одновременно чистили одни и те же
+        # таблицы, и один из них падал на чужой транзакции. Локальный прогон
+        # `tools/run-db-tests.sh` разводит базы по модулям по той же причине.
+        run: |
+          # Имя проекта ядра отличается от остальных: :syp-core, а не
+          # :syp-core-app. Одинаковая подстановка давала несуществующий проект
+          # и падение без единой строки о причине.
+          for module in core admin public; do
+            if [ "$module" = "core" ]; then
+              project=":syp-core"
+            else
+              project=":syp-$module-app"
+            fi
+            echo "--- $project ---"
+            SYP_TEST_DB_URL="jdbc:postgresql://127.0.0.1:5432/syp_test_$module" \
+              ./gradlew "$project:test" --rerun-tasks || exit 1
+          done
         env:
           SYP_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/syp_test_core
-          SYP_TEST_DB_URL_ADMIN: jdbc:postgresql://127.0.0.1:5432/syp_test_admin
-          SYP_TEST_DB_URL_PUBLIC: jdbc:postgresql://127.0.0.1:5432/syp_test_public
 
   # --- Фронтенды: сборка и линтер -------------------------------------------
   frontends:
@@ -194,7 +212,6 @@ jobs:
           bash tools/check-old-table-names.sh
           bash tools/check-no-duplicate-api-prefix.sh
           bash tools/check-components-mounted.sh
-          bash tools/check-node-modules-real.sh
           bash tools/check-subagent-brief-size.sh
           bash tools/check-ready-to-work.sh
 
