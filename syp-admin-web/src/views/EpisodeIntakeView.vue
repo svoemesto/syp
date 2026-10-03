@@ -53,6 +53,29 @@ async function submitEpisode(): Promise<boolean> {
 function openChecksum(episodeId: number): void {
   void router.push({ name: 'checksum', params: { episodeId: String(episodeId) } })
 }
+
+/**
+ * Открывает экран сцен и планов эпизода.
+ *
+ * Переход живёт рядом с «суммой» не украшением, а потому что иначе до сцен
+ * можно было добраться только вкладкой в шапке, а эта вкладка появляется лишь
+ * после выбора фильма. Оператору сценарий «открыл фильм — посмотрел сцены»
+ * обрывался, и найти экран было нечем.
+ *
+ * @param episodeId эпизод
+ */
+function openStructure(episodeId: number): void {
+  void router.push({ name: 'structure', params: { episodeId: String(episodeId) } })
+}
+
+/**
+ * Открывает экран лиц эпизода.
+ *
+ * @param episodeId эпизод
+ */
+function openFaces(episodeId: number): void {
+  void router.push({ name: 'faces', params: { episodeId: String(episodeId) } })
+}
 </script>
 
 <template>
@@ -125,7 +148,7 @@ function openChecksum(episodeId: number): void {
             <th>Длительность</th>
             <th>Размер</th>
             <th>Ключевых кадров</th>
-            <th>Сумма</th>
+            <th>Перейти</th>
           </tr>
         </thead>
         <tbody>
@@ -140,8 +163,10 @@ function openChecksum(episodeId: number): void {
             <td>{{ formatDuration(episode.durationSeconds) }}</td>
             <td>{{ formatBytes(episode.byteSize, 'байт', 0) }}</td>
             <td>{{ episode.keyframeCount }}</td>
-            <td>
+            <td class="go">
               <button type="button" @click="openChecksum(episode.id)">сумма</button>
+              <button type="button" @click="openStructure(episode.id)">сцены</button>
+              <button type="button" @click="openFaces(episode.id)">лица</button>
             </td>
           </tr>
           <tr v-if="store.episode.value.length === 0">
