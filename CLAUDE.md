@@ -1,7 +1,7 @@
 # SYP Project Guidelines (Claude Code)
 
-> **Версия**: 0.9.0 | **2026-10-03**
-> Только ссылки. **Single source of truth**: `AGENTS.md` v0.9.0.
+> **Версия**: 0.10.0 | **2026-10-03**
+> Только ссылки. **Single source of truth**: `AGENTS.md` v0.10.0.
 
 ## Все правила — в `AGENTS.md`
 
