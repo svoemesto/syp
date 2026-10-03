@@ -12,6 +12,7 @@ import ru.svoemesto.syp.admin.catalog.SourceProbe
 import ru.svoemesto.syp.admin.catalog.TrackStore
 import ru.svoemesto.syp.admin.catalog.VideofileRegistration
 import ru.svoemesto.syp.admin.catalog.VideofileStore
+import ru.svoemesto.syp.admin.properties.PropertyStore
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.json.Json
 import ru.svoemesto.syp.core.media.ExternalProgram
@@ -110,6 +111,15 @@ class CatalogConfiguration {
         sourceProbe: SourceProbe,
         trackStore: TrackStore,
     ): VideofileRegistration = VideofileRegistration(projectStore, videofileStore, sourceProbe, trackStore)
+
+    /**
+     * Собирает хранилище произвольных свойств.
+     *
+     * @param db соединение с базой
+     * @return хранилище свойств
+     */
+    @Bean
+    fun propertyStore(db: Db): PropertyStore = PropertyStore(db)
 
     /**
      * Собирает хранилище дорожек видеофайла.
