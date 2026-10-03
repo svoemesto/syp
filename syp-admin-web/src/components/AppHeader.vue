@@ -43,10 +43,19 @@ const queue = computed(() => currentQueue())
 
 /** Название выбранного фильма для показа в шапке. */
 const selectedEpisodeLabel = computed(() => {
-  if (catalog.current.value === null) {
-    return 'фильм не выбран'
+  const catalogEntry = catalog.current.value
+  if (catalogEntry !== null) {
+    return catalogEntry.movie.name
   }
-  return catalog.current.value.movie.name
+  // Каталог заполняется на экране приёма. При прямом заходе по адресу
+  // эпизода он пуст, и подпись «фильм не выбран» противоречила тому, что
+  // видно: задание по этому эпизоду работает. Лучше сказать, какой эпизод
+  // открыт, чем утверждать, что ничего не выбрано.
+  const raw = route.params.episodeId
+  if (typeof raw === 'string' && raw !== '') {
+    return `эпизод ${raw}`
+  }
+  return 'фильм не выбран'
 })
 
 /**
@@ -96,7 +105,7 @@ function isActive(name: string): boolean {
 </script>
 
 <template>
-  <header class="syp-header border-bottom bg-white">
+  <header class="syp-header border-bottom syp-header__bar">
     <div class="syp-content">
       <div class="d-flex align-items-center justify-content-between py-2 gap-3 flex-wrap">
         <RouterLink :to="{ name: 'intake' }" class="syp-brand text-decoration-none">

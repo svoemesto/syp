@@ -5,7 +5,6 @@
 import { RouterView } from 'vue-router'
 import AppHeader from './components/AppHeader.vue'
 
-
 /**
  * Эпизод, для которой показывается ссылка на структуру.
  *
