@@ -67,6 +67,24 @@ jobs:
       # В CI кэш свой, путь машины администратора не используется: правило
       # GRADLE_USER_HOME проверяется guard-ом отдельно.
       GRADLE_USER_HOME: /home/runner/.gradle
+      # Живая база для тестов. Без неё проверки, которым нужна база, молча
+      # отменяются, и «тесты прошли» не значит ничего: их просто не было.
+      SYP_TEST_DB_USER: postgres
+      SYP_TEST_DB_PASSWORD: postgres
+      SYP_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/syp_test_core
+      SYP_TEST_HTTP_URL: http://127.0.0.1:7911
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -76,6 +94,19 @@ jobs:
           java-version: "17"
 
       - uses: gradle/actions/setup-gradle@v4
+
+      - name: Схема тестовых баз из миграций
+        run: |
+          for database in syp_test_core syp_test_admin syp_test_public; do
+            psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+              -c "CREATE DATABASE $database;"
+          done
+          for database in syp_test_core syp_test_admin syp_test_public; do
+            for file in deploy/syp-db/[0-9][0-9]_*.sql; do
+              psql -h 127.0.0.1 -U postgres -d "$database" -v ON_ERROR_STOP=1 -q -f "$file"
+            done
+          done
+          echo "схема применена во все три базы"
 
       - name: Компиляция всех модулей
         run: ./gradlew compileKotlin --parallel
@@ -88,6 +119,10 @@ jobs:
 
       - name: Тесты
         run: ./gradlew test --parallel
+        env:
+          SYP_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/syp_test_core
+          SYP_TEST_DB_URL_ADMIN: jdbc:postgresql://127.0.0.1:5432/syp_test_admin
+          SYP_TEST_DB_URL_PUBLIC: jdbc:postgresql://127.0.0.1:5432/syp_test_public
 
   # --- Фронтенды: сборка и линтер -------------------------------------------
   frontends:
@@ -144,10 +179,22 @@ jobs:
           else
             echo "файла syp-worker/syp_worker.py ещё нет: фаза 12 не начата"
           fi
-      - run: bash tools/check-old-table-names.sh
-        - run: bash tools/check-no-duplicate-api-prefix.sh
-        - run: bash tools/check-components-mounted.sh
-        - run: bash tools/check-node-modules-real.sh
-        - run: bash tools/check-subagent-brief-size.sh
-        - run: bash tools/check-ready-to-work.sh
-          python3 -c "import json; json.load(open('syp-worker/config.example.json'))"
+
+      - name: Guards предметной области и окружения
+        run: |
+          bash tools/check-ci-valid.sh
+          bash tools/check-old-table-names.sh
+          bash tools/check-no-duplicate-api-prefix.sh
+          bash tools/check-components-mounted.sh
+          bash tools/check-node-modules-real.sh
+          bash tools/check-subagent-brief-size.sh
+          bash tools/check-ready-to-work.sh
+
+      - name: Пример настройки воркера — корректный JSON
+        run: |
+          if [ -f syp-worker/config.example.json ]; then
+            python3 -c "import json; json.load(open('syp-worker/config.example.json'))"
+            echo "пример настройки разбирается"
+          else
+            echo "файла syp-worker/config.example.json ещё нет: проверять нечего"
+          fi
