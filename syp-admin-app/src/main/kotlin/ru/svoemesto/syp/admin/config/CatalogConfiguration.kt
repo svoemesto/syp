@@ -135,9 +135,20 @@ class CatalogConfiguration {
         projectStore: ProjectStore,
         videofileStore: VideofileStore,
         settingsStore: ProjectSettingsStore,
+        sourceProbe: SourceProbe,
+        trackStore: TrackStore,
         videofileRegistration: VideofileRegistration,
         staleness: Staleness,
-    ): CatalogController = CatalogController(projectStore, videofileStore, settingsStore, videofileRegistration, staleness = staleness)
+    ): CatalogController =
+        CatalogController(
+            projectStore,
+            videofileStore,
+            settingsStore,
+            videofileRegistration,
+            sourceProbe,
+            trackStore,
+            staleness = staleness,
+        )
 
     /**
      * Собирает справочник мест действия фильма.
