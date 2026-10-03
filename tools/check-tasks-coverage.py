@@ -19,8 +19,10 @@ cur = None
 for i, ln in enumerate(lines):
     m = task_re.match(ln)
     if m:
+        # Ключи заранее: без них задача без строки «Файлы» роняла проверку
+        # исключением KeyError, и та падала молча, ничего не сообщив.
         cur = {"id": m.group(1), "desc": m.group(2), "line": i + 1,
-               "files": [], "depends": "", "check": ""}
+               "files": [], "files_raw": "", "depends": "", "check": ""}
         tasks.append(cur)
         continue
     if cur is not None:
@@ -42,7 +44,7 @@ for t in tasks:
         errors.append(f"{t['id']}: нет строки «Файлы»")
     if not t["check"]:
         errors.append(f"{t['id']}: нет строки «Проверка» (задача без проверки)")
-    if "depends" not in t:
+    if not t["depends"]:
         errors.append(f"{t['id']}: нет строки «Зависит от»")
 
 # последовательность ID
