@@ -687,6 +687,45 @@ class StructureController(
      * @throws DomainException с кодом `NOT_FOUND`, если листа нет или он ещё
      *   не готов
      */
+    /**
+     * Отдаёт один кадр эпизода полным размером.
+     *
+     * Лист превью с ячейками 135×75 годятся для обзора и не годятся для
+     * оценки границы: оператор должен видеть кадр, который правит. Кадр
+     * декодируется на лету и в ответ не пишется (ADR-0002), в масштабе `width`,
+     * чтобы гонять его при каждом наведении.
+     *
+     * @param episodeId идентификатор эпизода
+     * @param frameNumber номер кадра, с нуля
+     * @param width ширина картинки; `0` — полный размер
+     * @return содержимое картинки
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
+     * @throws FrameExtractionFailed если кадр не отдался
+     * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+     */
+    @GetMapping("/api/episodes/{episodeId}/frames/{frameNumber}/image")
+    fun readFrameImage(
+        @PathVariable episodeId: Long,
+        @PathVariable frameNumber: Int,
+        @RequestParam(defaultValue = "720") width: Int,
+    ): ResponseEntity<ByteArray> {
+        val episode = requireEpisode(episodeId)
+        val bytes =
+            frameExtractor.extract(
+                sourcePath = episode.sourcePath,
+                frameNumber = frameNumber,
+                timeBaseNum = episode.timeBaseNum,
+                timeBaseDen = episode.timeBaseDen,
+                frameCount = episode.frameCount,
+                widthTarget = width,
+            )
+        return ResponseEntity
+            .ok()
+            .header("Content-Type", "image/jpeg")
+            .header("Cache-Control", "private, max-age=3600")
+            .body(bytes)
+    }
+
     @GetMapping("/api/episodes/{episodeId}/preview-sheets/{index}")
     fun readPreviewSheet(
         @PathVariable episodeId: Long,
