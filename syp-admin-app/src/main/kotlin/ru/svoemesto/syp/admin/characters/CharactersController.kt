@@ -31,6 +31,38 @@ import ru.svoemesto.syp.core.jobs.JobSubject
  * @property isService служебная ли это персона
  * @property recognizerKey ключ класса в модели; пуст у служебных
  */
+
+/**
+ * Запрос «назначить лица персоне».
+ *
+ * @property personId персона-получатель
+ * @property faceIds лица, которые к ней переходят
+ */
+data class AssignFacesRequest(
+    val personId: Long,
+    val faceIds: List<Long>,
+)
+
+/**
+ * Ответ на назначение лиц.
+ *
+ * @property facesAssigned сколько лиц переехало
+ * @property personId персона-получатель
+ */
+data class FacesAssignedView(
+    val facesAssigned: Int,
+    val personId: Long,
+)
+
+/**
+ * Запрос «завести персону».
+ *
+ * @property name имя персоны; вводит оператор
+ */
+data class CreatePersonRequest(
+    val name: String,
+)
+
 data class PersonView(
     val id: Long,
     val name: String,
@@ -261,6 +293,54 @@ class CharactersController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом `NOT_FOUND`,
      *   если эпизода нет
      */
+    /**
+     * Назначает лица персонам.
+     *
+     * Это ровно то, ради чего существует редактор лиц: оператор смотрит лица
+     * персоны и переносит ошибочно попавшие к другой. Метод `assignPerson` в
+     * хранилище был написан давно и наружу не выставлен — назначить лицо было
+     * нечем, то есть исправить ошибку распознавания было нечем.
+     *
+     * @param videofileId идентификатор видеофайла
+     * @param request номера персон и лиц
+     * @return сколько лиц переехало
+     * @throws DomainException с кодом `NOT_FOUND`, если видеофайла нет
+     */
+    @PatchMapping("/videofiles/{videofileId}/faces/person")
+    fun assignFacesToPerson(
+        @PathVariable videofileId: Long,
+        @RequestBody request: AssignFacesRequest,
+    ): FacesAssignedView {
+        requireVideofile(videofileId)
+        val changed = faces.assignPerson(request.personId, request.faceIds)
+        return FacesAssignedView(facesAssigned = changed, personId = request.personId)
+    }
+
+    /**
+     * Заводит персону по имени.
+     *
+     * Сценарий владельца: оператор даёт имя тому, кого назвал, и для нового
+     * человека имя вводится здесь. Без этого персону можно было только назвать
+     * из кластера, а кластеры строятся по векторам и сейчас пусты.
+     *
+     * @param videofileId идентификатор видеофайла
+     * @param request имя персоны
+     * @return созданная персона
+     * @throws DomainException с кодом `BAD_REQUEST`, если имя пустое
+     */
+    @PostMapping("/videofiles/{videofileId}/persons")
+    fun createPerson(
+        @PathVariable videofileId: Long,
+        @RequestBody request: CreatePersonRequest,
+    ): PersonView {
+        val videofile = requireVideofile(videofileId)
+        val name = request.name.trim()
+        if (name.isEmpty()) {
+            throw DomainException(ErrorCode.BAD_REQUEST, "имя персоны не может быть пустым")
+        }
+        return persons.create(videofile.projectId, name, "").toView()
+    }
+
     @PostMapping("/videofiles/{videofileId}/faces")
     fun startFaceScan(
         @PathVariable videofileId: Long,
