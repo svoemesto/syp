@@ -9,6 +9,7 @@ import ru.svoemesto.syp.admin.catalog.LocationStore
 import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
 import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.SourceProbe
+import ru.svoemesto.syp.admin.catalog.TrackStore
 import ru.svoemesto.syp.admin.catalog.VideofileRegistration
 import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.db.Db
@@ -98,14 +99,26 @@ class CatalogConfiguration {
      * @param projectStore хранилище фильмов
      * @param videofileStore хранилище эпизодов
      * @param sourceProbe опрос файла эпизода
+     * @param trackStore хранилище дорожек
      * @return регистрация эпизода
      */
+
     @Bean
     fun videofileRegistration(
         projectStore: ProjectStore,
         videofileStore: VideofileStore,
         sourceProbe: SourceProbe,
-    ): VideofileRegistration = VideofileRegistration(projectStore, videofileStore, sourceProbe)
+        trackStore: TrackStore,
+    ): VideofileRegistration = VideofileRegistration(projectStore, videofileStore, sourceProbe, trackStore)
+
+    /**
+     * Собирает хранилище дорожек видеофайла.
+     *
+     * @param db соединение с базой
+     * @return хранилище дорожек
+     */
+    @Bean
+    fun trackStore(db: Db): TrackStore = TrackStore(db)
 
     /**
      * Собирает эндпоинты приёма фильма и эпизода.

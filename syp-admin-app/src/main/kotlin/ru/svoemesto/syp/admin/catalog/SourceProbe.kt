@@ -68,6 +68,7 @@ data class SourceParameters(
     val audioSampleRate: Int?,
     val containerDurationSeconds: Double?,
     val keyframes: KeyframeMap,
+    val tracks: List<MediaTrack> = emptyList(),
 ) {
     /** Длительность одного кадра в секундах. */
     fun frameDurationSeconds(): Double = timeBaseNum.toDouble() / timeBaseDen
@@ -275,6 +276,7 @@ class SourceProbe(
         val attributes = Files.readAttributes(sourcePath, BasicFileAttributes::class.java)
 
         return SourceParameters(
+            tracks = described.tracks(),
             byteSize = file.length(),
             fileMtime = attributes.lastModifiedTime().toInstant(),
             frameCount = frameCount,

@@ -34,6 +34,8 @@ import kotlin.test.assertTrue
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class VideofileRegistrationTest {
+    /** Соединение с тестовой базой: нужно и приспособлениям, и хранилищу дорожек. */
+    private lateinit var db: Db
     private lateinit var root: Path
     private lateinit var outside: Path
     private lateinit var projects: ProjectStore
@@ -48,7 +50,7 @@ class VideofileRegistrationTest {
      */
     @BeforeAll
     fun prepare() {
-        val db: Db = TestDatabase.assumeDatabase()
+        db = TestDatabase.assumeDatabase()
         val workspace = Files.createTempDirectory("syp-registration")
         root = workspace.resolve("фильм")
         outside = workspace.resolve("снаружи")
@@ -71,7 +73,7 @@ class VideofileRegistrationTest {
      * @return регистрация эпизода
      */
     private fun registrationForPathChecks(): VideofileRegistration =
-        VideofileRegistration(projects, videofileStore, SourceProbe(ExternalProgram(), "ffprobe"))
+        VideofileRegistration(projects, videofileStore, SourceProbe(ExternalProgram(), "ffprobe"), TrackStore(db))
 
     /**
      * Собирает регистрацию эпизода, которой нужен настоящий `ffprobe`.
@@ -97,7 +99,7 @@ class VideofileRegistrationTest {
                 "Программа ffprobe не найдена в PATH: проверки регистрации эпизода с опросом файла пропущены",
             )
         }
-        return VideofileRegistration(projects, videofileStore, SourceProbe(ExternalProgram(), ffprobe))
+        return VideofileRegistration(projects, videofileStore, SourceProbe(ExternalProgram(), ffprobe), TrackStore(db))
     }
 
     /**
