@@ -3,12 +3,12 @@ package ru.svoemesto.syp.admin.analysis
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.jobs.AdminJobWorker
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.core.db.Db
@@ -55,8 +55,8 @@ import kotlin.test.assertTrue
 class StructureFailureTest {
     private lateinit var db: Db
     private lateinit var queue: JobQueue
-    private lateinit var episodeStore: EpisodeStore
-    private lateinit var settingsStore: MovieSettingsStore
+    private lateinit var videofileStore: VideofileStore
+    private lateinit var settingsStore: ProjectSettingsStore
     private lateinit var runStore: AnalysisRunStore
     private lateinit var boundaryStore: RawBoundaryStore
     private lateinit var frameStore: FrameSignificanceStore
@@ -80,8 +80,8 @@ class StructureFailureTest {
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
         queue = JobQueue(db)
-        episodeStore = EpisodeStore(db)
-        settingsStore = MovieSettingsStore(db)
+        videofileStore = VideofileStore(db)
+        settingsStore = ProjectSettingsStore(db)
         runStore = AnalysisRunStore(db)
         boundaryStore = RawBoundaryStore(db)
         frameStore = FrameSignificanceStore(db)
@@ -98,11 +98,11 @@ class StructureFailureTest {
      * @param frameCount число кадров эпизода
      * @return записанный эпизод
      */
-    private fun newEpisode(frameCount: Int): Episode {
-        val movie = MovieStore(db).create("Сбой ${System.nanoTime()}", "/srv/got")
-        return episodeStore.insert(
-            Episode(
-                movieId = movie.id!!,
+    private fun newVideofile(frameCount: Int): Videofile {
+        val project = ProjectStore(db).create("Сбой ${System.nanoTime()}", "/srv/got")
+        return videofileStore.insert(
+            Videofile(
+                projectId = project.id!!,
                 ordinal = 0,
                 name = "S1E1",
                 sourcePath = "/srv/got/S1E1-${System.nanoTime()}.mkv",
@@ -133,7 +133,7 @@ class StructureFailureTest {
         val program = ExternalProgram()
         val job =
             StructureJob(
-                episodeStore = episodeStore,
+                videofileStore = videofileStore,
                 runStore = runStore,
                 structure = structure,
                 frames = frameStore,
@@ -159,14 +159,14 @@ class StructureFailureTest {
     /**
      * Ставит задание анализа в очередь и берёт его в работу.
      *
-     * @param episode эпизод
+     * @param videofile эпизод
      * @return взятое задание
      */
-    private fun enqueueAndClaim(episode: Episode): Job {
+    private fun enqueueAndClaim(videofile: Videofile): Job {
         val jobId =
             queue.enqueue(
                 kind = JobKind.ANALYZE,
-                subject = JobSubject.episode(episode.id!!),
+                subject = JobSubject.videofile(videofile.id!!),
                 paramsJson = "{\"sceneThreshold\":8,\"shotThreshold\":4}",
                 paramsHash = ParamsHash.of(DetectionResult.ALGORITHM_VERSION, 8.0, 4.0),
                 algorithmVersion = DetectionResult.ALGORITHM_VERSION,
@@ -186,10 +186,10 @@ class StructureFailureTest {
 
     @Test
     fun `оборванная программа переводит задание в ошибку с текстом, а листы не готовы`() {
-        val episode = newEpisode(600)
+        val videofile = newVideofile(600)
         val script = FakeFfmpeg.write(workRoot.resolve("broken"), sheetExit = 1)
         val worker = workerFor(script)
-        val job = enqueueAndClaim(episode)
+        val job = enqueueAndClaim(videofile)
 
         val done = worker.runJob(job)
         val stored = assertNotNull(queue.find(job.id), "задание обязано остаться в базе")
@@ -209,12 +209,12 @@ class StructureFailureTest {
 
         assertEquals(
             0,
-            countReadySheets(episode.id!!),
+            countReadySheets(videofile.id!!),
             "незавершённый лист превью не может быть помечен готовым (FR-091)",
         )
         val run =
             assertNotNull(
-                runStore.latest(episode.id, AnalysisKind.STRUCTURE),
+                runStore.latest(videofile.id, AnalysisKind.STRUCTURE),
                 "прогон обязан остаться в базе: по нему видно, чем закончилась попытка",
             )
         assertEquals(
@@ -230,8 +230,8 @@ class StructureFailureTest {
 
     @Test
     fun `прерванное задание возвращается в очередь с сохранённым прогрессом`() {
-        val episode = newEpisode(600)
-        val job = enqueueAndClaim(episode)
+        val videofile = newVideofile(600)
+        val job = enqueueAndClaim(videofile)
         queue.startWork(job.id)
         queue.reportProgress(job.id, JobProgress.of(300, 1200, "детекция границ: кадр 300 из 600"))
 
@@ -250,24 +250,24 @@ class StructureFailureTest {
 
     @Test
     fun `повторный запуск не собирает заново готовые листы`() {
-        val episode = newEpisode(600)
+        val videofile = newVideofile(600)
         // 600 кадров по 256 на лист — это три листа: два полных и неполный
         // последний, без него конец эпизода не был бы виден.
         val script = FakeFfmpeg.write(workRoot.resolve("resume"), sheetCount = 3)
         val worker = workerFor(script)
 
-        val firstJob = enqueueAndClaim(episode)
+        val firstJob = enqueueAndClaim(videofile)
         val firstDone = worker.runJob(firstJob)
         assertTrue(
             firstDone,
             "первый запуск обязан закончиться успешно. Текст задания: " +
                 "${assertNotNull(queue.find(firstJob.id)).errorText}",
         )
-        assertEquals(3, countReadySheets(episode.id!!), "эпизод из 600 кадров даёт три листа превью")
+        assertEquals(3, countReadySheets(videofile.id!!), "эпизод из 600 кадров даёт три листа превью")
 
-        val secondJob = enqueueAndClaim(episode)
+        val secondJob = enqueueAndClaim(videofile)
         assertTrue(worker.runJob(secondJob), "повторный запуск обязан закончиться успешно")
-        assertEquals(3, countReadySheets(episode.id!!), "число готовых листов не должно расти")
+        assertEquals(3, countReadySheets(videofile.id!!), "число готовых листов не должно расти")
         assertEquals(
             0,
             registry.listForJob(secondJob.id).size,
@@ -305,14 +305,14 @@ class StructureFailureTest {
     /**
      * Считает готовые листы превью эпизода.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @return число листов в состоянии `READY`
      */
-    private fun countReadySheets(episodeId: Long): Int =
+    private fun countReadySheets(videofileId: Long): Int =
         db.selectOne(
             "SELECT count(*) AS total FROM tbl_artifacts WHERE kind = 'PREVIEW_SHEET' " +
                 "AND state = 'READY' AND object_key LIKE ?",
             { it.int("total") },
-            "episode/$episodeId/preview-sheets/%",
+            "videofile/$videofileId/preview-sheets/%",
         ) ?: 0
 }

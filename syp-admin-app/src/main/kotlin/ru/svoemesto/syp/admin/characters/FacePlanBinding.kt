@@ -46,11 +46,11 @@ class FacePlanBinding(
      * (FR-034). Так бывает, когда структура эпизода ещё не построена: лица
      * нашли, а планов ещё нет.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @return сколько строк лица изменилось
      * @throws ru.svoemesto.syp.core.db.DbException если пересчёт не удался
      */
-    fun rebindEpisode(episodeId: Long): Int = db.useTransaction { connection -> rebindInConnection(connection, episodeId) }
+    fun rebindVideofile(videofileId: Long): Int = db.useTransaction { connection -> rebindInConnection(connection, videofileId) }
 
     /**
      * Пересчитывает принадлежность к планам в уже открытой транзакции.
@@ -60,16 +60,16 @@ class FacePlanBinding(
      * пересчётом появится окно с неверной привязкой (FR-034).
      *
      * @param connection открытое соединение, транзакцией управляет вызывающий
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @return сколько строк лица изменилось
      * @throws ru.svoemesto.syp.core.db.DbException если пересчёт не удался
      */
     fun rebindInConnection(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
     ): Int {
-        val shots = ShotsByFrame.read(connection, episodeId)
-        return rebind(connection, episodeId, shots)
+        val shots = ShotsByFrame.read(connection, videofileId)
+        return rebind(connection, videofileId, shots)
     }
 
     /**
@@ -102,13 +102,13 @@ class FacePlanBinding(
      * Пересчитывает принадлежность по уже прочитанным планам.
      *
      * @param connection открытое соединение
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param shots планы эпизода
      * @return сколько строк лица изменилось
      */
     private fun rebind(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
         shots: List<ShotRange>,
     ): Int {
         // Первый проход — отвязка: все лица эпизода теряют прежний план.
@@ -119,9 +119,9 @@ class FacePlanBinding(
             connection
                 .prepareStatement(
                     "UPDATE ${FaceStore.TABLE} SET shot_id = NULL " +
-                        "WHERE id_episode = ? AND shot_id IS NOT NULL",
+                        "WHERE id_videofile = ? AND shot_id IS NOT NULL",
                 ).use { statement ->
-                    statement.setLong(1, episodeId)
+                    statement.setLong(1, videofileId)
                     statement.executeUpdate()
                 }
 
@@ -131,11 +131,11 @@ class FacePlanBinding(
         connection
             .prepareStatement(
                 "UPDATE ${FaceStore.TABLE} SET shot_id = ? " +
-                    "WHERE id_episode = ? AND frame_number >= ? AND frame_number <= ?",
+                    "WHERE id_videofile = ? AND frame_number >= ? AND frame_number <= ?",
             ).use { statement ->
                 shots.forEach { shot ->
                     statement.setLong(1, shot.id)
-                    statement.setLong(2, episodeId)
+                    statement.setLong(2, videofileId)
                     statement.setInt(3, shot.firstFrame)
                     statement.setInt(4, shot.lastFrame)
                     changed += statement.executeUpdate()
@@ -176,19 +176,19 @@ object ShotsByFrame {
      * была бы ссылкой на результат, который оператор уже не видит.
      *
      * @param connection открытое соединение
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @return планы по возрастанию первого кадра
      */
     fun read(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
     ): List<ShotRange> =
         connection
             .prepareStatement(
                 "SELECT id, first_frame, last_frame FROM ${StructureTables.SHOT} " +
-                    "WHERE id_episode = ? AND is_stale = FALSE ORDER BY first_frame",
+                    "WHERE id_videofile = ? AND is_stale = FALSE ORDER BY first_frame",
             ).use { statement ->
-                statement.setLong(1, episodeId)
+                statement.setLong(1, videofileId)
                 statement.executeQuery().use { resultSet ->
                     val rows = mutableListOf<ShotRange>()
                     while (resultSet.next()) {

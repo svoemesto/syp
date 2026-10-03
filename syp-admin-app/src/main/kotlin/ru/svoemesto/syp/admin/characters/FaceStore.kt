@@ -23,11 +23,11 @@ import ru.svoemesto.syp.core.db.Table
  * 1. **на записи** — перевёрнутая или пустая рамка не доходит до базы
  *    (`DetectedFace`, ограничение `face_box_order`);
  * 2. **в базе** — рамка обязана помещаться в разрешение эпизода
- *    (миграция `16_face_box_within_episode.sql`). Условие `CHECK` этого не
+ *    (миграция `16_face_box_within_videofile.sql`). Условие `CHECK` этого не
  *    умеет: разрешение лежит в другой таблице.
  *
  * @property id идентификатор лица; `null`, пока не записано
- * @property episodeId эпизод-владелец
+ * @property videofileId эпизод-владелец
  * @property frameNumber номер кадра, нумерация с нуля
  * @property faceIndex порядковый номер лица в кадре, с нуля
  * @property x1 левая граница рамки в пикселях кадра
@@ -46,7 +46,7 @@ import ru.svoemesto.syp.core.db.Table
  */
 data class Face(
     val id: Long? = null,
-    val episodeId: Long,
+    val videofileId: Long,
     val frameNumber: Int,
     val faceIndex: Int,
     val x1: Int,
@@ -116,7 +116,7 @@ data class Face(
             FaceStore.COLUMNS,
             {
                 listOf(
-                    episodeId,
+                    videofileId,
                     frameNumber,
                     faceIndex,
                     x1,
@@ -136,7 +136,7 @@ data class Face(
     companion object {
         /** Столбцы лица в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, id_episode, frame_number, face_index, x1, y1, x2, y2, shot_id, person_id, " +
+            "id, id_videofile, frame_number, face_index, x1, y1, x2, y2, shot_id, person_id, " +
                 "origin, is_example, detect_confidence, recordhash"
     }
 }
@@ -211,7 +211,7 @@ class FaceStore(
      * Строки, нарисованные оператором, не обновляются: обновление заменило бы
      * рамку человека результатом автоматики (SC-006).
      *
-     * @param episodeId эпизод-владелец
+     * @param videofileId эпизод-владелец
      * @param frameNumber номер кадра
      * @param found лица, найденные детектором, в порядке отдачи
      * @param personId персона по умолчанию для найденных лиц: служебная
@@ -223,7 +223,7 @@ class FaceStore(
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun saveFrame(
-        episodeId: Long,
+        videofileId: Long,
         frameNumber: Int,
         found: List<DetectedFace>,
         personOf: (DetectedFace) -> Long,
@@ -236,7 +236,7 @@ class FaceStore(
         return db.useTransaction { connection ->
             saveFrameInConnection(
                 connection,
-                episodeId,
+                videofileId,
                 frameNumber,
                 found,
                 personOf,
@@ -254,7 +254,7 @@ class FaceStore(
      * строк — но только те, чьё происхождение `AUTO`. Нарисованные человеком
      * остаются (FR-032, SC-006).
      *
-     * @param episodeId эпизод-владелец
+     * @param videofileId эпизод-владелец
      * @param frameNumber номер кадра
      * @param found лица, найденные детектором в этом проходе
      * @param personOf назначает персону каждому найденному лицу
@@ -263,7 +263,7 @@ class FaceStore(
      * @return сколько строк лица изменилось
      */
     fun replaceAutoFrame(
-        episodeId: Long,
+        videofileId: Long,
         frameNumber: Int,
         found: List<DetectedFace>,
         personOf: (DetectedFace) -> Long,
@@ -273,16 +273,16 @@ class FaceStore(
         db.useTransaction { connection ->
             connection
                 .prepareStatement(
-                    "DELETE FROM $TABLE WHERE id_episode = ? AND frame_number = ? AND origin = ?",
+                    "DELETE FROM $TABLE WHERE id_videofile = ? AND frame_number = ? AND origin = ?",
                 ).use { statement ->
-                    statement.setLong(1, episodeId)
+                    statement.setLong(1, videofileId)
                     statement.setInt(2, frameNumber)
                     statement.setString(3, FaceOrigin.AUTO.name)
                     statement.executeUpdate()
                 }
             saveFrameInConnection(
                 connection,
-                episodeId,
+                videofileId,
                 frameNumber,
                 found,
                 personOf,
@@ -294,7 +294,7 @@ class FaceStore(
     /**
      * Записывает лицо, нарисованное оператором.
      *
-     * @param episodeId эпизод-владелец
+     * @param videofileId эпизод-владелец
      * @param frameNumber номер кадра
      * @param faceIndex порядковый номер лица в кадре
      * @param detected рамка
@@ -304,7 +304,7 @@ class FaceStore(
      * @return идентификатор записанного лица
      */
     fun saveOperatorFace(
-        episodeId: Long,
+        videofileId: Long,
         frameNumber: Int,
         faceIndex: Int,
         detected: DetectedFace,
@@ -316,7 +316,7 @@ class FaceStore(
         detected.requireInside(frameWidth, frameHeight)
         val face =
             Face(
-                episodeId = episodeId,
+                videofileId = videofileId,
                 frameNumber = frameNumber,
                 faceIndex = faceIndex,
                 x1 = detected.x1,
@@ -329,8 +329,8 @@ class FaceStore(
         return db.useTransaction { connection ->
             Save.insertIfAbsent(connection, face.toTable())
             idOf(
-                findInConnection(connection, episodeId, frameNumber, faceIndex),
-                "Лицо $episodeId/$frameNumber/$faceIndex записано, но не читается",
+                findInConnection(connection, videofileId, frameNumber, faceIndex),
+                "Лицо $videofileId/$frameNumber/$faceIndex записано, но не читается",
             )
         }
     }
@@ -338,13 +338,13 @@ class FaceStore(
     /**
      * Читает лица эпизода по возрастанию номера кадра и порядкового номера.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @param offset сколько лиц пропустить
      * @param limit сколько лиц вернуть; `0` — все
      * @return лица выборки
      */
-    fun listByEpisode(
-        episodeId: Long,
+    fun listByVideofile(
+        videofileId: Long,
         offset: Int = 0,
         limit: Int = 0,
     ): List<Face> {
@@ -363,7 +363,7 @@ class FaceStore(
                     if (offset > 0) " OFFSET $offset" else ""
             }
         val order = " ORDER BY frame_number, face_index"
-        return db.select("$SELECT_ALL WHERE id_episode = ?$order$tail", ::readRow, episodeId)
+        return db.select("$SELECT_ALL WHERE id_videofile = ?$order$tail", ::readRow, videofileId)
     }
 
     /**
@@ -377,14 +377,14 @@ class FaceStore(
     /**
      * Считает лица эпизода.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return число лиц эпизода
      */
-    fun countByEpisode(episodeId: Long): Int =
+    fun countByVideofile(videofileId: Long): Int =
         db.selectOne(
-            "SELECT count(*) AS total FROM $TABLE WHERE id_episode = ?",
+            "SELECT count(*) AS total FROM $TABLE WHERE id_videofile = ?",
             { it.int("total") },
-            episodeId,
+            videofileId,
         ) ?: 0
 
     /**
@@ -492,7 +492,7 @@ class FaceStore(
      * Записывает лица кадра в уже открытой транзакции.
      *
      * @param connection открытое соединение
-     * @param episodeId эпизод-владелец
+     * @param videofileId эпизод-владелец
      * @param frameNumber номер кадра
      * @param found лица, найденные детектором
      * @param personOf назначает персону каждому найденному лицу
@@ -502,7 +502,7 @@ class FaceStore(
      */
     fun saveFrameInConnection(
         connection: java.sql.Connection,
-        episodeId: Long,
+        videofileId: Long,
         frameNumber: Int,
         found: List<DetectedFace>,
         personOf: (DetectedFace) -> Long,
@@ -513,7 +513,7 @@ class FaceStore(
         found.forEachIndexed { index, detected ->
             val face =
                 Face(
-                    episodeId = episodeId,
+                    videofileId = videofileId,
                     frameNumber = frameNumber,
                     faceIndex = index,
                     x1 = detected.x1,
@@ -538,7 +538,7 @@ class FaceStore(
     private fun readRow(row: Row): Face =
         Face(
             id = row.long("id"),
-            episodeId = row.long("id_episode"),
+            videofileId = row.long("id_videofile"),
             frameNumber = row.int("frame_number"),
             faceIndex = row.int("face_index"),
             x1 = row.int("x1"),
@@ -557,22 +557,22 @@ class FaceStore(
      * Читает лицо по естественному ключу в открытой транзакции.
      *
      * @param connection открытое соединение
-     * @param episodeId эпизод-владелец
+     * @param videofileId эпизод-владелец
      * @param frameNumber номер кадра
      * @param faceIndex порядковый номер лица в кадре
      * @return лицо или `null`, если такой строки нет
      */
     private fun findInConnection(
         connection: java.sql.Connection,
-        episodeId: Long,
+        videofileId: Long,
         frameNumber: Int,
         faceIndex: Int,
     ): Face? =
         connection
             .prepareStatement(
-                "$SELECT_ALL WHERE id_episode = ? AND frame_number = ? AND face_index = ?",
+                "$SELECT_ALL WHERE id_videofile = ? AND frame_number = ? AND face_index = ?",
             ).use { statement ->
-                statement.setLong(1, episodeId)
+                statement.setLong(1, videofileId)
                 statement.setInt(2, frameNumber)
                 statement.setInt(3, faceIndex)
                 statement.executeQuery().use { resultSet ->
@@ -604,7 +604,7 @@ class FaceStore(
         /** Записываемые столбцы лица в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "id_episode",
+                "id_videofile",
                 "frame_number",
                 "face_index",
                 "x1",

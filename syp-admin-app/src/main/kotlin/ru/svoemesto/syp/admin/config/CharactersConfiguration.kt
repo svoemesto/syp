@@ -3,9 +3,9 @@ package ru.svoemesto.syp.admin.config
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
-import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.characters.CharactersController
 import ru.svoemesto.syp.admin.characters.Clustering
 import ru.svoemesto.syp.admin.characters.FaceDetector
@@ -107,7 +107,7 @@ class CharactersConfiguration {
     /**
      * Собирает исполнителя задания `FACES`.
      *
-     * @param episodeStore хранилище эпизодов
+     * @param videofileStore хранилище эпизодов
      * @param runStore хранилище прогонов анализа
      * @param scan проход по кадрам с детектором
      * @param detector детектор лиц: его ключ попадает в прогон анализа
@@ -115,16 +115,16 @@ class CharactersConfiguration {
      */
     @Bean
     fun facesJob(
-        episodeStore: EpisodeStore,
+        videofileStore: VideofileStore,
         runStore: AnalysisRunStore,
         scan: FaceScan,
         detector: FaceDetector,
         faceSinks: FaceSinkFactory,
-        settingsStore: MovieSettingsStore,
+        settingsStore: ProjectSettingsStore,
         structure: ru.svoemesto.syp.admin.analysis.StructureService,
     ): FacesJob =
         FacesJob(
-            episodeStore = episodeStore,
+            videofileStore = videofileStore,
             runStore = runStore,
             scan = scan,
             detectorKey = detector.key,
@@ -216,8 +216,8 @@ class CharactersConfiguration {
      * @param embeddingStore хранилище эмбеддингов
      * @param clustering кластеризация лиц
      * @param personService сервис персон
-     * @param episodeStore хранилище эпизодов
-     * @param movieStore хранилище фильмов
+     * @param videofileStore хранилище эпизодов
+     * @param projectStore хранилище фильмов
      * @param settingsStore настройки фильма
      * @param queue очередь заданий
      * @return контроллер домена персонажей
@@ -228,9 +228,9 @@ class CharactersConfiguration {
         embeddingStore: FaceEmbeddingStore,
         clustering: Clustering,
         personService: PersonService,
-        episodeStore: EpisodeStore,
-        movieStore: MovieStore,
-        settingsStore: MovieSettingsStore,
+        videofileStore: VideofileStore,
+        projectStore: ProjectStore,
+        settingsStore: ProjectSettingsStore,
         queue: JobQueue,
     ): CharactersController =
         CharactersController(
@@ -238,8 +238,8 @@ class CharactersConfiguration {
             embeddings = embeddingStore,
             clustering = clustering,
             persons = personService,
-            episodeStore = episodeStore,
-            movies = movieStore,
+            videofileStore = videofileStore,
+            projects = projectStore,
             settingsStore = settingsStore,
             embeddingModelKey = env(ENV_FACE_EMBEDDING_MODEL_KEY, DEFAULT_FACE_EMBEDDING_MODEL_KEY),
             queue = queue,

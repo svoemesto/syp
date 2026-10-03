@@ -6,11 +6,11 @@ import org.junit.jupiter.api.TestInstance
 import ru.svoemesto.syp.admin.analysis.AnalysisKind
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
 import ru.svoemesto.syp.admin.analysis.AnalysisState
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.jobs.AdminJobWorker
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.core.db.Db
@@ -52,7 +52,7 @@ import kotlin.test.assertTrue
 class FacesJobTest {
     private lateinit var db: Db
     private lateinit var queue: JobQueue
-    private lateinit var episodeStore: EpisodeStore
+    private lateinit var videofileStore: VideofileStore
     private lateinit var runStore: AnalysisRunStore
     private lateinit var registry: ArtifactRegistry
     private lateinit var storageRoot: Path
@@ -72,7 +72,7 @@ class FacesJobTest {
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
         queue = JobQueue(db)
-        episodeStore = EpisodeStore(db)
+        videofileStore = VideofileStore(db)
         runStore = AnalysisRunStore(db)
         storageRoot = Files.createTempDirectory("syp-faces-storage")
         registry = ArtifactRegistry(db, FileSystemStorage(storageRoot))
@@ -81,10 +81,10 @@ class FacesJobTest {
 
     @Test
     fun `успешный проход даёт задание в DONE и прогон вида FACES`() {
-        val episode = newEpisode(frames = 6)
+        val videofile = newVideofile(frames = 6)
         val decoder = FakeDecoder.write(decoderRoot.resolve("ok"), frames = 6)
         val worker = workerFor(decoder)
-        val job = enqueueAndClaim(episode)
+        val job = enqueueAndClaim(videofile)
 
         val done = worker.runJob(job)
         val stored = assertNotNull(queue.find(job.id), "задание обязано остаться в базе")
@@ -100,7 +100,7 @@ class FacesJobTest {
 
         val run =
             assertNotNull(
-                runStore.latest(episode.id!!, AnalysisKind.FACES),
+                runStore.latest(videofile.id!!, AnalysisKind.FACES),
                 "прогон вида FACES обязан остаться в базе",
             )
         assertEquals(AnalysisState.DONE, run.state, "прогон успешного прохода — DONE")
@@ -114,10 +114,10 @@ class FacesJobTest {
 
     @Test
     fun `текст результата называет заглушку детектора`() {
-        val episode = newEpisode(frames = 3)
+        val videofile = newVideofile(frames = 3)
         val decoder = FakeDecoder.write(decoderRoot.resolve("stub"), frames = 3)
         val worker = workerFor(decoder)
-        val job = enqueueAndClaim(episode)
+        val job = enqueueAndClaim(videofile)
 
         worker.runJob(job)
         val stored = assertNotNull(queue.find(job.id))
@@ -134,10 +134,10 @@ class FacesJobTest {
         // Очередь упорядочена только по времени создания, поэтому FACES может
         // встать раньше ANALYZE. Без стража лица тогда ищутся, привязываться им
         // не к чему, и задание выглядит успешным на пустом месте.
-        val episode = newEpisode(frames = 4, withStructure = false)
+        val videofile = newVideofile(frames = 4, withStructure = false)
         val decoder = FakeDecoder.write(decoderRoot.resolve("nostructure"), frames = 4)
         val worker = workerFor(decoder)
-        val job = enqueueAndClaim(episode)
+        val job = enqueueAndClaim(videofile)
 
         val done = worker.runJob(job)
         val stored = assertNotNull(queue.find(job.id))
@@ -154,10 +154,10 @@ class FacesJobTest {
 
     @Test
     fun `ненулевой код декодера переводит задание в ошибку с текстом`() {
-        val episode = newEpisode(frames = 4)
+        val videofile = newVideofile(frames = 4)
         val decoder = FakeDecoder.write(decoderRoot.resolve("broken"), frames = 4, exit = 1)
         val worker = workerFor(decoder)
-        val job = enqueueAndClaim(episode)
+        val job = enqueueAndClaim(videofile)
 
         val done = worker.runJob(job)
         val stored = assertNotNull(queue.find(job.id))
@@ -172,7 +172,7 @@ class FacesJobTest {
         )
         val run =
             assertNotNull(
-                runStore.latest(episode.id!!, AnalysisKind.FACES),
+                runStore.latest(videofile.id!!, AnalysisKind.FACES),
                 "прогон неудачи обязан остаться в базе",
             )
         assertEquals(AnalysisState.ERROR, run.state, "прогон неудачи не остаётся в состоянии работы")
@@ -189,7 +189,7 @@ class FacesJobTest {
         val detector: FaceDetector = StubFaceDetector()
         val job =
             FacesJob(
-                episodeStore = episodeStore,
+                videofileStore = videofileStore,
                 runStore = runStore,
                 scan = FaceScan(FrameChannel(decoder.toString()), detector),
                 detectorKey = detector.key,
@@ -220,7 +220,7 @@ class FacesJobTest {
      * @param frames число кадров эпизода
      * @return записанный эпизод
      */
-    private fun newEpisode(frames: Int): Episode = newEpisode(frames, withStructure = true)
+    private fun newVideofile(frames: Int): Videofile = newVideofile(frames, withStructure = true)
 
     /**
      * Заводит эпизод, у которого разбор либо есть, либо отсутствует.
@@ -229,15 +229,15 @@ class FacesJobTest {
      * @param withStructure заводить ли один живой план
      * @return записанный эпизод
      */
-    private fun newEpisode(
+    private fun newVideofile(
         frames: Int,
         withStructure: Boolean,
-    ): Episode {
-        val movie = MovieStore(db).create("Лица ${System.nanoTime()}", "/srv/got")
-        val episode =
-            episodeStore.insert(
-                Episode(
-                    movieId = movie.id!!,
+    ): Videofile {
+        val project = ProjectStore(db).create("Лица ${System.nanoTime()}", "/srv/got")
+        val videofile =
+            videofileStore.insert(
+                Videofile(
+                    projectId = project.id!!,
                     ordinal = 0,
                     name = "S01E01",
                     sourcePath = "/srv/got/S01E01-${System.nanoTime()}.mkv",
@@ -262,29 +262,29 @@ class FacesJobTest {
             db.use { connection ->
                 connection
                     .prepareStatement(
-                        "INSERT INTO tbl_shots (id_episode, first_frame, last_frame, size, size_origin, origin) " +
+                        "INSERT INTO tbl_shots (id_videofile, first_frame, last_frame, size, size_origin, origin) " +
                             "VALUES (?, 0, ?, 'NONE', 'AUTO', 'AUTO')",
                     ).use { statement ->
-                        statement.setLong(1, episode.id!!)
+                        statement.setLong(1, videofile.id!!)
                         statement.setInt(2, (frames - 1).coerceAtLeast(0))
                         statement.executeUpdate()
                     }
             }
         }
-        return episode
+        return videofile
     }
 
     /**
      * Ставит задание в очередь и берёт его в работу.
      *
-     * @param episode эпизод
+     * @param videofile эпизод
      * @return взятое задание
      */
-    private fun enqueueAndClaim(episode: Episode): Job {
+    private fun enqueueAndClaim(videofile: Videofile): Job {
         val jobId =
             queue.enqueue(
                 kind = JobKind.FACES,
-                subject = JobSubject.episode(episode.id!!),
+                subject = JobSubject.videofile(videofile.id!!),
                 paramsJson = "{\"detector\":\"${StubFaceDetector.KEY}\"}",
                 paramsHash = ParamsHash.of(StubFaceDetector.KEY, 4, 2),
                 algorithmVersion = StubFaceDetector.KEY,

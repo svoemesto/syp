@@ -14,7 +14,7 @@ import java.time.OffsetDateTime
  *
  * Фильм владеет справочником мест действия, списком эпизодов и настройками
  * анализа. Один эпизод принадлежит **ровно одному** фильму: это не соглашение,
- * а внешний ключ `episode.id_movie NOT NULL`.
+ * а внешний ключ `videofile.id_project NOT NULL`.
  *
  * **Корень каталога** — обязательное поле, а не украшение. Сценарий сборки
  * обращается к файлам по путям относительно этого корня (FR-089a): у
@@ -33,7 +33,7 @@ import java.time.OffsetDateTime
  * @property recordHash хеш значений строки, прочитанный при загрузке
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class Movie(
+data class Project(
     val id: Long? = null,
     val name: String,
     val sourceRoot: String,
@@ -66,7 +66,7 @@ data class Movie(
 
     companion object {
         /** Имя таблицы фильмов. */
-        const val NAME: String = "tbl_movies"
+        const val NAME: String = "tbl_projects"
 
         /** Записываемые столбцы фильма в порядке значений. */
         val COLUMNS: List<String> = listOf("name", "source_root")
@@ -83,13 +83,13 @@ data class Movie(
  * нет, и хранить его означало бы держать вторую правду о составе фильма,
  * которая расходилась бы с фактом после каждого удаления.
  *
- * @property movie сам фильм
- * @property episodeCount сколько эпизодов заведено в фильме
+ * @property project сам фильм
+ * @property videofileCount сколько эпизодов заведено в фильме
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class MovieSummary(
-    val movie: Movie,
-    val episodeCount: Int,
+data class ProjectSummary(
+    val project: Project,
+    val videofileCount: Int,
 )
 
 /**
@@ -103,7 +103,7 @@ data class MovieSummary(
  * @property db доступ к базе сырым JDBC
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class MovieStore(
+class ProjectStore(
     private val db: Db,
 ) {
     /**
@@ -121,28 +121,28 @@ class MovieStore(
     fun create(
         name: String,
         sourceRoot: String,
-    ): Movie {
-        val movie = Movie(name = name.trim(), sourceRoot = sourceRoot.trim())
+    ): Project {
+        val project = Project(name = name.trim(), sourceRoot = sourceRoot.trim())
         return db.useTransaction { connection ->
-            val existing = findByName(connection, movie.name)
+            val existing = findByName(connection, project.name)
             if (existing != null) {
                 throw DomainException(
                     ErrorCode.CONFLICT,
-                    "фильм «${movie.name}» уже заведён: переименуйте или удалите прежний",
+                    "фильм «${project.name}» уже заведён: переименуйте или удалите прежний",
                 )
             }
-            Save.insertIfAbsent(connection, movie.toTable())
-            readRequired(connection, findByName(connection, movie.name))
+            Save.insertIfAbsent(connection, project.toTable())
+            readRequired(connection, findByName(connection, project.name))
         }
     }
 
     /**
      * Читает фильм по идентификатору.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return фильм или `null`, если его нет
      */
-    fun find(movieId: Long): Movie? = db.selectOne(SELECT_BY_ID, ::readRow, movieId)
+    fun find(projectId: Long): Project? = db.selectOne(SELECT_BY_ID, ::readRow, projectId)
 
     /**
      * Перечисляет фильмы с числом эпизодов каждого.
@@ -153,10 +153,10 @@ class MovieStore(
      *
      * @return фильмы с числом эпизодов в порядке создания
      */
-    fun listWithEpisodeCount(): List<MovieSummary> =
+    fun listWithVideofileCount(): List<ProjectSummary> =
         db.select(
             "$SELECT_WITH_COUNT ORDER BY s.created_at, s.id",
-            { row -> MovieSummary(readRow(row), row.int("episode_count")) },
+            { row -> ProjectSummary(readRow(row), row.int("videofile_count")) },
         )
 
     /**
@@ -164,24 +164,24 @@ class MovieStore(
      *
      * @return фильмы в порядке создания
      */
-    fun list(): List<Movie> = db.select("SELECT ${Movie.READ_COLUMNS} FROM tbl_movies ORDER BY created_at, id", ::readRow)
+    fun list(): List<Project> = db.select("SELECT ${Project.READ_COLUMNS} FROM tbl_projects ORDER BY created_at, id", ::readRow)
 
     /**
      * Сохраняет изменения фильма, если значения изменились.
      *
-     * @param movie фильм с заполненным [Movie.id]
+     * @param project фильм с заполненным [Project.id]
      * @return `true`, если строка переписана
      * @throws DomainException если у фильма нет идентификатора
      */
-    fun save(movie: Movie): Boolean {
-        val movieId =
-            movie.id
+    fun save(project: Project): Boolean {
+        val projectId =
+            project.id
                 ?: throw DomainException(
                     ErrorCode.BAD_REQUEST,
-                    "у фильма «${movie.name}» нет идентификатора: сохранять нечего",
+                    "у фильма «${project.name}» нет идентификатора: сохранять нечего",
                 )
         return db.useTransaction { connection ->
-            Save.saveIfChanged(connection, movie.toTable(), listOf("id"), listOf(movieId))
+            Save.saveIfChanged(connection, project.toTable(), listOf("id"), listOf(projectId))
         }
     }
 
@@ -192,32 +192,32 @@ class MovieStore(
      * фильтры, сценарии сборки, справочник сумм и настройки. Файл источника
      * при этом **не трогается** — он лежит в архиве и принадлежит не системе.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return `true`, если фильм был удалён
      */
-    fun delete(movieId: Long): Boolean = db.update("DELETE FROM tbl_movies WHERE id = ?", movieId) > 0
+    fun delete(projectId: Long): Boolean = db.update("DELETE FROM tbl_projects WHERE id = ?", projectId) > 0
 
     /**
      * Считает эпизоды фильма.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return число эпизодов
      */
-    fun countEpisode(movieId: Long): Int =
-        db.selectOne("SELECT count(*) AS total FROM tbl_episodes WHERE id_movie = ?", { it.int("total") }, movieId) ?: 0
+    fun countVideofile(projectId: Long): Int =
+        db.selectOne("SELECT count(*) AS total FROM tbl_videofiles WHERE id_project = ?", { it.int("total") }, projectId) ?: 0
 
     /**
      * Следующий свободный порядковый номер эпизода в фильме.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return номер, который можно занять
      */
-    fun nextEpisodeOrdinal(movieId: Long): Int =
+    fun nextVideofileOrdinal(projectId: Long): Int =
         (
             db.selectOne(
-                "SELECT COALESCE(max(ordinal), -1) + 1 AS next_ordinal FROM tbl_episodes WHERE id_movie = ?",
+                "SELECT COALESCE(max(ordinal), -1) + 1 AS next_ordinal FROM tbl_videofiles WHERE id_project = ?",
                 { it.int("next_ordinal") },
-                movieId,
+                projectId,
             ) ?: 0
         )
 
@@ -225,9 +225,9 @@ class MovieStore(
     private fun findByName(
         connection: Connection,
         name: String,
-    ): Movie? =
+    ): Project? =
         connection
-            .prepareStatement("SELECT ${Movie.READ_COLUMNS} FROM tbl_movies WHERE name = ?")
+            .prepareStatement("SELECT ${Project.READ_COLUMNS} FROM tbl_projects WHERE name = ?")
             .use { statement ->
                 statement.setString(1, name)
                 statement.executeQuery().use { resultSet ->
@@ -238,17 +238,17 @@ class MovieStore(
     /** Читает фильм в пределах открытого соединения по идентификатору. */
     private fun readRequired(
         connection: Connection,
-        movie: Movie?,
-    ): Movie =
-        movie
+        project: Project?,
+    ): Project =
+        project
             ?: throw DomainException(
                 ErrorCode.INTERNAL_ERROR,
                 "фильм записан, но сразу после записи не прочитан: это дефект, а не результат",
             )
 
     /** Строит фильм из готовой строки результата. */
-    private fun read(resultSet: java.sql.ResultSet): Movie =
-        Movie(
+    private fun read(resultSet: java.sql.ResultSet): Project =
+        Project(
             id = resultSet.getLong("id"),
             name = resultSet.getString("name"),
             sourceRoot = resultSet.getString("source_root"),
@@ -257,8 +257,8 @@ class MovieStore(
         )
 
     /** Строит фильм из типизированной строки выборки. */
-    private fun readRow(row: Row): Movie =
-        Movie(
+    private fun readRow(row: Row): Project =
+        Project(
             id = row.long("id"),
             name = row.string("name"),
             sourceRoot = row.string("source_root"),
@@ -271,12 +271,12 @@ class MovieStore(
 
     private companion object {
         /** Выборка одного фильма по идентификатору. */
-        val SELECT_BY_ID: String = "SELECT ${Movie.READ_COLUMNS} FROM tbl_movies WHERE id = ?"
+        val SELECT_BY_ID: String = "SELECT ${Project.READ_COLUMNS} FROM tbl_projects WHERE id = ?"
 
         /** Выборка фильмов с числом эпизодов каждого. */
         val SELECT_WITH_COUNT: String =
             "SELECT s.id, s.name, s.source_root, s.created_at, s.recordhash, " +
-                "(SELECT count(*) FROM tbl_episodes WHERE id_movie = s.id) AS episode_count " +
-                "FROM tbl_movies s"
+                "(SELECT count(*) FROM tbl_videofiles WHERE id_project = s.id) AS videofile_count " +
+                "FROM tbl_projects s"
     }
 }

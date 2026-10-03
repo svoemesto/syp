@@ -26,7 +26,7 @@ import java.time.Instant
  *   который попадёт в сценарий сборки (FR-089a)
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class CreateMovieRequest(
+data class CreateProjectRequest(
     val name: String,
     val sourceRoot: String,
 )
@@ -38,14 +38,14 @@ data class CreateMovieRequest(
  * @property name название эпизода; если не задано, берётся имя файла
  * @property seasonId сезон-владелец; не задан — у фильма, у которого
  *   сезонов нет
- * @property episodeOrdinal номер эпизода внутри сезона; 0 — у фильма
+ * @property videofileOrdinal номер эпизода внутри сезона; 0 — у фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class RegisterEpisodeRequest(
+data class RegisterVideofileRequest(
     val sourcePath: String,
     val name: String? = null,
     val seasonId: Long? = null,
-    val episodeOrdinal: Int = 0,
+    val videofileOrdinal: Int = 0,
 )
 
 /**
@@ -56,7 +56,7 @@ data class RegisterEpisodeRequest(
  * вычислены от номера кадра и частокадровой базы (ADR-0001).
  *
  * @property id идентификатор эпизода
- * @property movieId фильм-владелец
+ * @property projectId фильм-владелец
  * @property ordinal порядковый номер в фильме
  * @property name название эпизода
  * @property sourcePath абсолютный путь к файлу
@@ -82,14 +82,14 @@ data class RegisterEpisodeRequest(
  * @property ready готова ли эпизод к работе: карта ключевых кадров посчитана
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class EpisodeView(
+data class VideofileView(
     val id: Long,
-    val movieId: Long,
+    val projectId: Long,
     val ordinal: Int,
     val name: String,
     val seasonId: Long?,
     val seasonOrdinal: Int?,
-    val episodeOrdinal: Int,
+    val videofileOrdinal: Int,
     val designation: String,
     val sourcePath: String,
     val relativePath: String?,
@@ -120,15 +120,15 @@ data class EpisodeView(
  * @property name название фильма
  * @property sourceRoot корень каталога фильма
  * @property createdAt дата создания
- * @property episodeCount сколько эпизодов заведено
+ * @property videofileCount сколько эпизодов заведено
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class MovieView(
+data class ProjectView(
     val id: Long,
     val name: String,
     val sourceRoot: String,
     val createdAt: Instant?,
-    val episodeCount: Int,
+    val videofileCount: Int,
 )
 
 /**
@@ -138,26 +138,26 @@ data class MovieView(
  * правит их сразу же. Отдельный запрос за ними был бы лишним обращением: у
  * только что созданного фильма настроек не может не быть.
  *
- * @property movie созданный фильм
+ * @property project созданный фильм
  * @property settings значения настроек по умолчанию
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class CreatedMovieView(
-    val movie: MovieView,
+data class CreatedProjectView(
+    val project: ProjectView,
     val settings: List<SettingView>,
 )
 
 /**
  * Ответ на чтение фильма.
  *
- * @property movie фильм
- * @property episode эпизода фильма
+ * @property project фильм
+ * @property videofile эпизода фильма
  * @property settings настройки фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class MovieDetailView(
-    val movie: MovieView,
-    val episode: List<EpisodeView>,
+data class ProjectDetailView(
+    val project: ProjectView,
+    val videofile: List<VideofileView>,
     val settings: List<SettingView>,
 )
 
@@ -205,8 +205,8 @@ data class SettingsUpdateView(
  * раздел 3. Коды ошибок общие с публичной частью и приходят из
  * `ErrorCode`: интерфейс принимает решение по коду, человек читает текст.
  *
- * @property movies хранилище фильмов
- * @property episodeStore хранилище эпизодов
+ * @property projects хранилище фильмов
+ * @property videofileStore хранилище эпизодов
  * @property settingsStore хранилище настроек
  * @property registration регистрация эпизода с проверкой пути
  * @property checksums постановщик подсчёта суммы: при регистрации эпизода
@@ -216,10 +216,10 @@ data class SettingsUpdateView(
  */
 @RestController
 class CatalogController(
-    private val movies: MovieStore,
-    private val episodeStore: EpisodeStore,
-    private val settingsStore: MovieSettingsStore,
-    private val registration: EpisodeRegistration,
+    private val projects: ProjectStore,
+    private val videofileStore: VideofileStore,
+    private val settingsStore: ProjectSettingsStore,
+    private val registration: VideofileRegistration,
     private val checksums: ChecksumEnqueuer? = null,
     private val staleness: Staleness? = null,
 ) {
@@ -228,8 +228,8 @@ class CatalogController(
      *
      * @return список фильмов
      */
-    @GetMapping("/api/movies")
-    fun listMovies(): List<MovieView> = movies.listWithEpisodeCount().map { it.movie.toView(it.episodeCount) }
+    @GetMapping("/api/projects")
+    fun listProjects(): List<ProjectView> = projects.listWithVideofileCount().map { it.project.toView(it.videofileCount) }
 
     /**
      * Создаёт фильм.
@@ -242,32 +242,32 @@ class CatalogController(
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `CONFLICT`, если название занято
      */
-    @PostMapping("/api/movies")
-    fun createMovie(
-        @RequestBody request: CreateMovieRequest,
-    ): ResponseEntity<CreatedMovieView> {
-        val movie = movies.create(request.name, request.sourceRoot)
-        val body = CreatedMovieView(movie.toView(0), settingsView(movie.id!!))
+    @PostMapping("/api/projects")
+    fun createProject(
+        @RequestBody request: CreateProjectRequest,
+    ): ResponseEntity<CreatedProjectView> {
+        val project = projects.create(request.name, request.sourceRoot)
+        val body = CreatedProjectView(project.toView(0), settingsView(project.id!!))
         return ResponseEntity.status(HttpStatus.CREATED).body(body)
     }
 
     /**
      * Читает фильм, его эпизодов и настройки.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return фильм с эпизодами и настройками
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если фильма нет
      */
-    @GetMapping("/api/movies/{movieId}")
-    fun readMovie(
-        @PathVariable movieId: Long,
-    ): MovieDetailView {
-        val movie = requireMovie(movieId)
-        return MovieDetailView(
-            movie = movie.toView(episodeStore.countByMovie(movieId)),
-            episode = episodeStore.listByMovie(movieId).map { it.toView(movie) },
-            settings = settingsView(movieId),
+    @GetMapping("/api/projects/{projectId}")
+    fun readProject(
+        @PathVariable projectId: Long,
+    ): ProjectDetailView {
+        val project = requireProject(projectId)
+        return ProjectDetailView(
+            project = project.toView(videofileStore.countByProject(projectId)),
+            videofile = videofileStore.listByProject(projectId).map { it.toView(project) },
+            settings = settingsView(projectId),
         )
     }
 
@@ -277,34 +277,34 @@ class CatalogController(
      * Файлы архива при этом не трогаются: они принадлежат не системе.
      * Операция необратима и подтверждается оператором.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return пустой ответ, код `204`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если фильма нет
      */
-    @DeleteMapping("/api/movies/{movieId}")
-    fun deleteMovie(
-        @PathVariable movieId: Long,
+    @DeleteMapping("/api/projects/{projectId}")
+    fun deleteProject(
+        @PathVariable projectId: Long,
     ): ResponseEntity<Void> {
-        requireMovie(movieId)
-        movies.delete(movieId)
+        requireProject(projectId)
+        projects.delete(projectId)
         return ResponseEntity.noContent().build()
     }
 
     /**
      * Перечисляет эпизоды фильма.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return эпизода в порядке порядковых номеров
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если фильма нет
      */
-    @GetMapping("/api/movies/{movieId}/episodes")
-    fun listEpisode(
-        @PathVariable movieId: Long,
-    ): List<EpisodeView> {
-        val movie = requireMovie(movieId)
-        return episodeStore.listByMovie(movieId).map { it.toView(movie) }
+    @GetMapping("/api/projects/{projectId}/videofiles")
+    fun listVideofile(
+        @PathVariable projectId: Long,
+    ): List<VideofileView> {
+        val project = requireProject(projectId)
+        return videofileStore.listByProject(projectId).map { it.toView(project) }
     }
 
     /**
@@ -315,48 +315,48 @@ class CatalogController(
      * «успех с пустым результатом» (FR-092). Параметры снимаются с самого
      * файла, оператором не вводятся (FR-002).
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @param request путь к файлу и, по желанию, название эпизода
      * @return зарегистрированный эпизод с определёнными параметрами, код `201`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `SOURCE_UNREADABLE`, если путь вне корня или файл недоступен
      */
-    @PostMapping("/api/movies/{movieId}/episodes")
-    fun registerEpisode(
-        @PathVariable movieId: Long,
-        @RequestBody request: RegisterEpisodeRequest,
-    ): ResponseEntity<EpisodeView> {
-        val movie = requireMovie(movieId)
+    @PostMapping("/api/projects/{projectId}/videofiles")
+    fun registerVideofile(
+        @PathVariable projectId: Long,
+        @RequestBody request: RegisterVideofileRequest,
+    ): ResponseEntity<VideofileView> {
+        val project = requireProject(projectId)
         val registered =
             registration.register(
-                movieId,
+                projectId,
                 request.sourcePath,
                 request.name,
                 request.seasonId,
-                request.episodeOrdinal,
+                request.videofileOrdinal,
             )
         // Подсчёт суммы ставится сразу: он считается заданием и идёт в фоне,
         // а ждать его в этом запросе нельзя — это нарушало бы constitution
         // IV.1 (FR-003). Отказ постановки не отменяет регистрацию: эпизод уже
         // заведена, а пересчёт можно поставить кнопкой.
         runCatching { checksums?.enqueueAutomatic(registered) }
-        return ResponseEntity.status(HttpStatus.CREATED).body(registered.toView(movie))
+        return ResponseEntity.status(HttpStatus.CREATED).body(registered.toView(project))
     }
 
     /**
      * Читает параметры эпизода и состояние готовности.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return параметры эпизода
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если эпизода нет
      */
-    @GetMapping("/api/episodes/{episodeId}")
-    fun readEpisode(
-        @PathVariable episodeId: Long,
-    ): EpisodeView {
-        val episode = requireEpisode(episodeId)
-        return episode.toView(requireMovie(episode.movieId))
+    @GetMapping("/api/videofiles/{videofileId}")
+    fun readVideofile(
+        @PathVariable videofileId: Long,
+    ): VideofileView {
+        val videofile = requireVideofile(videofileId)
+        return videofile.toView(requireProject(videofile.projectId))
     }
 
     /**
@@ -365,34 +365,34 @@ class CatalogController(
      * Файл источника не трогается — он лежит в архиве и принадлежит не
      * системе. Удаляются записи о эпизоде и производные от них данные.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return пустой ответ, код `204`
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если эпизода нет
      */
-    @DeleteMapping("/api/episodes/{episodeId}")
-    fun deleteEpisode(
-        @PathVariable episodeId: Long,
+    @DeleteMapping("/api/videofiles/{videofileId}")
+    fun deleteVideofile(
+        @PathVariable videofileId: Long,
     ): ResponseEntity<Void> {
-        requireEpisode(episodeId)
-        episodeStore.delete(episodeId)
+        requireVideofile(videofileId)
+        videofileStore.delete(videofileId)
         return ResponseEntity.noContent().build()
     }
 
     /**
      * Читает настройки анализа и выдачи сценария.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return настройки фильма
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `NOT_FOUND`, если фильма нет
      */
-    @GetMapping("/api/movies/{movieId}/settings")
+    @GetMapping("/api/projects/{projectId}/settings")
     fun readSettings(
-        @PathVariable movieId: Long,
+        @PathVariable projectId: Long,
     ): List<SettingView> {
-        requireMovie(movieId)
-        return settingsView(movieId)
+        requireProject(projectId)
+        return settingsView(projectId)
     }
 
     /**
@@ -407,23 +407,23 @@ class CatalogController(
      * запускается: он уничтожил бы ручные правки оператора, которые
      * накапливаются месяцами. Решение о пересчёте принимает человек.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @param changes новые значения по именам настроек
      * @return настройки после изменения и список действительно изменившихся
      * @throws ru.svoemesto.syp.core.contract.DomainException с кодом
      *   `BAD_REQUEST`, если ключ неизвестен или значение не подходит
      */
-    @PutMapping("/api/movies/{movieId}/settings")
+    @PutMapping("/api/projects/{projectId}/settings")
     fun updateSettings(
-        @PathVariable movieId: Long,
+        @PathVariable projectId: Long,
         @RequestBody changes: Map<String, JsonNode>,
     ): SettingsUpdateView {
-        requireMovie(movieId)
-        val changed = settingsStore.update(movieId, changes)
+        requireProject(projectId)
+        val changed = settingsStore.update(projectId, changes)
         if (changed.isNotEmpty()) {
-            staleness?.markStaleForMovie(movieId, SceneDetector.paramsHashOf(settingsStore.read(movieId)))
+            staleness?.markStaleForProject(projectId, SceneDetector.paramsHashOf(settingsStore.read(projectId)))
         }
-        return SettingsUpdateView(settingsView(movieId), changed)
+        return SettingsUpdateView(settingsView(projectId), changed)
     }
 
     /**
@@ -433,35 +433,35 @@ class CatalogController(
      * выглядел бы как «у фильма нет эпизодов», и интерфейс показал бы пустую
      * страницу вместо того, чтобы сказать, что фильм не заведён.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return фильм
      * @throws DomainException с кодом `NOT_FOUND`, если фильма нет
      */
-    private fun requireMovie(movieId: Long): Movie =
-        movies.find(movieId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "фильм $movieId не заведён")
+    private fun requireProject(projectId: Long): Project =
+        projects.find(projectId)
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "фильм $projectId не заведён")
 
     /**
      * Читает эпизод или отказывает.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return эпизод
      * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
      */
-    private fun requireEpisode(episodeId: Long): Episode =
-        episodeStore.find(episodeId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $episodeId не зарегистрирована")
+    private fun requireVideofile(videofileId: Long): Videofile =
+        videofileStore.find(videofileId)
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "эпизод $videofileId не зарегистрирована")
 
     /** Собирает список настроек фильма для ответа. */
-    private fun settingsView(movieId: Long): List<SettingView> {
-        val read = settingsStore.read(movieId)
-        return MovieSetting.entries.map { setting ->
+    private fun settingsView(projectId: Long): List<SettingView> {
+        val read = settingsStore.read(projectId)
+        return ProjectSetting.entries.map { setting ->
             SettingView(
                 key = setting.key,
                 title = setting.title,
                 kind = setting.kind.name,
                 value = read.node(setting),
-                updatedAt = settingsStore.updatedAt(movieId, setting)?.toInstant(),
+                updatedAt = settingsStore.updatedAt(projectId, setting)?.toInstant(),
             )
         }
     }
@@ -470,41 +470,41 @@ class CatalogController(
 /**
  * Описание фильма для ответа.
  *
- * @param episodeCount сколько эпизодов заведено
+ * @param videofileCount сколько эпизодов заведено
  * @return описание фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-internal fun Movie.toView(episodeCount: Int): MovieView =
-    MovieView(
+internal fun Project.toView(videofileCount: Int): ProjectView =
+    ProjectView(
         id = id!!,
         name = name,
         sourceRoot = sourceRoot,
         createdAt = createdAt?.toInstant(),
-        episodeCount = episodeCount,
+        videofileCount = videofileCount,
     )
 
 /**
  * Описание эпизода для ответа.
  *
- * @param movie фильм-владелец: из него берётся корень для относительного пути
+ * @param project фильм-владелец: из него берётся корень для относительного пути
  * @return описание эпизода
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-internal fun Episode.toView(
-    movie: Movie,
+internal fun Videofile.toView(
+    project: Project,
     seasonOrdinal: Int? = null,
-): EpisodeView =
-    EpisodeView(
+): VideofileView =
+    VideofileView(
         id = id!!,
-        movieId = movieId,
+        projectId = projectId,
         ordinal = ordinal,
         name = name,
         seasonId = seasonId,
         seasonOrdinal = seasonOrdinal,
-        episodeOrdinal = episodeOrdinal,
-        designation = "S%02dE%02d".format(seasonOrdinal ?: 0, episodeOrdinal),
+        videofileOrdinal = videofileOrdinal,
+        designation = "S%02dE%02d".format(seasonOrdinal ?: 0, videofileOrdinal),
         sourcePath = sourcePath,
-        relativePath = relativePath(movie.sourceRoot),
+        relativePath = relativePath(project.sourceRoot),
         byteSize = byteSize,
         fileMtime = fileMtime.toInstant(),
         frameCount = frameCount,
@@ -526,10 +526,10 @@ internal fun Episode.toView(
     )
 
 /** Числитель частоты кадров: знаменатель длительности кадра. */
-private fun Episode.frameRateNumerator(): Long = timeBaseDen.toLong() / gcdOf(timeBaseNum, timeBaseDen)
+private fun Videofile.frameRateNumerator(): Long = timeBaseDen.toLong() / gcdOf(timeBaseNum, timeBaseDen)
 
 /** Знаменатель частоты кадров: числитель длительности кадра. */
-private fun Episode.frameRateDenominator(): Long = timeBaseNum.toLong() / gcdOf(timeBaseNum, timeBaseDen)
+private fun Videofile.frameRateDenominator(): Long = timeBaseNum.toLong() / gcdOf(timeBaseNum, timeBaseDen)
 
 /** НОД двух чисел. */
 private fun gcdOf(

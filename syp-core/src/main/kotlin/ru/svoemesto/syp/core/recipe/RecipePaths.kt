@@ -26,7 +26,7 @@ object RecipePaths {
      * @param path проверяемый путь
      * @throws IllegalArgumentException если путь непригоден
      */
-    fun requireInsideMovieTree(path: String) {
+    fun requireInsideProjectTree(path: String) {
         require(path.isNotBlank()) { "Путь к файлу эпизода в сценарии обязателен" }
         require(!path.startsWith("/")) {
             "Путь «$path» в сценарии обязан быть относительным: у пользователя своя " +
@@ -52,7 +52,7 @@ object RecipePaths {
      * @throws IllegalArgumentException если путь непригоден
      */
     fun checked(path: String): String {
-        requireInsideMovieTree(path)
+        requireInsideProjectTree(path)
         return path
     }
 }

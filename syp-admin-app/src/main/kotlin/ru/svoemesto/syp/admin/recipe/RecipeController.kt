@@ -104,13 +104,13 @@ class RecipeController(
     /**
      * Перечисляет сценарии фильма, свежие сверху.
      *
-     * @param movieId фильм
+     * @param projectId фильм
      * @return сценарии фильма
      */
     @GetMapping("/api/recipes")
     fun list(
-        @RequestParam("movieId") movieId: Long,
-    ): List<RecipeSummaryResponse> = recipes.listByMovie(movieId, LIST_LIMIT).map { it.toSummary() }
+        @RequestParam("projectId") projectId: Long,
+    ): List<RecipeSummaryResponse> = recipes.listByProject(projectId, LIST_LIMIT).map { it.toSummary() }
 
     /**
      * Отдаёт состав сценария: что войдёт в подборку и обе пары границ
@@ -283,8 +283,8 @@ data class RecipeCompositionResponse(
  *
  * @property ordinal порядковый номер фрагмента
  * @property sceneId сцена-источник
- * @property episodeId эпизод-источник
- * @property episodeName название эпизода-снимок
+ * @property videofileId эпизод-источник
+ * @property videofileName название эпизода-снимок
  * @property relativePath путь к файлу эпизода от корня фильма
  * @property sourceSha256 эталонная сумма файла эпизода
  * @property firstFrame расчётная граница начала
@@ -299,8 +299,8 @@ data class RecipeCompositionResponse(
 data class RecipeCompositionItemResponse(
     val ordinal: Int,
     val sceneId: Long,
-    val episodeId: Long,
-    val episodeName: String,
+    val videofileId: Long,
+    val videofileName: String,
     val relativePath: String,
     val sourceSha256: String,
     val firstFrame: Int,
@@ -330,8 +330,8 @@ private fun BuildRecipeItem.toCompositionItem(): RecipeCompositionItemResponse =
     RecipeCompositionItemResponse(
         ordinal = ordinal,
         sceneId = sceneId,
-        episodeId = episodeId,
-        episodeName = episodeName,
+        videofileId = videofileId,
+        videofileName = videofileName,
         relativePath = relativePath,
         sourceSha256 = sourceSha256,
         firstFrame = firstFrame,

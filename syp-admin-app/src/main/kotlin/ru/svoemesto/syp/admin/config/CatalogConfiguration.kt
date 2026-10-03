@@ -5,12 +5,12 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.analysis.Staleness
 import ru.svoemesto.syp.admin.catalog.CatalogController
-import ru.svoemesto.syp.admin.catalog.EpisodeRegistration
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.LocationStore
-import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.SourceProbe
+import ru.svoemesto.syp.admin.catalog.VideofileRegistration
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.json.Json
 import ru.svoemesto.syp.core.media.ExternalProgram
@@ -72,7 +72,7 @@ class CatalogConfiguration {
      * @return хранилище фильмов
      */
     @Bean
-    fun movieStore(database: Db): MovieStore = MovieStore(database)
+    fun projectStore(database: Db): ProjectStore = ProjectStore(database)
 
     /**
      * Собирает хранилище эпизодов.
@@ -81,7 +81,7 @@ class CatalogConfiguration {
      * @return хранилище эпизодов
      */
     @Bean
-    fun episodeStore(database: Db): EpisodeStore = EpisodeStore(database)
+    fun videofileStore(database: Db): VideofileStore = VideofileStore(database)
 
     /**
      * Собирает хранилище настроек фильма.
@@ -90,41 +90,41 @@ class CatalogConfiguration {
      * @return хранилище настроек
      */
     @Bean
-    fun movieSettingsStore(database: Db): MovieSettingsStore = MovieSettingsStore(database)
+    fun projectSettingsStore(database: Db): ProjectSettingsStore = ProjectSettingsStore(database)
 
     /**
      * Собирает регистрацию эпизода.
      *
-     * @param movieStore хранилище фильмов
-     * @param episodeStore хранилище эпизодов
+     * @param projectStore хранилище фильмов
+     * @param videofileStore хранилище эпизодов
      * @param sourceProbe опрос файла эпизода
      * @return регистрация эпизода
      */
     @Bean
-    fun episodeRegistration(
-        movieStore: MovieStore,
-        episodeStore: EpisodeStore,
+    fun videofileRegistration(
+        projectStore: ProjectStore,
+        videofileStore: VideofileStore,
         sourceProbe: SourceProbe,
-    ): EpisodeRegistration = EpisodeRegistration(movieStore, episodeStore, sourceProbe)
+    ): VideofileRegistration = VideofileRegistration(projectStore, videofileStore, sourceProbe)
 
     /**
      * Собирает эндпоинты приёма фильма и эпизода.
      *
-     * @param movieStore хранилище фильмов
-     * @param episodeStore хранилище эпизодов
+     * @param projectStore хранилище фильмов
+     * @param videofileStore хранилище эпизодов
      * @param settingsStore хранилище настроек
-     * @param episodeRegistration регистрация эпизода
+     * @param videofileRegistration регистрация эпизода
      * @param staleness пометка результатов устаревшими при смене настройки
      * @return контроллер приёма
      */
     @Bean
     fun catalogController(
-        movieStore: MovieStore,
-        episodeStore: EpisodeStore,
-        settingsStore: MovieSettingsStore,
-        episodeRegistration: EpisodeRegistration,
+        projectStore: ProjectStore,
+        videofileStore: VideofileStore,
+        settingsStore: ProjectSettingsStore,
+        videofileRegistration: VideofileRegistration,
         staleness: Staleness,
-    ): CatalogController = CatalogController(movieStore, episodeStore, settingsStore, episodeRegistration, staleness = staleness)
+    ): CatalogController = CatalogController(projectStore, videofileStore, settingsStore, videofileRegistration, staleness = staleness)
 
     /**
      * Собирает справочник мест действия фильма.

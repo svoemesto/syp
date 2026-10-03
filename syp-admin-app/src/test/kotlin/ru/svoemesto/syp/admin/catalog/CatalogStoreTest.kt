@@ -76,8 +76,8 @@ object TestDatabase {
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CatalogStoreTest {
     private lateinit var db: Db
-    private lateinit var movies: MovieStore
-    private lateinit var episodeStore: EpisodeStore
+    private lateinit var projects: ProjectStore
+    private lateinit var videofileStore: VideofileStore
     private lateinit var locations: LocationStore
 
     /**
@@ -89,8 +89,8 @@ class CatalogStoreTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        movies = MovieStore(db)
-        episodeStore = EpisodeStore(db)
+        projects = ProjectStore(db)
+        videofileStore = VideofileStore(db)
         locations = LocationStore(db)
     }
 
@@ -100,24 +100,24 @@ class CatalogStoreTest {
      * @param root корень каталога фильма
      * @return созданный фильм
      */
-    private fun newMovie(root: String): Movie = movies.create("Проверка ${System.nanoTime()}", root)
+    private fun newProject(root: String): Project = projects.create("Проверка ${System.nanoTime()}", root)
 
     /**
      * Создаёт эпизод с заданный картой ключевых кадров.
      *
-     * @param movie фильм-владелец
+     * @param project фильм-владелец
      * @param path путь к файлу эпизода
      * @param keyframes карта ключевых кадров
      * @return записанный эпизод
      */
-    private fun newEpisode(
-        movie: Movie,
+    private fun newVideofile(
+        project: Project,
         path: String,
         keyframes: KeyframeMap,
-    ): Episode =
-        episodeStore.insert(
-            Episode(
-                movieId = movie.id!!,
+    ): Videofile =
+        videofileStore.insert(
+            Videofile(
+                projectId = project.id!!,
                 ordinal = 0,
                 name = "S01E01",
                 sourcePath = path,
@@ -142,31 +142,31 @@ class CatalogStoreTest {
 
     @Test
     fun `фильм записывается и читается со своим хешем`() {
-        val created = newMovie("/srv/got")
+        val created = newProject("/srv/got")
 
         assertNotNull(created.id)
         assertEquals("/srv/got", created.sourceRoot)
         assertNotNull(created.recordHash) { "записанная строка обязана получить хеш значений" }
         assertNotNull(created.createdAt)
 
-        val loaded = movies.find(created.id!!)
+        val loaded = projects.find(created.id!!)
 
         assertEquals(created, loaded)
     }
 
     @Test
     fun `корень каталога фильма проверяется до записи`() {
-        assertFailsWith<IllegalArgumentException> { movies.create("Без корня", "got") }
-        assertFailsWith<IllegalArgumentException> { movies.create("Со слэшем", "/srv/got/") }
-        assertFailsWith<IllegalArgumentException> { movies.create("   ", "/srv/got") }
+        assertFailsWith<IllegalArgumentException> { projects.create("Без корня", "got") }
+        assertFailsWith<IllegalArgumentException> { projects.create("Со слэшем", "/srv/got/") }
+        assertFailsWith<IllegalArgumentException> { projects.create("   ", "/srv/got") }
     }
 
     @Test
     fun `дубль названия фильма даёт внятный отказ`() {
         val name = "Повтор ${System.nanoTime()}"
-        movies.create(name, "/srv/got")
+        projects.create(name, "/srv/got")
 
-        val failure = assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> { movies.create(name, "/srv/got") }
+        val failure = assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> { projects.create(name, "/srv/got") }
 
         assertEquals(ru.svoemesto.syp.core.contract.ErrorCode.CONFLICT, failure.code)
         assertTrue(failure.toBody().message.contains(name))
@@ -174,21 +174,21 @@ class CatalogStoreTest {
 
     @Test
     fun `сохранение без изменений не переписывает строку`() {
-        val movie = newMovie("/srv/got")
+        val project = newProject("/srv/got")
 
-        assertTrue(!movies.save(movie), "повторное сохранение без изменений не должно переписывать строку")
-        assertTrue(movies.save(movie.copy(name = movie.name + " (уточнён)")), "изменение значения обязано переписывать строку")
-        assertEquals(movie.name + " (уточнён)", movies.find(movie.id!!)?.name)
+        assertTrue(!projects.save(project), "повторное сохранение без изменений не должно переписывать строку")
+        assertTrue(projects.save(project.copy(name = project.name + " (уточнён)")), "изменение значения обязано переписывать строку")
+        assertEquals(project.name + " (уточнён)", projects.find(project.id!!)?.name)
     }
 
     @Test
     fun `эпизод хранит карту ключевых кадров байт в байт`() {
-        val movie = newMovie("/srv/got")
+        val project = newProject("/srv/got")
         val keyframes = KeyframeMap.build(frameCount = 88_643, keyframes = listOf(0, 240, 88_642))
         val path = "/srv/got/проверка-${System.nanoTime()}.mkv"
 
-        val saved = newEpisode(movie, path, keyframes)
-        val loaded = episodeStore.find(saved.id!!)
+        val saved = newVideofile(project, path, keyframes)
+        val loaded = videofileStore.find(saved.id!!)
 
         assertNotNull(loaded)
         assertEquals(11_081, loaded.keyframeMap?.byteLength)
@@ -201,15 +201,15 @@ class CatalogStoreTest {
 
     @Test
     fun `параметры эпизода возвращаются из базы без изменений`() {
-        val movie = newMovie("/srv/got")
+        val project = newProject("/srv/got")
         val saved =
-            newEpisode(
-                movie,
+            newVideofile(
+                project,
                 "/srv/got/параметры-${System.nanoTime()}.mkv",
                 KeyframeMap.build(frameCount = 88_643, keyframes = listOf(0, 1000)),
             )
 
-        val loaded = episodeStore.find(saved.id!!)!!
+        val loaded = videofileStore.find(saved.id!!)!!
 
         assertEquals(88_643, loaded.frameCount)
         assertEquals(1001, loaded.timeBaseNum)
@@ -228,15 +228,15 @@ class CatalogStoreTest {
 
     @Test
     fun `один эпизод принадлежит ровно одному фильму, повторный путь отвергается`() {
-        val movie = newMovie("/srv/got")
+        val project = newProject("/srv/got")
         val path = "/srv/got/единственный-${System.nanoTime()}.mkv"
-        val saved = newEpisode(movie, path, KeyframeMap.build(frameCount = 100, keyframes = listOf(0)))
+        val saved = newVideofile(project, path, KeyframeMap.build(frameCount = 100, keyframes = listOf(0)))
 
-        assertEquals(movie.id, saved.movieId)
+        assertEquals(project.id, saved.projectId)
 
         val failure =
             assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> {
-                newEpisode(newMovie("/srv/got"), path, KeyframeMap.build(frameCount = 100, keyframes = listOf(0)))
+                newVideofile(newProject("/srv/got"), path, KeyframeMap.build(frameCount = 100, keyframes = listOf(0)))
             }
 
         assertEquals(ru.svoemesto.syp.core.contract.ErrorCode.CONFLICT, failure.code)
@@ -245,63 +245,63 @@ class CatalogStoreTest {
 
     @Test
     fun `незарегистрированный эпизод читается пустой, а не выдуманной`() {
-        assertNull(movies.find(-1))
-        assertNull(episodeStore.find(-1))
+        assertNull(projects.find(-1))
+        assertNull(videofileStore.find(-1))
     }
 
     @Test
     fun `удаление фильма каскадом уносит производные данные`() {
-        val movie = newMovie("/srv/got")
+        val project = newProject("/srv/got")
         val saved =
-            newEpisode(
-                movie,
+            newVideofile(
+                project,
                 "/srv/got/каскад-${System.nanoTime()}.mkv",
                 KeyframeMap.build(frameCount = 200, keyframes = listOf(0, 100)),
             )
-        locations.add(movie.id!!, "Лагерь ${System.nanoTime()}")
+        locations.add(project.id!!, "Лагерь ${System.nanoTime()}")
         val settingsBefore =
             db.selectOne(
-                "SELECT count(*) AS total FROM tbl_analysis_settings WHERE id_movie = ?",
+                "SELECT count(*) AS total FROM tbl_analysis_settings WHERE id_project = ?",
                 { it.int("total") },
-                movie.id,
+                project.id,
             )
 
         assertEquals(11, settingsBefore)
 
-        assertTrue(movies.delete(movie.id!!))
+        assertTrue(projects.delete(project.id!!))
 
-        assertNull(movies.find(movie.id!!))
-        assertNull(episodeStore.find(saved.id!!))
+        assertNull(projects.find(project.id!!))
+        assertNull(videofileStore.find(saved.id!!))
         assertEquals(
             0,
             db.selectOne(
-                "SELECT count(*) AS total FROM tbl_locations WHERE id_movie = ?",
+                "SELECT count(*) AS total FROM tbl_locations WHERE id_project = ?",
                 { it.int("total") },
-                movie.id,
+                project.id,
             ),
         )
         assertEquals(
             0,
             db.selectOne(
-                "SELECT count(*) AS total FROM tbl_analysis_settings WHERE id_movie = ?",
+                "SELECT count(*) AS total FROM tbl_analysis_settings WHERE id_project = ?",
                 { it.int("total") },
-                movie.id,
+                project.id,
             ),
         )
     }
 
     @Test
     fun `справочник мест действия уникален в пределах фильма`() {
-        val movie = newMovie("/srv/got")
+        val project = newProject("/srv/got")
         val name = "Весёлая Роджеровка ${System.nanoTime()}"
-        val added = locations.add(movie.id!!, name)
+        val added = locations.add(project.id!!, name)
 
         assertNotNull(added.id)
-        assertContentEquals(listOf(name), locations.listByMovie(movie.id!!).map { it.name })
+        assertContentEquals(listOf(name), locations.listByProject(project.id!!).map { it.name })
 
         val failure =
             assertFailsWith<ru.svoemesto.syp.core.contract.DomainException> {
-                locations.add(movie.id!!, name)
+                locations.add(project.id!!, name)
             }
 
         assertEquals(ru.svoemesto.syp.core.contract.ErrorCode.CONFLICT, failure.code)
@@ -309,29 +309,29 @@ class CatalogStoreTest {
 
     @Test
     fun `список фильмов показывает число эпизодов`() {
-        val movie = newMovie("/srv/got")
-        newEpisode(movie, "/srv/got/список-${System.nanoTime()}.mkv", KeyframeMap.build(frameCount = 50, keyframes = listOf(0)))
+        val project = newProject("/srv/got")
+        newVideofile(project, "/srv/got/список-${System.nanoTime()}.mkv", KeyframeMap.build(frameCount = 50, keyframes = listOf(0)))
 
-        val summary = movies.listWithEpisodeCount().first { it.movie.id == movie.id }
+        val summary = projects.listWithVideofileCount().first { it.project.id == project.id }
 
-        assertEquals(1, summary.episodeCount)
-        assertEquals(1, movies.countEpisode(movie.id!!))
+        assertEquals(1, summary.videofileCount)
+        assertEquals(1, projects.countVideofile(project.id!!))
     }
 
     @Test
     fun `следующий порядковый номер эпизода продолжает нумерацию`() {
-        val movie = newMovie("/srv/got")
+        val project = newProject("/srv/got")
 
-        assertEquals(0, movies.nextEpisodeOrdinal(movie.id!!))
-        newEpisode(movie, "/srv/got/нумерация-${System.nanoTime()}.mkv", KeyframeMap.build(frameCount = 10, keyframes = listOf(0)))
-        assertEquals(1, movies.nextEpisodeOrdinal(movie.id!!))
+        assertEquals(0, projects.nextVideofileOrdinal(project.id!!))
+        newVideofile(project, "/srv/got/нумерация-${System.nanoTime()}.mkv", KeyframeMap.build(frameCount = 10, keyframes = listOf(0)))
+        assertEquals(1, projects.nextVideofileOrdinal(project.id!!))
     }
 
     @Test
     fun `относительный путь вычисляется от корня фильма`() {
         val saved =
-            newEpisode(
-                newMovie("/disks/HDD_16Tb_Clouds/GOT"),
+            newVideofile(
+                newProject("/disks/HDD_16Tb_Clouds/GOT"),
                 "/disks/HDD_16Tb_Clouds/GOT/GOT.S01/GOT.S01E01.mkv",
                 KeyframeMap.build(frameCount = 100, keyframes = listOf(0)),
             )
@@ -342,11 +342,11 @@ class CatalogStoreTest {
 
     @Test
     fun `эпизод без ключевых кадров записывается с пустой картой`() {
-        val movie = newMovie("/srv/got")
+        val project = newProject("/srv/got")
         val saved =
-            episodeStore.insert(
-                Episode(
-                    movieId = movie.id!!,
+            videofileStore.insert(
+                Videofile(
+                    projectId = project.id!!,
                     ordinal = 3,
                     name = "Без карты",
                     sourcePath = "/srv/got/без-карты-${System.nanoTime()}.mkv",
@@ -366,12 +366,12 @@ class CatalogStoreTest {
                 ),
             )
 
-        assertNull(episodeStore.find(saved.id!!)?.keyframeMap)
+        assertNull(videofileStore.find(saved.id!!)?.keyframeMap)
     }
 
     @Test
     fun `карта неверной длины отвергается базой`() {
-        val movie = newMovie("/srv/got")
+        val project = newProject("/srv/got")
         val path = "/srv/got/длина-карты-${System.nanoTime()}.mkv"
         val tooShort = KeyframeMap.build(frameCount = 100, keyframes = listOf(0)).toByteArray()
 
@@ -380,12 +380,12 @@ class CatalogStoreTest {
                 db.useTransaction { connection ->
                     connection
                         .prepareStatement(
-                            "INSERT INTO tbl_episodes (id_movie, ordinal, name, source_path, file_size, file_mtime, " +
+                            "INSERT INTO tbl_videofiles (id_project, ordinal, name, source_path, file_size, file_mtime, " +
                                 "frame_count, time_base_num, time_base_den, width, height, duration_num, " +
                                 "duration_den, video_codec, pixel_format, keyframe_bitmap) " +
                                 "VALUES (?, 0, 'S01E01', ?, 10, now(), 100, 1, 25, 8, 8, 4, 1, 'h264', 'yuv420p', ?)",
                         ).use { statement ->
-                            statement.setLong(1, movie.id!!)
+                            statement.setLong(1, project.id!!)
                             statement.setString(2, path)
                             statement.setBytes(3, tooShort.copyOf(3))
                             statement.executeUpdate()

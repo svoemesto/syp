@@ -1,6 +1,6 @@
 package ru.svoemesto.syp.admin.integrity
 
-import ru.svoemesto.syp.admin.catalog.Episode
+import ru.svoemesto.syp.admin.catalog.Videofile
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
@@ -67,7 +67,7 @@ enum class ChecksumState {
  * из которого выхода нет — такая запись не является результатом.
  *
  * @property id идентификатор записи; `null`, пока не записана
- * @property episodeId эпизод-владелец
+ * @property videofileId эпизод-владелец
  * @property algorithm алгоритм; в модели только `SHA-256`
  * @property digest шестнадцатеричная сумма; `null`, пока подсчёт не
  *   завершён, — суммы у незавершённого подсчёта не существует
@@ -83,7 +83,7 @@ enum class ChecksumState {
  */
 data class ChecksumEntry(
     val id: Long? = null,
-    val episodeId: Long,
+    val videofileId: Long,
     val algorithm: String = ALGORITHM_SHA256,
     val digest: String? = null,
     val byteSize: Long,
@@ -110,7 +110,7 @@ data class ChecksumEntry(
             ChecksumRegistry.COLUMNS,
             {
                 listOf(
-                    episodeId,
+                    videofileId,
                     algorithm,
                     digest,
                     byteSize,
@@ -165,19 +165,19 @@ class ChecksumRegistry(
      * подсчёт когда-то начался. История **посчитанных** сумм при этом не
      * трогается.
      *
-     * @param episode эпизод, для которой считается сумма
+     * @param videofile эпизод, для которой считается сумма
      * @param jobId задание, считающее сумму
      * @return созданная запись в состоянии [ChecksumState.CREATING]
      */
     fun begin(
-        episode: Episode,
+        videofile: Videofile,
         jobId: Long?,
     ): ChecksumEntry =
         db.useTransaction { connection ->
-            val episodeId =
-                episode.id
+            val videofileId =
+                videofile.id
                     ?: throw ru.svoemesto.syp.core.db.DbException(
-                        "у эпизода «${episode.name}» нет идентификатора: подсчёт ставить некуда",
+                        "у эпизода «${videofile.name}» нет идентификатора: подсчёт ставить некуда",
                     )
             // Два подсчёта одного эпизода несовместимы: они бы делили файл между
             // собой, а оператор видел бы два задания, каждое из которых
@@ -192,7 +192,7 @@ class ChecksumRegistry(
                             "AND subject_id = ? AND state IN ('CREATING', 'WORKING') " +
                             "AND (CAST(? AS BIGINT) IS NULL OR id <> CAST(? AS BIGINT))",
                     ).use { statement ->
-                        statement.setLong(1, episodeId)
+                        statement.setLong(1, videofileId)
                         statement.setObject(2, jobId)
                         statement.setObject(3, jobId)
                         statement.executeQuery().use { resultSet ->
@@ -203,27 +203,27 @@ class ChecksumRegistry(
             if (running > 0) {
                 throw DomainException(
                     ErrorCode.CONFLICT,
-                    "сумма эпизода «${episode.name}» уже считается: второй подсчёт того же эпизода " +
+                    "сумма эпизода «${videofile.name}» уже считается: второй подсчёт того же эпизода " +
                         "перемешал бы две работы в один результат",
                 )
             }
             connection
                 .prepareStatement(
-                    "DELETE FROM $TABLE WHERE id_episode = ? AND state IN ('CREATING', 'WORKING')",
+                    "DELETE FROM $TABLE WHERE id_videofile = ? AND state IN ('CREATING', 'WORKING')",
                 ).use { statement ->
-                    statement.setLong(1, episodeId)
+                    statement.setLong(1, videofileId)
                     statement.executeUpdate()
                 }
             val entry =
                 ChecksumEntry(
-                    episodeId = episodeId,
-                    byteSize = episode.byteSize,
-                    fileMtime = episode.fileMtime,
+                    videofileId = videofileId,
+                    byteSize = videofile.byteSize,
+                    fileMtime = videofile.fileMtime,
                     state = ChecksumState.CREATING,
                     jobId = jobId,
                 )
             Save.insertIfAbsent(connection, entry.toTable())
-            readByEpisodeAndSize(connection, episodeId, episode.byteSize, episode.fileMtime, jobId)
+            readByVideofileAndSize(connection, videofileId, videofile.byteSize, videofile.fileMtime, jobId)
                 ?: throw ru.svoemesto.syp.core.db.DbException(
                     "Запись справочника сумм создана, но сразу после записи не прочитана: это дефект, а не результат",
                 )
@@ -279,10 +279,10 @@ class ChecksumRegistry(
             // эпизода было бы две актуальные суммы, что база не допускает.
             connection
                 .prepareStatement(
-                    "UPDATE $TABLE SET is_stale = TRUE WHERE id_episode = ? AND is_stale = FALSE " +
+                    "UPDATE $TABLE SET is_stale = TRUE WHERE id_videofile = ? AND is_stale = FALSE " +
                         "AND state = 'DONE' AND id <> ?",
                 ).use { statement ->
-                    statement.setLong(1, current.episodeId)
+                    statement.setLong(1, current.videofileId)
                     statement.setLong(2, entryId)
                     statement.executeUpdate()
                 }
@@ -341,15 +341,15 @@ class ChecksumRegistry(
     /**
      * Актуального сумма эпизода.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return запись в состоянии `DONE` без признака устаревания либо
      *   `null`, если такой записи нет
      */
-    fun current(episodeId: Long): ChecksumEntry? =
+    fun current(videofileId: Long): ChecksumEntry? =
         db.selectOne(
-            "$READ_SQL WHERE id_episode = ? AND state = 'DONE' AND is_stale = FALSE",
+            "$READ_SQL WHERE id_videofile = ? AND state = 'DONE' AND is_stale = FALSE",
             ::readRow,
-            episodeId,
+            videofileId,
         )
 
     /**
@@ -358,19 +358,20 @@ class ChecksumRegistry(
      * Возвращается любой, включая незавершённую: интерфейсу нужно показать
      * «считается» или «ошибка», а не пустую страницу (FR-003).
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return последняя по идентификатору запись либо `null`
      */
-    fun latest(episodeId: Long): ChecksumEntry? =
-        db.selectOne("$READ_SQL WHERE id_episode = ? ORDER BY id DESC LIMIT 1", ::readRow, episodeId)
+    fun latest(videofileId: Long): ChecksumEntry? =
+        db.selectOne("$READ_SQL WHERE id_videofile = ? ORDER BY id DESC LIMIT 1", ::readRow, videofileId)
 
     /**
      * История пересчётов эпизода, свежий первый.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return записи в обратном порядке идентификаторов
      */
-    fun history(episodeId: Long): List<ChecksumEntry> = db.select("$READ_SQL WHERE id_episode = ? ORDER BY id DESC", ::readRow, episodeId)
+    fun history(videofileId: Long): List<ChecksumEntry> =
+        db.select("$READ_SQL WHERE id_videofile = ? ORDER BY id DESC", ::readRow, videofileId)
 
     /**
      * Помечает актуальную сумму устаревшей, если источник изменился.
@@ -381,20 +382,20 @@ class ChecksumRegistry(
      * помечается устаревшей (FR-090). Значение при этом сохраняется —
      * стереть его значило бы стереть след подмены.
      *
-     * @param episode эпизод с текущими параметрами источника
+     * @param videofile эпизод с текущими параметрами источника
      * @return число помеченных устаревшими записей
      */
-    fun markStaleWhenSourceChanged(episode: Episode): Int {
-        val episodeId =
-            episode.id
+    fun markStaleWhenSourceChanged(videofile: Videofile): Int {
+        val videofileId =
+            videofile.id
                 ?: return 0
         return db.update(
             "UPDATE $TABLE SET is_stale = TRUE " +
-                "WHERE id_episode = ? AND state = 'DONE' AND is_stale = FALSE " +
+                "WHERE id_videofile = ? AND state = 'DONE' AND is_stale = FALSE " +
                 "AND (byte_size <> ? OR file_mtime <> ?)",
-            episodeId,
-            episode.byteSize,
-            episode.fileMtime,
+            videofileId,
+            videofile.byteSize,
+            videofile.fileMtime,
         )
     }
 
@@ -405,10 +406,10 @@ class ChecksumRegistry(
      * эпизода без суммы нельзя: пользователь узнал бы об этом через час работы
      * на своей машине (ADR-0009, последствие 4).
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return `true`, если актуальный сумма есть
      */
-    fun isUsable(episodeId: Long): Boolean = current(episodeId)?.isUsable == true
+    fun isUsable(videofileId: Long): Boolean = current(videofileId)?.isUsable == true
 
     /** Читает запись по идентификатору в пределах открытого соединения. */
     private fun readById(
@@ -429,19 +430,19 @@ class ChecksumRegistry(
      * прежними, и поиск без порядка вернул бы прежнюю запись — подсчёт был бы
      * записан не туда, куда он поставлен.
      */
-    private fun readByEpisodeAndSize(
+    private fun readByVideofileAndSize(
         connection: java.sql.Connection,
-        episodeId: Long,
+        videofileId: Long,
         byteSize: Long,
         fileMtime: OffsetDateTime,
         jobId: Long?,
     ): ChecksumEntry? =
         connection
             .prepareStatement(
-                "$READ_SQL WHERE id_episode = ? AND byte_size = ? AND file_mtime = ? " +
+                "$READ_SQL WHERE id_videofile = ? AND byte_size = ? AND file_mtime = ? " +
                     "AND job_id IS NOT DISTINCT FROM ? ORDER BY id DESC LIMIT 1",
             ).use { statement ->
-                statement.setLong(1, episodeId)
+                statement.setLong(1, videofileId)
                 statement.setLong(2, byteSize)
                 statement.setObject(3, fileMtime)
                 statement.setObject(4, jobId)
@@ -452,7 +453,7 @@ class ChecksumRegistry(
     private fun read(resultSet: java.sql.ResultSet): ChecksumEntry =
         ChecksumEntry(
             id = resultSet.getLong("id"),
-            episodeId = resultSet.getLong("id_episode"),
+            videofileId = resultSet.getLong("id_videofile"),
             algorithm = resultSet.getString("algorithm"),
             digest = resultSet.getString("digest"),
             byteSize = resultSet.getLong("byte_size"),
@@ -469,7 +470,7 @@ class ChecksumRegistry(
     private fun readRow(row: Row): ChecksumEntry =
         ChecksumEntry(
             id = row.long("id"),
-            episodeId = row.long("id_episode"),
+            videofileId = row.long("id_videofile"),
             algorithm = row.string("algorithm"),
             digest = row.stringOrNull("digest"),
             byteSize = row.long("byte_size"),
@@ -497,7 +498,7 @@ class ChecksumRegistry(
         /** Записываемые столбцы записи в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "id_episode",
+                "id_videofile",
                 "algorithm",
                 "digest",
                 "byte_size",
@@ -515,7 +516,7 @@ class ChecksumRegistry(
         /** Столбцы записи в порядке чтения из базы. */
         private val READ_SQL: String =
             (
-                "SELECT id, id_episode, algorithm, digest, byte_size, file_mtime, state, is_stale, " +
+                "SELECT id, id_videofile, algorithm, digest, byte_size, file_mtime, state, is_stale, " +
                     "computed_at, error_text, job_id, recordhash FROM $TABLE"
             )
     }

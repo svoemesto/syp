@@ -13,9 +13,9 @@ import ru.svoemesto.syp.admin.analysis.StructureJob
 import ru.svoemesto.syp.admin.analysis.StructureService
 import ru.svoemesto.syp.admin.annotation.BoundaryEditing
 import ru.svoemesto.syp.admin.annotation.ShotBoundaryEditing
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.LocationStore
-import ru.svoemesto.syp.admin.catalog.MovieSettingsStore
+import ru.svoemesto.syp.admin.catalog.ProjectSettingsStore
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.characters.FacePlanBinding
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
@@ -115,7 +115,7 @@ class AnalysisConfiguration {
      * @param database доступ к базе
      * @param structure чтение и запись сцен и планов
      * @param binding пересчёт принадлежности лиц планам
-     * @param episodeStore чтение эпизода: из него берутся фильм и площадь кадра
+     * @param videofileStore чтение эпизода: из него берутся фильм и площадь кадра
      * @param settingsStore настройки фильма: из них берутся пороги размера плана
      * @return сервис доводки границ плана
      */
@@ -124,9 +124,9 @@ class AnalysisConfiguration {
         database: Db,
         structure: StructureService,
         binding: FacePlanBinding,
-        episodeStore: EpisodeStore,
-        settingsStore: MovieSettingsStore,
-    ): ShotBoundaryEditing = ShotBoundaryEditing(database, structure, binding, episodeStore, settingsStore)
+        videofileStore: VideofileStore,
+        settingsStore: ProjectSettingsStore,
+    ): ShotBoundaryEditing = ShotBoundaryEditing(database, structure, binding, videofileStore, settingsStore)
 
     /**
      * Собирает пометку устаревания результатов.
@@ -158,7 +158,7 @@ class AnalysisConfiguration {
     /**
      * Собирает исполнителя задания `ANALYZE`.
      *
-     * @param episodeStore хранилище эпизодов
+     * @param videofileStore хранилище эпизодов
      * @param runStore хранилище прогонов
      * @param structure сервис рабочей структуры
      * @param frames хранилище значимых кадров
@@ -172,19 +172,19 @@ class AnalysisConfiguration {
      */
     @Bean
     fun structureJob(
-        episodeStore: EpisodeStore,
+        videofileStore: VideofileStore,
         runStore: AnalysisRunStore,
         structure: StructureService,
         frames: FrameSignificanceStore,
         detector: SceneDetector,
         program: ExternalProgram,
-        settingsStore: MovieSettingsStore,
+        settingsStore: ProjectSettingsStore,
         artifactRegistry: ArtifactRegistry,
         staleness: Staleness,
         storage: ObjectStorage,
     ): StructureJob =
         StructureJob(
-            episodeStore = episodeStore,
+            videofileStore = videofileStore,
             runStore = runStore,
             structure = structure,
             frames = frames,
@@ -208,14 +208,14 @@ class AnalysisConfiguration {
     @Bean
     fun analysisEnqueuer(
         queue: JobQueue,
-        settingsStore: MovieSettingsStore,
+        settingsStore: ProjectSettingsStore,
     ): AnalysisEnqueuer = AnalysisEnqueuer(queue, settingsStore)
 
     /**
      * Собирает эндпоинты структуры эпизода и превью.
      *
      * @param enqueuer постановщик анализа
-     * @param episodeStore хранилище эпизодов
+     * @param videofileStore хранилище эпизодов
      * @param runStore хранилище прогонов
      * @param structure сервис рабочей структуры
      * @param boundaryStore хранилище сырых границ
@@ -230,13 +230,13 @@ class AnalysisConfiguration {
     @Bean
     fun structureController(
         enqueuer: AnalysisEnqueuer,
-        episodeStore: EpisodeStore,
+        videofileStore: VideofileStore,
         runStore: AnalysisRunStore,
         structure: StructureService,
         boundaryStore: RawBoundaryStore,
         frameStore: FrameSignificanceStore,
         staleness: Staleness,
-        settingsStore: MovieSettingsStore,
+        settingsStore: ProjectSettingsStore,
         artifactRegistry: ArtifactRegistry,
         storage: ObjectStorage,
         locations: LocationStore,
@@ -244,7 +244,7 @@ class AnalysisConfiguration {
     ): StructureController =
         StructureController(
             enqueuer = enqueuer,
-            episodeStore = episodeStore,
+            videofileStore = videofileStore,
             runStore = runStore,
             structure = structure,
             boundaryStore = boundaryStore,

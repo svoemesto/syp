@@ -14,14 +14,14 @@ import ru.svoemesto.syp.core.db.Db
  * @property runs число прогонов, помеченных устаревшими
  * @property scenes число рабочих сцен, помеченных устаревшими
  * @property shots число рабочих планов, помеченных устаревшими
- * @property episodeIds эпизода, у которых помечено устаревшим
+ * @property videofileIds эпизода, у которых помечено устаревшим
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class StaleSummary(
     val runs: Int,
     val scenes: Int,
     val shots: Int,
-    val episodeIds: List<Long>,
+    val videofileIds: List<Long>,
 ) {
     /** Помечено ли хоть что-нибудь. */
     val isEmpty: Boolean
@@ -31,7 +31,7 @@ data class StaleSummary(
 /**
  * Состояние актуальности результата эпизода.
  *
- * @property episodeId эпизод, о которой идёт речь
+ * @property videofileId эпизод, о которой идёт речь
  * @property runId последний прогон заданного вида либо `null`
  * @property algorithmVersion версия алгоритма последнего прогона
  * @property paramsHash хеш входов последнего прогона
@@ -42,7 +42,7 @@ data class StaleSummary(
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class StaleStatus(
-    val episodeId: Long,
+    val videofileId: Long,
     val runId: Long?,
     val algorithmVersion: String?,
     val paramsHash: String?,
@@ -98,28 +98,28 @@ class Staleness(
      * а прогон, из которого она получена, остался бы помеченным — два
      * разных ответа на один вопрос.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param kind вид прогона
      * @param currentParamsHash хеш входов, действующих сейчас
      * @return что помечено
      * @throws ru.svoemesto.syp.core.db.DbException если обновление не удалось
      */
     fun markStaleExcept(
-        episodeId: Long,
+        videofileId: Long,
         kind: AnalysisKind,
         currentParamsHash: String,
     ): StaleSummary {
-        val runs = runStore.markStaleExcept(episodeId, kind, currentParamsHash)
+        val runs = runStore.markStaleExcept(videofileId, kind, currentParamsHash)
         if (runs == 0) {
             return StaleSummary(0, 0, 0, emptyList())
         }
         return db.useTransaction { connection ->
-            val scenes = markStructure(connection, episodeId, listOf(kind))
+            val scenes = markStructure(connection, videofileId, listOf(kind))
             StaleSummary(
                 runs = runs,
                 scenes = scenes.first,
                 shots = scenes.second,
-                episodeIds = listOf(episodeId),
+                videofileIds = listOf(videofileId),
             )
         }
     }
@@ -132,20 +132,20 @@ class Staleness(
      * разбиралась позже» сделала бы устарелость выборочной, а вопрос
      * «актуален ли мой результат» — неоднозначным.
      *
-     * @param movieId фильм, настройки которого изменились
+     * @param projectId фильм, настройки которого изменились
      * @param currentParamsHash хеш входов, действующих сейчас, по этому фильму
      * @return что помечено
      * @throws ru.svoemesto.syp.core.db.DbException если обновление не удалось
      */
-    fun markStaleForMovie(
-        movieId: Long,
+    fun markStaleForProject(
+        projectId: Long,
         currentParamsHash: String,
     ): StaleSummary {
-        val episodeIds =
+        val videofileIds =
             db.select(
-                "SELECT id FROM tbl_episodes WHERE id_movie = ? ORDER BY id",
+                "SELECT id FROM tbl_videofiles WHERE id_project = ? ORDER BY id",
                 { it.long("id") },
-                movieId,
+                projectId,
             )
         var runs = 0
         var scenes = 0
@@ -153,45 +153,45 @@ class Staleness(
         val marked = mutableSetOf<Long>()
         val runSql =
             "UPDATE tbl_analysis_runs SET is_stale = TRUE " +
-                "WHERE id_episode = ? AND params_hash <> ?"
+                "WHERE id_videofile = ? AND params_hash <> ?"
         db.useTransaction { connection ->
-            episodeIds.forEach { episodeId ->
+            videofileIds.forEach { videofileId ->
                 runs +=
                     connection
                         .prepareStatement(runSql)
                         .use { statement ->
-                            statement.setLong(1, episodeId)
+                            statement.setLong(1, videofileId)
                             statement.setString(2, currentParamsHash)
                             statement.executeUpdate()
                         }
-                val structure = markStructure(connection, episodeId, AnalysisKind.entries)
+                val structure = markStructure(connection, videofileId, AnalysisKind.entries)
                 scenes += structure.first
                 shots += structure.second
                 if (structure.first > 0 || structure.second > 0) {
-                    marked.add(episodeId)
+                    marked.add(videofileId)
                 }
             }
         }
-        return StaleSummary(runs = runs, scenes = scenes, shots = shots, episodeIds = marked.toList())
+        return StaleSummary(runs = runs, scenes = scenes, shots = shots, videofileIds = marked.toList())
     }
 
     /**
      * Читает состояние актуальности результата эпизода.
      *
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param kind вид прогона
      * @param currentParamsHash хеш входов, действующих сейчас
      * @return состояние актуальности
      */
     fun status(
-        episodeId: Long,
+        videofileId: Long,
         kind: AnalysisKind,
         currentParamsHash: String,
     ): StaleStatus {
         val run =
-            runStore.latest(episodeId, kind)
+            runStore.latest(videofileId, kind)
                 ?: return StaleStatus(
-                    episodeId = episodeId,
+                    videofileId = videofileId,
                     runId = null,
                     algorithmVersion = null,
                     paramsHash = null,
@@ -212,7 +212,7 @@ class Staleness(
                 else -> "структура помечена устаревшей после смены версии алгоритма или порогов"
             }
         return StaleStatus(
-            episodeId = episodeId,
+            videofileId = videofileId,
             runId = run.id,
             algorithmVersion = run.algorithmVersion,
             paramsHash = run.paramsHash,
@@ -240,7 +240,7 @@ class Staleness(
         throw DomainException(
             ErrorCode.STALE_RESULT,
             status.reason
-                ?: "результат эпизода ${status.episodeId} помечен устаревшим. " +
+                ?: "результат эпизода ${status.videofileId} помечен устаревшим. " +
                 "Правка легла бы на границы, полученные при других настройках, — пересчитайте",
         )
     }
@@ -249,39 +249,39 @@ class Staleness(
      * Помечает устаревшими сцены и планы эпизода по устаревшим прогонам.
      *
      * @param connection открытое соединение, транзакцией управляет вызывающий
-     * @param episodeId эпизод
+     * @param videofileId эпизод
      * @param kinds виды прогонов, по которым смотрим устаревание
      * @return число помеченных сцен и планов
      */
     private fun markStructure(
         connection: java.sql.Connection,
-        episodeId: Long,
+        videofileId: Long,
         kinds: List<AnalysisKind>,
     ): Pair<Int, Int> {
         val kindsList = kinds.joinToString(", ") { "'" + it.name + "'" }
         val condition =
-            "run_id IN (SELECT id FROM tbl_analysis_runs WHERE id_episode = ? " +
+            "run_id IN (SELECT id FROM tbl_analysis_runs WHERE id_videofile = ? " +
                 "AND kind IN ($kindsList) AND is_stale)"
         val sceneSql =
             "UPDATE ${StructureService.SCENE_TABLE} SET is_stale = TRUE " +
-                "WHERE id_episode = ? AND $condition"
+                "WHERE id_videofile = ? AND $condition"
         val shotSql =
             "UPDATE ${StructureService.SHOT_TABLE} SET is_stale = TRUE " +
-                "WHERE id_episode = ? AND $condition"
+                "WHERE id_videofile = ? AND $condition"
         val scenes =
             connection
                 .prepareStatement(sceneSql)
                 .use { statement ->
-                    statement.setLong(1, episodeId)
-                    statement.setLong(2, episodeId)
+                    statement.setLong(1, videofileId)
+                    statement.setLong(2, videofileId)
                     statement.executeUpdate()
                 }
         val shots =
             connection
                 .prepareStatement(shotSql)
                 .use { statement ->
-                    statement.setLong(1, episodeId)
-                    statement.setLong(2, episodeId)
+                    statement.setLong(1, videofileId)
+                    statement.setLong(2, videofileId)
                     statement.executeUpdate()
                 }
         return scenes to shots

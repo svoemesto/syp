@@ -36,7 +36,7 @@ class ObjectStorageContractTest {
         liveMinio()?.let { storages.add(it) }
         storages.forEach { storage ->
             val name = storage::class.simpleName.orEmpty()
-            val key = "episode/1/preview-sheets/v1/000001"
+            val key = "videofile/1/preview-sheets/v1/000001"
 
             assertFalse(storage.exists(key), "$name: отсутствующий объект должен читаться как «нет»")
             val payload = "байты".toByteArray()
@@ -47,7 +47,7 @@ class ObjectStorageContractTest {
             assertTrue(storage.exists(key), "$name: записанный объект должен находиться")
             assertContentEquals(payload, storage.get(key).readAll(), "$name: прочитанное не равно записанному")
 
-            val moved = "episode/1/preview-sheets/v1/000002"
+            val moved = "videofile/1/preview-sheets/v1/000002"
             storage.move(key, moved)
             assertFalse(storage.exists(key), "$name: временный ключ должен исчезнуть после переноса")
             assertContentEquals(payload, storage.get(moved).readAll(), "$name: после переноса содержимое не изменилось")

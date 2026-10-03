@@ -34,7 +34,7 @@ class RecipeFragmentPlanTest {
             }
         }
 
-    private fun episode(
+    private fun videofile(
         id: Long,
         name: String = "GOT.S01E0$id",
         videoProfile: String? = "High",
@@ -43,8 +43,8 @@ class RecipeFragmentPlanTest {
         height: Int = 1080,
         timeBaseNum: Int = 1001,
         timeBaseDen: Int = 24000,
-    ) = EpisodeParameters(
-        episodeId = id,
+    ) = VideofileParameters(
+        videofileId = id,
         name = name,
         width = width,
         height = height,
@@ -60,16 +60,16 @@ class RecipeFragmentPlanTest {
 
     @Test
     @DisplayName("Эпизод один — совместима сама с собой")
-    fun singleEpisodeIsCompatible() {
-        val report = RecipeCompatibility.check(listOf(episode(7)))
+    fun singleVideofileIsCompatible() {
+        val report = RecipeCompatibility.check(listOf(videofile(7)))
         assertTrue(report.isCompatible, "единственный эпизод не может быть несовместима сама с собой")
-        assertEquals(7L, report.reference.episodeId)
+        assertEquals(7L, report.reference.videofileId)
     }
 
     @Test
     @DisplayName("Одинаковые параметры дают совместимость")
     fun equalParametersAreCompatible() {
-        val report = RecipeCompatibility.check(listOf(episode(7), episode(8)))
+        val report = RecipeCompatibility.check(listOf(videofile(7), videofile(8)))
         assertTrue(report.isCompatible, "эпизода с одинаковыми параметрами совместимы")
     }
 
@@ -78,7 +78,7 @@ class RecipeFragmentPlanTest {
     fun differingAttributesAreReported() {
         val report =
             RecipeCompatibility.check(
-                listOf(episode(7), episode(8, videoProfile = "Main", pixelFormat = "yuv422p")),
+                listOf(videofile(7), videofile(8, videoProfile = "Main", pixelFormat = "yuv422p")),
             )
         assertTrue(!report.isCompatible, "разные параметры склейки означают несовместимость")
         assertEquals(listOf("pixelFormat", "videoProfile"), report.differingAttributes)
@@ -86,14 +86,14 @@ class RecipeFragmentPlanTest {
             8L,
             report.incompatible
                 .single()
-                .parameters.episodeId,
+                .parameters.videofileId,
         )
     }
 
     @Test
     @DisplayName("Разная частокадровая база означает несовместимость")
     fun frameRateBaseIsCompared() {
-        val report = RecipeCompatibility.check(listOf(episode(7), episode(8, timeBaseNum = 1000)))
+        val report = RecipeCompatibility.check(listOf(videofile(7), videofile(8, timeBaseNum = 1000)))
         assertEquals(listOf("frameRateBase"), report.differingAttributes)
     }
 

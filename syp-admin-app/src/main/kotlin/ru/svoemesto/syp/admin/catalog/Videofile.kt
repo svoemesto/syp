@@ -22,7 +22,7 @@ import java.time.OffsetDateTime
  * (ADR-0001).
  *
  * @property id идентификатор; `null`, пока эпизод не записана
- * @property movieId фильм-владелец: один эпизод принадлежит ровно одному
+ * @property projectId фильм-владелец: один эпизод принадлежит ровно одному
  * @property ordinal порядковый номер эпизода в фильме, уникален в его пределах
  * @property name название эпизода
  * @property sourcePath абсолютный путь к исходному видеофайлу, уникален
@@ -47,13 +47,13 @@ import java.time.OffsetDateTime
  * @property recordHash хеш значений строки, прочитанный при загрузке
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-data class Episode(
+data class Videofile(
     val id: Long? = null,
-    val movieId: Long,
+    val projectId: Long,
     val ordinal: Int,
     val name: String,
     val seasonId: Long? = null,
-    val episodeOrdinal: Int = 0,
+    val videofileOrdinal: Int = 0,
     val sourcePath: String,
     val byteSize: Long,
     val fileMtime: OffsetDateTime,
@@ -126,11 +126,11 @@ data class Episode(
             COLUMNS,
             {
                 listOf(
-                    movieId,
+                    projectId,
                     ordinal,
                     name,
                     seasonId,
-                    episodeOrdinal,
+                    videofileOrdinal,
                     sourcePath,
                     byteSize,
                     fileMtime,
@@ -156,16 +156,16 @@ data class Episode(
 
     companion object {
         /** Имя таблицы эпизодов. */
-        const val NAME: String = "tbl_episodes"
+        const val NAME: String = "tbl_videofiles"
 
         /** Записываемые столбцы эпизода в порядке значений. */
         val COLUMNS: List<String> =
             listOf(
-                "id_movie",
+                "id_project",
                 "ordinal",
                 "name",
                 "season_id",
-                "episode_ordinal",
+                "videofile_ordinal",
                 "source_path",
                 "file_size",
                 "file_mtime",
@@ -189,7 +189,7 @@ data class Episode(
         /** Столбцы эпизода в порядке чтения из базы. */
         val READ_COLUMNS: String =
             (
-                "id, id_movie, ordinal, name, season_id, episode_ordinal, source_path, file_size, file_mtime, " +
+                "id, id_project, ordinal, name, season_id, videofile_ordinal, source_path, file_size, file_mtime, " +
                     "frame_count, time_base_num, time_base_den, width, height, " +
                     "duration_num, duration_den, video_codec, video_profile, pixel_format, " +
                     "audio_codec, audio_channels, audio_sample_rate, keyframe_bitmap, " +
@@ -199,30 +199,30 @@ data class Episode(
         /**
          * Собирает эпизод из определённых опросом параметров файла.
          *
-         * @param movieId фильм-владелец
+         * @param projectId фильм-владелец
          * @param ordinal порядковый номер в фильме
          * @param name название эпизода
          * @param seasonId сезон-владелец; не задан — у фильма
-         * @param episodeOrdinal номер эпизода внутри сезона; 0 — у фильма
+         * @param videofileOrdinal номер эпизода внутри сезона; 0 — у фильма
          * @param sourcePath абсолютный путь к файлу
          * @param parameters параметры, снятые с файла опросом
          * @return готовая к записи эпизод
          */
         fun of(
-            movieId: Long,
+            projectId: Long,
             ordinal: Int,
             name: String,
             seasonId: Long?,
-            episodeOrdinal: Int,
+            videofileOrdinal: Int,
             sourcePath: String,
             parameters: SourceParameters,
-        ): Episode =
-            Episode(
-                movieId = movieId,
+        ): Videofile =
+            Videofile(
+                projectId = projectId,
                 ordinal = ordinal,
                 name = name,
                 seasonId = seasonId,
-                episodeOrdinal = episodeOrdinal,
+                videofileOrdinal = videofileOrdinal,
                 sourcePath = sourcePath,
                 byteSize = parameters.byteSize,
                 fileMtime = parameters.fileMtime.atOffset(java.time.ZoneOffset.UTC),
@@ -250,29 +250,29 @@ data class Episode(
  * @property db доступ к базе сырым JDBC
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
-class EpisodeStore(
+class VideofileStore(
     private val db: Db,
 ) {
     /**
      * Записывает эпизод и возвращает её с идентификатором и хешем.
      *
-     * @param episode эпизод для записи
+     * @param videofile эпизод для записи
      * @return записанный эпизод
      * @throws DomainException с кодом `CONFLICT`, если такой путь уже занят
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
-    fun insert(episode: Episode): Episode {
-        val duplicate = findBySourcePath(episode.sourcePath)
+    fun insert(videofile: Videofile): Videofile {
+        val duplicate = findBySourcePath(videofile.sourcePath)
         if (duplicate != null) {
             throw DomainException(
                 ErrorCode.CONFLICT,
-                "файл «${episode.sourcePath}» уже зарегистрирован как эпизод «${duplicate.name}»: " +
+                "файл «${videofile.sourcePath}» уже зарегистрирован как эпизод «${duplicate.name}»: " +
                     "один эпизод на один файл, второй раз завести его нельзя",
             )
         }
         return db.useTransaction { connection ->
-            Save.insertIfAbsent(connection, episode.toTable())
-            val identifier = readIdentifier(connection, episode)
+            Save.insertIfAbsent(connection, videofile.toTable())
+            val identifier = readIdentifier(connection, videofile)
             readOne(connection, identifier)
                 ?: throw DomainException(
                     ErrorCode.INTERNAL_ERROR,
@@ -284,23 +284,23 @@ class EpisodeStore(
     /**
      * Читает эпизод по идентификатору.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return эпизод или `null`, если её нет
      */
-    fun find(episodeId: Long): Episode? =
-        db.selectOne("SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE id = ?", ::readRow, episodeId)
+    fun find(videofileId: Long): Videofile? =
+        db.selectOne("SELECT ${Videofile.READ_COLUMNS} FROM tbl_videofiles WHERE id = ?", ::readRow, videofileId)
 
     /**
      * Перечисляет эпизоды фильма.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return эпизода в порядке порядковых номеров
      */
-    fun listByMovie(movieId: Long): List<Episode> =
+    fun listByProject(projectId: Long): List<Videofile> =
         db.select(
-            "SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE id_movie = ? ORDER BY ordinal",
+            "SELECT ${Videofile.READ_COLUMNS} FROM tbl_videofiles WHERE id_project = ? ORDER BY ordinal",
             ::readRow,
-            movieId,
+            projectId,
         )
 
     /**
@@ -309,25 +309,25 @@ class EpisodeStore(
      * @param sourcePath абсолютный путь к файлу
      * @return эпизод или `null`, если такой путь не заведён
      */
-    fun findBySourcePath(sourcePath: String): Episode? =
-        db.selectOne("SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE source_path = ?", ::readRow, sourcePath)
+    fun findBySourcePath(sourcePath: String): Videofile? =
+        db.selectOne("SELECT ${Videofile.READ_COLUMNS} FROM tbl_videofiles WHERE source_path = ?", ::readRow, sourcePath)
 
     /**
      * Сохраняет изменения эпизода, если значения изменились.
      *
-     * @param episode эпизод с заполненным [Episode.id]
+     * @param videofile эпизод с заполненным [Videofile.id]
      * @return `true`, если строка переписана
      * @throws DomainException если у эпизода нет идентификатора
      */
-    fun save(episode: Episode): Boolean {
-        val episodeId =
-            episode.id
+    fun save(videofile: Videofile): Boolean {
+        val videofileId =
+            videofile.id
                 ?: throw DomainException(
                     ErrorCode.BAD_REQUEST,
-                    "у эпизода «${episode.name}» нет идентификатора: сохранять нечего",
+                    "у эпизода «${videofile.name}» нет идентификатора: сохранять нечего",
                 )
         return db.useTransaction { connection ->
-            Save.saveIfChanged(connection, episode.toTable(), listOf("id"), listOf(episodeId))
+            Save.saveIfChanged(connection, videofile.toTable(), listOf("id"), listOf(videofileId))
         }
     }
 
@@ -337,40 +337,40 @@ class EpisodeStore(
      * Файл источника при этом **не трогается**: он лежит в архиве и принадлежит
      * не системе. Удаляются только записи о нём и производные от них данные.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return `true`, если эпизод была удалена
      */
-    fun delete(episodeId: Long): Boolean = db.update("DELETE FROM tbl_episodes WHERE id = ?", episodeId) > 0
+    fun delete(videofileId: Long): Boolean = db.update("DELETE FROM tbl_videofiles WHERE id = ?", videofileId) > 0
 
     /**
      * Считает эпизоды фильма.
      *
-     * @param movieId идентификатор фильма
+     * @param projectId идентификатор фильма
      * @return число эпизодов
      */
-    fun countByMovie(movieId: Long): Int =
+    fun countByProject(projectId: Long): Int =
         db.selectOne(
-            "SELECT count(*) AS total FROM tbl_episodes WHERE id_movie = ?",
+            "SELECT count(*) AS total FROM tbl_videofiles WHERE id_project = ?",
             { it.int("total") },
-            movieId,
+            projectId,
         ) ?: 0
 
     /** Читает идентификатор только что записанного эпизода. */
     private fun readIdentifier(
         connection: java.sql.Connection,
-        episode: Episode,
+        videofile: Videofile,
     ): Long =
         connection
-            .prepareStatement("SELECT id FROM tbl_episodes WHERE source_path = ?")
+            .prepareStatement("SELECT id FROM tbl_videofiles WHERE source_path = ?")
             .use { statement ->
-                statement.setString(1, episode.sourcePath)
+                statement.setString(1, videofile.sourcePath)
                 statement.executeQuery().use { resultSet ->
                     if (resultSet.next()) {
                         resultSet.getLong(1)
                     } else {
                         throw DomainException(
                             ErrorCode.INTERNAL_ERROR,
-                            "эпизод «${episode.name}» записана, но идентификатор не прочитан",
+                            "эпизод «${videofile.name}» записана, но идентификатор не прочитан",
                         )
                     }
                 }
@@ -379,22 +379,22 @@ class EpisodeStore(
     /** Читает эпизод по идентификатору в пределах открытого соединения. */
     private fun readOne(
         connection: java.sql.Connection,
-        episodeId: Long,
-    ): Episode? =
+        videofileId: Long,
+    ): Videofile? =
         connection
-            .prepareStatement("SELECT ${Episode.READ_COLUMNS} FROM tbl_episodes WHERE id = ?")
+            .prepareStatement("SELECT ${Videofile.READ_COLUMNS} FROM tbl_videofiles WHERE id = ?")
             .use { statement ->
-                statement.setLong(1, episodeId)
+                statement.setLong(1, videofileId)
                 statement.executeQuery().use { resultSet ->
                     if (resultSet.next()) read(resultSet) else null
                 }
             }
 
     /** Строит эпизод из готовый строки результата. */
-    private fun read(resultSet: java.sql.ResultSet): Episode =
-        Episode(
+    private fun read(resultSet: java.sql.ResultSet): Videofile =
+        Videofile(
             id = resultSet.getLong("id"),
-            movieId = resultSet.getLong("id_movie"),
+            projectId = resultSet.getLong("id_project"),
             ordinal = resultSet.getInt("ordinal"),
             name = resultSet.getString("name"),
             sourcePath = resultSet.getString("source_path"),
@@ -422,14 +422,14 @@ class EpisodeStore(
         )
 
     /** Строит эпизод из типизированной строки выборки. */
-    private fun readRow(row: Row): Episode =
-        Episode(
+    private fun readRow(row: Row): Videofile =
+        Videofile(
             id = row.long("id"),
-            movieId = row.long("id_movie"),
+            projectId = row.long("id_project"),
             ordinal = row.int("ordinal"),
             name = row.string("name"),
             seasonId = row.longOrNull("season_id"),
-            episodeOrdinal = row.int("episode_ordinal"),
+            videofileOrdinal = row.int("videofile_ordinal"),
             sourcePath = row.string("source_path"),
             byteSize = row.long("file_size"),
             fileMtime =

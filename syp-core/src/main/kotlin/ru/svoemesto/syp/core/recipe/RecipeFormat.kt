@@ -24,8 +24,8 @@ import java.time.format.DateTimeFormatter
  * @property sceneTitle название сцены-снимок; `null` — у сцены названия нет
  * @property location место действия-снимок; `null` — место не назначено
  * @property persons имена персонажей-снимок в алфавитном порядке
- * @property episodeId эпизод-источник фрагмента
- * @property episodeName название эпизода
+ * @property videofileId эпизод-источник фрагмента
+ * @property videofileName название эпизода
  * @property relativePath путь к файлу эпизода **относительно корня фильма**
  * @property sourceSha256 снимок эталонной суммы файла эпизода на момент выдачи
  * @property firstFrame расчётная граница начала по размеченному плану
@@ -41,8 +41,8 @@ data class RecipeItemDocument(
     val sceneTitle: String?,
     val location: String?,
     val persons: List<String>,
-    val episodeId: Long,
-    val episodeName: String,
+    val videofileId: Long,
+    val videofileName: String,
     val relativePath: String,
     val sourceSha256: String,
     val firstFrame: Int,
@@ -52,7 +52,7 @@ data class RecipeItemDocument(
 ) {
     init {
         require(ordinal > 0) { "Порядковый номер фрагмента должен начинаться с единицы, задано $ordinal" }
-        require(episodeName.isNotBlank()) { "Название эпизода фрагмента обязательно" }
+        require(videofileName.isNotBlank()) { "Название эпизода фрагмента обязательно" }
         require(sourceSha256.matches(HEX_64)) {
             "Сумма источника «$sourceSha256» не является SHA-256 в виде 64 " +
                 "шестнадцатеричных символов в нижнем регистре (FR-089)"
@@ -65,7 +65,7 @@ data class RecipeItemDocument(
                 "получено $cutFirstFrame…$cutLastFrame при расчётных $firstFrame…$lastFrame. " +
                 "Обратное направление округления запрещено (ADR-0006, FR-082)"
         }
-        RecipePaths.requireInsideMovieTree(relativePath)
+        RecipePaths.requireInsideProjectTree(relativePath)
     }
 
     /** Число кадров фрагмента по **фактическим** границам. */
@@ -83,8 +83,8 @@ data class RecipeItemDocument(
                 if (sceneTitle != null) add("sceneTitle" to sceneTitle)
                 if (location != null) add("tbl_locations" to location)
                 if (persons.isNotEmpty()) add("persons" to persons)
-                add("episodeId" to episodeId)
-                add("episodeName" to episodeName)
+                add("videofileId" to videofileId)
+                add("videofileName" to videofileName)
                 add("relativePath" to relativePath)
                 add("sourceSha256" to sourceSha256)
                 add("firstFrame" to firstFrame)
@@ -114,8 +114,8 @@ data class RecipeItemDocument(
  * (FR-083).
  *
  * @property schemaVersion версия формата; воркер отвергает незнакомую версию
- * @property movieId фильм-владелец
- * @property movieName название фильма
+ * @property projectId фильм-владелец
+ * @property projectName название фильма
  * @property recipeId идентификатор сценария в базе
  * @property recipeName название сценария
  * @property signingKeyId идентификатор пары ключей, которой подписан файл
@@ -130,8 +130,8 @@ data class RecipeItemDocument(
  */
 data class RecipeDocument(
     val schemaVersion: Int = RecipeFormat.SCHEMA_VERSION,
-    val movieId: Long,
-    val movieName: String,
+    val projectId: Long,
+    val projectName: String,
     val recipeId: Long,
     val recipeName: String,
     val signingKeyId: String,
@@ -143,7 +143,7 @@ data class RecipeDocument(
     val items: List<RecipeItemDocument>,
 ) {
     init {
-        require(movieName.isNotBlank()) { "Название фильма обязательно" }
+        require(projectName.isNotBlank()) { "Название фильма обязательно" }
         require(recipeName.isNotBlank()) { "Название сценария обязательно" }
         require(signingKeyId.isNotBlank()) {
             "Идентификатор ключа подписи обязателен: без него сценарий нельзя " +
@@ -168,8 +168,8 @@ data class RecipeDocument(
         CanonicalObject(
             listOf(
                 "schemaVersion" to schemaVersion,
-                "movieId" to movieId,
-                "movieName" to movieName,
+                "projectId" to projectId,
+                "projectName" to projectName,
                 "recipeId" to recipeId,
                 "recipeName" to recipeName,
                 // Идентификатор ключа входит в подписываемый файл: по нему
@@ -216,7 +216,7 @@ object RecipeFormat {
      * Версия формата, которую понимает этот код.
      *
      * Версия 2 — после решения владельца 2026-10-03 об именах сущностей:
-     * в сценарии `movieId`, `movieName`, `episodeId`, `episodeName` и
+     * в сценарии `projectId`, `projectName`, `videofileId`, `videofileName` и
      * `rootLayout: MOVIE_TREE` вместо прежних имён. Подпись считается по
      * байтам целиком, поэтому переименование поля меняет подпись, и воркер,
      * читающий версию 1, разобрал бы сценарий новой версии наугад.

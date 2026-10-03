@@ -22,12 +22,12 @@ import kotlin.test.assertTrue
 /**
  * Проверки эндпоинтов приёма фильма и эпизода.
  *
- * Закрываются требованиями задачи T036: реализованы `GET /api/movies`,
- * `POST /api/movies`, `GET /api/movies/{movieId}`,
- * `DELETE /api/movies/{movieId}`, `GET /api/movies/{movieId}/episode`,
- * `POST /api/movies/{movieId}/episode`, `GET /api/episode/{episodeId}`,
- * `DELETE /api/episode/{episodeId}`, `GET /api/movies/{movieId}/settings` и
- * `PUT /api/movies/{movieId}/settings` (FR-100, FR-101).
+ * Закрываются требованиями задачи T036: реализованы `GET /api/projects`,
+ * `POST /api/projects`, `GET /api/projects/{projectId}`,
+ * `DELETE /api/projects/{projectId}`, `GET /api/projects/{projectId}/videofile`,
+ * `POST /api/projects/{projectId}/videofile`, `GET /api/videofile/{videofileId}`,
+ * `DELETE /api/videofile/{videofileId}`, `GET /api/projects/{projectId}/settings` и
+ * `PUT /api/projects/{projectId}/settings` (FR-100, FR-101).
  *
  * Контроллер проверяется напрямую, без поднятого HTTP-сервера: проверяются
  * контракт ответов и коды отказов, а не работа сетевого слоя Spring.
@@ -40,9 +40,9 @@ import kotlin.test.assertTrue
 class CatalogControllerTest {
     private val mapper = Json.mapper()
     private lateinit var db: Db
-    private lateinit var movies: MovieStore
-    private lateinit var episodeStore: EpisodeStore
-    private lateinit var settingsStore: MovieSettingsStore
+    private lateinit var projects: ProjectStore
+    private lateinit var videofileStore: VideofileStore
+    private lateinit var settingsStore: ProjectSettingsStore
     private lateinit var controller: CatalogController
     private lateinit var errors: ApiErrors
     private lateinit var root: Path
@@ -56,18 +56,18 @@ class CatalogControllerTest {
     @BeforeEach
     fun prepare() {
         db = TestDatabase.assumeDatabase()
-        movies = MovieStore(db)
-        episodeStore = EpisodeStore(db)
-        settingsStore = MovieSettingsStore(db, mapper)
+        projects = ProjectStore(db)
+        videofileStore = VideofileStore(db)
+        settingsStore = ProjectSettingsStore(db, mapper)
         root = Files.createTempDirectory("syp-api").resolve("корень")
         Files.createDirectories(root)
         val ffprobe = programOnPath("ffprobe") ?: throw org.opentest4j.TestAbortedException("ffprobe не найден в PATH")
         controller =
             CatalogController(
-                movies,
-                episodeStore,
+                projects,
+                videofileStore,
                 settingsStore,
-                EpisodeRegistration(movies, episodeStore, SourceProbe(ExternalProgram(), ffprobe)),
+                VideofileRegistration(projects, videofileStore, SourceProbe(ExternalProgram(), ffprobe)),
             )
         errors = ApiErrors()
     }
@@ -120,15 +120,15 @@ class CatalogControllerTest {
 
     @Test
     fun `список фильмов пуст, пока фильм не заведён`() {
-        val created = controller.createMovie(CreateMovieRequest("Пустой список ${System.nanoTime()}", "/srv/нет"))
+        val created = controller.createProject(CreateProjectRequest("Пустой список ${System.nanoTime()}", "/srv/нет"))
 
-        assertEquals("/srv/нет", created.body?.movie?.sourceRoot)
-        assertTrue(controller.listMovies().any { it.id == created.body?.movie?.id })
+        assertEquals("/srv/нет", created.body?.project?.sourceRoot)
+        assertTrue(controller.listProjects().any { it.id == created.body?.project?.id })
     }
 
     @Test
     fun `создание фильма отдаёт его вместе с настройками по умолчанию`() {
-        val created = controller.createMovie(CreateMovieRequest("С настройками ${System.nanoTime()}", "/srv/got"))
+        val created = controller.createProject(CreateProjectRequest("С настройками ${System.nanoTime()}", "/srv/got"))
 
         val body = created.body!!
         assertEquals(201, created.statusCode.value())
@@ -139,30 +139,30 @@ class CatalogControllerTest {
 
     @Test
     fun `чтение фильма отдаёт фильм, эпизода и настройки`() {
-        val created = controller.createMovie(CreateMovieRequest("Чтение ${System.nanoTime()}", "/srv/got"))
-        val movieId = created.body!!.movie.id
+        val created = controller.createProject(CreateProjectRequest("Чтение ${System.nanoTime()}", "/srv/got"))
+        val projectId = created.body!!.project.id
 
-        val detail = controller.readMovie(movieId)
+        val detail = controller.readProject(projectId)
 
-        assertEquals(movieId, detail.movie.id)
+        assertEquals(projectId, detail.project.id)
         assertEquals(11, detail.settings.size)
-        assertTrue(detail.episode.isEmpty())
+        assertTrue(detail.videofile.isEmpty())
     }
 
     @Test
     fun `удаление фильма снимает его со счёта`() {
-        val created = controller.createMovie(CreateMovieRequest("Удаление ${System.nanoTime()}", "/srv/got"))
-        val movieId = created.body!!.movie.id
+        val created = controller.createProject(CreateProjectRequest("Удаление ${System.nanoTime()}", "/srv/got"))
+        val projectId = created.body!!.project.id
 
-        val response = controller.deleteMovie(movieId)
+        val response = controller.deleteProject(projectId)
 
         assertEquals(204, response.statusCode.value())
-        assertNull(movies.find(movieId))
+        assertNull(projects.find(projectId))
     }
 
     @Test
     fun `чтение несуществующего фильма даёт 404 с кодом и текстом`() {
-        val failure = assertFailsWith<DomainException> { controller.readMovie(-1) }
+        val failure = assertFailsWith<DomainException> { controller.readProject(-1) }
 
         val response = errors.onDomainFailure(failure)
         assertEquals(404, response.statusCode.value())
@@ -172,7 +172,7 @@ class CatalogControllerTest {
 
     @Test
     fun `чтение несуществующего эпизода даёт 404, а не пустой ответ`() {
-        val failure = assertFailsWith<DomainException> { controller.readEpisode(-1) }
+        val failure = assertFailsWith<DomainException> { controller.readVideofile(-1) }
 
         val response = errors.onDomainFailure(failure)
         assertEquals(404, response.statusCode.value())
@@ -181,10 +181,10 @@ class CatalogControllerTest {
 
     @Test
     fun `регистрация эпизода отдаёт снятые с файла параметры`() {
-        val movie = controller.createMovie(CreateMovieRequest("Эпизод ${System.nanoTime()}", root.toString())).body!!.movie
+        val project = controller.createProject(CreateProjectRequest("Эпизод ${System.nanoTime()}", root.toString())).body!!.project
         val file = video("S01E01.mkv")
 
-        val response = controller.registerEpisode(movie.id, RegisterEpisodeRequest(file.toString()))
+        val response = controller.registerVideofile(project.id, RegisterVideofileRequest(file.toString()))
 
         assertEquals(201, response.statusCode.value())
         val view = response.body!!
@@ -206,13 +206,13 @@ class CatalogControllerTest {
 
     @Test
     fun `регистрация файла вне корня фильма даёт 400 с кодом SOURCE_UNREADABLE`() {
-        val movie = controller.createMovie(CreateMovieRequest("Вне корня ${System.nanoTime()}", root.toString())).body!!.movie
+        val project = controller.createProject(CreateProjectRequest("Вне корня ${System.nanoTime()}", root.toString())).body!!.project
         val other = Files.createTempDirectory("syp-api").resolve("снаружи")
         Files.createDirectories(other)
 
         val failure =
             assertFailsWith<DomainException> {
-                controller.registerEpisode(movie.id, RegisterEpisodeRequest(other.resolve("эпизод.mkv").toString()))
+                controller.registerVideofile(project.id, RegisterVideofileRequest(other.resolve("эпизод.mkv").toString()))
             }
 
         val response = errors.onDomainFailure(failure)
@@ -222,31 +222,36 @@ class CatalogControllerTest {
 
     @Test
     fun `чтение эпизода и её удаление работают по идентификатору`() {
-        val movie = controller.createMovie(CreateMovieRequest("Удаление эпизода ${System.nanoTime()}", root.toString())).body!!.movie
+        val project =
+            controller
+                .createProject(
+                    CreateProjectRequest("Удаление эпизода ${System.nanoTime()}", root.toString()),
+                ).body!!
+                .project
         val registered =
-            controller.registerEpisode(movie.id, RegisterEpisodeRequest(video("S01E02.mkv").toString())).body!!
+            controller.registerVideofile(project.id, RegisterVideofileRequest(video("S01E02.mkv").toString())).body!!
 
-        val read = controller.readEpisode(registered.id)
+        val read = controller.readVideofile(registered.id)
 
         assertEquals(registered.id, read.id)
-        assertEquals(1, controller.listEpisode(movie.id).size)
+        assertEquals(1, controller.listVideofile(project.id).size)
 
-        assertEquals(204, controller.deleteEpisode(registered.id).statusCode.value())
-        assertNull(episodeStore.find(registered.id))
+        assertEquals(204, controller.deleteVideofile(registered.id).statusCode.value())
+        assertNull(videofileStore.find(registered.id))
         assertTrue(video("S01E02.mkv").exists(), "снятие с учёта не должно трогать файл архива")
     }
 
     @Test
     fun `настройки читаются и меняются через эндпоинты`() {
-        val movie = controller.createMovie(CreateMovieRequest("Настройки ${System.nanoTime()}", "/srv/got")).body!!.movie
+        val project = controller.createProject(CreateProjectRequest("Настройки ${System.nanoTime()}", "/srv/got")).body!!.project
 
-        val read = controller.readSettings(movie.id)
+        val read = controller.readSettings(project.id)
         assertEquals(11, read.size)
         assertEquals("NUMBER_LIST", read.first { it.key == "shot.size.thresholds" }.kind)
 
         val updated =
             controller.updateSettings(
-                movie.id,
+                project.id,
                 mapOf("scene.threshold" to mapper.readTree("14"), "cluster.merge_threshold" to mapper.readTree("0.8")),
             )
 
@@ -266,17 +271,17 @@ class CatalogControllerTest {
                 .asDouble(),
         )
 
-        val again = controller.updateSettings(movie.id, mapOf("scene.threshold" to mapper.readTree("14")))
+        val again = controller.updateSettings(project.id, mapOf("scene.threshold" to mapper.readTree("14")))
         assertTrue(again.changedKeys.isEmpty(), "запись того же значения не является изменением")
     }
 
     @Test
     fun `неизвестная настройка отвечает 400 и перечисляет доступные`() {
-        val movie = controller.createMovie(CreateMovieRequest("Ошибка ${System.nanoTime()}", "/srv/got")).body!!.movie
+        val project = controller.createProject(CreateProjectRequest("Ошибка ${System.nanoTime()}", "/srv/got")).body!!.project
 
         val failure =
             assertFailsWith<DomainException> {
-                controller.updateSettings(movie.id, mapOf("нет.такой" to mapper.readTree("1")))
+                controller.updateSettings(project.id, mapOf("нет.такой" to mapper.readTree("1")))
             }
 
         val response = errors.onDomainFailure(failure)

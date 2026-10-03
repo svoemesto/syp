@@ -3,11 +3,11 @@ package ru.svoemesto.syp.admin.integrity
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.Job
 import ru.svoemesto.syp.core.jobs.JobKind
@@ -44,7 +44,7 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HashJobTest {
     private lateinit var db: Db
-    private lateinit var episodeStore: EpisodeStore
+    private lateinit var videofileStore: VideofileStore
     private lateinit var registry: ChecksumRegistry
 
     /**
@@ -55,7 +55,7 @@ class HashJobTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        episodeStore = EpisodeStore(db)
+        videofileStore = VideofileStore(db)
         registry = ChecksumRegistry(db)
     }
 
@@ -86,12 +86,12 @@ class HashJobTest {
      * @param file путь к файлу
      * @return записанный эпизод
      */
-    private fun newEpisode(file: Path): Episode {
-        val movies = MovieStore(db)
-        val movie = movies.create("Подсчёт ${System.nanoTime()}", file.parent.toString())
-        return episodeStore.insert(
-            Episode(
-                movieId = movie.id!!,
+    private fun newVideofile(file: Path): Videofile {
+        val projects = ProjectStore(db)
+        val project = projects.create("Подсчёт ${System.nanoTime()}", file.parent.toString())
+        return videofileStore.insert(
+            Videofile(
+                projectId = project.id!!,
                 ordinal = 0,
                 name = "S1E1",
                 sourcePath = file.toString(),
@@ -138,10 +138,10 @@ class HashJobTest {
      * задание, и ссылка проверяется базой. Задание с выдуманным
      * идентификатором было бы проверкой несуществующего.
      *
-     * @param episode эпизод
+     * @param videofile эпизод
      * @return задание в состоянии `WORKING`
      */
-    private fun newJob(episode: Episode): Job {
+    private fun newJob(videofile: Videofile): Job {
         val jobId =
             db.use { connection ->
                 connection
@@ -151,7 +151,7 @@ class HashJobTest {
                             "VALUES ('HASH', 'WORKING', 'EPISODE', ?, ?::jsonb, ?, 'SHA-256', 0, 0) " +
                             "RETURNING id",
                     ).use { statement ->
-                        statement.setLong(1, episode.id!!)
+                        statement.setLong(1, videofile.id!!)
                         statement.setString(2, "{\"algorithm\":\"SHA-256\"}")
                         statement.setString(3, "0".repeat(64))
                         statement.executeQuery().use { resultSet ->
@@ -164,7 +164,7 @@ class HashJobTest {
             id = jobId,
             kind = JobKind.HASH,
             state = JobState.WORKING,
-            subject = JobSubject.episode(episode.id!!),
+            subject = JobSubject.videofile(videofile.id!!),
             paramsJson = "{}",
             paramsHash = "0".repeat(64),
             algorithmVersion = "SHA-256",
@@ -179,13 +179,13 @@ class HashJobTest {
     @Test
     fun `сумма задания совпадает с независимо посчитанной`() {
         val file = newSourceFile(fileSize)
-        val episode = newEpisode(file)
-        val job = newJob(episode)
+        val videofile = newVideofile(file)
+        val job = newJob(videofile)
         val reported = mutableListOf<JobProgress>()
 
-        val result = HashJob(episodeStore, registry, progressStep = 1024 * 1024).execute(job) { reported.add(it) }
+        val result = HashJob(videofileStore, registry, progressStep = 1024 * 1024).execute(job) { reported.add(it) }
 
-        val current = registry.current(episode.id!!)
+        val current = registry.current(videofile.id!!)
         assertNotNull(current, "после задания должна появиться актуальная сумма")
         assertEquals(referenceDigest(file), current!!.digest)
         assertEquals(ChecksumState.DONE, current.state)
@@ -204,16 +204,16 @@ class HashJobTest {
     @Test
     fun `ошибка чтения переводит подсчёт в ошибку с текстом`() {
         val file = newSourceFile(fileSize)
-        val episode = newEpisode(file)
-        val handler = HashJob(episodeStore, registry)
+        val videofile = newVideofile(file)
+        val handler = HashJob(videofileStore, registry)
         Files.delete(file)
 
-        val failure = assertFailsWith<HashFailed> { handler.execute(newJob(episode)) {} }
+        val failure = assertFailsWith<HashFailed> { handler.execute(newJob(videofile)) {} }
 
         assertTrue(failure.text.contains("не удалось прочитать"), "текст ошибки объясняет, что именно не вышло: ${failure.text}")
-        val entry = registry.latest(episode.id!!)
+        val entry = registry.latest(videofile.id!!)
         assertEquals(ChecksumState.ERROR, entry?.state, "подсчёт должен остаться в ошибке, а не в готовом состоянии")
         assertNotNull(entry?.errorText)
-        assertFalse(registry.isUsable(episode.id!!), "у эпизода без прочитанного файла актуальной суммы быть не может")
+        assertFalse(registry.isUsable(videofile.id!!), "у эпизода без прочитанного файла актуальной суммы быть не может")
     }
 }

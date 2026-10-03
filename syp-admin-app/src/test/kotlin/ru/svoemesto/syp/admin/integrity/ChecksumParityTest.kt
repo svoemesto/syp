@@ -4,12 +4,12 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeRegistration
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.SourceProbe
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileRegistration
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.jobs.AdminJobWorker
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.core.db.Db
@@ -48,7 +48,7 @@ import kotlin.test.assertTrue
 class ChecksumParityTest {
     private lateinit var db: Db
     private lateinit var queue: JobQueue
-    private lateinit var episodeStore: EpisodeStore
+    private lateinit var videofileStore: VideofileStore
     private lateinit var registry: ChecksumRegistry
     private lateinit var enqueuer: ChecksumEnqueuer
     private lateinit var worker: AdminJobWorker
@@ -63,15 +63,15 @@ class ChecksumParityTest {
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
         queue = JobQueue(db)
-        episodeStore = EpisodeStore(db)
+        videofileStore = VideofileStore(db)
         registry = ChecksumRegistry(db)
-        enqueuer = ChecksumEnqueuer(queue, episodeStore, registry)
+        enqueuer = ChecksumEnqueuer(queue, videofileStore, registry)
         probe = SourceProbe(ExternalProgram(), requireProgram("ffprobe"))
         val storageRoot = Files.createTempDirectory("syp-parity-storage")
         worker =
             AdminJobWorker(
                 queue = queue,
-                handlers = mapOf<JobKind, JobHandler>(JobKind.HASH to HashJob(episodeStore, registry)),
+                handlers = mapOf<JobKind, JobHandler>(JobKind.HASH to HashJob(videofileStore, registry)),
                 artifactRegistry = ArtifactRegistry(db, FileSystemStorage(storageRoot)),
                 db = db,
                 concurrency = 1,
@@ -85,7 +85,7 @@ class ChecksumParityTest {
      * @return путь к файлу эпизода
      * @throws org.opentest4j.TestAbortedException если переменный не задана
      */
-    private fun requireEpisode(): Path {
+    private fun requireVideofile(): Path {
         val declared = System.getenv(ENV_EPISODE)
         assumeTrue(!declared.isNullOrBlank()) {
             "Переменная $ENV_EPISODE не задана: сверка суммы с внешней пропущена"
@@ -140,27 +140,29 @@ class ChecksumParityTest {
 
     @Test
     fun `сумма системы совпадает с sha256sum файла`() {
-        val episodePath = requireEpisode()
-        val movies = MovieStore(db)
-        val registration = EpisodeRegistration(movies, episodeStore, probe)
+        val videofilePath = requireVideofile()
+        val projects = ProjectStore(db)
+        val registration = VideofileRegistration(projects, videofileStore, probe)
 
-        println("=== СВЕРКА СУММЫ С ВНЕШНЕЙ: ${episodePath.fileName} ===")
+        println("=== СВЕРКА СУММЫ С ВНЕШНЕЙ: ${videofilePath.fileName} ===")
         val probeStarted = System.nanoTime()
-        val episode: Episode =
+        val videofile: Videofile =
             registration.register(
-                movies.create("Сверка ${System.nanoTime()}", episodePath.parent.toString()).id!!,
-                episodePath.toString(),
+                projects.create("Сверка ${System.nanoTime()}", videofilePath.parent.toString()).id!!,
+                videofilePath.toString(),
                 "S1E1",
             )
         println("определение параметров эпизода: ${elapsedSeconds(probeStarted)} с")
-        println("эпизод: ${episode.frameCount} кадров, ${episode.byteSize} байт, карта ключевых ${episode.keyframeMap?.keyframeCount()}")
+        println(
+            "эпизод: ${videofile.frameCount} кадров, ${videofile.byteSize} байт, карта ключевых ${videofile.keyframeMap?.keyframeCount()}",
+        )
 
-        val external = sha256sumOf(episodePath)
+        val external = sha256sumOf(videofilePath)
         println("sha256sum файла: $external")
 
         val times = mutableListOf<Double>()
         repeat(RUNS) { run ->
-            val enqueued = enqueuer.enqueue(episode.id!!, "сверка с внешней суммой, прогон ${run + 1}")
+            val enqueued = enqueuer.enqueue(videofile.id!!, "сверка с внешней суммой, прогон ${run + 1}")
             val job =
                 queue.claim(JobKindsForHash)
                     ?: throw IllegalStateException("Задание $enqueued не взято воркером: очередь пуста")
@@ -168,7 +170,7 @@ class ChecksumParityTest {
             val done = worker.runJob(job)
             val seconds = elapsedSeconds(started)
             times.add(seconds)
-            val current = registry.current(episode.id!!)
+            val current = registry.current(videofile.id!!)
             println(
                 "прогон ${run + 1}: задание " +
                     if (done) {
@@ -176,7 +178,7 @@ class ChecksumParityTest {
                     } else {
                         "не DONE" +
                             ", ${"%.2f".format(seconds)} с, " +
-                            "${"%.1f".format(episode.byteSize / seconds / 1_048_576.0)} МБ/с, сумма ${current?.digest}"
+                            "${"%.1f".format(videofile.byteSize / seconds / 1_048_576.0)} МБ/с, сумма ${current?.digest}"
                     },
             )
             assertTrue(done, "задание подсчёта обязано завершиться успешно")
@@ -188,7 +190,7 @@ class ChecksumParityTest {
         println("время чтения и подсчёта, с: ${times.joinToString(", ") { "%.2f".format(it) }}")
         println("минимальное: ${"%.2f".format(times.min())} с, максимальное: ${"%.2f".format(times.max())} с")
         val average = times.average()
-        println("среднее: ${"%.2f".format(average)} с, скорость ${"%.1f".format(episode.byteSize / average / 1_048_576.0)} МБ/с")
+        println("среднее: ${"%.2f".format(average)} с, скорость ${"%.1f".format(videofile.byteSize / average / 1_048_576.0)} МБ/с")
     }
 
     /**

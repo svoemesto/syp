@@ -1,7 +1,7 @@
 package ru.svoemesto.syp.admin.characters
 
-import ru.svoemesto.syp.admin.catalog.MovieSetting
-import ru.svoemesto.syp.admin.catalog.MovieSettings
+import ru.svoemesto.syp.admin.catalog.ProjectSetting
+import ru.svoemesto.syp.admin.catalog.ProjectSettings
 import kotlin.math.sqrt
 
 /**
@@ -54,12 +54,12 @@ class Clustering {
      */
     fun cluster(
         points: List<ClusterPoint>,
-        settings: MovieSettings,
+        settings: ProjectSettings,
     ): List<FaceCluster> =
         cluster(
             points,
-            settings.integer(MovieSetting.CLUSTER_COUNT),
-            settings.number(MovieSetting.CLUSTER_MERGE_THRESHOLD),
+            settings.integer(ProjectSetting.CLUSTER_COUNT),
+            settings.number(ProjectSetting.CLUSTER_MERGE_THRESHOLD),
         )
 
     /**

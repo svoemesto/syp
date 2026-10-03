@@ -45,7 +45,7 @@ class HttpEndpointDateTest {
             !url.isNullOrBlank(),
             "адрес стенда не задан (переменная $ENV_URL) — проверка HTTP-эндпоинтов отменена, а не пройдена",
         )
-        val response = get("${requireNotNull(url).trimEnd('/')}/api/movies")
+        val response = get("${requireNotNull(url).trimEnd('/')}/api/projects")
         if (response.code != 200) {
             fail("Стенд на $url не отвечает: код ${response.code}, тело ${response.body}")
         }
@@ -58,7 +58,7 @@ class HttpEndpointDateTest {
      */
     @Test
     fun `список сериалов отвечает списком`() {
-        val body = bodyOf("/api/movies")
+        val body = bodyOf("/api/projects")
         assertTrue(body.trimStart().startsWith("["), "список сериалов должен быть списком, начало: ${body.take(80)}")
     }
 
@@ -74,7 +74,7 @@ class HttpEndpointDateTest {
      */
     @Test
     fun `даты сериалов разбираются и содержат зону`() {
-        val body = bodyOf("/api/movies")
+        val body = bodyOf("/api/projects")
         val dates =
             Regex("\"([a-zA-Z_]*[dD]ate|[a-zA-Z_]*[aA]ired[a-zA-Z]*|createdAt|updatedAt)\":\"([^\"]+)\"")
                 .findAll(body)

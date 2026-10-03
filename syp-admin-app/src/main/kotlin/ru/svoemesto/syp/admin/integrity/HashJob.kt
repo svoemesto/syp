@@ -1,7 +1,7 @@
 package ru.svoemesto.syp.admin.integrity
 
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.jobs.JobHandler
 import ru.svoemesto.syp.admin.jobs.JobResult
 import ru.svoemesto.syp.admin.notify.NotificationPublisher
@@ -39,7 +39,7 @@ import java.security.MessageDigest
  * которых она считалась. Если файл подменён, прежняя сумма станет устаревшей
  * при следующей сверке (FR-090).
  *
- * @property episodeStore хранилище эпизодов: из него берётся путь к файлу
+ * @property videofileStore хранилище эпизодов: из него берётся путь к файлу
  * @property registry справочник сумм
  * @property notifications уведомления интерфейса; `null` — публиковать некуда,
  *   и задание от этого работает как раньше
@@ -48,7 +48,7 @@ import java.security.MessageDigest
  * @see <a href="../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class HashJob(
-    private val episodeStore: EpisodeStore,
+    private val videofileStore: VideofileStore,
     private val registry: ChecksumRegistry,
     private val notifications: NotificationPublisher? = null,
     private val blockSize: Int = DEFAULT_BLOCK_SIZE,
@@ -73,8 +73,8 @@ class HashJob(
         job: Job,
         progress: (JobProgress) -> Unit,
     ): JobResult {
-        val episode = requireEpisode(job)
-        val entry = registry.begin(episode, job.id)
+        val videofile = requireVideofile(job)
+        val entry = registry.begin(videofile, job.id)
         val entryId =
             entry.id
                 ?: throw ru.svoemesto.syp.core.db.DbException(
@@ -82,9 +82,9 @@ class HashJob(
                 )
         registry.markWorking(entryId)
 
-        val file = Path.of(episode.sourcePath)
+        val file = Path.of(videofile.sourcePath)
         try {
-            val digest = computeDigest(file, episode.byteSize, progress)
+            val digest = computeDigest(file, videofile.byteSize, progress)
             val attributes = Files.readAttributes(file, java.nio.file.attribute.BasicFileAttributes::class.java)
             val completed =
                 registry.complete(
@@ -98,7 +98,7 @@ class HashJob(
             notifications?.checksumChanged(completed)
             return JobResult(
                 note =
-                    "сумма ${completed.algorithm} посчитана для «${episode.name}»: " +
+                    "сумма ${completed.algorithm} посчитана для «${videofile.name}»: " +
                         "${completed.byteSize} байт, посчитано ${completed.computedAt}",
                 progressTotal = completed.byteSize,
             )
@@ -110,7 +110,7 @@ class HashJob(
             throw interrupted
         } catch (failure: IOException) {
             val text =
-                "не удалось прочитать файл эпизода «${episode.sourcePath}» для подсчёта суммы: " +
+                "не удалось прочитать файл эпизода «${videofile.sourcePath}» для подсчёта суммы: " +
                     "${failure.message ?: failure::class.simpleName}. " +
                     "Проверьте, что архив смонтирован и файл доступен на чтение"
             registry.fail(entryId, text)
@@ -175,12 +175,12 @@ class HashJob(
      * @throws ru.svoemesto.syp.core.contract.DomainException если предмет задания
      *   не эпизод либо эпизод не зарегистрирована
      */
-    private fun requireEpisode(job: Job): Episode {
+    private fun requireVideofile(job: Job): Videofile {
         val subject = job.subject
         require(subject.type == SUBJECT_EPISODE && subject.identifier != null) {
             "Задание HASH без предмета «эпизод»: считать нечего. Предмет задания — ${subject.type}"
         }
-        return episodeStore.find(subject.identifier!!)
+        return videofileStore.find(subject.identifier!!)
             ?: throw ru.svoemesto.syp.core.contract.DomainException(
                 ru.svoemesto.syp.core.contract.ErrorCode.NOT_FOUND,
                 "эпизод ${subject.identifier} не зарегистрирована: подсчёт суммы невозможен",

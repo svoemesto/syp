@@ -59,8 +59,8 @@ class SourceProbeTest {
      *
      * @return путь к файлу, который удаляет вызывающий
      */
-    private fun syntheticEpisode(): Path {
-        val target = Files.createTempDirectory("syp-probe").resolve("episode.mkv")
+    private fun syntheticVideofile(): Path {
+        val target = Files.createTempDirectory("syp-probe").resolve("videofile.mkv")
         val result =
             ExternalProgram()
                 .runOrFail(
@@ -90,17 +90,17 @@ class SourceProbeTest {
     /**
      * Опрашивает подготовленный ролик.
      *
-     * @param episode путь к файлу
+     * @param videofile путь к файлу
      * @return параметры файла
      */
-    private fun probeOf(episode: Path): SourceParameters = SourceProbe(ExternalProgram(), requireProgram("ffprobe")).probe(episode)
+    private fun probeOf(videofile: Path): SourceParameters = SourceProbe(ExternalProgram(), requireProgram("ffprobe")).probe(videofile)
 
     @Test
     fun `определяются все параметры файла`() {
-        val episode = syntheticEpisode()
+        val videofile = syntheticVideofile()
 
         try {
-            val parameters = probeOf(episode)
+            val parameters = probeOf(videofile)
 
             // Две секунды по 25 кадров в секунду — ровно 50 кадров.
             assertEquals(50, parameters.frameCount)
@@ -117,16 +117,16 @@ class SourceProbeTest {
             assertNull(parameters.audioChannels)
             assertNull(parameters.audioSampleRate)
         } finally {
-            episode.deleteIfExists()
+            videofile.deleteIfExists()
         }
     }
 
     @Test
     fun `частокадровая база хранится длительностью кадра, а не частотой`() {
-        val episode = syntheticEpisode()
+        val videofile = syntheticVideofile()
 
         try {
-            val parameters = probeOf(episode)
+            val parameters = probeOf(videofile)
 
             // 25 кадров в секунду — это 1/25 секунды на кадр, и именно эта
             // величина переводит номер кадра во время (ADR-0001).
@@ -135,16 +135,16 @@ class SourceProbeTest {
             assertEquals(2.0, parameters.durationSeconds(), 1e-9)
             assertEquals(1.0 / 25.0, parameters.frameDurationSeconds(), 1e-12)
         } finally {
-            episode.deleteIfExists()
+            videofile.deleteIfExists()
         }
     }
 
     @Test
     fun `длительность вычисляется по кадрам, а не берётся у контейнера`() {
-        val episode = syntheticEpisode()
+        val videofile = syntheticVideofile()
 
         try {
-            val parameters = probeOf(episode)
+            val parameters = probeOf(videofile)
 
             // Длительность обязана следовать из числа кадров и базы, а не из
             // объявленной контейнером величины: та считается по последнему
@@ -157,31 +157,31 @@ class SourceProbeTest {
             )
             assertEquals(2L, parameters.durationNum / parameters.durationDen)
         } finally {
-            episode.deleteIfExists()
+            videofile.deleteIfExists()
         }
     }
 
     @Test
     fun `время кадра и номер кадра обратимы`() {
-        val episode = syntheticEpisode()
+        val videofile = syntheticVideofile()
 
         try {
-            val parameters = probeOf(episode)
+            val parameters = probeOf(videofile)
 
             for (frame in listOf(0L, 1L, 25L, 49L)) {
                 assertEquals(frame, parameters.frameOfTime(parameters.timeOfFrame(frame)))
             }
         } finally {
-            episode.deleteIfExists()
+            videofile.deleteIfExists()
         }
     }
 
     @Test
     fun `карта ключевых кадров заполняется при опросе`() {
-        val episode = syntheticEpisode()
+        val videofile = syntheticVideofile()
 
         try {
-            val keyframes = probeOf(episode).keyframes
+            val keyframes = probeOf(videofile).keyframes
 
             assertEquals(KeyframeMap.requiredLength(50), keyframes.byteLength)
             // Ключевой кадр есть в начале и в начале второго опорного кадра.
@@ -189,7 +189,7 @@ class SourceProbeTest {
             assertTrue(keyframes.isKeyframe(25))
             assertTrue(keyframes.keyframeCount() >= 2)
         } finally {
-            episode.deleteIfExists()
+            videofile.deleteIfExists()
         }
     }
 

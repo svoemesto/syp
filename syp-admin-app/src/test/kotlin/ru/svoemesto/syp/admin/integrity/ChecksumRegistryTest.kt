@@ -3,12 +3,12 @@ package ru.svoemesto.syp.admin.integrity
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import ru.svoemesto.syp.admin.catalog.Episode
-import ru.svoemesto.syp.admin.catalog.EpisodeStore
 import ru.svoemesto.syp.admin.catalog.KeyframeMap
-import ru.svoemesto.syp.admin.catalog.Movie
-import ru.svoemesto.syp.admin.catalog.MovieStore
+import ru.svoemesto.syp.admin.catalog.Project
+import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.Videofile
+import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.Db
@@ -45,8 +45,8 @@ import kotlin.test.assertTrue
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ChecksumRegistryTest {
     private lateinit var db: Db
-    private lateinit var movies: MovieStore
-    private lateinit var episodeStore: EpisodeStore
+    private lateinit var projects: ProjectStore
+    private lateinit var videofileStore: VideofileStore
     private lateinit var registry: ChecksumRegistry
 
     /**
@@ -57,8 +57,8 @@ class ChecksumRegistryTest {
     @BeforeAll
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
-        movies = MovieStore(db)
-        episodeStore = EpisodeStore(db)
+        projects = ProjectStore(db)
+        videofileStore = VideofileStore(db)
         registry = ChecksumRegistry(db)
     }
 
@@ -72,14 +72,14 @@ class ChecksumRegistryTest {
      * @param path файл эпизода
      * @return записанный эпизод
      */
-    private fun newEpisode(
+    private fun newVideofile(
         byteSize: Long,
         path: Path,
-    ): Episode {
-        val movie: Movie = movies.create("Суммы ${System.nanoTime()}", path.parent.toString())
-        return episodeStore.insert(
-            Episode(
-                movieId = movie.id!!,
+    ): Videofile {
+        val project: Project = projects.create("Суммы ${System.nanoTime()}", path.parent.toString())
+        return videofileStore.insert(
+            Videofile(
+                projectId = project.id!!,
                 ordinal = 0,
                 name = "S1E1",
                 sourcePath = path.toString(),
@@ -104,16 +104,16 @@ class ChecksumRegistryTest {
     fun `новый сумма не затирает прежнюю и актуальной остаётся одна`() {
         val file = Files.createTempFile("syp-sum", ".bin")
         Files.write(file, ByteArray(4096))
-        val episode = newEpisode(4096, file)
+        val videofile = newVideofile(4096, file)
 
-        val first = registry.begin(episode, null)
-        registry.complete(first.id!!, digest(1), 4096, episode.fileMtime)
-        val second = registry.begin(episode, null)
-        registry.complete(second.id!!, digest(2), 4096, episode.fileMtime)
+        val first = registry.begin(videofile, null)
+        registry.complete(first.id!!, digest(1), 4096, videofile.fileMtime)
+        val second = registry.begin(videofile, null)
+        registry.complete(second.id!!, digest(2), 4096, videofile.fileMtime)
 
-        val history = registry.history(episode.id!!)
+        val history = registry.history(videofile.id!!)
         assertEquals(2, history.size, "обе посчитанные суммы обязаны сохраниться: пересчёт не затирает историю")
-        val current = registry.current(episode.id!!)
+        val current = registry.current(videofile.id!!)
         assertNotNull(current)
         assertEquals(digest(2), current!!.digest, "актуальной должна быть последняя посчитанная сумма")
         val previous = history.firstOrNull { it.digest == digest(1) }
@@ -126,13 +126,13 @@ class ChecksumRegistryTest {
                 db.use { connection ->
                     connection
                         .prepareStatement(
-                            "INSERT INTO tbl_source_file_checksums (id_episode, algorithm, digest, byte_size, " +
+                            "INSERT INTO tbl_source_file_checksums (id_videofile, algorithm, digest, byte_size, " +
                                 "file_mtime, state, is_stale, computed_at) " +
                                 "VALUES (?, 'SHA-256', ?, 4096, ?, 'DONE', FALSE, now())",
                         ).use { statement ->
-                            statement.setLong(1, episode.id!!)
+                            statement.setLong(1, videofile.id!!)
                             statement.setString(2, digest(3))
-                            statement.setObject(3, episode.fileMtime)
+                            statement.setObject(3, videofile.fileMtime)
                             statement.executeUpdate()
                         }
                 }
@@ -147,76 +147,76 @@ class ChecksumRegistryTest {
     fun `подмена источника помечает прежнюю сумму устаревшей`() {
         val file = Files.createTempFile("syp-sum", ".bin")
         Files.write(file, ByteArray(4096))
-        val episode = newEpisode(4096, file)
-        val entry = registry.begin(episode, null)
-        registry.complete(entry.id!!, digest(4), 4096, episode.fileMtime)
-        assertTrue(registry.isUsable(episode.id!!), "только что посчитанная сумма пригодна")
+        val videofile = newVideofile(4096, file)
+        val entry = registry.begin(videofile, null)
+        registry.complete(entry.id!!, digest(4), 4096, videofile.fileMtime)
+        assertTrue(registry.isUsable(videofile.id!!), "только что посчитанная сумма пригодна")
 
-        val changed = episode.copy(byteSize = 8192)
+        val changed = videofile.copy(byteSize = 8192)
         assertEquals(1, registry.markStaleWhenSourceChanged(changed))
 
-        assertFalse(registry.isUsable(episode.id!!), "после изменения размера файла сумма устарела и непригодна")
-        val stored = registry.current(episode.id!!)
+        assertFalse(registry.isUsable(videofile.id!!), "после изменения размера файла сумма устарела и непригодна")
+        val stored = registry.current(videofile.id!!)
         assertNull(stored, "актуальной суммы у эпизода быть не должно")
-        val history = registry.history(episode.id!!)
+        val history = registry.history(videofile.id!!)
         assertEquals(digest(4), history.first().digest, "старое значение сохраняется: по нему видно подмену")
 
         // Возврат к прежнему размеру не возвращает актуальность: запись
         // помечена устаревшей, и её надо пересчитать, а не «оживить» руками.
-        assertEquals(0, registry.markStaleWhenSourceChanged(episode))
-        assertEquals(1, registry.history(episode.id!!).size)
+        assertEquals(0, registry.markStaleWhenSourceChanged(videofile))
+        assertEquals(1, registry.history(videofile.id!!).size)
     }
 
     @Test
     fun `подмена по времени изменения файла помечает сумму устаревшей`() {
         val file = Files.createTempFile("syp-sum", ".bin")
         Files.write(file, ByteArray(4096))
-        val episode = newEpisode(4096, file)
-        val entry = registry.begin(episode, null)
-        registry.complete(entry.id!!, digest(5), 4096, episode.fileMtime)
+        val videofile = newVideofile(4096, file)
+        val entry = registry.begin(videofile, null)
+        registry.complete(entry.id!!, digest(5), 4096, videofile.fileMtime)
 
-        val touched = episode.copy(fileMtime = episode.fileMtime.plusSeconds(60))
+        val touched = videofile.copy(fileMtime = videofile.fileMtime.plusSeconds(60))
 
         assertEquals(1, registry.markStaleWhenSourceChanged(touched))
-        assertFalse(registry.isUsable(episode.id!!), "изменение времени файла тоже делает сумму устаревшей")
+        assertFalse(registry.isUsable(videofile.id!!), "изменение времени файла тоже делает сумму устаревшей")
     }
 
     @Test
     fun `прерванный подсчёт не оставляет запись DONE`() {
         val file = Files.createTempFile("syp-sum", ".bin")
         Files.write(file, ByteArray(4096))
-        val episode = newEpisode(4096, file)
+        val videofile = newVideofile(4096, file)
 
-        val entry = registry.begin(episode, null)
+        val entry = registry.begin(videofile, null)
         registry.markWorking(entry.id!!)
 
-        val stored = registry.latest(episode.id!!)
+        val stored = registry.latest(videofile.id!!)
         assertEquals(ChecksumState.WORKING, stored?.state)
-        assertNull(registry.current(episode.id!!), "незавершённый подсчёт не даёт актуальной суммы")
-        assertFalse(registry.isUsable(episode.id!!))
+        assertNull(registry.current(videofile.id!!), "незавершённый подсчёт не даёт актуальной суммы")
+        assertFalse(registry.isUsable(videofile.id!!))
         assertNull(stored?.digest, "у незавершённого подсчёта суммы нет вовсе")
 
         registry.fail(entry.id!!, "файл исчез с архива")
-        val failed = registry.latest(episode.id!!)
+        val failed = registry.latest(videofile.id!!)
         assertEquals(ChecksumState.ERROR, failed?.state)
         assertEquals("файл исчез с архива", failed?.errorText)
-        assertFalse(registry.isUsable(episode.id!!))
+        assertFalse(registry.isUsable(videofile.id!!))
     }
 
     @Test
     fun `второй подсчёт того же эпизода отклоняется, пока идёт первый`() {
         val file = Files.createTempFile("syp-sum", ".bin")
         Files.write(file, ByteArray(4096))
-        val episode = newEpisode(4096, file)
+        val videofile = newVideofile(4096, file)
         // Первое задание просто поставлено и ещё не взято в работу: его
         // собственный подсчёт ещё не начинался, и он не мешает.
-        val firstJobId = enqueueHashJob(episode.id!!)
-        registry.begin(episode, firstJobId)
+        val firstJobId = enqueueHashJob(videofile.id!!)
+        registry.begin(videofile, firstJobId)
         // Второе задание уже считает — вот оно и мешает.
-        val secondJobId = enqueueHashJob(episode.id!!)
+        val secondJobId = enqueueHashJob(videofile.id!!)
         db.update("UPDATE tbl_jobs SET state = 'WORKING' WHERE id = ?", secondJobId)
 
-        val failure = assertFailsWith<DomainException> { registry.begin(episode, firstJobId) }
+        val failure = assertFailsWith<DomainException> { registry.begin(videofile, firstJobId) }
 
         assertEquals(ErrorCode.CONFLICT, failure.code)
         assertTrue(failure.toBody().message.contains("уже считается"), "текст отказа объясняет причину")
@@ -226,17 +226,17 @@ class ChecksumRegistryTest {
     fun `сумма не в формате sha256sum отвергается до записи`() {
         val file = Files.createTempFile("syp-sum", ".bin")
         Files.write(file, ByteArray(4096))
-        val episode = newEpisode(4096, file)
-        val entry = registry.begin(episode, null)
+        val videofile = newVideofile(4096, file)
+        val entry = registry.begin(videofile, null)
 
         assertFailsWith<IllegalArgumentException> {
-            registry.complete(entry.id!!, "не-сумма", 4096, episode.fileMtime)
+            registry.complete(entry.id!!, "не-сумма", 4096, videofile.fileMtime)
         }
         assertFailsWith<IllegalArgumentException> {
-            registry.complete(entry.id!!, "A".repeat(64), 4096, episode.fileMtime)
+            registry.complete(entry.id!!, "A".repeat(64), 4096, videofile.fileMtime)
         }
         assertFailsWith<IllegalArgumentException> {
-            registry.complete(entry.id!!, "ab".repeat(31), 4096, episode.fileMtime)
+            registry.complete(entry.id!!, "ab".repeat(31), 4096, videofile.fileMtime)
         }
     }
 
@@ -244,33 +244,33 @@ class ChecksumRegistryTest {
     fun `удаление задания не удаляет посчитанную сумму`() {
         val file = Files.createTempFile("syp-sum", ".bin")
         Files.write(file, ByteArray(4096))
-        val episode = newEpisode(4096, file)
-        val jobId = enqueueHashJob(episode.id!!)
-        val entry = registry.begin(episode, jobId)
-        registry.complete(entry.id!!, digest(7), 4096, episode.fileMtime)
+        val videofile = newVideofile(4096, file)
+        val jobId = enqueueHashJob(videofile.id!!)
+        val entry = registry.begin(videofile, jobId)
+        registry.complete(entry.id!!, digest(7), 4096, videofile.fileMtime)
 
         db.update("DELETE FROM tbl_jobs WHERE id = ?", jobId)
 
-        val stored = registry.current(episode.id!!)
+        val stored = registry.current(videofile.id!!)
         assertNotNull(stored, "результат переживает задание: ссылки на задание обнуляются, сумма остаётся")
         assertNull(stored!!.jobId)
-        assertTrue(registry.isUsable(episode.id!!))
+        assertTrue(registry.isUsable(videofile.id!!))
     }
 
     /**
      * Ставит задание вида `HASH` для эпизода.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return идентификатор задания
      */
-    private fun enqueueHashJob(episodeId: Long): Long =
+    private fun enqueueHashJob(videofileId: Long): Long =
         db.use { connection ->
             connection
                 .prepareStatement(
                     "INSERT INTO tbl_jobs (kind, state, subject_type, subject_id, params, params_hash) " +
                         "VALUES ('HASH', 'WAITING', 'EPISODE', ?, ?::jsonb, ?) RETURNING id",
                 ).use { statement ->
-                    statement.setLong(1, episodeId)
+                    statement.setLong(1, videofileId)
                     statement.setString(2, "{\"algorithm\":\"SHA-256\"}")
                     statement.setString(3, digest(8))
                     statement.executeQuery().use { resultSet ->

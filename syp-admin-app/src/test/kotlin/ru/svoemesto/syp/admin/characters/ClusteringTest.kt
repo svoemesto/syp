@@ -1,7 +1,7 @@
 package ru.svoemesto.syp.admin.characters
 
 import org.junit.jupiter.api.Test
-import ru.svoemesto.syp.admin.catalog.MovieSetting
+import ru.svoemesto.syp.admin.catalog.ProjectSetting
 import kotlin.math.cos
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -25,12 +25,12 @@ class ClusteringTest {
     private val clustering = Clustering()
 
     private val settings =
-        ru.svoemesto.syp.admin.catalog.MovieSettings(
+        ru.svoemesto.syp.admin.catalog.ProjectSettings(
             mapOf(
-                MovieSetting.CLUSTER_COUNT.key to
+                ProjectSetting.CLUSTER_COUNT.key to
                     com.fasterxml.jackson.databind.node.IntNode
                         .valueOf(64),
-                MovieSetting.CLUSTER_MERGE_THRESHOLD.key to
+                ProjectSetting.CLUSTER_MERGE_THRESHOLD.key to
                     com.fasterxml.jackson.databind.node.DoubleNode
                         .valueOf(0.9),
             ),

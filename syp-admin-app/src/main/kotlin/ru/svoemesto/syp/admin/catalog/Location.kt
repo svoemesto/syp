@@ -19,14 +19,14 @@ import ru.svoemesto.syp.core.db.Table
  * фильме означали бы две правды об одном месте действия.
  *
  * @property id идентификатор; `null`, пока локация не записана
- * @property movieId фильм-владелец
+ * @property projectId фильм-владелец
  * @property name название места действия
  * @property recordHash хеш значений строки, прочитанный при загрузке
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 data class Location(
     val id: Long? = null,
-    val movieId: Long,
+    val projectId: Long,
     val name: String,
     val recordHash: String? = null,
 ) {
@@ -41,17 +41,17 @@ data class Location(
      *
      * @return таблица с записываемыми столбцами локации
      */
-    fun toTable(): Table = Table(NAME, COLUMNS, { listOf(movieId, name) }, recordHash)
+    fun toTable(): Table = Table(NAME, COLUMNS, { listOf(projectId, name) }, recordHash)
 
     companion object {
         /** Имя таблицы мест действия. */
         const val NAME: String = "tbl_locations"
 
         /** Записываемые столбцы локации в порядке значений. */
-        val COLUMNS: List<String> = listOf("id_movie", "name")
+        val COLUMNS: List<String> = listOf("id_project", "name")
 
         /** Столбцы локации в порядке чтения из базы. */
-        const val READ_COLUMNS: String = "id, id_movie, name, recordhash"
+        const val READ_COLUMNS: String = "id, id_project, name, recordhash"
     }
 }
 
@@ -67,17 +67,17 @@ class LocationStore(
     /**
      * Добавляет место действия в справочник фильма.
      *
-     * @param movieId фильм-владелец
+     * @param projectId фильм-владелец
      * @param name название места действия
      * @return записанная локация с идентификатором
      * @throws DomainException с кодом `CONFLICT`, если название уже занято
      */
     fun add(
-        movieId: Long,
+        projectId: Long,
         name: String,
     ): Location {
-        val location = Location(movieId = movieId, name = name.trim())
-        val existing = findByName(movieId, location.name)
+        val location = Location(projectId = projectId, name = name.trim())
+        val existing = findByName(projectId, location.name)
         if (existing != null) {
             throw DomainException(
                 ErrorCode.CONFLICT,
@@ -86,21 +86,21 @@ class LocationStore(
         }
         return db.useTransaction { connection ->
             Save.insertIfAbsent(connection, location.toTable())
-            readRequired(connection, findByName(connection, movieId, location.name))
+            readRequired(connection, findByName(connection, projectId, location.name))
         }
     }
 
     /**
      * Перечисляет места действия фильма.
      *
-     * @param movieId фильм-владелец
+     * @param projectId фильм-владелец
      * @return локации по алфавиту
      */
-    fun listByMovie(movieId: Long): List<Location> =
+    fun listByProject(projectId: Long): List<Location> =
         db.select(
-            "SELECT ${Location.READ_COLUMNS} FROM tbl_locations WHERE id_movie = ? ORDER BY name",
+            "SELECT ${Location.READ_COLUMNS} FROM tbl_locations WHERE id_project = ? ORDER BY name",
             ::readRow,
-            movieId,
+            projectId,
         )
 
     /**
@@ -118,26 +118,26 @@ class LocationStore(
 
     /** Ищет место действия по названию. */
     private fun findByName(
-        movieId: Long,
+        projectId: Long,
         name: String,
     ): Location? =
         db.selectOne(
-            "SELECT ${Location.READ_COLUMNS} FROM tbl_locations WHERE id_movie = ? AND name = ?",
+            "SELECT ${Location.READ_COLUMNS} FROM tbl_locations WHERE id_project = ? AND name = ?",
             ::readRow,
-            movieId,
+            projectId,
             name,
         )
 
     /** Ищет место действия по названию в пределах открытого соединения. */
     private fun findByName(
         connection: java.sql.Connection,
-        movieId: Long,
+        projectId: Long,
         name: String,
     ): Location? =
         connection
-            .prepareStatement("SELECT ${Location.READ_COLUMNS} FROM tbl_locations WHERE id_movie = ? AND name = ?")
+            .prepareStatement("SELECT ${Location.READ_COLUMNS} FROM tbl_locations WHERE id_project = ? AND name = ?")
             .use { statement ->
-                statement.setLong(1, movieId)
+                statement.setLong(1, projectId)
                 statement.setString(2, name)
                 statement.executeQuery().use { resultSet ->
                     if (resultSet.next()) read(resultSet) else null
@@ -159,7 +159,7 @@ class LocationStore(
     private fun read(resultSet: java.sql.ResultSet): Location =
         Location(
             id = resultSet.getLong("id"),
-            movieId = resultSet.getLong("id_movie"),
+            projectId = resultSet.getLong("id_project"),
             name = resultSet.getString("name"),
             recordHash = resultSet.getString("recordhash"),
         )
@@ -168,7 +168,7 @@ class LocationStore(
     private fun readRow(row: Row): Location =
         Location(
             id = row.long("id"),
-            movieId = row.long("id_movie"),
+            projectId = row.long("id_project"),
             name = row.string("name"),
             recordHash = row.stringOrNull("recordhash"),
         )

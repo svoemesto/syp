@@ -138,7 +138,7 @@ enum class SizeOrigin {
  * расхождение этих мест ловилось бы только при чтении.
  *
  * @property id идентификатор сцены; `null`, пока не записана
- * @property episodeId эпизод-владелец
+ * @property videofileId эпизод-владелец
  * @property firstFrame первый кадр сцены, нумерация с нуля
  * @property lastFrame последний кадр сцены
  * @property locationId место действия, если назначено вручную; `null`, если
@@ -152,7 +152,7 @@ enum class SizeOrigin {
  */
 data class Scene(
     val id: Long? = null,
-    val episodeId: Long,
+    val videofileId: Long,
     val firstFrame: Int,
     val lastFrame: Int,
     val title: String? = null,
@@ -180,7 +180,7 @@ data class Scene(
             StructureService.SCENE_COLUMNS,
             {
                 listOf(
-                    episodeId,
+                    videofileId,
                     firstFrame,
                     lastFrame,
                     title,
@@ -196,7 +196,7 @@ data class Scene(
     companion object {
         /** Столбцы сцены в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, id_episode, first_frame, last_frame, title, location_id, origin, run_id, is_stale, recordhash"
+            "id, id_videofile, first_frame, last_frame, title, location_id, origin, run_id, is_stale, recordhash"
     }
 }
 
@@ -212,7 +212,7 @@ data class Scene(
  * исправить размер, не трогая границу, и наоборот.
  *
  * @property id идентификатор плана; `null`, пока не записан
- * @property episodeId эпизод-владелец
+ * @property videofileId эпизод-владелец
  * @property firstFrame первый кадр плана, нумерация с нуля
  * @property lastFrame последний кадр плана
  * @property size размер плана; `NONE` у плана без лиц
@@ -225,7 +225,7 @@ data class Scene(
  */
 data class Shot(
     val id: Long? = null,
-    val episodeId: Long,
+    val videofileId: Long,
     val firstFrame: Int,
     val lastFrame: Int,
     val size: ShotSize = ShotSize.NONE,
@@ -253,7 +253,7 @@ data class Shot(
             StructureService.SHOT_COLUMNS,
             {
                 listOf(
-                    episodeId,
+                    videofileId,
                     firstFrame,
                     lastFrame,
                     size.name,
@@ -269,7 +269,7 @@ data class Shot(
     companion object {
         /** Столбцы плана в порядке чтения из базы. */
         val READ_COLUMNS: String =
-            "id, id_episode, first_frame, last_frame, size, size_origin, origin, run_id, " +
+            "id, id_videofile, first_frame, last_frame, size, size_origin, origin, run_id, " +
                 "is_stale, recordhash"
     }
 }
@@ -385,21 +385,21 @@ class StructureService(
      * Записывает результат прогона как рабочего структуру эпизода.
      *
      * @param runId идентификатор прогона
-     * @param episodeId эпизод-владелец
+     * @param videofileId эпизод-владелец
      * @param detection результат детекции
      * @return число записанных сцен и планов
      * @throws ru.svoemesto.syp.core.db.DbException если запись не удалась
      */
     fun applyDetection(
         runId: Long,
-        episodeId: Long,
+        videofileId: Long,
         detection: DetectionResult,
     ): Pair<Int, Int> {
-        val builder = StructureBuilder(detection, frameCountOf(episodeId))
+        val builder = StructureBuilder(detection, frameCountOf(videofileId))
         val scenes =
             builder.sceneSections().map { range ->
                 Scene(
-                    episodeId = episodeId,
+                    videofileId = videofileId,
                     firstFrame = range.firstFrame,
                     lastFrame = range.lastFrame,
                     origin = BoundaryOrigin.AUTO,
@@ -409,7 +409,7 @@ class StructureService(
         val shots =
             builder.shotSections().map { range ->
                 Shot(
-                    episodeId = episodeId,
+                    videofileId = videofileId,
                     firstFrame = range.firstFrame,
                     lastFrame = range.lastFrame,
                     size = ShotSize.NONE,
@@ -423,15 +423,15 @@ class StructureService(
             // удаление уничтожило бы ручные правки оператора, которые он делал
             // по старым границам (FR-090, SC-006).
             connection
-                .prepareStatement("UPDATE $SCENE_TABLE SET is_stale = TRUE WHERE id_episode = ?")
+                .prepareStatement("UPDATE $SCENE_TABLE SET is_stale = TRUE WHERE id_videofile = ?")
                 .use { statement ->
-                    statement.setLong(1, episodeId)
+                    statement.setLong(1, videofileId)
                     statement.executeUpdate()
                 }
             connection
-                .prepareStatement("UPDATE $SHOT_TABLE SET is_stale = TRUE WHERE id_episode = ?")
+                .prepareStatement("UPDATE $SHOT_TABLE SET is_stale = TRUE WHERE id_videofile = ?")
                 .use { statement ->
-                    statement.setLong(1, episodeId)
+                    statement.setLong(1, videofileId)
                     statement.executeUpdate()
                 }
             boundaryStore.appendAll(
@@ -474,10 +474,10 @@ class StructureService(
      * результатом автоматики оператор может только здесь (FR-093). Рабочей
      * структурой считаются строки с `isStale = FALSE`.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return сцены эпизода
      */
-    fun listScenes(episodeId: Long): List<Scene> = db.use { listScenesIn(it, episodeId) }
+    fun listScenes(videofileId: Long): List<Scene> = db.use { listScenesIn(it, videofileId) }
 
     /**
      * Читает сцены эпизода в уже открытой транзакции.
@@ -487,17 +487,17 @@ class StructureService(
      * правка, а решение посчиталось бы по уже не тому состоянию.
      *
      * @param connection открытое соединение, транзакцией управляет вызывающий
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return сцены эпизода по возрастанию первого кадра
      */
     fun listScenesIn(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
     ): List<Scene> =
         connection
-            .prepareStatement("$SCENE_READ_SQL WHERE id_episode = ? ORDER BY first_frame")
+            .prepareStatement("$SCENE_READ_SQL WHERE id_videofile = ? ORDER BY first_frame")
             .use { statement ->
-                statement.setLong(1, episodeId)
+                statement.setLong(1, videofileId)
                 statement.executeQuery().use { resultSet ->
                     val rows = mutableListOf<Scene>()
                     while (resultSet.next()) {
@@ -510,26 +510,26 @@ class StructureService(
     /**
      * Читает рабочие планы эпизода по возрастанию первого кадра.
      *
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return планы эпизода
      */
-    fun listShots(episodeId: Long): List<Shot> = db.use { listShotsIn(it, episodeId) }
+    fun listShots(videofileId: Long): List<Shot> = db.use { listShotsIn(it, videofileId) }
 
     /**
      * Читает планы эпизода в уже открытой транзакции.
      *
      * @param connection открытое соединение, транзакцией управляет вызывающий
-     * @param episodeId идентификатор эпизода
+     * @param videofileId идентификатор эпизода
      * @return планы эпизода по возрастанию первого кадра
      */
     fun listShotsIn(
         connection: Connection,
-        episodeId: Long,
+        videofileId: Long,
     ): List<Shot> =
         connection
-            .prepareStatement("$SHOT_READ_SQL WHERE id_episode = ? ORDER BY first_frame")
+            .prepareStatement("$SHOT_READ_SQL WHERE id_videofile = ? ORDER BY first_frame")
             .use { statement ->
-                statement.setLong(1, episodeId)
+                statement.setLong(1, videofileId)
                 statement.executeQuery().use { resultSet ->
                     val rows = mutableListOf<Shot>()
                     while (resultSet.next()) {
@@ -557,19 +557,19 @@ class StructureService(
     ): List<Shot> = shots.filter { it.firstFrame >= scene.firstFrame && it.lastFrame <= scene.lastFrame }
 
     /** Число кадров эпизода: без него границы не в чем разобрать. */
-    private fun frameCountOf(episodeId: Long): Int =
+    private fun frameCountOf(videofileId: Long): Int =
         db.selectOne(
-            "SELECT frame_count FROM tbl_episodes WHERE id = ?",
+            "SELECT frame_count FROM tbl_videofiles WHERE id = ?",
             { it.int("frame_count") },
-            episodeId,
+            videofileId,
         ) ?: throw ru.svoemesto.syp.core.db
-            .DbException("Эпизод $episodeId не найдена: не из чего собрать структуру")
+            .DbException("Эпизод $videofileId не найдена: не из чего собрать структуру")
 
     /** Строит сцену из типизированной строки выборки. */
     private fun readScene(row: Row): Scene =
         Scene(
             id = row.long("id"),
-            episodeId = row.long("id_episode"),
+            videofileId = row.long("id_videofile"),
             firstFrame = row.int("first_frame"),
             lastFrame = row.int("last_frame"),
             title = row.stringOrNull("title"),
@@ -584,7 +584,7 @@ class StructureService(
     private fun readShot(row: Row): Shot =
         Shot(
             id = row.long("id"),
-            episodeId = row.long("id_episode"),
+            videofileId = row.long("id_videofile"),
             firstFrame = row.int("first_frame"),
             lastFrame = row.int("last_frame"),
             size = ShotSize.parse(row.string("size")),
@@ -605,7 +605,7 @@ class StructureService(
         /** Записываемые столбцы сцены в порядке значений. */
         val SCENE_COLUMNS: List<String> =
             listOf(
-                "id_episode",
+                "id_videofile",
                 "first_frame",
                 "last_frame",
                 "title",
@@ -618,7 +618,7 @@ class StructureService(
         /** Записываемые столбцы плана в порядке значений. */
         val SHOT_COLUMNS: List<String> =
             listOf(
-                "id_episode",
+                "id_videofile",
                 "first_frame",
                 "last_frame",
                 "size",
