@@ -22,6 +22,7 @@ import ru.svoemesto.syp.core.jobs.JobKind
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.jobs.JobState
 import ru.svoemesto.syp.core.jobs.JobSubject
+import ru.svoemesto.syp.core.media.FrameExtractor
 import ru.svoemesto.syp.core.storage.ArtifactKind
 import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.ObjectStorage
@@ -503,6 +504,7 @@ class StructureController(
     private val settingsStore: MovieSettingsStore,
     private val artifactRegistry: ArtifactRegistry,
     private val storage: ObjectStorage,
+    private val frameExtractor: FrameExtractor,
     private val locations: LocationStore,
 ) {
     /**

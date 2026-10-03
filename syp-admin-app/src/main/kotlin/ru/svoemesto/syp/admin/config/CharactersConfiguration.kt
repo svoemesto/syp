@@ -22,6 +22,7 @@ import ru.svoemesto.syp.admin.characters.StubFaceDetector
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.media.FrameChannel
+import ru.svoemesto.syp.core.media.FrameExtractor
 
 /**
  * Сборка домена персонажей: проход по кадрам, задание `FACES`, персоны.
@@ -50,6 +51,14 @@ class CharactersConfiguration {
      */
     @Bean
     fun frameChannel(): FrameChannel = FrameChannel(AnalysisConfiguration.ffmpegPath())
+
+    /**
+     * Собирает извлекатель одного кадра.
+     *
+     * @return извлекатель с путём к декодеру из окружения развёртывания
+     */
+    @Bean
+    fun frameExtractor(): FrameExtractor = FrameExtractor(AnalysisConfiguration.ffmpegPath())
 
     /**
      * Собирает детектор лиц.
