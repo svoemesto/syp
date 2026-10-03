@@ -75,7 +75,9 @@ jobs:
       # где ответа нет: шаг падал с «connection to server» вместо применения схемы.
       PGPASSWORD: postgres
       SYP_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/syp_test_core
-      SYP_TEST_HTTP_URL: http://127.0.0.1:7911
+      # SYP_TEST_HTTP_URL здесь намеренно не задан: проверки живого стенда
+      # требуют поднятого приложения, а в CI его нет. Задали бы — получили бы
+      # падение на подключении вместо честной отмены проверки.
     services:
       postgres:
         image: postgres:16
