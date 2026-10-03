@@ -47,17 +47,25 @@ class MinioObjectStorage(
         contentType: String,
         size: Long?,
     ) {
-        // Размер части отдан клиенту: у него есть ограничение снизу в 5 МиБ,
-        // и подставлять размер объекта вместо части нельзя — на маленьких
-        // объектах запись падала с IllegalArgumentException.
+        // Размер части зависит от того, известна ли длина объекта.
+        //
+        // Известна: часть отдаётся клиенту (`-1`), он выберет сам — иначе
+        // подстановка размера объекта даёт часть меньше допустимых 5 МиБ,
+        // и запись маленького файла падает.
+        //
+        // Неизвестна: часть обязана быть задана, иначе клиент отказывает с
+        // «valid part size must be provided when object size is unknown».
+        // Пять мегабайт — нижняя граница, берём с запасом на случай малых
+        // потоков.
         val known = size ?: -1L
+        val partSize = if (known > 0) -1L else UNKNOWN_SIZE_PART_SIZE
         try {
             client.putObject(
                 PutObjectArgs
                     .builder()
                     .bucket(bucket)
                     .`object`(key)
-                    .stream(stream, known, -1L)
+                    .stream(stream, known, partSize)
                     .contentType(contentType)
                     .build(),
             )
@@ -178,6 +186,11 @@ class MinioObjectStorage(
         } catch (failure: Exception) {
             throw StorageException("Не удалось проверить объект «$key» в корзине «$bucket»", failure)
         }
+
+    private companion object {
+        /** Размер части при потоке неизвестной длины, байт. */
+        const val UNKNOWN_SIZE_PART_SIZE: Long = 8L * 1024L * 1024L
+    }
 
     /** Закрывает клиент и освобождает его ресурсы. */
     override fun close() {
