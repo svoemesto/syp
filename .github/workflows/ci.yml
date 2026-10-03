@@ -71,6 +71,9 @@ jobs:
       # отменяются, и «тесты прошли» не значит ничего: их просто не было.
       SYP_TEST_DB_USER: postgres
       SYP_TEST_DB_PASSWORD: postgres
+      # psql читает пароль из PGPASSWORD и без неё спрашивает его в терминале,
+      # где ответа нет: шаг падал с «connection to server» вместо применения схемы.
+      PGPASSWORD: postgres
       SYP_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/syp_test_core
       SYP_TEST_HTTP_URL: http://127.0.0.1:7911
     services:
@@ -168,6 +171,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Установить PyYAML для guards
+        # Guards читают `.ssot-map.yml`, и без PyYAML они падали с
+        # ModuleNotFoundError — то есть проверка молча ничего не проверяла.
+        run: python3 -m pip install --quiet PyYAML
 
       - name: Проверка синтаксиса воркера и примера настроек
         run: |
