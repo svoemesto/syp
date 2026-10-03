@@ -3,6 +3,7 @@ package ru.svoemesto.syp.admin.characters
 import org.slf4j.LoggerFactory
 import ru.svoemesto.syp.core.media.RawFrame
 import java.io.Closeable
+import java.io.InputStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -45,14 +46,17 @@ class FaceEmbedderProcess(
      */
     fun start() {
         val builder = ProcessBuilder(listOf(programPath) + arguments)
-        builder.redirectErrorStream(true)
         val diagnostics = StringBuilder()
         process =
             builder.start().also { started ->
                 input = started.outputStream
-                reader =
+                // Вывод программы по ошибкам идёт отдельным потоком и в ответы
+                // не попадает. Раньше потоки были слиты, и предупреждения
+                // времени выполнения попадали в тот же поток, что и векторы:
+                // ответ начитывался с середины чужого текста и получался мусором.
+                val errors =
                     Thread {
-                        started.inputStream.use { stream ->
+                        started.errorStream.use { stream ->
                             val buffer = ByteArray(BUFFER_BYTES)
                             while (true) {
                                 val read = stream.read(buffer)
@@ -60,7 +64,43 @@ class FaceEmbedderProcess(
                                     break
                                 }
                                 diagnostics.append(String(buffer, 0, read))
-                                onChunk(buffer.copyOf(read), diagnostics)
+                            }
+                        }
+                    }
+                errors.isDaemon = true
+                errors.name = "syp-face-embedder-errors"
+                errors.start()
+                reader =
+                    Thread {
+                        started.inputStream.use { stream ->
+                            // Приветствие — одна строка, и читается она побайтно,
+                            // до перевода строки: буферизованное чтение заглянуло бы
+                            // вперёд и съело начало первого ответа.
+                            val greeting = StringBuilder()
+                            while (true) {
+                                val byte = stream.read()
+                                if (byte < 0 || byte == NEWLINE) {
+                                    break
+                                }
+                                greeting.append(byte.toChar())
+                            }
+                            greetings.offer(if (greeting.isEmpty()) "closed" else greeting.toString())
+                            // Дальше поток двоичный: заголовок ответа, затем столько
+                            // векторов, сколько в нём объявлено. Ответы приходят
+                            // произвольными кусками, и кусок — это не ответ: раньше
+                            // любой кусок и считался ответом, и номер кадра в нём
+                            // оказывался мусором из середины файла.
+                            val header = ByteArray(ANSWER_HEADER_BYTES)
+                            while (readFully(stream, header)) {
+                                val count = littleEndianShort(header, 4)
+                                if (count < 0) {
+                                    break
+                                }
+                                val body = ByteArray(count * ANSWER_VECTOR_BYTES)
+                                if (!readFully(stream, body)) {
+                                    break
+                                }
+                                answers.offer(header + body)
                             }
                         }
                         greetings.offer("closed")
@@ -81,22 +121,6 @@ class FaceEmbedderProcess(
             close()
             throw FaceEmbedderFailed("Программа эмбеддер ответила: $greeting")
         }
-    }
-
-    /** Отдаёт накопленную строку приветствия и ответ на кадр. */
-    private fun onChunk(
-        chunk: ByteArray,
-        diagnostics: StringBuilder,
-    ) {
-        if (chunk.size >= BUFFER_BYTES) {
-            return
-        }
-        val text = String(chunk, Charsets.UTF_8)
-        if (text.contains("status")) {
-            greetings.offer(text)
-            return
-        }
-        answers.offer(chunk)
     }
 
     /**
@@ -158,7 +182,7 @@ class FaceEmbedderProcess(
                     "кадры потеряли порядок (ADR-0001)",
             )
         }
-        val count = littleEndianInt(answer, 4)
+        val count = littleEndianShort(answer, 4)
         val expected = ANSWER_HEADER_BYTES + count * ANSWER_VECTOR_BYTES
         if (answer.size < expected) {
             throw FaceEmbedderFailed(
@@ -183,7 +207,22 @@ class FaceEmbedderProcess(
         buffer.putShort(point.y.toShort())
     }
 
-    /** Ждёт ответ на кадр, сходя ответы предыдущих. */
+    /** Читает ровно [length] байт; false — поток кончился раньше. */
+    private fun readFully(
+        stream: InputStream,
+        target: ByteArray,
+    ): Boolean {
+        var read = 0
+        while (read < target.size) {
+            val count = stream.read(target, read, target.size - read)
+            if (count < 0) {
+                return false
+            }
+            read += count
+        }
+        return true
+    }
+
     private fun awaitAnswer(number: Int): ByteArray {
         val answer =
             answers.poll(frameTimeout.toMillis(), TimeUnit.MILLISECONDS)
@@ -239,6 +278,9 @@ class FaceEmbedderProcess(
         /** Порция чтения. */
         const val BUFFER_BYTES: Int = 64 * 1024
 
+        /** Перевод строки, на котором заканчивается приветствие. */
+        private const val NEWLINE: Int = 10
+
         /** Сколько секунд ждать завершения программы. */
         const val CLOSE_TIMEOUT_SECONDS: Long = 10
 
@@ -246,6 +288,11 @@ class FaceEmbedderProcess(
         val DEFAULT_FRAME_TIMEOUT: Duration = Duration.ofSeconds(120)
 
         /** Читает четырёхбайтовое число в начале little-endian. */
+        fun littleEndianShort(
+            data: ByteArray,
+            offset: Int,
+        ): Int = (data[offset].toInt() and 0xFF) or ((data[offset + 1].toInt() and 0xFF) shl 8)
+
         fun littleEndianInt(
             bytes: ByteArray,
             offset: Int,
