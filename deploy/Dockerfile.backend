@@ -118,8 +118,9 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
 # попадает (deploy/models/*.onnx в .gitignore) — она скачивается отдельно,
 # лицензия её лежит рядом и коммитится.
 COPY syp-admin-app/src/main/resources/detector/syp_face_detector.py /opt/syp/face-detector/bin/syp-face-detector
+COPY syp-admin-app/src/main/resources/embedder/syp_face_embedder.py /opt/syp/face-detector/bin/syp-face-embedder
 COPY deploy/models/ /opt/syp/face-detector/models/
-RUN chmod 0755 /opt/syp/face-detector/bin/syp-face-detector
+RUN chmod 0755 /opt/syp/face-detector/bin/syp-face-detector /opt/syp/face-detector/bin/syp-face-embedder
 
 # Проверка образа при сборке: без неё сбой среды всплыл бы в первом задании
 # `FACES`, то есть через двадцать минут декодирования эпизода. Проверка

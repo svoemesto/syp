@@ -1,6 +1,7 @@
 package ru.svoemesto.syp.admin.characters
 
 import ru.svoemesto.syp.admin.catalog.ProjectSettings
+import ru.svoemesto.syp.core.media.RawFrame
 
 /**
  * Приёмник рамок, записывающий их в базу.
@@ -48,6 +49,7 @@ class StoringFaceSink(
         width: Int,
         height: Int,
         found: List<DetectedFace>,
+        frame: RawFrame,
     ) {
         if (found.isEmpty()) return
         faces.replaceAutoFrame(
@@ -79,6 +81,10 @@ class FaceSinkFactory(
     private val faces: FaceStore,
     private val persons: PersonService,
     private val nonPersonFilter: NonPersonFilter,
+    private val db: ru.svoemesto.syp.core.db.Db? = null,
+    private val embeddings: FaceEmbeddingStore? = null,
+    private val embedder: FaceEmbedderProcess? = null,
+    private val modelKey: String = "",
 ) {
     /**
      * Собирает приёмник рамок для эпизода.
@@ -95,12 +101,30 @@ class FaceSinkFactory(
         val unrecognized =
             requireNotNull(persons.servicePerson(videofile.projectId, PersonKind.UNRECOGNIZED).id)
         val nonPerson = requireNotNull(persons.servicePerson(videofile.projectId, PersonKind.NONPERSON).id)
-        return StoringFaceSink(
-            faces = faces,
-            nonPersonFilter = nonPersonFilter,
-            maxAspect = nonPersonFilter.thresholdOf(settings),
-            unrecognizedId = unrecognized,
-            nonPersonId = nonPerson,
+        val storing =
+            StoringFaceSink(
+                faces = faces,
+                nonPersonFilter = nonPersonFilter,
+                maxAspect = nonPersonFilter.thresholdOf(settings),
+                unrecognizedId = unrecognized,
+                nonPersonId = nonPerson,
+                videofileId = videofileId,
+            )
+        // Эмбеддер оборачивает приёмник записи, а не заменяет его: вектору нужен
+        // номер лица в базе, а он появляется только после вставки.
+        val store = embeddings
+        val program = embedder
+        val database = db
+        if (store == null || program == null || database == null || modelKey.isEmpty()) {
+            return storing
+        }
+        return EmbeddingFaceSink(
+            inner = storing,
+            embedder = program,
+            embeddings = store,
+            innerStore = faces,
+            db = database,
+            modelKey = modelKey,
             videofileId = videofileId,
         )
     }
