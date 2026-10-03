@@ -1,12 +1,12 @@
 package ru.svoemesto.syp.admin.config
 
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import ru.svoemesto.syp.admin.catalog.TestDatabase
 import java.time.Instant
 import java.time.format.DateTimeParseException
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
@@ -37,10 +37,15 @@ class HttpEndpointDateTest {
     fun setUp() {
         TestDatabase.assumeDatabase()
         val url = baseUrl
-        if (url == null || url.isBlank()) {
-            return
-        }
-        val response = get("${url.trimEnd('/')}/api/movies")
+        // Без стенда проверка обязана быть ОТМЕНЕНА, а не пройдена. Раньше она
+        // тихо возвращалась, и отчёт показывал «успех» там, где ничего не
+        // проверялось: ни один прогон эту проверку не выполнял, потому что
+        // адрес стенда не задавал никто.
+        assumeTrue(
+            !url.isNullOrBlank(),
+            "адрес стенда не задан (переменная $ENV_URL) — проверка HTTP-эндпоинтов отменена, а не пройдена",
+        )
+        val response = get("${requireNotNull(url).trimEnd('/')}/api/movies")
         if (response.code != 200) {
             fail("Стенд на $url не отвечает: код ${response.code}, тело ${response.body}")
         }
@@ -53,7 +58,7 @@ class HttpEndpointDateTest {
      */
     @Test
     fun `список сериалов отвечает списком`() {
-        val body = bodyOf("/api/movies") ?: return
+        val body = bodyOf("/api/movies")
         assertTrue(body.trimStart().startsWith("["), "список сериалов должен быть списком, начало: ${body.take(80)}")
     }
 
@@ -69,7 +74,7 @@ class HttpEndpointDateTest {
      */
     @Test
     fun `даты сериалов разбираются и содержат зону`() {
-        val body = bodyOf("/api/movies") ?: return
+        val body = bodyOf("/api/movies")
         val dates =
             Regex("\"([a-zA-Z_]*[dD]ate|[a-zA-Z_]*[aA]ired[a-zA-Z]*|createdAt|updatedAt)\":\"([^\"]+)\"")
                 .findAll(body)
@@ -99,7 +104,7 @@ class HttpEndpointDateTest {
      */
     @Test
     fun `даты заданий в очереди разбираются`() {
-        val body = bodyOf("/api/jobs") ?: return
+        val body = bodyOf("/api/jobs")
         val dates =
             Regex("\"(startedAt|finishedAt|createdAt|updatedAt)\":\"?([^\",}]+)")
                 .findAll(body)
@@ -120,10 +125,10 @@ class HttpEndpointDateTest {
      * Ответ по одному адресу, запрошенный один раз за набор.
      *
      * @param path путь на стенде
-     * @return тело ответа либо `null`, если стенд не задан
+     * @return тело ответа
      */
-    private fun bodyOf(path: String): String? {
-        val url = baseUrl?.trimEnd('/') ?: return null
+    private fun bodyOf(path: String): String {
+        val url = requireNotNull(baseUrl?.trimEnd('/')) { "адрес стенда не задан" }
         return bodies.getOrPut(path) { get(url + path).body }
     }
 
@@ -161,16 +166,5 @@ class HttpEndpointDateTest {
     companion object {
         /** Имя переменной окружения с адресом стенда. */
         const val ENV_URL: String = "SYP_TEST_HTTP_URL"
-
-        /** Проверка: тест без стенда обязан себя объявить, а не молча пройти. */
-        @Test
-        fun `без стенда проверка объявляет себя пропущенной`() {
-            val url = System.getenv(ENV_URL)
-            assertTrue(
-                url == null || url.isBlank() || System.getenv(ENV_URL).isNotBlank(),
-                "адрес стенда задан, проверка обязана была выполниться",
-            )
-            assertEquals(2, 2, "проверка жива")
-        }
     }
 }

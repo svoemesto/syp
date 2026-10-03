@@ -174,7 +174,10 @@ printf '%s\n' "--- syp-core ---"
 SYP_TEST_DB_URL="${CORE_URL}" ./gradlew :syp-core:test --rerun-tasks "$@" || status=$?
 
 printf '%s\n' "--- syp-admin-app ---"
-SYP_TEST_DB_URL="${ADMIN_URL}" ./gradlew :syp-admin-app:test --rerun-tasks "$@" || status=$?
+# Проверка HTTP-эндпоинтов идёт против работающего стенда: без адреса она
+# отменяется, а без адреса проверять нечего, и молчаливый «успех» был бы враньём.
+SYP_TEST_HTTP_URL="${SYP_TEST_HTTP_URL:-http://127.0.0.1:7911}" \
+    SYP_TEST_DB_URL="${ADMIN_URL}" ./gradlew :syp-admin-app:test --rerun-tasks "$@" || status=$?
 
 printf '%s\n' "--- syp-public-app ---"
 SYP_TEST_DB_URL="${PUBLIC_URL}" ./gradlew :syp-public-app:test --rerun-tasks "$@" || status=$?
