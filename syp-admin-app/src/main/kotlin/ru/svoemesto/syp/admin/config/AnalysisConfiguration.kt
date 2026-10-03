@@ -20,6 +20,7 @@ import ru.svoemesto.syp.admin.characters.FacePlanBinding
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.media.ExternalProgram
+import ru.svoemesto.syp.core.media.FrameExtractor
 import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.ObjectStorage
 import java.nio.file.Files
@@ -239,6 +240,7 @@ class AnalysisConfiguration {
         artifactRegistry: ArtifactRegistry,
         storage: ObjectStorage,
         locations: LocationStore,
+        frameExtractor: FrameExtractor,
     ): StructureController =
         StructureController(
             enqueuer = enqueuer,
@@ -250,6 +252,7 @@ class AnalysisConfiguration {
             staleness = staleness,
             settingsStore = settingsStore,
             artifactRegistry = artifactRegistry,
+            frameExtractor = frameExtractor,
             storage = storage,
             locations = locations,
         )
