@@ -11,9 +11,13 @@ import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorBody
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.DbException
+import java.sql.SQLException
 
 /** Сколько текста базы возвращаем оператору: причина нужна целиком, но не вся. */
 private const val REASON_LIMIT: Int = 300
+
+/** Коды SQL, означающие нарушение целостности: внешний ключ и проверка. */
+private val INTEGRITY_STATES = setOf("23503", "23514")
 
 /**
  * Превращение доменных отказов в ответы HTTP.
@@ -80,6 +84,42 @@ class ApiErrors {
         return ResponseEntity
             .status(ErrorCode.CONFLICT.httpStatus)
             .body(ErrorBody.of(ErrorCode.CONFLICT, reason.take(REASON_LIMIT)))
+    }
+
+    /**
+     * Отвечает на нарушение целостности со стороны клиента.
+     *
+     * Отдельный обработчик нужен потому, что коды `23503` (нарушение внешнего
+     * ключа) и `23514` (нарушение проверки) — это ошибка запроса, а не поломка:
+     * оператор указал несуществующего владельца, и ответ «внутренняя ошибка
+     * сервера» отправляет его чинить то, что не сломано.
+     *
+     * Ловится именно `SQLException`, а не `DataIntegrityViolationException`:
+     * персистентность на сыром JDBC, Spring транзакциями не управляет и коды
+     * базы не переводит — исключение приходит из драйвера как есть, и разбирать
+     * его надо здесь.
+     *
+     * @param failure нарушение целостности либо ошибка базы
+     * @return тело ошибки с кодом `CONFLICT` либо `INTERNAL_ERROR`
+     */
+    @ExceptionHandler(SQLException::class)
+    fun onIntegrityFailure(failure: SQLException): ResponseEntity<ErrorBody> {
+        val state = failure.sqlState
+        if (state !in INTEGRITY_STATES) {
+            logger.error("Ошибка доступа к базе: ${failure.message}", failure)
+            return ResponseEntity
+                .status(ErrorCode.INTERNAL_ERROR.httpStatus)
+                .body(ErrorBody.of(ErrorCode.INTERNAL_ERROR, "запись не удалась"))
+        }
+        val reason =
+            failure.message
+                .orEmpty()
+                .substringAfter(": ")
+                .take(REASON_LIMIT)
+        logger.info("Нарушение целостности ({}): {}", state, reason)
+        return ResponseEntity
+            .status(ErrorCode.CONFLICT.httpStatus)
+            .body(ErrorBody.of(ErrorCode.CONFLICT, reason))
     }
 
     /**
