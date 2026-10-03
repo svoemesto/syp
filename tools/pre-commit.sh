@@ -74,6 +74,7 @@ if [[ ${has_code} -eq 1 ]]; then
 bash tools/check-no-duplicate-api-prefix.sh
 bash tools/check-components-mounted.sh || fail "имена таблиц: в SQL остались старые имена"
 bash tools/check-node-modules-real.sh || fail "каталог таблиц: в SQL остались старые каталог"
+bash tools/check-ready-to-work.sh || fail "состояние не готово к порции"
 fi
 
 if echo "${staged}" | grep -qE '\.(sh|yml)$'; then
