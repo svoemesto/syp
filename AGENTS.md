@@ -445,6 +445,7 @@ cd deploy && bash do.sh build_public_app && cd ..
 | Отсутствие секретов | constitution § VIII.3 | `tools/check-no-secrets.sh` | готов |
 | Имена таблиц в SQL соответствуют схеме | миграция 16 | `tools/check-old-table-names.sh` | готов |
 | Пути эндпоинтов не дублируют общий префикс | Spring `@RequestMapping` | `tools/check-no-duplicate-api-prefix.sh` | готов |
+| Каждый компонент фронтенда подключён | Vue SFC | `tools/check-components-mounted.sh` | готов |
 
 Все перечисленные скрипты подключены к pre-commit
 (`tools/pre-commit.sh`) и к CI (`.github/workflows/ci.yml`). Правила,
