@@ -1,4 +1,4 @@
-// Состояние суммы исходника эпизода.
+// Состояние суммы исходника видеофайла.
 //
 // Экран состояния суммы показывает не «есть сумма — да, нет — нет», а
 // состояние подсчёта: считается, посчитана, устарела, ошибка. Причина в том,
@@ -10,7 +10,7 @@ import { ref } from 'vue'
 import { type ChecksumView, readChecksum, startChecksum } from '../api/checksum'
 import { ApiError } from '../api/http'
 
-/** Состояние суммы эпизода. */
+/** Состояние суммы видеофайла. */
 const checksum = ref<ChecksumView | null>(null)
 
 /** Идёт ли обращение к бэкенду. */
@@ -26,7 +26,7 @@ const errorCode = ref('')
  * Сумма ещё не считалась ни разу.
  *
  * Отдельное состояние вместо ошибки: код `CHECKSUM_NOT_READY` — это не сбой,
- * а обычное состояние нового эпизода, и экран показывает «поставьте пересчёт».
+ * а обычное состояние нового видеофайла, и экран показывает «поставьте пересчёт».
  *
  * @param code код отказа
  * @returns `true`, если сумма ещё не считалась
@@ -42,9 +42,9 @@ function isNotReady(code: string): boolean {
  */
 export function useChecksumStore() {
   /**
-   * Перечитывает состояние суммы эпизода.
+   * Перечитывает состояние суммы видеофайла.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @returns `true`, если состояние прочитано
    */
   async function reload(videofileId: number): Promise<boolean> {
@@ -78,7 +78,7 @@ export function useChecksumStore() {
   /**
    * Ставит пересчёт суммы и сразу перечитывает состояние.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @returns `true`, если задание поставлено
    */
   async function recalculate(videofileId: number): Promise<boolean> {

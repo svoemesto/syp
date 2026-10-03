@@ -1,4 +1,4 @@
-// Клиент приёма фильмов и эпизодов.
+// Клиент приёма проектов и видеофайлов.
 //
 // Соответствует разделу 3 контракта
 // `specs/001-first-vertical-slice/contracts/admin-api.md`. Время в ответах
@@ -7,39 +7,39 @@
 
 import { request } from './http'
 
-/** Описание фильма в ответе. */
+/** Описание проекта в ответе. */
 export interface ProjectView {
-  /** Идентификатор фильма. */
+  /** Идентификатор проекта. */
   id: number
-  /** Отображаемое имя фильма. */
+  /** Отображаемое имя проекта. */
   name: string
-  /** Корень каталога фильма на машине администратора. */
+  /** Корень каталога проекта на машине администратора. */
   sourceRoot: string
-  /** Дата создания фильма. */
+  /** Дата создания проекта. */
   createdAt?: string | null
-  /** Сколько эпизодов заведено в фильме. */
+  /** Сколько видеофайлов заведено в проекте. */
   videofileCount: number
 }
 
-/** Описание эпизода в ответе со всеми измеренными параметрами. */
+/** Описание видеофайла в ответе со всеми измеренными параметрами. */
 export interface VideofileView {
-  /** Идентификатор эпизода. */
+  /** Идентификатор видеофайла. */
   id: number
-  /** Идентификатор фильма-владельца. */
+  /** Идентификатор проекта-владельца. */
   projectId: number
-  /** Порядковый номер эпизода в фильме. */
+  /** Порядковый номер видеофайла в проекте. */
   ordinal: number
-  /** Отображаемое имя эпизода. */
+  /** Отображаемое имя видеофайла. */
   name: string
   /** Абсолютный путь к исходному файлу. */
   sourcePath: string
-  /** Путь относительно корня фильма: он и попадёт в сценарий сборки. */
+  /** Путь относительно корня проекта: он и попадёт в сценарий сборки. */
   relativePath?: string | null
   /** Размер файла в байтах. */
   byteSize: number
   /** Время изменения файла. */
   fileMtime: string
-  /** Число кадров эпизода. */
+  /** Число кадров видеофайла. */
   frameCount: number
   /** Числитель длительности кадра в секундах. */
   timeBaseNum: number
@@ -51,7 +51,7 @@ export interface VideofileView {
   width: number
   /** Высота кадра. */
   height: number
-  /** Длительность эпизода, вычисленная по кадрам. */
+  /** Длительность видеофайла, вычисленная по кадрам. */
   durationSeconds: number
   /** Кодек видео. */
   videoCodec: string
@@ -69,7 +69,7 @@ export interface VideofileView {
   keyframeCount: number
   /** Длина карты ключевых кадров в байтах. */
   keyframeMapBytes: number
-  /** Готова ли эпизод к работе. */
+  /** Готова ли видеофайл к работе. */
   ready: boolean
 }
 
@@ -87,87 +87,87 @@ export interface SettingView {
   updatedAt?: string | null
 }
 
-/** Ответ на создание фильма: сам фильм и его настройки по умолчанию. */
+/** Ответ на создание проекта: сам проект и его настройки по умолчанию. */
 export interface CreatedProjectView {
-  /** Созданный фильм. */
+  /** Созданный проект. */
   project: ProjectView
   /** Значения настроек по умолчанию. */
   settings: SettingView[]
 }
 
-/** Ответ на чтение фильма вместе с его содержимым. */
+/** Ответ на чтение проекта вместе с его содержимым. */
 export interface ProjectDetailView {
-  /** Фильм. */
+  /** Проект. */
   project: ProjectView
-  /** Эпизода фильма. */
+  /** Видеофайла проекта. */
   videofile: VideofileView[]
-  /** Настройки фильма. */
+  /** Настройки проекта. */
   settings: SettingView[]
 }
 
 /**
- * Перечисляет фильмы с числом эпизодов каждого.
+ * Перечисляет проекты с числом видеофайлов каждого.
  *
- * @returns список фильмов
+ * @returns список проектов
  */
 export function listProjects(): Promise<ProjectView[]> {
   return request<ProjectView[]>('GET', '/projects')
 }
 
 /**
- * Создаёт фильм с корнем каталога на машине администратора.
+ * Создаёт проект с корнем каталога на машине администратора.
  *
- * @param name название фильма
- * @param sourceRoot корневой каталог фильма: без него нельзя вычислить
+ * @param name название проекта
+ * @param sourceRoot корневой каталог проекта: без него нельзя вычислить
  *   относительный путь к файлу, который попадёт в сценарий сборки (FR-089a)
- * @returns созданный фильм вместе с настройками по умолчанию
+ * @returns созданный проект вместе с настройками по умолчанию
  */
 export function createProject(name: string, sourceRoot: string): Promise<CreatedProjectView> {
   return request<CreatedProjectView>('POST', '/projects', { name, sourceRoot })
 }
 
 /**
- * Читает фильм, его эпизода и настройки.
+ * Читает проект, его видеофайла и настройки.
  *
- * @param projectId идентификатор фильма
- * @returns фильм с содержимым
+ * @param projectId идентификатор проекта
+ * @returns проект с содержимым
  */
 export function readProject(projectId: number): Promise<ProjectDetailView> {
   return request<ProjectDetailView>('GET', `/projects/${projectId}`)
 }
 
 /**
- * Удаляет фильм вместе с производными данными.
+ * Удаляет проект вместе с производными данными.
  *
  * Файлы архива при этом не трогаются: они принадлежат не системе.
  *
- * @param projectId идентификатор фильма
+ * @param projectId идентификатор проекта
  */
 export function deleteProject(projectId: number): Promise<null> {
   return request<null>('DELETE', `/projects/${projectId}`)
 }
 
 /**
- * Перечисляет эпизоды фильма.
+ * Перечисляет видеофайлы проекта.
  *
- * @param projectId идентификатор фильма
- * @returns эпизода в порядке порядковых номеров
+ * @param projectId идентификатор проекта
+ * @returns видеофайла в порядке порядковых номеров
  */
 export function listVideofile(projectId: number): Promise<VideofileView[]> {
   return request<VideofileView[]>('GET', `/projects/${projectId}/videofiles`)
 }
 
 /**
- * Регистрирует эпизод по пути к файлу.
+ * Регистрирует видеофайл по пути к файлу.
  *
  * Параметры файла определяет система: оператор их не вводит (FR-002). Файл
- * обязан лежать внутри корня фильма, иначе ответ — ошибка
+ * обязан лежать внутри корня проекта, иначе ответ — ошибка
  * `SOURCE_UNREADABLE` с путём в тексте.
  *
- * @param projectId идентификатор фильма
- * @param sourcePath абсолютный путь к файлу внутри корня фильма
- * @param name название эпизода; если не задано, берётся имя файла
- * @returns зарегистрированный эпизод с измеренными параметрами
+ * @param projectId идентификатор проекта
+ * @param sourcePath абсолютный путь к файлу внутри корня проекта
+ * @param name название видеофайла; если не задано, берётся имя файла
+ * @returns зарегистрированный видеофайл с измеренными параметрами
  */
 export function registerVideofile(
   projectId: number,
@@ -181,19 +181,19 @@ export function registerVideofile(
 }
 
 /**
- * Читает параметры эпизода и состояние готовности.
+ * Читает параметры видеофайла и состояние готовности.
  *
- * @param videofileId идентификатор эпизода
- * @returns параметры эпизода
+ * @param videofileId идентификатор видеофайла
+ * @returns параметры видеофайла
  */
 export function readVideofile(videofileId: number): Promise<VideofileView> {
   return request<VideofileView>('GET', `/videofiles/${videofileId}`)
 }
 
 /**
- * Снимает эпизод с учёта; файл источника не трогается.
+ * Снимает видеофайл с учёта; файл источника не трогается.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  */
 export function deleteVideofile(videofileId: number): Promise<null> {
   return request<null>('DELETE', `/videofiles/${videofileId}`)
@@ -202,8 +202,8 @@ export function deleteVideofile(videofileId: number): Promise<null> {
 /**
  * Читает настройки анализа и выдачи сценария.
  *
- * @param projectId идентификатор фильма
- * @returns настройки фильма
+ * @param projectId идентификатор проекта
+ * @returns настройки проекта
  */
 export function readSettings(projectId: number): Promise<SettingView[]> {
   return request<SettingView[]>('GET', `/projects/${projectId}/settings`)
@@ -212,7 +212,7 @@ export function readSettings(projectId: number): Promise<SettingView[]> {
 /**
  * Изменяет настройки анализа и выдачи сценария.
  *
- * @param projectId идентификатор фильма
+ * @param projectId идентификатор проекта
  * @param changes новые значения по именам настроек
  * @returns настройки после изменения и список действительно изменившихся
  */

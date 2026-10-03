@@ -1,13 +1,13 @@
-// Состояние экрана структуры эпизода.
+// Состояние экрана структуры видеофайла.
 //
 // Экран отвечает на три вопроса оператора: «что система нашла», «что из этого
-// человек принял» и «где в эпизоде находится этот кадр». Поэтому в состоянии
+// человек принял» и «где в видеофайле находится этот кадр». Поэтому в состоянии
 // лежат три слоя: рабочая структура с её планами, отдельно сырой результат
 // автоматики и отдельно открытый лист превью. Смешивать их в одну таблицу
 // нельзя — тогда исчезла бы сама возможность сравнить, и расхождение
 // накапливалось бы незаметно (FR-093).
 //
-// Листов превью у эпизода сотни, а сцен — сотни, и ни то, ни другое в одну
+// Листов превью у видеофайла сотни, а сцен — сотни, и ни то, ни другое в одну
 // страницу не помещается. Лист открывается по номеру, сцена выбирается, и
 // только у выбранной сцены догружаются рамки первых кадров её планов: рамка
 // каждого плана — это кусок того же листа, и грузить его для всех сцен страницы
@@ -46,7 +46,7 @@ import {
 } from '../api/view-model'
 import { ApiError } from '../api/http'
 
-/** Рабочий структура эпизода. */
+/** Рабочий структура видеофайла. */
 const structure = ref<StructureView | null>(null)
 
 /** Сырой результат автоматики последнего прогона. */
@@ -130,7 +130,7 @@ const isStale = computed(() => structure.value?.isStale === true)
 const staleCode = computed(() => structure.value?.staleResultCode ?? '')
 
 /**
- * Структура эпизода приведённая к строке экрана.
+ * Структура видеофайла приведённая к строке экрана.
  *
  * @returns строка экрана со сценами, планами и счётчиками
  */
@@ -174,7 +174,7 @@ const selectedScene = computed(() => {
  * поля ответа бэкенда читаются здесь, в представлении, и нигде больше
  * (ADR-0015).
  *
- * @param videofileId эпизод-владелец листа
+ * @param videofileId видеофайл-владелец листа
  * @returns строка экрана либо `null`, если лист не открыт
  */
 function sheetFrameRow(videofileId: number): PreviewSheetFrameRow | null {
@@ -183,13 +183,13 @@ function sheetFrameRow(videofileId: number): PreviewSheetFrameRow | null {
     : toPreviewSheetFrameRow(sheet.value, videofileId, selectedFrame.value)
 }
 
-/** Эпизод, которому принадлежат загруженные рамки. */
+/** Видеофайл, которому принадлежат загруженные рамки. */
 const lastThumbVideofile = ref(0)
 
 /**
  * Рамки первых кадров планов выбранной сцены для показа.
  *
- * @param videofileId эпизод-владелец листов
+ * @param videofileId видеофайл-владелец листов
  * @returns рамки по номеру кадра: значения приведены к виду экрана
  */
 const thumbs = computed<Record<number, ShotThumbRow>>(() => {
@@ -251,9 +251,9 @@ function neighbourScene(step: 1 | -1) {
  */
 export function useStructureStore() {
   /**
-   * Перечитывает оба слоя структуры эпизода.
+   * Перечитывает оба слоя структуры видеофайла.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @returns `true`, если структура прочитана
    */
   async function reload(videofileId: number): Promise<boolean> {
@@ -275,7 +275,7 @@ export function useStructureStore() {
   /**
    * Переходит на следующую страницу сцен.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    */
   async function nextPage(videofileId: number): Promise<void> {
     const total = structure.value?.scenesTotal ?? 0
@@ -289,7 +289,7 @@ export function useStructureStore() {
   /**
    * Возвращается на предыдущую страницу сцен.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    */
   async function previousPage(videofileId: number): Promise<void> {
     if (offset.value === 0) {
@@ -302,7 +302,7 @@ export function useStructureStore() {
   /**
    * Ставит анализ структуры заново.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @returns `true`, если задание поставлено
    */
   async function analyse(videofileId: number): Promise<boolean> {
@@ -349,7 +349,7 @@ export function useStructureStore() {
    * запрашивается кадр, если он выбран: сервер возвращает его область
    * кадрирования, и клиенту не нужно знать, как устроен лист.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param index номер листа, с нуля
    * @param frame кадр для подсветки либо `null`
    * @returns `true`, если лист открыт
@@ -379,7 +379,7 @@ export function useStructureStore() {
   /**
    * Открывает первый лист превью.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @returns `true`, если лист открыт
    */
   async function openFirstSheet(videofileId: number): Promise<boolean> {
@@ -389,7 +389,7 @@ export function useStructureStore() {
   /**
    * Листает превью вперёд или назад.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param step куда листать: `1` — вперёд, `-1` — назад
    * @returns `true`, если лист сменился
    */
@@ -408,7 +408,7 @@ export function useStructureStore() {
   /**
    * Открывает лист превью, в котором лежит кадр.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param frame номер кадра
    * @returns `true`, если лист открыт
    */
@@ -441,7 +441,7 @@ export function useStructureStore() {
   /**
    * Выбирает сцену и догружает рамки первых кадров её планов.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param sceneId идентификатор сцены либо `null`, чтобы снять выбор
    * @returns `true`, если сцена выбрана
    */
@@ -456,7 +456,7 @@ export function useStructureStore() {
   /**
    * Догружает рамки первых кадров планов сцены.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param sceneId идентификатор сцены
    * @returns `true`, если рамки загружены
    */
@@ -500,7 +500,7 @@ export function useStructureStore() {
   /**
    * Переходит к кадру: открывает его лист и выбирает содержащую сцену.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param frame номер кадра
    * @returns `true`, если кадр показан
    */
@@ -511,7 +511,7 @@ export function useStructureStore() {
       // выдавать за машинный код слово «неверный кадр» значило бы научить
       // интерфейс доверять тому, что придумал он сам.
       errorCode.value = ''
-      error.value = `Кадра ${frame} у эпизода нет: в нём ${total} кадров, нумерация с нуля`
+      error.value = `Кадра ${frame} у видеофайла нет: в нём ${total} кадров, нумерация с нуля`
       return false
     }
     selectedFrame.value = frame
@@ -554,7 +554,7 @@ export function useStructureStore() {
   /**
    * Сдвигает границу сцены.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param fromFrame кадр, на котором граница стоит
    * @param toFrame кадр, на который её ставят
    * @returns `true`, если правка выполнена
@@ -570,7 +570,7 @@ export function useStructureStore() {
   /**
    * Разделяет сцену по кадру.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param frame первый кадр второй из получившихся сцен
    * @returns `true`, если правка выполнена
    */
@@ -581,7 +581,7 @@ export function useStructureStore() {
   /**
    * Объединяет сцену, начинающуюся с кадра, с предыдущей.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param frame первый кадр поглощаемой сцены
    * @returns `true`, если правка выполнена
    */
@@ -592,7 +592,7 @@ export function useStructureStore() {
   /**
    * Сдвигает границу плана.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param fromFrame кадр, на котором граница стоит
    * @param toFrame кадр, на который её ставят
    * @returns `true`, если правка выполнена
@@ -608,7 +608,7 @@ export function useStructureStore() {
   /**
    * Разделяет план по кадру.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param frame первый кадр второго из получившихся планов
    * @returns `true`, если правка выполнена
    */
@@ -619,7 +619,7 @@ export function useStructureStore() {
   /**
    * Объединяет план, начинающийся с кадра, с предыдущим.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param frame первый кадр поглощаемого плана
    * @returns `true`, если правка выполнена
    */
@@ -634,7 +634,7 @@ export function useStructureStore() {
    * сцены: правка отвечает изменённым участком, а состав планов на странице
    * после неё меняется.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param operation операция правки
    * @returns `true`, если правка выполнена
    */
@@ -664,7 +664,7 @@ export function useStructureStore() {
    * меняется по составу, поэтому страница перечитывается целиком: иначе в
    * таблице остались бы строки, выведенные из работы, а новых не было бы видно.
    *
-   * @param videofileId идентификатор эпизода
+   * @param videofileId идентификатор видеофайла
    * @param operation операция правки
    * @returns `true`, если правка выполнена
    */

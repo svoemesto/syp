@@ -1,9 +1,9 @@
-// Клиент структуры эпизода и превью кадров.
+// Клиент структуры видеофайла и превью кадров.
 //
 // Соответствует разделу 5 контракта
 // `specs/001-first-vertical-slice/contracts/admin-api.md`. Время в ответах не
 // приходит: номер кадра — единственный источник правды, а клиент пересчитывает
-// время от `time_base` эпизода (ADR-0001). Клиенту не нужно знать и раскладку
+// время от `time_base` видеофайла (ADR-0001). Клиенту не нужно знать и раскладку
 // листа превью: сервер отдаёт готовый адрес и область кадрирования кадра.
 
 import { request } from './http'
@@ -54,11 +54,11 @@ export interface SceneView {
   shots: ShotView[]
 }
 
-/** Ответ о структуре эпизода. */
+/** Ответ о структуре видеофайла. */
 export interface StructureView {
-  /** Эпизод. */
+  /** Видеофайл. */
   videofileId: number
-  /** Число кадров эпизода. */
+  /** Число кадров видеофайла. */
   frameCount: number
   /** Устарел ли результат. */
   isStale: boolean
@@ -72,9 +72,9 @@ export interface StructureView {
   algorithmVersion: string | null
   /** Хеш входов прогона. */
   paramsHash: string | null
-  /** Сколько сцен у эпизода всего. */
+  /** Сколько сцен у видеофайла всего. */
   scenesTotal: number
-  /** Сколько планов у эпизода всего. */
+  /** Сколько планов у видеофайла всего. */
   shotsTotal: number
   /** Смещение выборки сцен. */
   offset: number
@@ -98,7 +98,7 @@ export interface RawBoundaryView {
 
 /** Ответ с сырыми границами. */
 export interface RawBoundariesView {
-  /** Эпизод. */
+  /** Видеофайл. */
   videofileId: number
   /** Прогон либо `null`, если прогона ещё не было. */
   runId: number | null
@@ -114,7 +114,7 @@ export interface RawBoundariesView {
   boundaries: RawBoundaryView[]
 }
 
-/** Значимый кадр эпизода. */
+/** Значимый кадр видеофайла. */
 export interface FrameView {
   /** Номер кадра. */
   frameNumber: number
@@ -126,15 +126,15 @@ export interface FrameView {
   faceCount: number
   /** Подсказка смены крупности либо `null`. */
   sizeHint: string | null
-  /** Ключевой ли кадр по карте эпизода. */
+  /** Ключевой ли кадр по карте видеофайла. */
   isKeyframe: boolean
 }
 
 /** Страница значимых кадров. */
 export interface FramesView {
-  /** Эпизод. */
+  /** Видеофайл. */
   videofileId: number
-  /** Сколько значимых кадров у эпизода. */
+  /** Сколько значимых кадров у видеофайла. */
   total: number
   /** Смещение выборки. */
   offset: number
@@ -148,7 +148,7 @@ export interface FramesView {
 export interface AnalysisEnqueuedView {
   /** Поставленное задание. */
   jobId: number
-  /** Эпизод. */
+  /** Видеофайл. */
   videofileId: number
   /** Состояние задания на момент постановки. */
   state: string
@@ -158,9 +158,9 @@ export interface AnalysisEnqueuedView {
   shotThreshold: number
   /** Хеш входов задания. */
   paramsHash: string
-  /** Число кадров эпизода. */
+  /** Число кадров видеофайла. */
   frameCount: number
-  /** Сколько листов превью у эпизода будет. */
+  /** Сколько листов превью у видеофайла будет. */
   previewSheetCount: number
   /** Выполнялась ли такая работа раньше. */
   alreadyCompleted: boolean
@@ -184,7 +184,7 @@ export interface CellCropView {
 
 /** Адрес листа превью и его раскладка. */
 export interface PreviewUrlView {
-  /** Эпизод. */
+  /** Видеофайл. */
   videofileId: number
   /** Номер листа, с нуля. */
   index: number
@@ -194,7 +194,7 @@ export interface PreviewUrlView {
   lastFrame: number
   /** Сколько кадров на листе. */
   frameNumbers: number
-  /** Сколько листов превью у эпизода всего. */
+  /** Сколько листов превью у видеофайла всего. */
   sheetCount: number
   /** Ячеек по горизонтали. */
   columns: number
@@ -226,11 +226,11 @@ export interface PreviewUrlView {
  * Ответ на правку границы сцены.
  *
  * Ответ несёт изменённый участок, а не ссылку «перечитайте всё»: перечитывать
- * весь эпизод из-за двух сцен — это мегабайты ради двух строк, а оператор
+ * весь видеофайл из-за двух сцен — это мегабайты ради двух строк, а оператор
  * после правки должен видеть результат немедленно.
  */
 export interface SceneBoundaryView {
-  /** Эпизод. */
+  /** Видеофайл. */
   videofileId: number
   /** Кадр, на котором теперь стоит граница. */
   frame: number
@@ -242,21 +242,21 @@ export interface SceneBoundaryView {
   scenes: SceneView[]
   /** Строки, выведенные из рабочей структуры. */
   supersededSceneIds: number[]
-  /** Сколько рабочих сцен у эпизода после операции. */
+  /** Сколько рабочих сцен у видеофайла после операции. */
   scenesTotal: number
-  /** Сколько планов у эпизода. */
+  /** Сколько планов у видеофайла. */
   shotsTotal: number
-  /** Число кадров эпизода. */
+  /** Число кадров видеофайла. */
   frameCount: number
 }
 
 /**
- * Ставит эпизод на анализ структуры.
+ * Ставит видеофайл на анализ структуры.
  *
  * Работа идёт заданием очереди и занимает минуты, поэтому ответ приходит
  * сразу: кнопка, ждущая окончания, в интерфейсе недопустима (FR-003).
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @returns поставленное задание
  */
 export function startAnalysis(videofileId: number): Promise<AnalysisEnqueuedView> {
@@ -264,9 +264,9 @@ export function startAnalysis(videofileId: number): Promise<AnalysisEnqueuedView
 }
 
 /**
- * Читает структуру эпизода.
+ * Читает структуру видеофайла.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param offset смещение выборки сцен
  * @param limit размер выборки сцен
  * @returns страница структуры
@@ -285,7 +285,7 @@ export function readStructure(
 /**
  * Читает сырые границы результата автоматики.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param level уровень границ: `SCENE`, `SHOT` или оба
  * @param offset смещение выборки
  * @param limit размер выборки
@@ -305,9 +305,9 @@ export function readRawBoundaries(
 }
 
 /**
- * Читает страницу значимых кадров эпизода.
+ * Читает страницу значимых кадров видеофайла.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param offset смещение выборки
  * @param limit размер выборки
  * @returns страница значимых кадров
@@ -328,7 +328,7 @@ export function readFrames(videofileId: number, offset = 0, limit = 200): Promis
  * запрошенного, а молчаливо заданный нулевой индекс при кадре с другого листа
  * увёл бы сервер не туда, и область кадрирования не пришла бы вовсе.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param index номер листа, с нуля; без него лист определяется по кадру
  * @param frame кадр, для которого нужна область кадрирования
  * @returns описание листа превью
@@ -354,7 +354,7 @@ export function readPreviewUrl(
  * Границы передаются номерами кадров, а не идентификаторами сцен: оператор
  * видит кадры, и требовать от него знания внутренних ключей незачем (ADR-0001).
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param fromFrame кадр, на котором граница стоит сейчас
  * @param toFrame кадр, на который её ставят
  * @returns изменённый участок структуры
@@ -373,7 +373,7 @@ export function moveSceneBoundary(
 /**
  * Разделяет сцену по номеру кадра.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param frame первый кадр второй из получившихся сцен
  * @returns изменённый участок структуры
  */
@@ -384,7 +384,7 @@ export function splitScene(videofileId: number, frame: number): Promise<SceneBou
 /**
  * Объединяет сцену, начинающуюся с указанного кадра, с предыдущей.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param frame первый кадр поглощаемой сцены
  * @returns изменённый участок структуры
  */
@@ -402,7 +402,7 @@ export function mergeScenes(videofileId: number, frame: number): Promise<SceneBo
  * @interface ShotBoundaryView
  */
 export interface ShotBoundaryView {
-  /** Эпизод. */
+  /** Видеофайл. */
   videofileId: number
   /** Кадр, по которому выполнена операция. */
   frame: number
@@ -420,9 +420,9 @@ export interface ShotBoundaryView {
   facesRebound: number
   /** Сколько планов получило пересчитанный размер. */
   sizesRecomputed: number
-  /** Сколько планов у эпизода после операции. */
+  /** Сколько планов у видеофайла после операции. */
   shotsTotal: number
-  /** Число кадров эпизода. */
+  /** Число кадров видеофайла. */
   frameCount: number
 }
 
@@ -432,7 +432,7 @@ export interface ShotBoundaryView {
  * Границы передаются номерами кадров, а не идентификаторами планов: оператор
  * видит кадры, и требовать от него знания внутренних ключей незачем (ADR-0001).
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param fromFrame кадр, на котором граница стоит сейчас
  * @param toFrame кадр, на который её ставят
  * @returns изменённый участок структуры с пересчитанными размерами
@@ -451,7 +451,7 @@ export function moveShotBoundary(
 /**
  * Разделяет план по номеру кадра.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param frame первый кадр второго из получившихся планов
  * @returns изменённый участок структуры с пересчитанными размерами
  */
@@ -462,7 +462,7 @@ export function splitShot(videofileId: number, frame: number): Promise<ShotBound
 /**
  * Объединяет план, начинающийся с указанного кадра, с предыдущим.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param frame первый кадр поглощаемого плана
  * @returns изменённый участок структуры с пересчитанными размерами
  */
@@ -476,7 +476,7 @@ export function mergeShots(videofileId: number, frame: number): Promise<ShotBoun
  * Отдельная функция вместо строки в шаблоне: адрес собирается в одном месте,
  * и переименование пути не потребует правок по экрану.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param index номер листа, с нуля
  * @returns адрес листа
  */

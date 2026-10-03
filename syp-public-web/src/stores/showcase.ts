@@ -3,7 +3,7 @@
 // Стор без внешней библиотеки, как в админке: набор полей известен целиком.
 // Одно состояние на всё приложение, потому что частица сценария — это ресурс с
 // адресом, а не состояние вкладки: перезагрузка страницы ничего не теряет, и
-// список приходит по сериалу, а не по содержимому окна.
+// список приходит по проекту, а не по содержимому окна.
 
 import { ref } from 'vue'
 import {
@@ -25,16 +25,16 @@ import {
   toSignatureCard,
 } from '../api/view-model'
 
-/** Сериалы для выбора. */
+/** Проекты для выбора. */
 const serials = ref<SerialOption[]>([])
 
-/** Выбранный сериал. */
+/** Выбранный проект. */
 const serialId = ref<number | null>(null)
 
-/** Название выбранного сериала для заголовка. */
+/** Название выбранного проекта для заголовка. */
 const serialName = ref('')
 
-/** Сценарии выбранного сериала. */
+/** Сценарии выбранного проекта. */
 const recipes = ref<RecipeCard[]>([])
 
 /** Состав открытого сценария. */
@@ -80,7 +80,7 @@ function clearError(): void {
  */
 export function useShowcaseStore() {
   /**
-   * Перечисляет сериалы для выбора.
+   * Перечисляет проекты для выбора.
    *
    * @returns `true`, если список прочитан
    */
@@ -101,14 +101,14 @@ export function useShowcaseStore() {
   }
 
   /**
-   * Выбирает сериал и читает его сценарии.
+   * Выбирает проект и читает его сценарии.
    *
-   * @param id идентификатор сериала
+   * @param id идентификатор проекта
    * @returns `true`, если сценарии прочитаны
    */
   async function selectSerial(id: number): Promise<boolean> {
     serialId.value = id
-    serialName.value = serials.value.find((item) => item.id === id)?.name ?? `Сериал №${id}`
+    serialName.value = serials.value.find((item) => item.id === id)?.name ?? `Проект №${id}`
     loading.value = true
     try {
       recipes.value = (await listRecipes(id)).map(toRecipeCard)

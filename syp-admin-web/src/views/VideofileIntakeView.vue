@@ -1,8 +1,8 @@
-// Экран приёма фильмов и эпизодов (задача T037). // // Экран закрывает три требования: оператор
-создаёт фильм с корнем // каталога, добавляет эпизод указанием пути и видит параметры, которые //
-определила система сама. Отдельно показывается внятная ошибка при // недоступном файле — «успех с
-пустым результатом» на экране выглядел бы // как «эпизод заведена», а на деле файл не был прочитан
-(FR-092).
+// Экран приёма проектов и видеофайлов (задача T037). // // Экран закрывает три требования: оператор
+создаёт проект с корнем // каталога, добавляет видеофайл указанием пути и видит параметры, которые
+// определила система сама. Отдельно показывается внятная ошибка при // недоступном файле — «успех с
+пустым результатом» на экране выглядел бы // как «видеофайл заведена», а на деле файл не был
+прочитан (FR-092).
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
@@ -23,18 +23,18 @@ onMounted(() => {
 })
 
 /**
- * Создаёт фильм по введённым названию и корню каталога.
+ * Создаёт проект по введённым названию и корню каталога.
  *
- * @returns `true`, если фильм создан
+ * @returns `true`, если проект создан
  */
 async function submitProject(): Promise<boolean> {
   return store.addProject(projectName.value.trim(), projectRoot.value.trim())
 }
 
 /**
- * Регистрирует эпизод по введённому пути к файлу.
+ * Регистрирует видеофайл по введённому пути к файлу.
  *
- * @returns `true`, если эпизод зарегистрирована
+ * @returns `true`, если видеофайл зарегистрирована
  */
 async function submitVideofile(): Promise<boolean> {
   const created = await store.addVideofile(videofilePath.value.trim(), videofileName.value.trim())
@@ -46,32 +46,32 @@ async function submitVideofile(): Promise<boolean> {
 }
 
 /**
- * Открывает экран состояния суммы для эпизода.
+ * Открывает экран состояния суммы для видеофайла.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  */
 function openChecksum(videofileId: number): void {
   void router.push({ name: 'checksum', params: { videofileId: String(videofileId) } })
 }
 
 /**
- * Открывает экран сцен и планов эпизода.
+ * Открывает экран сцен и планов видеофайла.
  *
  * Переход живёт рядом с «суммой» не украшением, а потому что иначе до сцен
  * можно было добраться только вкладкой в шапке, а эта вкладка появляется лишь
- * после выбора фильма. Оператору сценарий «открыл фильм — посмотрел сцены»
+ * после выбора проекта. Оператору сценарий «открыл проект — посмотрел сцены»
  * обрывался, и найти экран было нечем.
  *
- * @param videofileId эпизод
+ * @param videofileId видеофайл
  */
 function openStructure(videofileId: number): void {
   void router.push({ name: 'structure', params: { videofileId: String(videofileId) } })
 }
 
 /**
- * Открывает экран лиц эпизода.
+ * Открывает экран лиц видеофайла.
  *
- * @param videofileId эпизод
+ * @param videofileId видеофайл
  */
 function openFaces(videofileId: number): void {
   void router.push({ name: 'faces', params: { videofileId: String(videofileId) } })
@@ -80,7 +80,7 @@ function openFaces(videofileId: number): void {
 
 <template>
   <section class="intake">
-    <h2>Приём фильмов и эпизодов</h2>
+    <h2>Приём проектов и видеофайлов</h2>
 
     <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
 
@@ -91,13 +91,13 @@ function openFaces(videofileId: number): void {
     </p>
 
     <fieldset>
-      <legend>Фильмы</legend>
+      <legend>Проекты</legend>
       <table>
         <thead>
           <tr>
             <th>Название</th>
             <th>Корень каталога</th>
-            <th>Эпизодов</th>
+            <th>Видеофайлов</th>
             <th />
           </tr>
         </thead>
@@ -113,20 +113,20 @@ function openFaces(videofileId: number): void {
             </td>
           </tr>
           <tr v-if="store.projects.value.length === 0">
-            <td colspan="4" class="note">Фильмов пока нет</td>
+            <td colspan="4" class="note">Проектов пока нет</td>
           </tr>
         </tbody>
       </table>
 
       <div class="form">
-        <input v-model="projectName" type="text" placeholder="Название фильма" />
+        <input v-model="projectName" type="text" placeholder="Название проекта" />
         <input
           v-model="projectRoot"
           type="text"
           placeholder="Корень каталога, например /disks/HDD_16Tb_Clouds/GOT"
         />
         <button type="button" :disabled="store.loading.value" @click="submitProject">
-          создать фильм
+          создать проект
         </button>
       </div>
       <p class="note">
@@ -136,7 +136,7 @@ function openFaces(videofileId: number): void {
     </fieldset>
 
     <fieldset v-if="store.current.value">
-      <legend>Эпизода фильма «{{ store.current.value.project.name }}»</legend>
+      <legend>Видеофайла проекта «{{ store.current.value.project.name }}»</legend>
       <table>
         <thead>
           <tr>
@@ -170,7 +170,7 @@ function openFaces(videofileId: number): void {
             </td>
           </tr>
           <tr v-if="store.videofile.value.length === 0">
-            <td colspan="9" class="note">Эпизодов пока нет</td>
+            <td colspan="9" class="note">Видеофайлов пока нет</td>
           </tr>
         </tbody>
       </table>
@@ -179,20 +179,24 @@ function openFaces(videofileId: number): void {
         <input
           v-model="videofilePath"
           type="text"
-          placeholder="Путь к файлу эпизода внутри корня фильма"
+          placeholder="Путь к файлу видеофайла внутри корня проекта"
         />
-        <input v-model="videofileName" type="text" placeholder="Название эпизода (необязательно)" />
+        <input
+          v-model="videofileName"
+          type="text"
+          placeholder="Название видеофайла (необязательно)"
+        />
         <button
           type="button"
           :disabled="!store.canRegisterVideofile.value || store.loading.value"
           @click="submitVideofile"
         >
-          добавить эпизод
+          добавить видеофайл
         </button>
       </div>
       <p class="note">
         Параметры файла определяет система: оператор их не вводит. Путь обязан лежать внутри корня
-        фильма, иначе придёт отказ <code>SOURCE_UNREADABLE</code> с путём в тексте.
+        проекта, иначе придёт отказ <code>SOURCE_UNREADABLE</code> с путём в тексте.
       </p>
     </fieldset>
   </section>

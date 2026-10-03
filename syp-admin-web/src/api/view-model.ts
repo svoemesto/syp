@@ -33,19 +33,19 @@ import type {
   StructureView,
 } from './structure'
 
-/** Сериал на экране: то, что о нём знает оператор. */
+/** Проект на экране: то, что о нём знает оператор. */
 export interface SerialRow {
-  /** Идентификатор сериала. */
+  /** Идентификатор проекта. */
   id: number
-  /** Название сериала. */
+  /** Название проекта. */
   name: string
-  /** Корень каталога сериала на машине администратора. */
+  /** Корень каталога проекта на машине администратора. */
   sourceRoot: string
   /** Сколько серий заведено. */
   videofileCount: number
   /** Дата создания либо прочерк. */
   createdAt: string
-  /** Есть ли у сериала хотя бы одна серия. */
+  /** Есть ли у проекта хотя бы одна серия. */
   hasSeries: boolean
 }
 
@@ -53,13 +53,13 @@ export interface SerialRow {
 export interface SeriesRow {
   /** Идентификатор серии. */
   id: number
-  /** Сериал-владелец. */
+  /** Проект-владелец. */
   serialId: number
-  /** Порядковый номер серии в сериале. */
+  /** Порядковый номер серии в проекте. */
   ordinal: number
   /** Название серии. */
   name: string
-  /** Путь относительно корня сериала, иначе абсолютный. */
+  /** Путь относительно корня проекта, иначе абсолютный. */
   displayPath: string
   /** Число кадров с разделителем разрядов. */
   frameCount: string
@@ -137,7 +137,7 @@ export interface ShotRow {
 export interface SceneRow {
   /** Идентификатор сцены. */
   id: number
-  /** Порядковый номер сцены в структуре эпизода. */
+  /** Порядковый номер сцены в структуре видеофайла. */
   number: string
   /** Первый кадр сцены. */
   firstFrame: number
@@ -185,7 +185,7 @@ export interface StructureRow {
   staleReason: string | null
   /** Всего сцен у серии. */
   scenesTotal: number
-  /** Число кадров эпизода: им ограничивается ввод номера кадра. */
+  /** Число кадров видеофайла: им ограничивается ввод номера кадра. */
   frameCount: number
   /** Смещение выборки. */
   offset: number
@@ -247,7 +247,7 @@ export interface PreviewSheetNavRow {
   index: number
   /** Номер листа для оператора, с единицы. */
   number: string
-  /** Сколько листов у эпизода. */
+  /** Сколько листов у видеофайла. */
   total: number
   /** Человекочитаемая строка «лист N из M». */
   position: string
@@ -269,7 +269,7 @@ export interface SceneBoundaryRow {
   title: string
   /** Сцены затронутого участка после операции. */
   scenes: SceneRow[]
-  /** Сколько рабочих сцен у эпизода после операции. */
+  /** Сколько рабочих сцен у видеофайла после операции. */
   scenesTotal: number
 }
 
@@ -355,9 +355,9 @@ function describeLevel(level: string): string {
 }
 
 /**
- * Приводит сериал к строке экрана.
+ * Приводит проект к строке экрана.
  *
- * @param dto сериал из ответа бэкенда
+ * @param dto проект из ответа бэкенда
  * @returns строка экрана
  */
 export function toSerialRow(dto: ProjectView): SerialRow {
@@ -485,7 +485,7 @@ export function toShotRow(dto: ShotView, hasThumb = false): ShotRow {
  * Приводит сцену к строке экрана.
  *
  * @param dto сцена из ответа бэкенда
- * @param number порядковый номер сцены в структуре эпизода
+ * @param number порядковый номер сцены в структуре видеофайла
  * @returns строка экрана
  */
 export function toSceneRow(dto: SceneView, number: number): SceneRow {
@@ -578,7 +578,7 @@ export function toStructureRow(dto: StructureView): StructureRow {
  *
  * Номер листа оператор считает с единицы, а сервер — с нуля. Обе величины
  * остаются в строке: с нуля нужен адрес, с единицы — то, что видит человек.
- * Число листов приходит с сервера: оно вычисляется из числа кадров эпизода и
+ * Число листов приходит с сервера: оно вычисляется из числа кадров видеофайла и
  * раскладки, а раскладка принадлежит серверу.
  *
  * @param dto лист из ответа бэкенда
@@ -617,7 +617,7 @@ export function toSceneBoundaryRow(dto: SceneBoundaryView): SceneBoundaryRow {
  * Приводит ответ на правку границы плана к строке экрана.
  *
  * Сцены получают номера по порядку в ответе, а не по порядку во всём
- * эпизоде: правка отвечает изменённым участком, и сквозная нумерация здесь
+ * видеофайле: правка отвечает изменённым участком, и сквозная нумерация здесь
  * была бы выдуманной — сосчитать её без всей структуры нельзя.
  *
  * @param dto ответ из ответа бэкенда
@@ -685,7 +685,7 @@ export interface FaceClusterRow {
 export interface FacesRow {
   /** Серия. */
   seriesId: number
-  /** Сериал-владелец: по нему читается справочник персон. */
+  /** Проект-владелец: по нему читается справочник персон. */
   serialId: number
   /** Ширина кадра серии. */
   frameWidth: number
@@ -693,7 +693,7 @@ export interface FacesRow {
   frameHeight: number
   /** Счётчики одной строкой. */
   summary: string
-  /** Сколько лиц у сериала. */
+  /** Сколько лиц у проекта. */
   facesTotal: number
   /** Смещение выборки. */
   offset: number
@@ -826,7 +826,7 @@ export function toFaceClustersRow(dto: FaceClustersView): FaceClustersRow {
   }
 }
 
-/** Персона сериала на экране правки. */
+/** Персона проекта на экране правки. */
 export interface PersonRow {
   /** Идентификатор персоны. */
   id: number
@@ -889,7 +889,7 @@ export function toPersonFaceGroups(faces: FaceRow[]): PersonFaceGroup[] {
  * кадрирования (FR-022).
  *
  * @param dto лист из ответа бэкенда
- * @param videofileId эпизод-владелец листа: нужен для адреса картинки
+ * @param videofileId видеофайл-владелец листа: нужен для адреса картинки
  * @param highlightFrame кадр для подсветки либо `null`
  * @returns строка экрана
  */
@@ -926,7 +926,7 @@ export function toPreviewSheetFrameRow(
 /**
  * Приводит область кадрирования кадра к рамке плана.
  *
- * @param videofileId эпизод-владелец листа
+ * @param videofileId видеофайл-владелец листа
  * @param sheetIndex номер листа, на котором лежит кадр
  * @param sheetWidth ширина листа в пикселях
  * @param sheetHeight высота листа в пикселях
