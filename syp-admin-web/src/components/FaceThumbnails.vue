@@ -30,7 +30,27 @@ const props = defineProps<{
   markable?: boolean
   /** Считать ли рамки рамками, а не заливкой: так показывают нарисованные вручную. */
   outlined?: boolean
+  /** Разрешено ли перетаскивать лицо на персону. */
+  draggable?: boolean
 }>()
+
+/**
+ * Кладёт номер лица в перетаскиваемые данные.
+ *
+ * В старом проекте лицо перетаскивали прямо на строку персоны, и это основной
+ * способ исправить ошибку: лицо попало не в того человека. Браузер отдаёт
+ * перетаскиваемое только если положил его этот код, поэтому номер кладём явно.
+ *
+ * @param event событие начала перетаскивания
+ * @param face перетаскиваемое лицо
+ */
+function startDrag(event: DragEvent, face: FaceView): void {
+  if (props.draggable !== true || !event.dataTransfer) {
+    return
+  }
+  event.dataTransfer.setData('text/plain', String(face.id))
+  event.dataTransfer.effectAllowed = 'move'
+}
 
 /**
  * Меняет метку эталона на одном лице.
@@ -87,7 +107,9 @@ function caption(face: FaceView): string {
         class="frame"
         :src="facePreviewUrl(videofileId, face.frameNumber)"
         :alt="caption(face)"
+        :draggable="draggable === true"
         loading="lazy"
+        @dragstart="startDrag($event, face)"
       />
       <span class="box" :style="boxes[index]" />
       <button
