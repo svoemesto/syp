@@ -7,6 +7,7 @@ import org.junit.jupiter.api.TestInstance
 import ru.svoemesto.syp.admin.catalog.ProjectStore
 import ru.svoemesto.syp.admin.catalog.SourceProbe
 import ru.svoemesto.syp.admin.catalog.TestDatabase
+import ru.svoemesto.syp.admin.catalog.TrackStore
 import ru.svoemesto.syp.admin.catalog.Videofile
 import ru.svoemesto.syp.admin.catalog.VideofileRegistration
 import ru.svoemesto.syp.admin.catalog.VideofileStore
@@ -142,7 +143,7 @@ class ChecksumParityTest {
     fun `сумма системы совпадает с sha256sum файла`() {
         val videofilePath = requireVideofile()
         val projects = ProjectStore(db)
-        val registration = VideofileRegistration(projects, videofileStore, probe)
+        val registration = VideofileRegistration(projects, videofileStore, probe, TrackStore(db))
 
         println("=== СВЕРКА СУММЫ С ВНЕШНЕЙ: ${videofilePath.fileName} ===")
         val probeStarted = System.nanoTime()

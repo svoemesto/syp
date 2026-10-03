@@ -67,7 +67,7 @@ class CatalogControllerTest {
                 projects,
                 videofileStore,
                 settingsStore,
-                VideofileRegistration(projects, videofileStore, SourceProbe(ExternalProgram(), ffprobe)),
+                VideofileRegistration(projects, videofileStore, SourceProbe(ExternalProgram(), ffprobe), TrackStore(db)),
             )
         errors = ApiErrors()
     }

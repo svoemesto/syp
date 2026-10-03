@@ -43,6 +43,7 @@ class VideofileRegistration(
     private val projects: ProjectStore,
     private val videofileStore: VideofileStore,
     private val probe: SourceProbe,
+    private val tracks: TrackStore,
 ) {
     /**
      * Регистрирует эпизод в фильме.
@@ -92,7 +93,11 @@ class VideofileRegistration(
                 sourcePath = file.toString(),
                 parameters = parameters,
             )
-        return videofileStore.insert(videofile)
+        val stored = videofileStore.insert(videofile)
+        // Дорожки определяются один раз и хранятся: зонд при каждом открытии
+        // файла не гоняем, список лежит в базе.
+        tracks.replace(stored.id!!, parameters.tracks)
+        return stored
     }
 
     /**
