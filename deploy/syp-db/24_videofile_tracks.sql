@@ -23,9 +23,21 @@ CREATE TABLE IF NOT EXISTS tbl_videofile_tracks (
         CHECK (codec_type IN ('video', 'audio', 'subtitle', 'data', 'attachment'))
 );
 
-ALTER TABLE tbl_videofile_tracks
-    ADD CONSTRAINT videofile_track_videofile_fk
-    FOREIGN KEY (id_videofile) REFERENCES tbl_videofiles (id) ON DELETE CASCADE;
+-- Ограничение добавляется условно: повторное применение миграции не должно
+-- падать. Это вторая такая правка за день (первая — в 22), и дальше условие
+-- обязательно: файл, однажды применённый, может быть применён снова вручную.
+DO
+$$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'videofile_track_videofile_fk'
+        ) THEN
+            ALTER TABLE tbl_videofile_tracks
+                ADD CONSTRAINT videofile_track_videofile_fk
+                FOREIGN KEY (id_videofile) REFERENCES tbl_videofiles (id) ON DELETE CASCADE;
+        END IF;
+    END
+$$;
 
 CREATE INDEX IF NOT EXISTS videofile_track_videofile_idx
     ON tbl_videofile_tracks (id_videofile, ordinal);
