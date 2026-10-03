@@ -146,7 +146,8 @@ object FakeFaceDetector {
 
         header = struct.Struct("<IIII")
         answer_header = struct.Struct("<IfI")
-        answer_face = struct.Struct("<hhhhf")
+        # Пять точек идут следом за рамкой, как в настоящей программе.
+        answer_face = struct.Struct("<hhhhf" + "hh" * 5)
         bytes_per_pixel = {1: 3, 2: 3, 3: 1}
         mode = settings.get("mode", "normal")
         fail_at = int(settings.get("fail_at", "2"))
@@ -186,7 +187,8 @@ object FakeFaceDetector {
                     out.flush()
                     raise SystemExit(int(settings.get("exit", "4")))
             reported = number + 1000 if (mode == "wrong-number" and number == fail_at) else number
-            shifted = (face[0] + shift, face[1], face[2] + shift, face[3], face[4])
+            points = (11, 12, 21, 12, 16, 24, 12, 26, 14, 24)
+            shifted = (face[0] + shift, face[1], face[2] + shift, face[3], face[4], *points)
             out.write(answer_header.pack(reported, 1.5, 1) + answer_face.pack(*shifted))
             out.flush()
         """.trimIndent() + "\n"

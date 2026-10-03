@@ -57,8 +57,12 @@ HEADER = struct.Struct("<IIII")
 # Ответ на кадр: номер, время вывода, число лиц.
 ANSWER_HEADER = struct.Struct("<IfI")
 
-# Одно лицо: четыре координаты и уверенность.
-ANSWER_FACE = struct.Struct("<hhhhf")
+# Одно лицо: четыре координаты, уверенность и пять точек.
+# Точки идут следом за рамкой в порядке левый глаз, правый глаз, нос, левый и
+# правый уголки рта. Порядок объявлен один здесь и повторён в FaceDetectorProcess;
+# разойтись они могут только при правке одного из двух мест, и тогда числа поедут
+# не туда молча.
+ANSWER_FACE = struct.Struct("<hhhhf" + "hh" * 5)
 
 # Шаги сетки YuNet. Рамка выводится в единицах шага, поэтому при разборе
 # умножается на четыре: так устроена сама модель, а не наш выбор.
@@ -1109,8 +1113,8 @@ def main(argv: list[str]) -> int:
         frame = np.frombuffer(data, dtype=np.uint8).reshape(shape)
         faces, elapsed_ms = detector.detect(frame)
         answer = bytearray(ANSWER_HEADER.pack(number, elapsed_ms, len(faces)))
-        for left, top, right, bottom, score in faces:
-            answer += ANSWER_FACE.pack(left, top, right, bottom, score)
+        for face in faces:
+            answer += ANSWER_FACE.pack(*face)
         out.write(bytes(answer))
         out.flush()
     return 0
