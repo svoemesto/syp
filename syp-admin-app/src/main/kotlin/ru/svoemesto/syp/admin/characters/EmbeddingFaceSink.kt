@@ -74,6 +74,13 @@ class EmbeddingFaceSink(
         }
         val stored = innerStore.listOfFrame(videofileId, frameNumber)
         if (stored.isEmpty()) {
+            // Раньше этот выход был молчаливым, и видит в журнале. Из-за этого
+            // невозможно было сказать, где именно обрывается запись: ноль
+            // векторов выглядел одинаково и при пустом кадре, и при сбое записи.
+            logger.error(
+                "Вектора кадра $frameNumber не записаны: записанных лиц нет " +
+                    "(найдено ${found.size})",
+            )
             return
         }
         val byIndex = stored.associateBy { it.faceIndex }
@@ -83,6 +90,10 @@ class EmbeddingFaceSink(
                 vectors[index].let { FaceEmbedding(face.id!!, modelKey, it) }
             }
         if (rows.isEmpty()) {
+            logger.error(
+                "Вектора кадра $frameNumber не записаны: номера лиц не сошлись, " +
+                    "записано ${stored.size}, найдено ${found.size}",
+            )
             return
         }
         db.useTransaction { connection -> embeddings.saveAll(connection, rows) }

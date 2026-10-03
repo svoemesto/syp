@@ -5,6 +5,9 @@ import java.io.InputStream
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
+/** Сколько знаков вывода декодера попадает в сообщение об обрыве. */
+private const val DIAGNOSTICS_TAIL: Int = 400
+
 /**
  * Формат кадра в канале.
  *
@@ -284,8 +287,15 @@ class FrameChannel(
             if (stalled.get()) {
                 throw stalledFailure(frames, diagnostics)
             }
+            // Причина в сообщение попадала как `failure.message`, а у половины
+            // исключений сообщение пустое, и в журнал уходило «оборвался на кадре
+            // N: null» — разбирать было нечем. Класс исключения и вывод
+            // декодера обязаны быть в тексте: иначе любой обрыв читается одинаково.
             throw FrameChannelFailed(
-                "Поток кадров оборвался на кадре $frames: ${failure.message}. " +
+                "Поток кадров оборвался на кадре $frames: " +
+                    "${failure.javaClass.simpleName}" +
+                    (failure.message?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "") +
+                    ". Вывод декодера: ${diagnostics.text().take(DIAGNOSTICS_TAIL).trim()}. " +
                     "Кадры на диск не пишутся, результата у задания нет",
             )
         }
