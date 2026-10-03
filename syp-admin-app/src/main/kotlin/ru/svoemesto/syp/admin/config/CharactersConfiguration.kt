@@ -9,6 +9,7 @@ import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.admin.characters.CharactersController
 import ru.svoemesto.syp.admin.characters.Clustering
 import ru.svoemesto.syp.admin.characters.FaceDetector
+import ru.svoemesto.syp.admin.characters.FaceEmbedderProcess
 import ru.svoemesto.syp.admin.characters.FaceEmbeddingStore
 import ru.svoemesto.syp.admin.characters.FacePlanBinding
 import ru.svoemesto.syp.admin.characters.FaceScan
@@ -177,7 +178,19 @@ class CharactersConfiguration {
         faceStore: FaceStore,
         personService: PersonService,
         nonPersonFilter: NonPersonFilter,
-    ): FaceSinkFactory = FaceSinkFactory(faceStore, personService, nonPersonFilter)
+        database: Db,
+        faceEmbeddingStore: FaceEmbeddingStore,
+        faceEmbedderProcess: FaceEmbedderProcess?,
+    ): FaceSinkFactory =
+        FaceSinkFactory(
+            faceStore,
+            personService,
+            nonPersonFilter,
+            database,
+            faceEmbeddingStore,
+            faceEmbedderProcess,
+            env(ENV_FACE_EMBEDDING_MODEL_KEY, ""),
+        )
 
     /**
      * Собирает хранилище эмбеддингов лиц.
@@ -185,6 +198,7 @@ class CharactersConfiguration {
      * @param database доступ к базе
      * @return хранилище эмбеддингов
      */
+
     @Bean
     fun faceEmbeddingStore(database: Db): FaceEmbeddingStore = FaceEmbeddingStore(database)
 
@@ -247,6 +261,9 @@ class CharactersConfiguration {
 
     companion object {
         /** Имя переменной окружения с путём к программе детектора лиц. */
+        const val ENV_EMBEDDER_PATH: String = "SYP_FACE_EMBEDDER_PATH"
+        const val ENV_EMBEDDER_MODEL_PATH: String = "SYP_FACE_EMBEDDER_MODEL_PATH"
+        const val ENV_EMBEDDER_PROVIDER: String = "SYP_FACE_EMBEDDER_PROVIDER"
         const val ENV_FACE_DETECTOR_PATH: String = "SYP_FACE_DETECTOR_PATH"
 
         /** Имя переменной окружения с путём к файлу модели детектора. */
@@ -324,5 +341,38 @@ class CharactersConfiguration {
             name: String,
             default: String,
         ): String = System.getenv(name)?.takeIf { it.isNotBlank() } ?: default
+    }
+
+    /**
+     * Собирает программу эмбеддера, если пути заданы.
+     *
+     * Пустое значение — не поломка, а «эмбеддер не настроен»: лица ищутся и
+     * показываются, векторов просто не будет. И наоборот, заданная только одна
+     * из двух переменных — поломка настройки, и она называется прямо, иначе
+     * вектора не считались бы молча.
+     *
+     * @return программа эмбеддера либо `null`
+     */
+    @Bean
+    fun faceEmbedderProcess(): FaceEmbedderProcess? {
+        val program = env(ENV_EMBEDDER_PATH, "")
+        val model = env(ENV_EMBEDDER_MODEL_PATH, "")
+        if (program.isEmpty() && model.isEmpty()) {
+            return null
+        }
+        if (program.isEmpty() || model.isEmpty()) {
+            throw IllegalStateException(
+                "Эмбеддер лиц настроен наполовину: задана только одна из переменных " +
+                    "$ENV_EMBEDDER_PATH и $ENV_EMBEDDER_MODEL_PATH. Вектора считались бы " +
+                    "молча, а это хуже, чем не считать их вовсе.",
+            )
+        }
+        val process =
+            FaceEmbedderProcess(
+                programPath = program,
+                arguments = listOf("--model", model, "--provider", env(ENV_EMBEDDER_PROVIDER, "CPUExecutionProvider")),
+            )
+        process.start()
+        return process
     }
 }
