@@ -120,11 +120,18 @@ class FrameChannelResult(
  * @property ffmpegPath путь к программе-декодеру; приходит из конфигурации
  *   развёртывания, а не из данных задания (ADR-0010)
  * @property timeout сколько ждать завершения декодера
+ * @property stallTimeout сколько ждать очередных данных от декодера; живой, но
+ *   молчащий декодер обязан обрываться отказом, а не висять (T-189)
  * @see <a href="../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
 class FrameChannel(
     private val ffmpegPath: String,
     private val timeout: Duration = DEFAULT_TIMEOUT,
+    /**
+     * Сколько ждать очередных данных от декодера, прежде чем считать его
+     * зависшим.
+     */
+    private val stallTimeout: Duration = DEFAULT_STALL_TIMEOUT,
 ) {
     /**
      * Читает кадры эпизода и передаёт их потребителю по одному.
@@ -182,6 +189,43 @@ class FrameChannel(
         reader.isDaemon = true
         reader.start()
 
+        // Поток кадров берём отдельно: сторожевой отсчёт обязан иметь
+        // возможность закрыть его сам. Пока декодер жив и молчит, чтение
+        // блокировано, и без закрытия потока отказ не наступит никогда.
+        val frameStream = process.inputStream
+        // Живой декодер, который не отдаёт ни кадра, ни байта, оставлял
+        // задание в состоянии «идёт работа» навсегда: состояние утверждало
+        // работу, и ответ API говорил то же. Видно это было только сверкой
+        // трёх фактов. Отсчёт ведётся не на кадр, а на данные: медленный, но
+        // живой декодер обязан дожить, поэтому отсчёт сбрасывается на каждом
+        // прочитанном куске.
+        val lastProgress =
+            java.util.concurrent.atomic
+                .AtomicLong(System.nanoTime())
+        val stalled =
+            java.util.concurrent.atomic
+                .AtomicBoolean(false)
+        val stallGuard =
+            Thread({
+                while (process.isAlive && !stalled.get()) {
+                    Thread.sleep(STALL_POLL_MILLIS)
+                    val idleNanos = System.nanoTime() - lastProgress.get()
+                    if (process.isAlive && idleNanos > stallTimeout.toNanos()) {
+                        stalled.set(true)
+                        // Убивать только сам декодер мало: его потомки держат
+                        // конец трубы, и чтение кадров осталось бы заблокированным
+                        // на живом, но молчащем потомке — задание снова висело бы
+                        // в состоянии «идёт работа».
+                        process.toHandle().descendants().forEach { it.destroyForcibly() }
+                        process.destroyForcibly()
+                        runCatching { frameStream.close() }
+                        return@Thread
+                    }
+                }
+            }, "syp-frame-channel-stall")
+        stallGuard.isDaemon = true
+        stallGuard.start()
+
         val frameBytes = format.frameBytes
         val buffer = ByteArray(frameBytes)
         var frames = 0
@@ -189,12 +233,13 @@ class FrameChannel(
         var total = 0L
         var stoppedEarly = false
         try {
-            process.inputStream.use { stream ->
+            frameStream.use { stream ->
                 while (true) {
                     val count = stream.read(buffer, read, frameBytes - read)
                     if (count < 0) {
                         break
                     }
+                    lastProgress.set(System.nanoTime())
                     read += count
                     total += count
                     if (read == frameBytes) {
@@ -233,11 +278,30 @@ class FrameChannel(
             throw failure
         } catch (failure: Exception) {
             process.destroyForcibly()
+            // Закрытие потока самим сторожем выглядит как «поток оборвался»,
+            // и без этой проверки отказ о зависании терялся бы: виноват
+            // декодер, а не поток.
+            if (stalled.get()) {
+                throw stalledFailure(frames, diagnostics)
+            }
             throw FrameChannelFailed(
                 "Поток кадров оборвался на кадре $frames: ${failure.message}. " +
                     "Кадры на диск не пишутся, результата у задания нет",
             )
         }
+
+        if (stalled.get()) {
+            // Декодер уничтожен сторожевым отсчётом, поэтому оставшийся
+            // неполный кадр — следствие зависания, а не обрыв потока. Первым
+            // идёт отказ о зависании: он называет кадр, на котором
+            // остановились данные, и вывод программы.
+            process.destroyForcibly()
+            stallGuard.interrupt()
+            reader.join(READER_JOIN_MILLIS)
+            throw stalledFailure(frames, diagnostics)
+        }
+
+        stallGuard.interrupt()
 
         if (stoppedEarly) {
             // Проход остановлен намеренно, по лимиту кадров: декодер доживать
@@ -276,6 +340,23 @@ class FrameChannel(
         }
         return FrameChannelResult(frames, total, stoppedEarly, elapsedSince(startedAt), diagnostics.text())
     }
+
+    /**
+     * Отказ о зависшем декодере.
+     *
+     * @param frames сколько кадров успело прийти
+     * @param diagnostics хвост вывода декодера
+     * @return отказ с номером кадра и выводом программы
+     */
+    private fun stalledFailure(
+        frames: Int,
+        diagnostics: Diagnostics,
+    ): FrameChannelFailed =
+        FrameChannelFailed(
+            "Декодер «$ffmpegPath» жив, но не отдаёт данных дольше ${stallTimeout.seconds} с " +
+                "на кадре $frames: ни кадра, ни байта. Зависший декодер уничтожен. " +
+                "Вывод декодера: ${diagnostics.text()}",
+        )
 
     /**
      * Сколько миллисекунд прошло с указанного момента.
@@ -338,11 +419,25 @@ class FrameChannel(
         /** Сколько ждать конца потока вывода декодера. */
         private const val READER_JOIN_MILLIS: Long = 5_000
 
+        /** Как часто сторожевой отсчёт смотрит, не идёт ли время. */
+        private const val STALL_POLL_MILLIS = 2_000L
+
         /** Сколько ждать после разрушающего прерывания декодера. */
         private const val DESTROY_TIMEOUT_MILLIS: Long = 10_000
 
         /** Таймаут по умолчанию: эпизод длинный, зависание — нет. */
         val DEFAULT_TIMEOUT: Duration = Duration.ofHours(6)
+
+        /**
+         * Сколько ждать очередных данных от декодера, прежде чем считать его
+         * зависшим.
+         *
+         * Две минуты: полный кадр в 4K по bgr24 — около 24 МБ, и он обязан
+         * пройти из трубы быстро; минуты хватает с запасом для медленного
+         * диска, а зависание оператор видит за минуты, а не через шесть часов
+         * общего ожидания.
+         */
+        val DEFAULT_STALL_TIMEOUT: Duration = Duration.ofMinutes(2)
     }
 }
 
