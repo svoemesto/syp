@@ -148,4 +148,5 @@ jobs:
         - run: bash tools/check-no-duplicate-api-prefix.sh
         - run: bash tools/check-components-mounted.sh
         - run: bash tools/check-node-modules-real.sh
+        - run: bash tools/check-ready-to-work.sh
           python3 -c "import json; json.load(open('syp-worker/config.example.json'))"
