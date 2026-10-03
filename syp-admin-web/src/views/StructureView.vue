@@ -11,6 +11,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PreviewSheetView from '../components/PreviewSheetView.vue'
+import PropertyEditor from '../components/PropertyEditor.vue'
 import SceneDetailPanel from '../components/SceneDetailPanel.vue'
 import ShotDetailPanel from '../components/ShotDetailPanel.vue'
 import StateBlock from '../components/StateBlock.vue'
@@ -383,6 +384,7 @@ watch(revision, () => {
         </div>
 
         <div v-if="selected" class="card-body selected-scene">
+          <PropertyEditor kind="SCENE" :owner-id="selected.id" title="Свойства сцены" />
           <SceneDetailPanel
             :scene="selected"
             :thumbs="store.thumbs.value"
