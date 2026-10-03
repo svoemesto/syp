@@ -1,5 +1,6 @@
 package ru.svoemesto.syp.public.config
 
+import io.minio.MinioClient
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.core.db.Db
@@ -7,6 +8,7 @@ import ru.svoemesto.syp.core.recipe.RecipeStore
 import ru.svoemesto.syp.core.signing.VerificationKey
 import ru.svoemesto.syp.core.storage.ArtifactRegistry
 import ru.svoemesto.syp.core.storage.FileSystemStorage
+import ru.svoemesto.syp.core.storage.MinioObjectStorage
 import ru.svoemesto.syp.core.storage.ObjectStorage
 import ru.svoemesto.syp.public.recipe.RecipeDeliveryController
 import ru.svoemesto.syp.public.recipe.VerificationKeyEndpoint
@@ -53,12 +55,25 @@ class PublicConfiguration {
      * @return хранилище артефактов
      */
     @Bean
-    fun objectStorage(): ObjectStorage =
-        FileSystemStorage(
-            Path
-                .of(optional(PublicPorts.ENV_STORAGE_ROOT) ?: DEFAULT_STORAGE_ROOT)
-                .also { Files.createDirectories(it) },
-        )
+    fun objectStorage(): ObjectStorage {
+        val endpoint = optional(PublicPorts.ENV_STORAGE_ENDPOINT)
+        if (endpoint == null) {
+            return FileSystemStorage(
+                Path
+                    .of(optional(PublicPorts.ENV_STORAGE_ROOT) ?: DEFAULT_STORAGE_ROOT)
+                    .also { Files.createDirectories(it) },
+            )
+        }
+        val client =
+            MinioClient
+                .builder()
+                .endpoint(endpoint)
+                .credentials(
+                    optional(PublicPorts.ENV_STORAGE_ACCESS_KEY) ?: DEFAULT_STORAGE_ACCESS_KEY,
+                    optional(PublicPorts.ENV_STORAGE_SECRET_KEY) ?: DEFAULT_STORAGE_SECRET_KEY,
+                ).build()
+        return MinioObjectStorage(client, optional(PublicPorts.ENV_STORAGE_BUCKET) ?: DEFAULT_STORAGE_BUCKET)
+    }
 
     /**
      * Собирает реестр артефактов.
@@ -122,6 +137,15 @@ class PublicConfiguration {
     private companion object {
         /** Каталог артефактов по умолчанию, если окружение его не задаёт. */
         const val DEFAULT_STORAGE_ROOT: String = "/data/syp-storage"
+
+        /** Корзина, если переменная окружения не задана. */
+        const val DEFAULT_STORAGE_BUCKET: String = "syp-media"
+
+        /** Ключ доступа, если переменная окружения не задана. */
+        const val DEFAULT_STORAGE_ACCESS_KEY: String = "sypadmin"
+
+        /** Секрет доступа, если переменная окружения не задана. */
+        const val DEFAULT_STORAGE_SECRET_KEY: String = "sypadmin"
     }
 }
 

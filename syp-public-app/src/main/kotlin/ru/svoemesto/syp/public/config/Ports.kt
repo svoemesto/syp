@@ -65,6 +65,18 @@ data class PublicPorts(
         const val ENV_DB_PASSWORD: String = "SYP_DB_PASSWORD"
 
         /** Имя переменной окружения с каталогом артефактов. */
+        const val ENV_STORAGE_ENDPOINT: String = "SYP_STORAGE_ENDPOINT"
+
+        /** Имя переменной окружения с именем корзины артефактов. */
+        const val ENV_STORAGE_BUCKET: String = "SYP_STORAGE_BUCKET"
+
+        /** Имя переменной окружения с ключом доступа к корзине. */
+        const val ENV_STORAGE_ACCESS_KEY: String = "SYP_STORAGE_ACCESS_KEY"
+
+        /** Имя переменной окружения с секретом доступа к корзине. */
+        const val ENV_STORAGE_SECRET_KEY: String = "SYP_STORAGE_SECRET_KEY"
+
+        /** Каталог артефактов, если переменная окружения не задана. */
         const val ENV_STORAGE_ROOT: String = "SYP_STORAGE_ROOT"
 
         /** Порт по умолчанию, если переменная окружения не задана. */
