@@ -82,6 +82,7 @@ data class RegisterVideofileRequest(
  * @property ready готова ли эпизод к работе: карта ключевых кадров посчитана
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
+
 data class VideofileView(
     val id: Long,
     val projectId: Long,
@@ -89,6 +90,7 @@ data class VideofileView(
     val name: String,
     val seasonNumber: Int?,
     val seasonOrdinal: Int?,
+    val tracks: List<TrackView> = emptyList(),
     val videofileOrdinal: Int,
     val designation: String,
     val sourcePath: String,
@@ -112,6 +114,25 @@ data class VideofileView(
     val keyframeMapBytes: Int,
     val ready: Boolean,
 )
+
+/**
+ * Дорожка видеофайла в ответе.
+ *
+ * @property index номер дорожки в файле
+ * @property ordinal порядковый номер среди дорожек того же вида
+ * @property codecType вид дорожки: видео, аудио, субтитры, данные, вложение
+ * @property codecName название кодека
+ */
+data class TrackView(
+    val index: Int,
+    val ordinal: Int,
+    val codecType: String,
+    val codecName: String?,
+)
+
+/** Дорожка в ответе: ядро отдаёт то же самое плюс внутренние имена полей. */
+internal fun ru.svoemesto.syp.core.media.MediaTrack.toView(): TrackView =
+    TrackView(index = index, ordinal = ordinal, codecType = codecType, codecName = codecName)
 
 /**
  * Описание фильма в ответе.
@@ -220,6 +241,8 @@ class CatalogController(
     private val videofileStore: VideofileStore,
     private val settingsStore: ProjectSettingsStore,
     private val registration: VideofileRegistration,
+    private val probe: SourceProbe,
+    private val tracks: TrackStore,
     private val checksums: ChecksumEnqueuer? = null,
     private val staleness: Staleness? = null,
 ) {
@@ -356,7 +379,38 @@ class CatalogController(
         @PathVariable videofileId: Long,
     ): VideofileView {
         val videofile = requireVideofile(videofileId)
-        return videofile.toView(requireProject(videofile.projectId))
+        return videofile.toView(requireProject(videofile.projectId)).copy(
+            tracks = tracks.list(videofileId).map { it.toView() },
+        )
+    }
+
+    /**
+     * Определяет дорожки видеофайла заново и записывает их.
+     *
+     * Нужно, когда файл на диске заменили: видеофайл тот же, а состав дорожек
+     * другой. Заодно адрес служит проверкой, что определение вообще работает —
+     * без него дорожки заведённых файлов не на чем проверить, они появились
+     * раньше механизма.
+     *
+     * @param videofileId идентификатор видеофайла
+     * @return дорожки после определения
+     * @throws DomainException с кодом `NOT_FOUND`, если видеофайла нет
+     * @throws TrackProbeFailed если зонд не ответил
+     * @see <a href="../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
+     */
+    @PostMapping("/api/videofiles/{videofileId}/tracks")
+    fun redetectTracks(
+        @PathVariable videofileId: Long,
+    ): List<TrackView> {
+        val videofile = requireVideofile(videofileId)
+        val found =
+            probe
+                .probe(
+                    java.nio.file.Path
+                        .of(videofile.sourcePath),
+                ).tracks
+        tracks.replace(videofileId, found)
+        return found.map { it.toView() }
     }
 
     /**

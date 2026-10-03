@@ -62,12 +62,17 @@ class CatalogControllerTest {
         root = Files.createTempDirectory("syp-api").resolve("корень")
         Files.createDirectories(root)
         val ffprobe = programOnPath("ffprobe") ?: throw org.opentest4j.TestAbortedException("ffprobe не найден в PATH")
+        val probe = SourceProbe(ExternalProgram(), ffprobe)
+        val trackStore = TrackStore(db)
+        val registration = VideofileRegistration(projects, videofileStore, probe, trackStore)
         controller =
             CatalogController(
                 projects,
                 videofileStore,
                 settingsStore,
-                VideofileRegistration(projects, videofileStore, SourceProbe(ExternalProgram(), ffprobe), TrackStore(db)),
+                registration,
+                probe,
+                trackStore,
             )
         errors = ApiErrors()
     }
