@@ -1,6 +1,7 @@
 package ru.svoemesto.syp.admin.config
 
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -10,6 +11,9 @@ import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorBody
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.db.DbException
+
+/** Сколько текста базы возвращаем оператору: причина нужна целиком, но не вся. */
+private const val REASON_LIMIT: Int = 300
 
 /**
  * Превращение доменных отказов в ответы HTTP.
@@ -27,6 +31,7 @@ import ru.svoemesto.syp.core.db.DbException
  *
  * @see <a href="../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
  */
+
 @RestControllerAdvice
 class ApiErrors {
     /**
@@ -47,12 +52,34 @@ class ApiErrors {
      * @param failure ошибка доступа к базе
      * @return тело ошибки с кодом `INTERNAL_ERROR`; подробности уходят в журнал
      */
+
     @ExceptionHandler(DbException::class)
     fun onDatabaseFailure(failure: DbException): ResponseEntity<ErrorBody> {
         logger.error("Ошибка доступа к базе: ${failure.message}", failure)
         return ResponseEntity
             .status(ErrorCode.INTERNAL_ERROR.httpStatus)
             .body(ErrorBody.of(ErrorCode.INTERNAL_ERROR, "запись не удалась, обратитесь к журналу сервера"))
+    }
+
+    /**
+     * Отвечает на нарушение целостности со стороны клиента.
+     *
+     * Отдельный обработчик нужен потому, что коды `23503` (нарушение внешнего
+     * ключа) и `23514` (нарушение проверки) — это ошибка запроса, а не поломка:
+     * оператор указал несуществующего владельца, и ответ «внутренняя ошибка
+     * сервера» отправляет его чинить то, что не сломано. База поднимает их сама,
+     * и её коды разбираются здесь, а не молча уезжают в 500.
+     *
+     * @param failure нарушение целостности
+     * @return тело ошибки с кодом `CONFLICT` и текстом базы
+     */
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun onIntegrityFailure(failure: DataIntegrityViolationException): ResponseEntity<ErrorBody> {
+        val reason = failure.mostSpecificCause.message.orEmpty()
+        logger.info("Нарушение целостности: $reason")
+        return ResponseEntity
+            .status(ErrorCode.CONFLICT.httpStatus)
+            .body(ErrorBody.of(ErrorCode.CONFLICT, reason.take(REASON_LIMIT)))
     }
 
     /**
