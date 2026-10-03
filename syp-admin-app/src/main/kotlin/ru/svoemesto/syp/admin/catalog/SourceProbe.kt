@@ -3,6 +3,7 @@ package ru.svoemesto.syp.admin.catalog
 import ru.svoemesto.syp.core.contract.DomainException
 import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.media.ExternalProgram
+import ru.svoemesto.syp.core.media.MediaTrack
 import java.io.File
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -161,6 +162,31 @@ class ProbeDescription(
     private val sections: List<ProbeSection>,
     private val container: Map<String, String>,
 ) {
+    /**
+     * Все потоки файла в порядке возрастания номера.
+     *
+     * Зонд разбирает все потоки и раньше, а брался только первый видео- и первый
+     * аудиопоток. Список дорожек нужен целиком: в файле может быть пять
+     * аудиодорожек и субтитры, и оператор выбирает из них.
+     *
+     * @return дорожки; пусто, если зонд не вернул ни одного потока
+     */
+    fun tracks(): List<MediaTrack> {
+        val perType = mutableMapOf<String, Int>()
+        return sections
+            .mapNotNull { section ->
+                val type = section["codec_type"] ?: return@mapNotNull null
+                val position = perType.getOrDefault(type, 0)
+                perType[type] = position + 1
+                MediaTrack(
+                    index = section["index"]?.toIntOrNull() ?: return@mapNotNull null,
+                    ordinal = position,
+                    codecType = type,
+                    codecName = section["codec_name"],
+                )
+            }.sortedBy { it.index }
+    }
+
     /**
      * Первый поток заданного вида.
      *
