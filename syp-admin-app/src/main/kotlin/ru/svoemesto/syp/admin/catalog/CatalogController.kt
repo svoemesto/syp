@@ -36,7 +36,7 @@ data class CreateProjectRequest(
  *
  * @property sourcePath путь к исходному видеофайлу внутри корня фильма
  * @property name название эпизода; если не задано, берётся имя файла
- * @property seasonId сезон-владелец; не задан — у фильма, у которого
+ * @property seasonNumber номер сезона; не задан — у фильма, у которого
  *   сезонов нет
  * @property videofileOrdinal номер эпизода внутри сезона; 0 — у фильма
  * @see <a href="../../../../../../../../../docs/features/first-vertical-slice.md">docs/features/first-vertical-slice.md</a>
@@ -44,7 +44,7 @@ data class CreateProjectRequest(
 data class RegisterVideofileRequest(
     val sourcePath: String,
     val name: String? = null,
-    val seasonId: Long? = null,
+    val seasonNumber: Int? = null,
     val videofileOrdinal: Int = 0,
 )
 
@@ -87,7 +87,7 @@ data class VideofileView(
     val projectId: Long,
     val ordinal: Int,
     val name: String,
-    val seasonId: Long?,
+    val seasonNumber: Int?,
     val seasonOrdinal: Int?,
     val videofileOrdinal: Int,
     val designation: String,
@@ -332,7 +332,7 @@ class CatalogController(
                 projectId,
                 request.sourcePath,
                 request.name,
-                request.seasonId,
+                request.seasonNumber,
                 request.videofileOrdinal,
             )
         // Подсчёт суммы ставится сразу: он считается заданием и идёт в фоне,
@@ -499,7 +499,7 @@ internal fun Videofile.toView(
         projectId = projectId,
         ordinal = ordinal,
         name = name,
-        seasonId = seasonId,
+        seasonNumber = seasonNumber,
         seasonOrdinal = seasonOrdinal,
         videofileOrdinal = videofileOrdinal,
         designation = "S%02dE%02d".format(seasonOrdinal ?: 0, videofileOrdinal),

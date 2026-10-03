@@ -223,15 +223,59 @@ cmd_status() {
 # Миграции применяются вручную и строго по номеру. Автозапуск при старте
 # контейнера запрещён: схемой управляют только файлы deploy/syp-db/NN_*.sql,
 # добавление номерами (constitution III).
+# Выполняет SQL и отбрасывает вывод: так ведутся служебные запросы учёта.
+psql_q() {
+    docker exec -i syp-db \
+        psql -U "${SYP_DB_USER:-syp}" -d "${SYP_DB_NAME:-syp}" \
+        -v ON_ERROR_STOP=1 -qAt -f - <<< "$1" 2>/dev/null
+}
+
+# Применяет файл миграции целиком; при ошибке возвращает ненулевой код, чтобы
+# вызывающий не пометил файл применённым.
+psql_apply() {
+    docker exec -i syp-db \
+        psql -U "${SYP_DB_USER:-syp}" -d "${SYP_DB_NAME:-syp}" \
+        -v ON_ERROR_STOP=1 -q -f - < "$1"
+}
+
 cmd_db_migrate() {
     require_env_file || return 1
-    local file
+    local db="${SYP_DB_NAME:-syp}" user="${SYP_DB_USER:-syp}"
+    local file name sum applied stored
+
+    # Учёт появляется сам собой: до него миграции игрались с первого файла и
+    # падали на первой же, обращавшейся к таблице, которую позже переименовали.
+    psql_q "CREATE TABLE IF NOT EXISTS tbl_migration_ledger (
+        id BIGSERIAL PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        checksum TEXT NOT NULL,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT now())"
+
     for file in "${DEPLOY_DIR}"/syp-db/[0-9][0-9]_*.sql; do
         [[ -e "${file}" ]] || continue
-        info "применяю $(basename "${file}")"
-        docker exec -i syp-db \
-            psql -U "${SYP_DB_USER:-syp}" -d "${SYP_DB_NAME:-syp}" \
-            -v ON_ERROR_STOP=1 -f - < "${file}"
+        name="$(basename "${file}")"
+        sum="$(sha256sum "${file}" | cut -d' ' -f1)"
+        stored="$(psql_q "SELECT coalesce(checksum, '') FROM tbl_migration_ledger WHERE name = '${name}'")"
+        if [[ "${name}" == "23_migration_ledger.sql" ]]; then
+            # Таблицу учёта не помечаем: ею только что создали, и при
+            # следующем запуске файл всё равно должен пройти.
+            info "применяю ${name}"
+            psql_apply "${file}"
+            continue
+        fi
+        if [[ -n "${stored}" ]]; then
+            if [[ "${stored}" != "${sum}" ]]; then
+                warn "ВНИМАНИЕ: ${name} уже применён, но файл изменился (сумма ${sum:0:12} против ${stored:0:12})"
+                warn "  Миграции не переписывают: добавьте новый файл, этот оставьте как был."
+                return 1
+            fi
+            info "уже применён: ${name}"
+            continue
+        fi
+        info "применяю ${name}"
+        psql_apply "${file}" || return 1
+        psql_q "INSERT INTO tbl_migration_ledger (name, checksum)
+                VALUES ('${name}', '${sum}') ON CONFLICT (name) DO NOTHING"
     done
     info "миграции применены"
 }

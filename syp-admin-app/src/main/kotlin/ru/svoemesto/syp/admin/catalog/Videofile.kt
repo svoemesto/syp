@@ -52,7 +52,7 @@ data class Videofile(
     val projectId: Long,
     val ordinal: Int,
     val name: String,
-    val seasonId: Long? = null,
+    val seasonNumber: Int? = null,
     val videofileOrdinal: Int = 0,
     val sourcePath: String,
     val byteSize: Long,
@@ -129,7 +129,7 @@ data class Videofile(
                     projectId,
                     ordinal,
                     name,
-                    seasonId,
+                    seasonNumber,
                     videofileOrdinal,
                     sourcePath,
                     byteSize,
@@ -164,7 +164,7 @@ data class Videofile(
                 "id_project",
                 "ordinal",
                 "name",
-                "season_id",
+                "season_number",
                 "videofile_ordinal",
                 "source_path",
                 "file_size",
@@ -189,7 +189,7 @@ data class Videofile(
         /** Столбцы эпизода в порядке чтения из базы. */
         val READ_COLUMNS: String =
             (
-                "id, id_project, ordinal, name, season_id, videofile_ordinal, source_path, file_size, file_mtime, " +
+                "id, id_project, ordinal, name, season_number, videofile_ordinal, source_path, file_size, file_mtime, " +
                     "frame_count, time_base_num, time_base_den, width, height, " +
                     "duration_num, duration_den, video_codec, video_profile, pixel_format, " +
                     "audio_codec, audio_channels, audio_sample_rate, keyframe_bitmap, " +
@@ -202,7 +202,7 @@ data class Videofile(
          * @param projectId фильм-владелец
          * @param ordinal порядковый номер в фильме
          * @param name название эпизода
-         * @param seasonId сезон-владелец; не задан — у фильма
+         * @param seasonNumber сезон-владелец; не задан — у фильма
          * @param videofileOrdinal номер эпизода внутри сезона; 0 — у фильма
          * @param sourcePath абсолютный путь к файлу
          * @param parameters параметры, снятые с файла опросом
@@ -212,7 +212,7 @@ data class Videofile(
             projectId: Long,
             ordinal: Int,
             name: String,
-            seasonId: Long?,
+            seasonNumber: Int?,
             videofileOrdinal: Int,
             sourcePath: String,
             parameters: SourceParameters,
@@ -221,7 +221,7 @@ data class Videofile(
                 projectId = projectId,
                 ordinal = ordinal,
                 name = name,
-                seasonId = seasonId,
+                seasonNumber = seasonNumber,
                 videofileOrdinal = videofileOrdinal,
                 sourcePath = sourcePath,
                 byteSize = parameters.byteSize,
@@ -428,7 +428,7 @@ class VideofileStore(
             projectId = row.long("id_project"),
             ordinal = row.int("ordinal"),
             name = row.string("name"),
-            seasonId = row.longOrNull("season_id"),
+            seasonNumber = row.intOrNull("season_number"),
             videofileOrdinal = row.int("videofile_ordinal"),
             sourcePath = row.string("source_path"),
             byteSize = row.long("file_size"),
