@@ -114,6 +114,12 @@ services:
       # (constitution VIII.5). Пустой SYP_FACE_DETECTOR_PATH означает, что
       # детектор не поднят: собирается заглушка, и прогон анализа называет
       # её заглушкой, а не выдаёт пустой результат за детекцию.
+      # Эмбеддер лиц: та же логика, что у детектора. Обе переменные пустые —
+      # вектора не считаются, и это видно, а не молчаливый обход.
+      SYP_FACE_EMBEDDER_PATH: ${SYP_FACE_EMBEDDER_PATH:-}
+      SYP_FACE_EMBEDDER_MODEL_PATH: ${SYP_FACE_EMBEDDER_MODEL_PATH:-}
+      SYP_FACE_EMBEDDER_PROVIDER: ${SYP_FACE_EMBEDDER_PROVIDER:-CPUExecutionProvider}
+      SYP_FACE_EMBEDDING_MODEL_KEY: ${SYP_FACE_EMBEDDING_MODEL_KEY:-}
       SYP_FACE_DETECTOR_PATH: ${SYP_FACE_DETECTOR_PATH:-/opt/syp/face-detector/bin/syp-face-detector}
       SYP_FACE_MODEL_PATH: ${SYP_FACE_MODEL_PATH:-/opt/syp/face-detector/models/face_detection_yunet_2023mar.onnx}
       # Вид модели: как программа готовит кадр и разбирает выход сети.
