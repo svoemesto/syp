@@ -116,11 +116,21 @@ class FaceEmbedderProcess(
         if (faces.isEmpty()) {
             return emptyList()
         }
-        val request = ByteBuffer.allocate(REQUEST_HEADER_BYTES + faces.size * REQUEST_FACE_BYTES)
+        // Запрос несёт и кадр: без пикселей эмбеддер посчитать нечего, ему
+        // нужны не рамка и не точки сами по себе, а само лицо на кадре.
+        val request =
+            ByteBuffer.allocate(
+                REQUEST_HEADER_BYTES +
+                    frame.data.size +
+                    REQUEST_COUNT_BYTES +
+                    faces.size * REQUEST_FACE_BYTES,
+            )
         request.order(ByteOrder.LITTLE_ENDIAN)
         request.putInt(frame.number)
         request.putShort(frame.format.width.toShort())
         request.putShort(frame.format.height.toShort())
+        request.put(frame.data)
+        request.putShort(faces.size.toShort())
         for (face in faces) {
             request.putShort(face.x1.toShort())
             request.putShort(face.y1.toShort())
@@ -199,11 +209,23 @@ class FaceEmbedderProcess(
     }
 
     companion object {
-        /** Сколько байт на точку в запросе. */
-        const val REQUEST_FACE_BYTES: Int = 4 + 4 + 10 * 2
+        /**
+         * Сколько байт на лицо в запросе: четыре координаты рамки, уверенность
+         * и пять точек.
+         *
+         * Считается из частей, а не константой: при первом написании стояло
+         * `4 + 4 + 10 * 2`, то есть 28 байт, а пишется 32 — четыре координаты
+         * и уверенность занимают не 8 байт, а 12. Запрос не влезал в отведённый
+         * буфер, и эмбеддер падал на первом же лице — а падение уходило в
+         * сообщение о сбое потока кадров и выглядело как поломка декодера.
+         */
+        const val REQUEST_FACE_BYTES: Int = 4 * 2 + 4 + 10 * 2
 
-        /** Сколько байт в заголовке запроса. */
+        /** Сколько байт в заголовке запроса: номер, ширина, высота. */
         const val REQUEST_HEADER_BYTES: Int = 8
+
+        /** Сколько байт занимает число лиц в запросе. */
+        const val REQUEST_COUNT_BYTES: Int = 2
 
         /** Сколько байт в заголовке ответа. */
         const val ANSWER_HEADER_BYTES: Int = 6

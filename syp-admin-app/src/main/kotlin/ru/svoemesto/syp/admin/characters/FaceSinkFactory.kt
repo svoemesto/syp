@@ -1,7 +1,11 @@
 package ru.svoemesto.syp.admin.characters
 
+import org.slf4j.LoggerFactory
 import ru.svoemesto.syp.admin.catalog.ProjectSettings
 import ru.svoemesto.syp.core.media.RawFrame
+
+/** Журнал сборки приёмника. */
+private val logger = LoggerFactory.getLogger("FaceSinkFactory")
 
 /**
  * Приёмник рамок, записывающий их в базу.
@@ -116,6 +120,17 @@ class FaceSinkFactory(
         val program = embedder
         val database = db
         if (store == null || program == null || database == null || modelKey.isEmpty()) {
+            // Раньше этот выход был молчаливым, и выглядел он одинаково: и
+            // «эмбеддер не настроен», и «эмбеддер настроен, но не пришёл».
+            // Разница между этими двумя — ноль векторов и работающий эмбеддер,
+            // и по нулю её не различить. Условие называется прямо.
+            logger.info(
+                "Эмбеддер не подключён: хранилище={} программа={} база={} ключ=\"{}\"",
+                store != null,
+                program != null,
+                database != null,
+                modelKey,
+            )
             return storing
         }
         return EmbeddingFaceSink(

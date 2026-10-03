@@ -1,5 +1,6 @@
 package ru.svoemesto.syp.admin.config
 
+import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import ru.svoemesto.syp.admin.analysis.AnalysisRunStore
@@ -24,6 +25,9 @@ import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.media.FrameChannel
 import ru.svoemesto.syp.core.media.FrameExtractor
+
+/** Журнал настройки программ. */
+private val logger = LoggerFactory.getLogger("CharactersConfiguration")
 
 /**
  * Сборка домена персонажей: проход по кадрам, задание `FACES`, персоны.
@@ -367,6 +371,7 @@ class CharactersConfiguration {
                     "молча, а это хуже, чем не считать их вовсе.",
             )
         }
+        logger.info("Эмбеддер лиц: программа={} модель={}", program, model)
         val process =
             FaceEmbedderProcess(
                 programPath = program,
