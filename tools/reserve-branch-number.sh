@@ -67,6 +67,8 @@ echo "$reserved"
 
 if [ -n "$SLUG" ]; then
   branch="${reserved}-${SLUG}"
-  git checkout -b "$branch"
-  echo "Создана и переключена ветка: $branch" >&2
+  echo "Ветку создайте сами: git branch \"$branch\" master" >&2
+  echo "Рабочую копию — отдельно: git worktree add .worktrees/$branch $branch" >&2
+  # Переключать основное дерево здесь нельзя: оно уезжает с master,
+  # а рабочая копия вложенного агента не появляется.
 fi
