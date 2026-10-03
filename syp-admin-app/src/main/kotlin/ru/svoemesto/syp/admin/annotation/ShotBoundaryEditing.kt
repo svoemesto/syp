@@ -329,8 +329,26 @@ class ShotBoundaryEditing(
     fun splitShot(
         episodeId: Long,
         frame: Int,
+    ): ShotEditOutcome = db.useTransaction { connection -> splitShotIn(connection, episodeId, frame) }
+
+    /**
+     * Разделяет план в уже открытом соединении.
+     *
+     * Зачем: согласование вызывается изнутри другой транзакции, и вложенная
+     * либо не попадает в общую, либо блокирует себя — тогда согласование
+     * молча ничего не делает.
+     *
+     * @param connection открытое соединение
+     * @param episodeId эпизод
+     * @param frame кадр, по которому разделяется план
+     * @return результат правки планов
+     */
+    fun splitShotIn(
+        connection: Connection,
+        episodeId: Long,
+        frame: Int,
     ): ShotEditOutcome =
-        db.useTransaction { connection ->
+        run {
             val state = readState(connection, episodeId)
             val source =
                 state.working.firstOrNull { it.firstFrame <= frame && frame <= it.lastFrame }
