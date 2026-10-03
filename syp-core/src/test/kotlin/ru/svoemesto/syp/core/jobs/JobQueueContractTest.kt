@@ -426,14 +426,98 @@ class JobQueueContractTest {
         assertTrue(first.matches(Regex("^[0-9a-f]{64}$")), "хеш должен быть SHA-256 в нижнем регистре")
     }
 
+    /**
+     * Лица, поставленные раньше разбора, ждут разбора.
+     *
+     * Порядок в очереди задан временем создания, и без этого правила лица
+     * вставали в очередь первыми и получали эпизод без планов: лица искались
+     * вхолостую, привязываться им было не к чему, а задание выглядело
+     * успешным.
+     */
+    @Test
+    @DisplayName("Свойство: лица ждут разбора того же эпизода")
+    fun facesWaitsForOwnAnalysis() {
+        val faces = enqueueFor(JobKind.FACES, "лица-раньше", episodeId = 1)
+        enqueueFor(JobKind.ANALYZE, "разбор-позже", episodeId = 1)
+
+        assertNull(
+            queue.claim(listOf(JobKind.FACES)),
+            "лица не должны браться в работу, пока разбор их эпизода не закончен",
+        )
+        val analysis = queue.claim(listOf(JobKind.ANALYZE))
+        assertNotNull(analysis, "разбор обязан браться: он ждёт лица, а не наоборот")
+        queue.startWork(analysis.id)
+        // У задания в DONE обязан быть заданный объём: без него состояние
+        // «выполнено» не означало бы, что работа была.
+        queue.reportProgress(analysis.id, JobProgress(4, 4, "кадры"))
+        queue.complete(analysis.id)
+
+        val after = queue.claim(listOf(JobKind.FACES))
+        assertNotNull(after, "после разбора лица обязаны браться в работу")
+        assertEquals(faces, after.id, "взято не то задание")
+    }
+
+    /**
+     * Разбор чужого эпизода не должен задерживать лица этого.
+     *
+     * Иначе один тяжёлый разбор останавливал бы поиск лиц по всему сериалу.
+     */
+    @Test
+    @DisplayName("Свойство: разбор чужого эпизода не задерживает лица")
+    fun otherEpisodeAnalysisDoesNotBlock() {
+        val faces = enqueueFor(JobKind.FACES, "лица-эпизод-1", episodeId = 1)
+        enqueueFor(JobKind.ANALYZE, "разбор-эпизод-2", episodeId = 2)
+
+        val claimed = queue.claim(listOf(JobKind.FACES))
+        assertNotNull(claimed, "разбор другого эпизода не должен ждать лица этого")
+        assertEquals(faces, claimed.id, "взято не то задание")
+    }
+
+    /**
+     * Упавший разбор не должен держать лица вечно.
+     *
+     * Ожидание снимается и неудачей разбора: иначе один сбой остановил бы
+     * поиск лиц по эпизоду навсегда, и очередь стояла бы молча.
+     */
+    @Test
+    @DisplayName("Свойство: упавший разбор не держит лица")
+    fun failedAnalysisDoesNotBlockForever() {
+        enqueueFor(JobKind.FACES, "лица-после-сбоя", episodeId = 3)
+        enqueueFor(JobKind.ANALYZE, "разбор-упадёт", episodeId = 3)
+        val analysis = queue.claim(listOf(JobKind.ANALYZE))
+        assertNotNull(analysis, "разбор должен браться в работу")
+        queue.startWork(analysis.id)
+        queue.fail(analysis.id, "декодер не ответил")
+
+        assertNotNull(
+            queue.claim(listOf(JobKind.FACES)),
+            "упавший разбор не должен держать лица: иначе очередь встанет навсегда",
+        )
+    }
+
     /** Ставит задание в очередь и возвращает его идентификатор. */
+
     private fun enqueue(
         kind: JobKind,
         label: String,
+    ): Long = enqueueFor(kind, label, episodeId = null)
+
+    /**
+     * Ставит задание в очередь с указанным эпизодом.
+     *
+     * @param kind вид задания
+     * @param label метка для параметров
+     * @param episodeId эпизод; `null` — задание без предмета
+     * @return идентификатор задания
+     */
+    private fun enqueueFor(
+        kind: JobKind,
+        label: String,
+        episodeId: Long?,
     ): Long =
         queue.enqueue(
             kind = kind,
-            subject = JobSubject.NONE,
+            subject = if (episodeId == null) JobSubject.NONE else JobSubject.episode(episodeId),
             paramsJson = """{"метка":"$label"}""",
             paramsHash = ParamsHash.of(label, System.nanoTime()),
             algorithmVersion = "contract-test-1",
