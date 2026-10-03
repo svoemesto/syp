@@ -10,9 +10,9 @@ import { request } from './http'
 /** Состояние записи справочника сумм. */
 export type ChecksumState = 'CREATING' | 'WORKING' | 'DONE' | 'ERROR'
 
-/** Состояние суммы эпизода в ответе. */
+/** Состояние суммы видеофайла в ответе. */
 export interface ChecksumView {
-  /** Идентификатор эпизода. */
+  /** Идентификатор видеофайла. */
   videofileId: number
   /** Состояние подсчёта. */
   state: ChecksumState
@@ -34,7 +34,7 @@ export interface ChecksumView {
   errorText: string | null
   /** Задание, считающее или посчитавшее сумму. */
   jobId: number | null
-  /** Сколько записей пересчётов у эпизода всего. */
+  /** Сколько записей пересчётов у видеофайла всего. */
   historyCount: number
   /** Можно ли поставить пересчёт прямо сейчас. */
   canRecalculate: boolean
@@ -44,7 +44,7 @@ export interface ChecksumView {
 export interface ChecksumEnqueuedView {
   /** Идентификатор поставленного задания. */
   jobId: number
-  /** Эпизод, для которой считается сумма. */
+  /** Видеофайл, для которой считается сумма. */
   videofileId: number
   /** Состояние задания на момент постановки. */
   state: string
@@ -53,26 +53,26 @@ export interface ChecksumEnqueuedView {
 }
 
 /**
- * Читает состояние суммы эпизода.
+ * Читает состояние суммы видеофайла.
  *
  * Отказ `CHECKSUM_NOT_READY` означает, что сумму не считали ни разу: это не
  * ошибка экрана, а его обычное состояние, и интерфейс показывает «поставьте
  * пересчёт» вместо пустой страницы.
  *
- * @param videofileId идентификатор эпизода
- * @returns состояние суммы эпизода
+ * @param videofileId идентификатор видеофайла
+ * @returns состояние суммы видеофайла
  */
 export function readChecksum(videofileId: number): Promise<ChecksumView> {
   return request<ChecksumView>('GET', `/videofiles/${videofileId}/checksum`)
 }
 
 /**
- * Ставит пересчёт суммы эпизода.
+ * Ставит пересчёт суммы видеофайла.
  *
  * Работа идёт заданием: чтение 5,6 ГБ не должно держать соединение
  * интерфейса (constitution IV.1, FR-003).
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @returns поставленное задание
  */
 export function startChecksum(videofileId: number): Promise<ChecksumEnqueuedView> {

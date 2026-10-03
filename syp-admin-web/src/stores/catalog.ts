@@ -17,10 +17,10 @@ import {
 } from '../api/catalog'
 import { ApiError } from '../api/http'
 
-/** Список фильмов. */
+/** Список проектов. */
 const projects = ref<ProjectView[]>([])
 
-/** Раскрытый фильм с его эпизодами и настройками. */
+/** Раскрытый проект с его видеофайлами и настройками. */
 const current = ref<ProjectDetailView | null>(null)
 
 /** Идёт ли обращение к бэкенду: показывается работа, а не пустой экран. */
@@ -50,10 +50,10 @@ function remember(failure: unknown): void {
   error.value = failure instanceof Error ? failure.message : String(failure)
 }
 
-/** Эпизода раскрытого фильма; пустой список, если фильм не выбран. */
+/** Видеофайла раскрытого проекта; пустой список, если проект не выбран. */
 const videofile = computed<VideofileView[]>(() => current.value?.videofile ?? [])
 
-/** Можно ли ставить новый эпизод: фильм должен быть выбран. */
+/** Можно ли ставить новый видеофайл: проект должен быть выбран. */
 const canRegisterVideofile = computed(() => current.value !== null)
 
 /**
@@ -63,7 +63,7 @@ const canRegisterVideofile = computed(() => current.value !== null)
  */
 export function useCatalogStore() {
   /**
-   * Перечитывает список фильмов.
+   * Перечитывает список проектов.
    *
    * @returns `true`, если список прочитан
    */
@@ -83,11 +83,11 @@ export function useCatalogStore() {
   }
 
   /**
-   * Создаёт фильм с корнем каталога и раскрывает его.
+   * Создаёт проект с корнем каталога и раскрывает его.
    *
-   * @param name название фильма
-   * @param sourceRoot корневой каталог фильма на машине администратора
-   * @returns `true`, если фильм создан и показан
+   * @param name название проекта
+   * @param sourceRoot корневой каталог проекта на машине администратора
+   * @returns `true`, если проект создан и показан
    */
   async function addProject(name: string, sourceRoot: string): Promise<boolean> {
     loading.value = true
@@ -105,10 +105,10 @@ export function useCatalogStore() {
   }
 
   /**
-   * Открывает фильм: эпизода и настройки.
+   * Открывает проект: видеофайла и настройки.
    *
-   * @param projectId идентификатор фильма
-   * @returns `true`, если фильм прочитан
+   * @param projectId идентификатор проекта
+   * @returns `true`, если проект прочитан
    */
   async function openProject(projectId: number): Promise<boolean> {
     loading.value = true
@@ -126,16 +126,16 @@ export function useCatalogStore() {
   }
 
   /**
-   * Регистрирует эпизод по пути к файлу.
+   * Регистрирует видеофайл по пути к файлу.
    *
-   * @param sourcePath абсолютный путь к файлу внутри корня фильма
-   * @param name название эпизода; если не задано, берётся имя файла
-   * @returns `true`, если эпизод зарегистрирована
+   * @param sourcePath абсолютный путь к файлу внутри корня проекта
+   * @param name название видеофайла; если не задано, берётся имя файла
+   * @returns `true`, если видеофайл зарегистрирована
    */
   async function addVideofile(sourcePath: string, name?: string): Promise<boolean> {
     if (current.value === null) {
       errorCode.value = 'BAD_REQUEST'
-      error.value = 'Сначала откройте фильм: эпизод заводится только в нём'
+      error.value = 'Сначала откройте проект: видеофайл заводится только в нём'
       return false
     }
     loading.value = true

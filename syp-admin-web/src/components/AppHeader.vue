@@ -22,7 +22,7 @@ const catalog = useCatalogStore()
 
 /** Разделы админки в порядке работы оператора. */
 const sections = computed(() => [
-  { name: 'intake', title: 'Приём сериалов', hint: 'Сериалы, серии, параметры файла' },
+  { name: 'intake', title: 'Приём проектов', hint: 'Проекты, серии, параметры файла' },
   { name: 'sums', title: 'Суммы', hint: 'Состояние подсчёта SHA-256 серии' },
   { name: 'structure', title: 'Структура', hint: 'Сцены, планы, границы' },
   { name: 'faces', title: 'Лица', hint: 'Детекция, кластеры, персоны' },
@@ -41,21 +41,21 @@ const connectionAttention = computed(() => connectionIsAttention())
 /** Сводка по очереди заданий. */
 const queue = computed(() => currentQueue())
 
-/** Название выбранного фильма для показа в шапке. */
+/** Название выбранного проекта для показа в шапке. */
 const selectedVideofileLabel = computed(() => {
   const catalogEntry = catalog.current.value
   if (catalogEntry !== null) {
     return catalogEntry.project.name
   }
   // Каталог заполняется на экране приёма. При прямом заходе по адресу
-  // эпизода он пуст, и подпись «фильм не выбран» противоречила тому, что
-  // видно: задание по этому эпизоду работает. Лучше сказать, какой эпизод
+  // видеофайла он пуст, и подпись «проект не выбран» противоречила тому, что
+  // видно: задание по этому видеофайлу работает. Лучше сказать, какой видеофайл
   // открыт, чем утверждать, что ничего не выбрано.
   const raw = route.params.videofileId
   if (typeof raw === 'string' && raw !== '') {
-    return `эпизод ${raw}`
+    return `видеофайл ${raw}`
   }
-  return 'фильм не выбран'
+  return 'проект не выбран'
 })
 
 /**
@@ -77,8 +77,8 @@ function linkFor(name: string): { name: string; params?: { videofileId: string }
   if (target === undefined) {
     return { name }
   }
-  // Разделы «суммы», «структура» и «лица» живут по эпизоду, и эпизод берётся
-  // из адреса: выбранного эпизода в состоянии нет, а адрес — единственное
+  // Разделы «суммы», «структура» и «лица» живут по видеофайлу, и видеофайл берётся
+  // из адреса: выбранного видеофайла в состоянии нет, а адрес — единственное
   // место, где он зафиксирован.
   const videofileId = route.params.videofileId
   if (typeof videofileId !== 'string' || videofileId === '') {

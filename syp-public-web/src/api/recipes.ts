@@ -1,4 +1,4 @@
-// Клиент публичной части: сериалы и сценарии сборки.
+// Клиент публичной части: проекты и сценарии сборки.
 //
 // Соответствует разделам 3 и 4 контракта
 // `specs/001-first-vertical-slice/contracts/public-api.md`.
@@ -9,11 +9,11 @@
 
 import { request } from './http'
 
-/** Сериал с размеченными данными. */
+/** Проект с размеченными данными. */
 export interface SerialView {
-  /** Идентификатор сериала. */
+  /** Идентификатор проекта. */
   id: number
-  /** Название сериала. */
+  /** Название проекта. */
   name: string
   /** Сколько серий заведено. */
   seriesCount: number
@@ -23,7 +23,7 @@ export interface SerialView {
 export interface RecipeSummaryView {
   /** Идентификатор сценария. */
   id: number
-  /** Идентификатор сериала-владельца. */
+  /** Идентификатор проекта-владельца. */
   serialId?: number
   /** Название сценария. */
   name: string
@@ -51,7 +51,7 @@ export interface RecipeItemView {
   seriesId?: number
   /** Название серии. */
   seriesName?: string
-  /** Относительный путь к файлу внутри копии сериала. */
+  /** Относительный путь к файлу внутри копии проекта. */
   relativePath?: string
   /** Сумма источника. */
   sourceSha256?: string | null
@@ -126,19 +126,19 @@ export interface VerificationKeyView {
 }
 
 /**
- * Перечисляет сериалы с размеченными данными.
+ * Перечисляет проекты с размеченными данными.
  *
- * @returns сериалы, у которых есть размеченные сцены
+ * @returns проекты, у которых есть размеченные сцены
  */
 export function listSerials(): Promise<SerialView[]> {
   return request<SerialView[]>('GET', '/serials')
 }
 
 /**
- * Перечисляет сценарии сериала, свежие сверху.
+ * Перечисляет сценарии проекта, свежие сверху.
  *
- * @param serialId сериал
- * @returns сценарии сериала
+ * @param serialId проект
+ * @returns сценарии проекта
  */
 export function listRecipes(serialId: number): Promise<RecipeSummaryView[]> {
   return request<RecipeSummaryView[]>('GET', `/recipes?serialId=${serialId}`)

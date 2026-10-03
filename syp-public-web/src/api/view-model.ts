@@ -18,11 +18,11 @@ import type {
   VerificationKeyView,
 } from './recipes'
 
-/** Сериал на экране выбора. */
+/** Проект на экране выбора. */
 export interface SerialOption {
-  /** Идентификатор сериала. */
+  /** Идентификатор проекта. */
   id: number
-  /** Название сериала. */
+  /** Название проекта. */
   name: string
   /** Сколько серий заведено. */
   seriesCount: string
@@ -161,9 +161,9 @@ function describeState(state: string): { stateTitle: string; stateTone: RecipeCa
 }
 
 /**
- * Приводит сериал к строке выбора.
+ * Приводит проект к строке выбора.
  *
- * @param dto сериал из ответа бэкенда
+ * @param dto проект из ответа бэкенда
  * @returns строка экрана
  */
 export function toSerialOption(dto: SerialView): SerialOption {

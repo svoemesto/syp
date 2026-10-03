@@ -62,12 +62,12 @@ const notice = shallowRef<NoticeView | null>(null)
 const checksumRevisions = ref<Record<number, number>>({})
 
 /**
- * Счётчик изменений структуры по эпизодам.
+ * Счётчик изменений структуры по видеофайлам.
  *
- * Устроен так же, как счётчик сумм, и по той же причине: разбор эпизода идёт
+ * Устроен так же, как счётчик сумм, и по той же причине: разбор видеофайла идёт
  * десятки минут, и единственный способ узнать, что он закончился, — событие о
  * смене состояния задания. Экран структуры перечитывает данные, когда счётчик
- * его эпизода растёт, и не опрашивает сервер по таймеру.
+ * его видеофайла растёт, и не опрашивает сервер по таймеру.
  */
 const analysisRevisions = ref<Record<number, number>>({})
 
@@ -108,7 +108,7 @@ function handle(name: string, payload: unknown): void {
       const dto = payload as JobStatePayload
       lastJob.value = toJobStateView(dto)
       // Смена состояния задания означает, что результат на экране изменился:
-      // задание `ANALYZE` переписало структуру эпизода, и читать её надо по
+      // задание `ANALYZE` переписало структуру видеофайла, и читать её надо по
       // событию, а не по таймеру (ADR-0017). Предмет работы приходит в событии
       // идентификатором, и без него счётчик поднять не на чем.
       if (dto.kind === 'ANALYZE' && dto.subjectType === 'EPISODE' && dto.subjectId !== null) {
@@ -237,7 +237,7 @@ export function connectionIsAttention(): boolean {
 /**
  * Счётчик изменений суммы указанной серии.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @returns номер изменения, `0`, если изменений не было
  */
 export function checksumRevision(videofileId: number): number {
@@ -245,9 +245,9 @@ export function checksumRevision(videofileId: number): number {
 }
 
 /**
- * Счётчик изменений структуры указанного эпизода.
+ * Счётчик изменений структуры указанного видеофайла.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @returns номер изменения, `0`, если изменений не было
  */
 export function analysisRevision(videofileId: number): number {

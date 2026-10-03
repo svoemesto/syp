@@ -3,13 +3,13 @@
 // Соответствует разделу 5 контракта
 // `specs/001-first-vertical-slice/contracts/admin-api.md`. Время в ответах не
 // приходит: номер кадра — единственный источник правды, клиент пересчитывает
-// время от `time_base` эпизода (ADR-0001).
+// время от `time_base` видеофайла (ADR-0001).
 //
 // Документация публичных функций — по правилам проекта (FR-006).
 
 import { request } from './http'
 
-/** Персона фильма. */
+/** Персона проекта. */
 export interface PersonView {
   /** Идентификатор персоны. */
   id: number
@@ -23,15 +23,15 @@ export interface PersonView {
   recognizerKey: string | null
 }
 
-/** Персоны фильма. */
+/** Персоны проекта. */
 export interface PersonsView {
-  /** Фильм. */
+  /** Проект. */
   projectId: number
   /** Персоны: сначала служебные, затем именованные по имени. */
   persons: PersonView[]
 }
 
-/** Лицо эпизода. */
+/** Лицо видеофайла. */
 export interface FaceView {
   /** Идентификатор лица. */
   id: number
@@ -63,17 +63,17 @@ export interface FaceView {
   detectConfidence: number | null
 }
 
-/** Страница лиц эпизода. */
+/** Страница лиц видеофайла. */
 export interface FacesView {
-  /** Эпизод. */
+  /** Видеофайл. */
   videofileId: number
-  /** Фильм-владелец: по нему клиент читает справочник персон. */
+  /** Проект-владелец: по нему клиент читает справочник персон. */
   projectId: number
-  /** Ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру. */
+  /** Ширина кадра видеофайла: по ней клиент кладёт рамку на миниатюру. */
   frameWidth: number
-  /** Высота кадра эпизода. */
+  /** Высота кадра видеофайла. */
   frameHeight: number
-  /** Сколько лиц у эпизода всего. */
+  /** Сколько лиц у видеофайла всего. */
   facesTotal: number
   /** Смещение выборки. */
   offset: number
@@ -95,17 +95,17 @@ export interface FaceClusterView {
   thumbnailFaceId: number
 }
 
-/** Кластеры эпизода. */
+/** Кластеры видеофайла. */
 export interface FaceClustersView {
-  /** Эпизод. */
+  /** Видеофайл. */
   videofileId: number
-  /** Ширина кадра эпизода: по ней клиент кладёт рамку на миниатюру. */
+  /** Ширина кадра видеофайла: по ней клиент кладёт рамку на миниатюру. */
   frameWidth: number
-  /** Высота кадра эпизода. */
+  /** Высота кадра видеофайла. */
   frameHeight: number
   /** Ключ модели эмбеддингов, которой получены векторы. */
   embeddingModelKey: string
-  /** Сколько кластеров без имени у эпизода. */
+  /** Сколько кластеров без имени у видеофайла. */
   clustersTotal: number
   /** Кластеры по убыванию числа лиц. */
   clusters: FaceClusterView[]
@@ -124,12 +124,12 @@ export interface ClusterNamedView {
 }
 
 /**
- * Читает лица эпизода.
+ * Читает лица видеофайла.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param offset смещение выборки
  * @param limit размер выборки
- * @returns страница лиц эпизода
+ * @returns страница лиц видеофайла
  */
 export function readFaces(videofileId: number, offset = 0, limit = 200): Promise<FacesView> {
   return request<FacesView>(
@@ -139,10 +139,10 @@ export function readFaces(videofileId: number, offset = 0, limit = 200): Promise
 }
 
 /**
- * Читает кластеры похожих лиц эпизода без имени.
+ * Читает кластеры похожих лиц видеофайла без имени.
  *
- * @param videofileId идентификатор эпизода
- * @returns кластеры эпизода
+ * @param videofileId идентификатор видеофайла
+ * @returns кластеры видеофайла
  */
 export function readClusters(videofileId: number): Promise<FaceClustersView> {
   return request<FaceClustersView>('GET', `/videofiles/${videofileId}/faces/clusters`)
@@ -171,10 +171,10 @@ export function nameCluster(
 }
 
 /**
- * Читает персон фильма.
+ * Читает персон проекта.
  *
- * @param projectId идентификатор фильма
- * @returns персоны фильма
+ * @param projectId идентификатор проекта
+ * @returns персоны проекта
  */
 export function readPersons(projectId: number): Promise<PersonsView> {
   return request<PersonsView>('GET', `/projects/${projectId}/persons`)
@@ -209,7 +209,7 @@ export function deletePerson(personId: number): Promise<null> {
  * Отдельная функция вместо строки в шаблоне: адрес собирается в одном месте,
  * и переименование пути не потребует правок по экрану.
  *
- * @param videofileId идентификатор эпизода
+ * @param videofileId идентификатор видеофайла
  * @param frame номер кадра
  * @returns адрес листа превью
  */
@@ -232,7 +232,7 @@ export interface FaceExamplesMarkedView {
  * человек, а не алгоритм: проставленный автоматически эталон обучил бы модель
  * на её же предположении.
  *
- * @param videofileId эпизод-владелец лиц
+ * @param videofileId видеофайл-владелец лиц
  * @param faceIds лица, которым меняют метку
  * @param isExample новое значение метки
  * @returns сколько лиц изменилось

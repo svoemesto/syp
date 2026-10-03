@@ -16,7 +16,7 @@ import type { ShotRow } from '../api/view-model'
 const props = defineProps<{
   /** Выбранный план. */
   shot: ShotRow
-  /** Число кадров эпизода: им ограничивается ввод номера кадра. */
+  /** Число кадров видеофайла: им ограничивается ввод номера кадра. */
   frameCount: number
   /** Идёт ли правка: на время операции поле недоступно. */
   busy: boolean

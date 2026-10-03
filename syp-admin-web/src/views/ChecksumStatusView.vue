@@ -14,7 +14,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useChecksumStore()
 
-/** Идентификатор эпизода из адреса. */
+/** Идентификатор видеофайла из адреса. */
 const videofileId = computed(() => Number(route.params.videofileId))
 
 onMounted(() => {
@@ -70,8 +70,8 @@ async function recalculate(): Promise<boolean> {
   <section class="checksum">
     <h2>Состояние суммы исходника</h2>
     <p class="note">
-      Сумма <code>SHA-256</code> файла эпизода — эталон, с которым машина пользователя сверяет файл
-      <em>до</em> нарезки. Без актуальной суммы сценарий сборки выдавать нельзя.
+      Сумма <code>SHA-256</code> файла видеофайла — эталон, с которым машина пользователя сверяет
+      файл <em>до</em> нарезки. Без актуальной суммы сценарий сборки выдавать нельзя.
     </p>
 
     <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
@@ -139,7 +139,7 @@ async function recalculate(): Promise<boolean> {
 
     <p v-if="store.checksum.value" class="note">
       Повторный пересчёт не затирает прежнюю запись: она остаётся в истории и помечается устаревшей.
-      Актуальной остаётся ровно одна сумма на эпизод.
+      Актуальной остаётся ровно одна сумма на видеофайл.
     </p>
     <p v-if="store.checksum.value" class="note">
       Проверить сумму у себя можно командой
