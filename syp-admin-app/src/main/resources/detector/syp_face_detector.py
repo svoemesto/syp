@@ -294,6 +294,7 @@ def postprocess(
         cls_parts.append(outputs["cls_%d" % stride].reshape(-1))
         obj_parts.append(outputs["obj_%d" % stride].reshape(-1))
         box_parts.append(outputs["bbox_%d" % stride].reshape(-1, 4))
+        point_parts.append(outputs["kps_%d" % stride].reshape(-1, 10))
         # Сетка якорей модели: сначала строки, потом столбцы, шаг — stride.
         # Порядок совпадает с порядком, в котором сеть выдаёт оценки; сдвиг на
         # один якорь сдвигает все рамки, и ошибка выглядит правдоподобно.
@@ -305,6 +306,7 @@ def postprocess(
     cls = np.concatenate(cls_parts)
     obj = np.concatenate(obj_parts)
     boxes_raw = np.concatenate(box_parts)
+    points_raw = np.concatenate(point_parts)
     grid = np.concatenate(grid_parts)
     strides = np.concatenate(stride_parts)
     scores = cls * obj
@@ -313,11 +315,13 @@ def postprocess(
         return []
     scores = scores[mask]
     boxes_raw = boxes_raw[mask]
+    points_raw = points_raw[mask]
     grid = grid[mask]
     strides = strides[mask]
     order = np.argsort(scores)[::-1][:top_k]
     scores = scores[order]
     boxes_raw = boxes_raw[order]
+    points_raw = points_raw[order]
     grid = grid[order]
     strides = strides[order]
 
@@ -344,6 +348,18 @@ def postprocess(
     boxes[:, 2] = np.clip(boxes[:, 2], 0, source_w)
     boxes[:, 3] = np.clip(boxes[:, 3], 0, source_h)
 
+    # Точки. Сеть отдаёт пять пар так же, как и четыре расстояния рамки: от
+    # якоря. Порядок — левый глаз, правый глаз, нос, левый угол рта, правый.
+    # Считать их иначе нельзя: сдвиг на полшага якоря даёт точки, сдвинутые на
+    # половину шага сетки, и выравнивание лица становится хуже, чем его
+    # отсутствие.
+    points = np.empty((points_raw.shape[0], 10), dtype=np.float64)
+    for i in range(5):
+        points[:, i * 2] = (grid[:, 1] + points_raw[:, i * 2]) * strides
+        points[:, i * 2 + 1] = (grid[:, 0] + points_raw[:, i * 2 + 1]) * strides
+    points[:, 0::2] *= source_w / input_w
+    points[:, 1::2] *= source_h / input_h
+
     keep = non_maximum_suppression(boxes, scores, nms_threshold)
     faces: list[tuple[int, int, int, int, float]] = []
     for index in keep:
@@ -354,7 +370,16 @@ def postprocess(
         # Пустая или вывернутая рамка — не результат, а ошибка разбора.
         if right <= left or bottom <= top:
             continue
-        faces.append((left, top, right, bottom, float(scores[index])))
+        faces.append(
+            (
+                left,
+                top,
+                right,
+                bottom,
+                float(scores[index]),
+                *[int(round(v)) for v in points[index]],
+            )
+        )
     return faces
 
 
@@ -411,6 +436,7 @@ def postprocess(
     """
     cls_parts: list[np.ndarray] = []
     obj_parts: list[np.ndarray] = []
+    point_parts: list[np.ndarray] = []
     box_parts: list[np.ndarray] = []
     grid_parts: list[np.ndarray] = []
     stride_parts: list[np.ndarray] = []
@@ -418,6 +444,7 @@ def postprocess(
         cls_parts.append(outputs["cls_%d" % stride].reshape(-1))
         obj_parts.append(outputs["obj_%d" % stride].reshape(-1))
         box_parts.append(outputs["bbox_%d" % stride].reshape(-1, 4))
+        point_parts.append(outputs["kps_%d" % stride].reshape(-1, 10))
         # Сетка якорей модели: сначала строки, потом столбцы, шаг — stride.
         # Порядок совпадает с порядком, в котором сеть выдаёт оценки; сдвиг на
         # один якорь сдвигает все рамки, и ошибка выглядит правдоподобно.
@@ -429,6 +456,7 @@ def postprocess(
     cls = np.concatenate(cls_parts)
     obj = np.concatenate(obj_parts)
     boxes_raw = np.concatenate(box_parts)
+    points_raw = np.concatenate(point_parts)
     grid = np.concatenate(grid_parts)
     strides = np.concatenate(stride_parts)
     scores = cls * obj
@@ -437,11 +465,13 @@ def postprocess(
         return []
     scores = scores[mask]
     boxes_raw = boxes_raw[mask]
+    points_raw = points_raw[mask]
     grid = grid[mask]
     strides = strides[mask]
     order = np.argsort(scores)[::-1][:top_k]
     scores = scores[order]
     boxes_raw = boxes_raw[order]
+    points_raw = points_raw[order]
     grid = grid[order]
     strides = strides[order]
 
@@ -468,6 +498,15 @@ def postprocess(
     boxes[:, 2] = np.clip(boxes[:, 2], 0, source_w)
     boxes[:, 3] = np.clip(boxes[:, 3], 0, source_h)
 
+    # Точки: пять пар так же, как четыре расстояния рамки, от того же якоря.
+    # Порядок — левый глаз, правый глаз, нос, левый угол рта, правый.
+    points = np.empty((points_raw.shape[0], 10), dtype=np.float64)
+    for i in range(5):
+        points[:, i * 2] = (grid[:, 1] + points_raw[:, i * 2]) * strides
+        points[:, i * 2 + 1] = (grid[:, 0] + points_raw[:, i * 2 + 1]) * strides
+    points[:, 0::2] *= source_w / input_w
+    points[:, 1::2] *= source_h / input_h
+
     keep = non_maximum_suppression(boxes, scores, nms_threshold)
     faces: list[tuple[int, int, int, int, float]] = []
     for index in keep:
@@ -478,7 +517,16 @@ def postprocess(
         # Пустая или вывернутая рамка — не результат, а ошибка разбора.
         if right <= left or bottom <= top:
             continue
-        faces.append((left, top, right, bottom, float(scores[index])))
+        faces.append(
+            (
+                left,
+                top,
+                right,
+                bottom,
+                float(scores[index]),
+                *[int(round(v)) for v in points[index]],
+            ),
+        )
     return faces
 
 
