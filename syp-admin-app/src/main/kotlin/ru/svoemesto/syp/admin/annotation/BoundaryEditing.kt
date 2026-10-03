@@ -116,6 +116,8 @@ data class SceneEditOutcome(
 class BoundaryEditing(
     private val db: Db,
     private val structure: StructureService,
+    /** Правка планов: без неё границу сцены не с чем согласовать. */
+    private val shots: ShotBoundaryEditing,
 ) {
     /**
      * Сдвигает границу между двумя соседними сценами.
@@ -213,7 +215,9 @@ class BoundaryEditing(
                         "сцену ${source.range()} нечем",
                 )
             }
-            state.requirePlanBoundary(frame)
+            // Граница сцены, попавшая внутрь плана, не отвергается: план
+            // делится, и граница сцены встаёт на уже существующую границу.
+            state.alignPlanBoundary(connection, episodeId, frame)
             updateScene(connection, source.copy(isStale = true))
             insertScene(connection, source.rebuilt(lastFrame = frame - 1).asNew())
             insertScene(connection, source.rebuilt(firstFrame = frame, title = null, locationId = null).asNew())
@@ -272,6 +276,7 @@ class BoundaryEditing(
         val episodeId: Long,
         val working: List<Scene>,
         val shots: List<Shot>,
+        private val shotsEditor: ShotBoundaryEditing,
     ) {
         /**
          * Сцена, заканчивающаяся указанным кадром.
@@ -312,17 +317,27 @@ class BoundaryEditing(
                 )
 
         /**
-         * Проверяет, что кадр является границей плана.
+         * Согласует границу плана с кадром, разделив план при необходимости.
          *
-         * У эпизода без планов проверять нечего: сцена тогда единственная
-         * граница, и разделить её не на что. Во всех остальных случаях кадр
-         * обязан совпадать с началом плана и с концом предыдущего, иначе новая
-         * сцена разрежет план, а план обязан лежать в сцене целиком
-         * (ADR-0007).
-         *
-         * @param frame проверяемый кадр
-         * @throws DomainException если планы есть, а кадр на их границе не стоит
+         * @param connection открытое соединение
+         * @param episodeId эпизод
+         * @param frame кадр границы
          */
+        fun alignPlanBoundary(
+            connection: java.sql.Connection,
+            episodeId: Long,
+            frame: Int,
+        ) {
+            if (shots.isEmpty()) {
+                return
+            }
+            if (shots.any { it.firstFrame == frame } || shots.any { it.lastFrame == frame }) {
+                return
+            }
+            val inside = shots.firstOrNull { it.firstFrame < frame && frame < it.lastFrame } ?: return
+            shotsEditor.splitShotIn(connection, episodeId, frame)
+        }
+
         fun requirePlanBoundary(frame: Int) {
             if (shots.isEmpty()) {
                 return
@@ -359,7 +374,16 @@ class BoundaryEditing(
         EditState(
             episodeId = episodeId,
             working = structure.listScenesIn(connection, episodeId).filter { !it.isStale },
-            shots = structure.listShotsIn(connection, episodeId),
+            // Только актуальные планы.
+            //
+            // Зачем: чтение планов отдаёт и устаревшие — на стенде 4 458
+            // записей против 1 115 актуальных. Устаревший план сохраняет
+            // прежние границы, и проверка «граница сцены на границе плана»
+            // видела в них границу там, где живой план её не имеет.
+            // Согласование из-за этого молча не срабатывало: сцена делилась,
+            // план оставался прежним.
+            shots = structure.listShotsIn(connection, episodeId).filter { !it.isStale },
+            shotsEditor = shots,
         )
 
     /**

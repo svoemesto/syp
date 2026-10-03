@@ -55,7 +55,24 @@ class SceneBoundaryEditingTest {
     fun openDatabase() {
         db = TestDatabase.assumeDatabase()
         structure = StructureService(db, AnalysisRunStore(db), RawBoundaryStore(db))
-        editing = BoundaryEditing(db, structure)
+        editing =
+            BoundaryEditing(
+                db,
+                structure,
+                ShotBoundaryEditing(
+                    db = db,
+                    structure = structure,
+                    binding =
+                        ru.svoemesto.syp.admin.characters
+                            .FacePlanBinding(db),
+                    episodes =
+                        ru.svoemesto.syp.admin.catalog
+                            .EpisodeStore(db),
+                    settings =
+                        ru.svoemesto.syp.admin.catalog
+                            .MovieSettingsStore(db),
+                ),
+            )
     }
 
     /**
@@ -194,21 +211,31 @@ class SceneBoundaryEditingTest {
     }
 
     @Test
-    fun `граница сцены не встаёт внутрь плана`() {
+    fun `граница сцены внутри плана согласована, а не отвергнута`() {
         val episode = analysed()
         val episodeId = episode.id!!
-        val shots = structure.listShots(episodeId)
+        val shots = structure.listShots(episodeId).filter { !it.isStale }
         val inside = shots.first { it.firstFrame <= 310 && 310 <= it.lastFrame }
-        assertTrue(inside.firstFrame < 310, "проверке нужен кадр внутри плана, а не на его границе")
-
-        val failure = assertFailsWith<DomainException> { editing.splitScene(episodeId, 310) }
-
-        assertEquals(ErrorCode.BOUNDARY_CONFLICT, failure.code)
         assertTrue(
-            failure.message.orEmpty().contains("внутри плана"),
-            "отказ должен называть причину, а отправлять оператора искать её: ${failure.message}",
+            inside.firstFrame < 310 && 310 < inside.lastFrame,
+            "проверке нужен кадр СТРОГО внутри плана, а на краю согласование не требуется: " +
+                "план ${inside.firstFrame}…${inside.lastFrame}",
         )
-        assertCovers(working(episodeId), 0, episode.frameCount - 1)
+        val shotsBefore = structure.listShots(episodeId).count { !it.isStale }
+
+        // Правило изменилось: граница сцены, попавшая внутрь плана, больше не
+        // отвергается — план делится, и граница встаёт на границу плана.
+        val failure =
+            runCatching { editing.splitScene(episodeId, 310) }.exceptionOrNull()
+        assertTrue(
+            failure == null,
+            "граница сцены внутри плана обязана согласоваться разделением плана, а отказало: ${failure?.message}",
+        )
+        assertEquals(
+            shotsBefore + 1,
+            structure.listShots(episodeId).count { !it.isStale },
+            "согласование обязано было разделить план",
+        )
     }
 
     @Test
@@ -280,5 +307,83 @@ class SceneBoundaryEditingTest {
 
         assertEquals(ErrorCode.BOUNDARY_CONFLICT, failure.code)
         assertCovers(working(episodeId), 0, episode.frameCount - 1)
+    }
+
+    @Test
+    fun `граница сцены внутри плана согласована разделением плана`() {
+        val episodeId = analysed().id!!
+        val active = structure.listShots(episodeId).filter { !it.isStale }
+        val frame =
+            (1 until 2000)
+                .firstOrNull { candidate ->
+                    active.any { it.firstFrame < candidate && candidate < it.lastFrame } &&
+                        active.none { it.firstFrame == candidate || it.lastFrame == candidate }
+                }
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+            frame != null,
+            "на этих планах нет кадра строго внутри плана и не на границе",
+        )
+        val before = structure.listShots(episodeId).count { !it.isStale }
+
+        val failure =
+            runCatching { editing.splitScene(episodeId, frame!!) }.exceptionOrNull()
+        assertTrue(
+            failure == null,
+            "разделение сцены по кадру $frame обязано согласовать границу плана, а отказало: ${failure?.message}",
+        )
+
+        val after = structure.listShots(episodeId).filter { !it.isStale }
+        assertEquals(
+            before + 1,
+            after.size,
+            "граница сцены внутри плана обязана разделить план: было $before, стало ${after.size}",
+        )
+        assertTrue(
+            after.any { it.firstFrame <= frame!! && frame!! <= it.lastFrame },
+            "после согласования кадр обязан попасть в какой-то план, а не остаться вне их",
+        )
+    }
+
+    @Test
+    fun `устаревший план не выдаёт себя за границу живой сцены`() {
+        val episodeId = analysed().id!!
+        val active = structure.listShots(episodeId).filter { !it.isStale }
+        val frame =
+            (1 until 2000)
+                .firstOrNull { candidate ->
+                    active.any { it.firstFrame < candidate && candidate < it.lastFrame } &&
+                        active.none { it.firstFrame == candidate || it.lastFrame == candidate }
+                }
+        org.junit.jupiter.api.Assumptions
+            .assumeTrue(frame != null, "нужен кадр строго внутри плана")
+        val victim = active.first { it.firstFrame < frame!! && frame!! < it.lastFrame }
+        TestDatabase.assumeDatabase().use { connection ->
+            connection.prepareStatement("UPDATE tbl_shots SET is_stale = TRUE WHERE id = ?").use { statement ->
+                statement.setLong(1, victim.id!!)
+                statement.executeUpdate()
+            }
+        }
+
+        // Устаревший план убран, но граница сцены на кадре frame всё равно
+        // обязана встать: проверка обязана смотреть только на живые планы.
+        val before = structure.listShots(episodeId).count { !it.isStale }
+        val inside =
+            structure
+                .listShots(episodeId)
+                .filter { !it.isStale }
+                .firstOrNull { it.firstFrame < frame!! && frame!! < it.lastFrame }
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+            inside != null,
+            "после удаления плана кадр оказался вне живых планов — проверке нужен другой кадр",
+        )
+
+        editing.splitScene(episodeId, frame!!)
+
+        val after = structure.listShots(episodeId).count { !it.isStale }
+        assertEquals(
+            before + 1,
+            after,
+            "разделение сцены обязано согласовать границу: было $before, стало $after",
+        )
     }
 }

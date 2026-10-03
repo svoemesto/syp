@@ -101,7 +101,8 @@ class AnalysisConfiguration {
     fun boundaryEditing(
         database: Db,
         structure: StructureService,
-    ): BoundaryEditing = BoundaryEditing(database, structure)
+        shotBoundaryEditing: ShotBoundaryEditing,
+    ): BoundaryEditing = BoundaryEditing(database, structure, shotBoundaryEditing)
 
     /**
      * Собирает сервис доводки границ плана.
