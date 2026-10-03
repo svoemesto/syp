@@ -32,6 +32,8 @@ import onnxruntime as ort
 ALIGNED = 112
 # Точек на лицо: пять пар координат.
 POINTS = 5
+# Сколько каналов в кадре от декодера.
+CHANNELS = 3
 # Длина вектора SFace.
 DIMENSION = 128
 
@@ -53,7 +55,10 @@ TEMPLATE = np.array(
 # пять точек — пятнадцать коротких целых. Порядок и размер совпадают с ответом
 # детектора, и меняются только вместе с ним.
 REQUEST = struct.Struct("<iHH")
-REQUEST_FACE = struct.Struct("<" + "h" * 15)
+# Число лиц идёт после кадра: его нельзя положить в заголовок, потому что
+# размер кадра известен только после того, как прочитан сам кадр.
+COUNT = struct.Struct("<H")
+REQUEST_FACE = struct.Struct("<hhhhf" + "hh" * 5)
 # Ответ: номер кадра, число векторов, затем векторы по 128 float.
 ANSWER = struct.Struct("<iH")
 ANSWER_VECTOR = struct.Struct("<" + "f" * DIMENSION)
@@ -217,23 +222,38 @@ def read_exactly(stream, size: int) -> bytes:
     return b"".join(chunks)
 
 
-def read_frame(stream, number: int) -> tuple[int, int, np.ndarray]:
-    """Читает кадр из потока.
+def read_frame(
+    stream,
+    number: int,
+    width: int,
+    height: int,
+) -> np.ndarray:
+    """Читает кадр из потока и приводит к оттенкам серого.
+
+    Эмбеддеру нужен серый: цвет не входит в признак, а лишний канал только
+    множит расчёт. Приходит кадр в том виде, в каком его отдал декодер.
 
     :param stream: поток ввода
     :param number: номер кадра для проверки
-    :return: ширина, высота и кадр в оттенках серого
+    :param width: ширина кадра
+    :param height: высота кадра
+    :return: кадр в оттенках серого
     """
-    header = read_exactly(stream, STREAM_HEADER.size)
-    if len(header) < STREAM_HEADER.size:
-        fail("поток кадров оборван на заголовке")
-    reported, width, height, length = STREAM_HEADER.unpack(header)
-    if reported != number:
-        fail(f"ожидался кадр {number}, пришёл {reported}")
+    if width <= 0 or height <= 0:
+        fail(f"кадр {number} имеет неразумный размер {width} на {height}")
+    length = width * height * CHANNELS
     data = read_exactly(stream, length)
     if len(data) < length:
         fail(f"кадр {number} оборван: ждали {length} байт, пришло {len(data)}")
-    return width, height, np.frombuffer(data, dtype=np.uint8).reshape(height, width)
+    frame = np.frombuffer(data, dtype=np.uint8).reshape(height, width, CHANNELS)
+    if CHANNELS == 1:
+        return frame[:, :, 0].astype(np.float32)
+    # Серый по яркости: каналы идут в порядке B, G, R.
+    return (
+        frame[:, :, 0].astype(np.float32) * 0.114
+        + frame[:, :, 1].astype(np.float32) * 0.587
+        + frame[:, :, 2].astype(np.float32) * 0.299
+    )
 
 
 def main(argv: list[str]) -> int:
@@ -265,9 +285,14 @@ def main(argv: list[str]) -> int:
             fail("запрос оборван на заголовке")
         reported, width, height = REQUEST.unpack(head)
         number = reported
-        gray = read_frame(stream, number).astype(np.float32)
-        faces_raw = read_exactly(stream, count_body(stream, reported))
-        count = len(faces_raw) // REQUEST_FACE.size
+        gray = read_frame(stream, number, width, height)
+        count_raw = read_exactly(stream, COUNT.size)
+        if len(count_raw) < COUNT.size:
+            fail(f"кадр {number} оборван на числе лиц")
+        count = COUNT.unpack(count_raw)[0]
+        faces_raw = read_exactly(stream, count * REQUEST_FACE.size)
+        if len(faces_raw) < count * REQUEST_FACE.size:
+            fail(f"кадр {number} оборван на лицах: ждали {count}, пришло {len(faces_raw) // REQUEST_FACE.size}")
         vectors = []
         for index in range(count):
             face = REQUEST_FACE.unpack_from(faces_raw, index * REQUEST_FACE.size)
@@ -276,20 +301,6 @@ def main(argv: list[str]) -> int:
         for vector in vectors:
             out.write(ANSWER_VECTOR.pack(*[float(v) for v in vector]))
         out.flush()
-
-
-def count_body(stream, number: int) -> int:
-    """Читает число лиц из тела запроса.
-
-    :param stream: поток ввода
-    :param number: номер кадра для проверки порядка
-    :return: сколько байт занимает тело
-    """
-    raw = read_exactly(stream, 2)
-    if len(raw) < 2:
-        fail("запрос оборван на числе лиц")
-    count = struct.unpack("<H", raw)[0]
-    return count * REQUEST_FACE.size
 
 
 if __name__ == "__main__":
