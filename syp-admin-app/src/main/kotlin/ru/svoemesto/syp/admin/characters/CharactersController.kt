@@ -23,6 +23,17 @@ import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.jobs.JobSubject
 
 /**
+ * Ключ распознавателя для персон, заведённых руками.
+ *
+ * Именованная персона обязана принадлежать какому-то распознавателю — иначе
+ * непонятно, кто её узнаёт. Обученной модели пока нет, а оператор называет
+ * людей сам, поэтому такие персоны помечаются ключом «ручная»: они не
+ * опознаны моделью, их назвал человек. Когда модель появится, она обучится
+ * в том числе на этих именах.
+ */
+private const val MANUAL_RECOGNIZER_KEY: String = "manual"
+
+/**
  * Запрос «назначить лица персоне».
  *
  * @property personId персона-получатель
@@ -356,7 +367,7 @@ class CharactersController(
         if (name.isEmpty()) {
             throw DomainException(ErrorCode.BAD_REQUEST, "имя персоны не может быть пустым")
         }
-        return persons.create(videofile.projectId, name, "").toView()
+        return persons.create(videofile.projectId, name, MANUAL_RECOGNIZER_KEY).toView()
     }
 
     /**
