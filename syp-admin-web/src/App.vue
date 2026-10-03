@@ -2,10 +2,9 @@
 экранами и область // содержимого. Вся работа экранов живёт в `views/`, обращение к бэкенду — в //
 `api/`, состояние — в `stores/`.
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RouterView } from 'vue-router'
+import AppHeader from './components/AppHeader.vue'
 
-const route = useRoute()
 
 /**
  * Эпизод, для которой показывается ссылка на структуру.
@@ -13,29 +12,11 @@ const route = useRoute()
  * Ссылка появляется только на экране эпизода: с приёма структуру открывать
  * нечего, а пустая ссылка вела бы на пустую страницу.
  */
-const structureEpisodeId = computed(() => {
-  const raw = route.params.episodeId
-  if (typeof raw === 'string' && raw !== '') {
-    return raw
-  }
-  return null
-})
 </script>
 
 <template>
-  <main>
-    <header>
-      <h1>SYP — админка</h1>
-      <nav>
-        <RouterLink :to="{ name: 'intake' }"> Приём фильмов и эпизодов </RouterLink>
-        <RouterLink
-          v-if="structureEpisodeId"
-          :to="{ name: 'structure', params: { episodeId: structureEpisodeId } }"
-        >
-          Структура эпизода
-        </RouterLink>
-      </nav>
-    </header>
+  <AppHeader />
+  <main class="syp-content">
     <RouterView />
   </main>
 </template>
