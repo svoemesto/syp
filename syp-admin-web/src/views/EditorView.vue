@@ -173,7 +173,7 @@ onMounted(async () => {
 
 <template>
   <section class="editor">
-    <h1 class="syp-page-title">Редактор планов</h1>
+    <h1 class="syp-page-title">Shots editor</h1>
 
     <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
@@ -185,8 +185,12 @@ onMounted(async () => {
            требует не меньше 920 px; здесь те же пропорции, но окно
            пользователя может быть уже, поэтому колонки сжимаются. -->
       <aside class="left">
+        <!-- Левая часть повторяет форму shots-edit-view.
+             Слева колонка планов шириной 440 px: таблица FROM | TO | TYPE и
+             кнопка выбора типа, под ней — Shot properties с вертикальной
+             полосой кнопок. Справа, начиная с 720 px, — персоны выбранного
+             плана, фильтры Persons и Faces, кадр и кнопка OK. -->
         <div class="left-plans">
-          <div class="syp-card-title">Планы</div>
           <div class="shots-scroll">
             <table class="table table-sm shots">
               <thead>
@@ -194,7 +198,7 @@ onMounted(async () => {
                   <th>FROM</th>
                   <th>TO</th>
                   <th>TYPE</th>
-                  <th class="type-button" title="Выбрать тип плана"></th>
+                  <th class="type-button" title="Choose shot type"></th>
                 </tr>
               </thead>
               <tbody>
@@ -225,9 +229,10 @@ onMounted(async () => {
                     <button
                       type="button"
                       class="btn btn-sm btn-outline-secondary"
-                      title="Выбрать тип плана"
+                      title="Choose shot type"
                       @click.stop="
-                        notice = `Тип плана меняется оператором: в проекте нет эндпоинта, меняющего тип`
+                        notice =
+                          'Shot type is set by the operator: the project has no endpoint that changes it'
                       "
                     >
                       ▾
@@ -235,7 +240,7 @@ onMounted(async () => {
                   </td>
                 </tr>
                 <tr v-if="shots.length === 0">
-                  <td colspan="4" class="empty">Планов нет</td>
+                  <td colspan="4" class="empty">No shots</td>
                 </tr>
               </tbody>
             </table>
@@ -246,44 +251,125 @@ onMounted(async () => {
             :max="Math.max(shots.length, 1)"
           />
           <p class="bounds">
-            Выделено планов: {{ selectedShots.length }}, кадры с {{ bounds.first }} по
+            Shots selected: {{ selectedShots.length }}, frames from {{ bounds.first }} to
             {{ bounds.last }}
           </p>
 
-          <div class="syp-card-title">Свойства плана</div>
-          <table class="table table-sm">
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="property in shotProperties" :key="property.key">
-                <td>{{ property.key }}</td>
-                <td>{{ property.value }}</td>
-              </tr>
-              <tr v-if="shotProperties.length === 0">
-                <td colspan="2" class="empty">Свойств нет</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="property-fields">
-            <input v-model="propertyKey" class="form-control form-control-sm" placeholder="Key" />
-            <input
-              v-model="propertyValue"
-              class="form-control form-control-sm"
-              placeholder="Value"
-            />
-            <button type="button" class="btn btn-sm btn-primary" @click="addShotProperty">
-              Добавить
-            </button>
+          <div class="properties-title">Shot properties</div>
+          <div class="properties">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="property in shotProperties" :key="property.key">
+                  <td>{{ property.key }}</td>
+                  <td>{{ property.value }}</td>
+                </tr>
+                <tr v-if="shotProperties.length === 0">
+                  <td colspan="2" class="empty">No properties</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="properties-buttons">
+              <button
+                type="button"
+                class="prop-button"
+                title="To the start of the list"
+                @click="
+                  notice =
+                    'Reordering shot properties is not wired: the project has no endpoint that reorders them'
+                "
+              >
+                ⟰
+              </button>
+              <button
+                type="button"
+                class="prop-button"
+                title="One level up"
+                @click="
+                  notice =
+                    'Reordering shot properties is not wired: the project has no endpoint that reorders them'
+                "
+              >
+                ⇧
+              </button>
+              <button
+                type="button"
+                class="prop-button"
+                title="One level down"
+                @click="
+                  notice =
+                    'Reordering shot properties is not wired: the project has no endpoint that reorders them'
+                "
+              >
+                ⇩
+              </button>
+              <button
+                type="button"
+                class="prop-button"
+                title="To the end of the list"
+                @click="
+                  notice =
+                    'Reordering shot properties is not wired: the project has no endpoint that reorders them'
+                "
+              >
+                ⟱
+              </button>
+              <hr class="prop-separator" />
+              <button
+                type="button"
+                class="prop-button"
+                title="Add property"
+                @click="addShotProperty"
+              >
+                ➕
+              </button>
+              <button
+                type="button"
+                class="prop-button"
+                title="Delete property"
+                @click="
+                  notice = 'Deleting a property is not wired: the project has no endpoint for it'
+                "
+              >
+                ✖
+              </button>
+            </div>
           </div>
+          <input v-model="propertyKey" class="form-control form-control-sm" placeholder="Key" />
+          <textarea
+            v-model="propertyValue"
+            class="form-control form-control-sm property-value"
+            placeholder="Value"
+            rows="2"
+          />
         </div>
 
         <div class="left-shot">
-          <div class="shot-head">
-            <div class="syp-card-title">Персоны выбранного плана</div>
+          <div class="persons-row">
+            <table class="table table-sm persons-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="person in persons"
+                  :key="person.id"
+                  :title="`shot persons, frames: ${bounds.first}—${bounds.last}`"
+                >
+                  <td>{{ person.name }}</td>
+                </tr>
+                <tr v-if="persons.length === 0">
+                  <td class="empty">No shot selected or no persons in it</td>
+                </tr>
+              </tbody>
+            </table>
             <div class="shot-filters">
               <div class="filter-group">
                 <span class="filter-title">Persons:</span>
@@ -296,7 +382,6 @@ onMounted(async () => {
                 <label><input v-model="faceScope" type="radio" value="file" /> File</label>
               </div>
               <div class="filter-group">
-                <span class="filter-title">Типы лиц:</span>
                 <label
                   ><input v-model="faceTypes" type="checkbox" value="notExample" /> Not
                   example</label
@@ -309,24 +394,21 @@ onMounted(async () => {
               </div>
             </div>
           </div>
-          <ul class="persons">
-            <li
-              v-for="person in persons"
-              :key="person.id"
-              :title="`персона плана, кадров: ${bounds.first}—${bounds.last}`"
-            >
-              {{ person.name }}
-            </li>
-            <li v-if="persons.length === 0" class="empty">План не выбран или в нём нет персон</li>
-          </ul>
           <progress
             class="left-progress"
             :value="persons.length"
             :max="Math.max(persons.length, 1)"
           />
-
-          <div class="syp-card-title">Кадр</div>
           <ShotFrameView :videofile-id="Number(props.videofileId)" :shot="currentShot ?? null" />
+          <button
+            type="button"
+            class="btn btn-primary ok-button"
+            @click="
+              notice = 'OK applies the operator\'s decision; in this build it only closes the view'
+            "
+          >
+            OK
+          </button>
         </div>
       </aside>
 
@@ -366,24 +448,19 @@ onMounted(async () => {
 .editor-body {
   display: grid;
   gap: 1rem;
-  /*
-   * Левая часть: колонка планов 440 px плюс крупный кадр 720 px, как в старой
-   * форме. Заявленные там 730 px на всю левую часть меньше этой суммы, и
-   * JavaFX давал колонкам выйти за границу; здесь ширина берётся по содержимому,
-   * а правая часть получает остаток окна и не меньше 920 px.
-   */
-  grid-template-columns: minmax(27.5rem, max-content) minmax(57.5rem, 1fr);
+  /* Ширины взяты из самой формы. Левая часть: колонка планов 440 px, кадр
+     lblFrameFull 720 px, между ними зазор — итого 1168 px. Правая часть в
+     форме объявлена от 920 px; 1168 + 920 помещаются в окно 2120 px. */
+  grid-template-columns: 73rem minmax(57.5rem, 1fr);
   align-items: start;
 }
 
 .left {
   display: grid;
-  /* Второй столбец сжимаемый: при нехватке места фиксированные 45 rem
-     выталкивали кадр за границу левой части, и он налезал на вкладки. */
-  grid-template-columns: 27.5rem minmax(0, 45rem);
-  gap: 0.75rem;
-  /* Без этого колонку с крупным кадром раздувает сама картинка: по умолчанию
-     элемент сетки не сжимается меньше содержимого. */
+  /* Ширины взяты из самой формы: колонка планов 440 px (135 + 135 + 135 + 25),
+     соседняя колонка от 720 px — это ширина кадра lblFrameFull. */
+  grid-template-columns: 27.5rem 45rem;
+  gap: 0.5rem;
   min-width: 0;
 }
 
@@ -395,15 +472,122 @@ onMounted(async () => {
 .left-shot {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.25rem;
   min-width: 0;
 }
 
+/* Таблица планов: колонки фиксированной ширины, как объявлено в форме. */
+.shots th:nth-child(1),
+.shots td:nth-child(1) {
+  width: 8.4375rem;
+}
+
+.shots th:nth-child(2),
+.shots td:nth-child(2) {
+  width: 8.4375rem;
+}
+
+.shots th:nth-child(3),
+.shots td:nth-child(3) {
+  width: 8.4375rem;
+}
+
+.shots th.type-button,
+.shots td.type-button {
+  width: 1.5625rem;
+}
+
+/* Таблица планов занимает верх колонки и прокручивается сама. В форме
+   высота таблицы 5000 px, но колонка делит место со свойствами плана, и без
+   ограничения таблица растёт на все планы подряд и выталкивает свойства за
+   пределы окна. */
 .shots-scroll {
-  /* Список планов прокручивается сам: в старой форме таблица ограничена по
-     высоте, и без этого страница растёт на все планы подряд. */
-  max-height: 26rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 38rem;
   overflow: auto;
+}
+
+.shots-scroll > table {
+  margin-bottom: 0;
+}
+
+.properties-title {
+  text-align: center;
+  margin: 0.25rem 0 0;
+}
+
+/* Таблица свойств и вертикальная полоса кнопок стоят рядом, как в форме:
+   кнопки 46 на 46 пикселей, между блоками переноса и добавления разделитель. */
+.properties {
+  display: flex;
+  gap: 0.25rem;
+  align-items: stretch;
+}
+
+.properties > table {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.properties-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.prop-button {
+  width: 2.875rem;
+  height: 2.875rem;
+  padding: 0;
+  line-height: 1;
+  background-color: var(--syp-raised);
+  border: 1px solid var(--syp-border-control);
+  border-radius: var(--bs-border-radius);
+  color: var(--syp-text);
+  cursor: pointer;
+}
+
+.prop-button:hover {
+  background-color: var(--syp-surface);
+}
+
+.prop-separator {
+  width: 2.875rem;
+  margin: 0.125rem 0;
+  border: 0;
+  border-top: 1px solid var(--syp-border-control);
+  opacity: 1;
+}
+
+.property-value {
+  resize: vertical;
+}
+
+/* Персоны выбранного плана и фильтры стоят рядом, как в форме: таблица
+   персон шириной 175 px, фильтры — соседним столбцом. */
+.persons-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.persons-table {
+  width: 10.9375rem;
+  flex: 0 0 auto;
+  table-layout: fixed;
+  margin-bottom: 0;
+}
+
+.persons-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ok-button {
+  width: 100%;
 }
 
 .shots td {

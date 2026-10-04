@@ -7,8 +7,8 @@
  * сцены не имеет смысла, пока планы не совпадают с тем, что на экране.
  *
  * Признаки на миниатюре перенесены вместе с их смыслом: красная граница — найдена
- * алгоритмом, **оранжевая — отменена оператором, зелёная — добавлена оператором**,
- * голубая I — ключевой кадр, синий угол — в кадре есть лица. Смысл цветов в том,
+ * алгоритмом, **оранжевая — cancelled оператором, зелёная — added оператором**,
+ * голубая I — key frame, синий угол — в кадре has faces. Смысл цветов в том,
  * что оператор видит на одном экране и что предложила машина, и что он решил сам.
  *
  * Состояние переключателя здесь то же, что в старом проекте: граница не найдена
@@ -119,7 +119,7 @@ function choose(frame: FrameView): void {
 /** Открывает окно лиц выбранного кадра. */
 function openFaces(): void {
   if (chosenFrame.value === null) {
-    notice.value = 'Выберите кадр: лица смотреть нечего'
+    notice.value = 'Choose a frame: there is nothing to showчего'
     return
   }
   facesOpen.value = true
@@ -139,7 +139,7 @@ function toggleBoundary(frame: FrameView): void {
 /** Применяет состояние переключателя к границам планов. */
 async function apply(): Promise<void> {
   if (chosenFrame.value === null) {
-    notice.value = 'Выберите кадр: применять нечего'
+    notice.value = 'Choose a frame: there is nothing to apply'
     return
   }
   const frame = chosenFrame.value
@@ -168,7 +168,7 @@ async function apply(): Promise<void> {
 async function turnPage(delta: number): Promise<void> {
   const next = page.value + delta
   if (next < 0 || next >= pages.value) {
-    notice.value = 'Страница за пределами: переходить некуда'
+    notice.value = 'Page out of range: moving toть некуда'
     return
   }
   page.value = next
@@ -227,7 +227,7 @@ watch(
       <div class="swatches">
         <span class="swatch keyframe">ключевой кадр</span>
         <span class="swatch has-faces">есть лица</span>
-        <span class="swatch boundary-found">граница найдена</span>
+        <span class="swatch boundary-found">boundary found</span>
         <span class="swatch boundary-cancelled">отменена</span>
         <span class="swatch boundary-added">добавлена</span>
       </div>
@@ -275,7 +275,7 @@ watch(
 
     <p class="state">
       Состояние границы: {{ boundaryState }} из 3 (0 — не найдена, 1 — найдена, 2 — отменена, 3 —
-      добавлена). Выбран кадр: {{ chosenFrame ?? 'нет' }}. Страница {{ page + 1 }} из {{ pages }}.
+      добавлена). Выбран кадр: {{ chosenFrame ?? 'no' }}. Страница {{ page + 1 }} из {{ pages }}.
     </p>
 
     <div class="frames-matrix">
@@ -293,7 +293,7 @@ watch(
         <span v-if="frame.isKeyframe" class="mark key">I</span>
         <span v-if="frame.faceCount > 0" class="mark faces">лица</span>
       </button>
-      <p v-if="shown.length === 0" class="empty">Кадров на странице нет</p>
+      <p v-if="shown.length === 0" class="empty">No frames on this page</p>
     </div>
 
     <p v-if="!structureLoaded" class="notice" role="status">

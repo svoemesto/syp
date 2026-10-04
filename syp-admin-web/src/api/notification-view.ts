@@ -68,10 +68,10 @@ export interface NoticeView {
 
 /** Названия видов заданий словами. */
 const KIND_TITLES: Record<string, string> = {
-  ANALYZE: 'анализ структуры',
-  FACES: 'поиск лиц',
-  TRAIN: 'обучение модели',
-  HASH: 'подсчёт суммы',
+  ANALYZE: 'structure analysis',
+  FACES: 'face search',
+  TRAIN: 'model training',
+  HASH: 'checksum',
 }
 
 /** Названия состояний задания словами. */
@@ -161,9 +161,9 @@ export function toQueueStateView(dto: QueueStatePayload): QueueStateView {
     done: dto.done,
     summary:
       dto.working === 0 && dto.waiting === 0
-        ? 'очередь пуста'
-        : `работает ${dto.working}, ждёт ${dto.waiting}` +
-          (dto.failed > 0 ? `, ошибок ${dto.failed}` : ''),
+        ? 'queue is empty'
+        : `working ${dto.working}, waiting ${dto.waiting}` +
+          (dto.failed > 0 ? `, failed ${dto.failed}` : ''),
   }
 }
 
@@ -179,16 +179,16 @@ export function toJobNotice(dto: JobStatePayload): NoticeView | null {
     return {
       id: dto.jobId * 100 + 1,
       tone: 'success',
-      title: 'Задание завершено',
-      text: `${kindTitle}: работа выполнена`,
+      title: 'Job finished',
+      text: `${kindTitle}: work completed`,
     }
   }
   if (dto.state === 'ERROR') {
     return {
       id: dto.jobId * 100 + 2,
       tone: 'danger',
-      title: 'Задание не выполнено',
-      text: `${kindTitle}: ${dto.errorText ?? 'причина не сообщена'}`,
+      title: 'Job failed',
+      text: `${kindTitle}: ${dto.errorText ?? 'no reason reported'}`,
     }
   }
   return null
@@ -235,7 +235,7 @@ export function toRecipeNotice(dto: RecipeReadyPayload): NoticeView {
   return {
     id: dto.recipeId * 100 + 6,
     tone: 'success',
-    title: 'Сценарий готов',
+    title: 'Recipe is ready',
     text: `«${dto.name}»: фрагментов ${dto.itemCount}, ключ ${dto.signingKeyId}`,
   }
 }

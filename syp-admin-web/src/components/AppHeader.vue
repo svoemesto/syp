@@ -23,14 +23,14 @@ const catalog = useCatalogStore()
 
 /** Разделы админки в порядке работы оператора. */
 const sections = computed(() => [
-  { name: 'intake', title: 'Приём проектов', hint: 'Проекты, серии, параметры файла' },
-  { name: 'project', title: 'Проект', hint: 'Параметры проекта, файлы, дорожки' },
-  { name: 'sums', title: 'Суммы', hint: 'Состояние подсчёта SHA-256 серии' },
-  { name: 'structure', title: 'Структура', hint: 'Сцены, планы, границы' },
-  { name: 'faces', title: 'Лица', hint: 'Детекция, кластеры, персоны' },
-  { name: 'actions', title: 'Операции', hint: 'Запуск обработки по файлам проекта' },
-  { name: 'filters', title: 'Фильтры', hint: 'Построение условий отбора планов' },
-  { name: 'recipes', title: 'Сценарии', hint: 'Фильтры, выдача, подпись' },
+  { name: 'intake', title: 'Intake', hint: 'Projects, series, file parameters' },
+  { name: 'project', title: 'Project', hint: 'Project parameters, files, tracks' },
+  { name: 'sums', title: 'Sums', hint: 'State of SHA-256 summation of the series' },
+  { name: 'structure', title: 'Structure', hint: 'Scenes, shots, boundaries' },
+  { name: 'faces', title: 'Faces', hint: 'Detection, clusters, persons' },
+  { name: 'actions', title: 'Actions', hint: 'Run processing over project files' },
+  { name: 'filters', title: 'Filters', hint: 'Building shot selection conditions' },
+  { name: 'recipes', title: 'Recipes', hint: 'Filters, output, signature' },
 ])
 
 /** Состояние потока уведомлений словами. */
@@ -188,7 +188,7 @@ function isActive(name: string): boolean {
       <div class="d-flex align-items-center justify-content-between py-2 gap-3 flex-wrap">
         <RouterLink :to="{ name: 'intake' }" class="syp-brand text-decoration-none">
           <span class="syp-brand-mark">SYP</span>
-          <span class="syp-brand-sub">админка</span>
+          <span class="syp-brand-sub">admin</span>
         </RouterLink>
 
         <span class="syp-selection text-body-secondary">
