@@ -170,7 +170,7 @@ onMounted(async () => {
 }
 
 .person-list li.selected {
-  background: #e7f0fd;
+  background: var(--syp-tint);
   border-color: var(--syp-link);
 }
 
@@ -182,7 +182,7 @@ onMounted(async () => {
 }
 
 .service {
-  color: #777;
+  color: var(--syp-text-muted);
 }
 
 .new-person {
@@ -197,11 +197,11 @@ onMounted(async () => {
 }
 
 .empty {
-  color: #777;
+  color: var(--syp-text-muted);
 }
 
 .error {
-  color: #a61b1b;
+  color: var(--syp-danger);
   margin: 0;
 }
 </style>

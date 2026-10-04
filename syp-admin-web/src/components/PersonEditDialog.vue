@@ -211,11 +211,11 @@ onMounted(reload)
 }
 
 .empty {
-  color: #777;
+  color: var(--syp-text-muted);
 }
 
 .error {
-  color: #a61b1b;
+  color: var(--syp-danger);
   margin: 0;
 }
 </style>

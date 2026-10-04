@@ -579,7 +579,7 @@ watch(revision, () => {
 }
 
 .legacy-full-frame {
-  background: #000;
+  background: var(--syp-bg);
   border: 1px solid rgba(255, 255, 255, 0.12);
   display: block;
   height: auto;

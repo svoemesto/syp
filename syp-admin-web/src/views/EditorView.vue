@@ -444,7 +444,7 @@ onMounted(async () => {
 }
 
 .left {
-  border: 1px solid #d8dde5;
+  border: 1px solid var(--syp-border);
   border-radius: 4px;
   display: grid;
   gap: 0.75rem;
@@ -452,7 +452,7 @@ onMounted(async () => {
 }
 
 .selected {
-  background: #e7f0fd;
+  background: var(--syp-tint);
 }
 
 .tabs {
@@ -462,8 +462,8 @@ onMounted(async () => {
 }
 
 .tab {
-  background: #eef1f5;
-  border: 1px solid #d8dde5;
+  background: var(--syp-raised);
+  border: 1px solid var(--syp-border);
   border-radius: 4px 4px 0 0;
   cursor: pointer;
   padding: 0.4rem 1rem;
@@ -483,14 +483,14 @@ onMounted(async () => {
 }
 
 .filters {
-  border: 1px solid #d8dde5;
+  border: 1px solid var(--syp-border);
   border-radius: 4px;
   display: grid;
   gap: 0.25rem;
 }
 
 .hint {
-  color: #777;
+  color: var(--syp-text-muted);
   font-size: 0.8rem;
   margin: 0 0 0.25rem;
 }
@@ -502,14 +502,14 @@ onMounted(async () => {
 }
 
 .placeholder {
-  border: 1px dashed #c3cad6;
+  border: 1px dashed var(--syp-text-muted);
   border-radius: 4px;
   padding: 1rem;
 }
 
 .bounds,
 .empty {
-  color: #777;
+  color: var(--syp-text-muted);
 }
 
 .error {

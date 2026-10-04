@@ -323,29 +323,29 @@ watch(
 }
 
 .swatch {
-  border: 1px solid #555;
+  border: 1px solid var(--syp-text-muted);
   font-size: 0.8rem;
   padding: 0.1rem 0.35rem;
 }
 
 .swatch.keyframe {
-  border-color: #1c7ed6;
+  border-color: var(--syp-link);
 }
 
 .swatch.has-faces {
-  border-color: #4c8dff;
+  border-color: var(--syp-primary);
 }
 
 .swatch.boundary-found {
-  border-color: #e03131;
+  border-color: var(--syp-danger);
 }
 
 .swatch.boundary-cancelled {
-  border-color: #f08c00;
+  border-color: var(--syp-warning);
 }
 
 .swatch.boundary-added {
-  border-color: #2f9e44;
+  border-color: var(--syp-success);
 }
 
 .actions {
@@ -382,10 +382,10 @@ watch(
 }
 
 .frame-cell {
-  background: #101216;
-  border: 2px solid #1f2229;
+  background: var(--syp-bg);
+  border: 2px solid var(--syp-raised);
   border-radius: 3px;
-  color: #cfd4dc;
+  color: var(--syp-text-muted);
   cursor: pointer;
   display: grid;
   gap: 0.1rem;
@@ -395,11 +395,11 @@ watch(
 }
 
 .frame-cell.keyframe {
-  border-color: #1c7ed6;
+  border-color: var(--syp-link);
 }
 
 .frame-cell.has-faces::after {
-  border-color: #4c8dff;
+  border-color: var(--syp-primary);
   border-style: solid;
   border-width: 0 8px 8px 0;
   content: '';
@@ -409,15 +409,15 @@ watch(
 }
 
 .frame-cell.boundary-found {
-  border-color: #e03131;
+  border-color: var(--syp-danger);
 }
 
 .frame-cell.boundary-cancelled {
-  border-color: #f08c00;
+  border-color: var(--syp-warning);
 }
 
 .frame-cell.chosen {
-  outline: 2px solid #ffd43b;
+  outline: 2px solid var(--syp-warning);
 }
 
 .number {
@@ -434,19 +434,19 @@ watch(
 }
 
 .mark.key {
-  color: #1c7ed6;
+  color: var(--syp-link);
 }
 
 .mark.faces {
-  color: #4c8dff;
+  color: var(--syp-primary);
 }
 
 .state,
 .empty {
-  color: #777;
+  color: var(--syp-text-muted);
 }
 
 .error {
-  color: #a61b1b;
+  color: var(--syp-danger);
 }
 </style>

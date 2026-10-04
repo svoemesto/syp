@@ -323,24 +323,24 @@ seed()
 }
 
 .stub {
-  color: #8a5b00;
+  color: var(--syp-warning);
   margin: 0;
 }
 
 .events-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: minmax(28rem, 2fr) minmax(14rem, 1fr) minmax(10rem, 1fr);
 }
 
 .column {
-  border: 1px solid #d8dde5;
+  border: 1px solid var(--syp-border);
   border-radius: 4px;
   padding: 0.5rem;
 }
 
 .selected {
-  background: #e7f0fd;
+  background: var(--syp-tint);
 }
 
 .actions {
@@ -364,13 +364,13 @@ seed()
 }
 
 .legend {
-  color: #555;
+  color: var(--syp-text-muted);
   font-size: 0.85rem;
   margin: 0.5rem 0 0;
 }
 
 .swatch {
-  border: 1px solid #555;
+  border: 1px solid var(--syp-text-muted);
   display: inline-block;
   height: 0.6rem;
   vertical-align: middle;
@@ -378,14 +378,14 @@ seed()
 }
 
 .swatch.event {
-  background: #2f9e44;
+  background: var(--syp-success);
 }
 
 .swatch.scene {
-  background: #e8590c;
+  background: var(--syp-warning);
 }
 
 .empty {
-  color: #777;
+  color: var(--syp-text-muted);
 }
 </style>
