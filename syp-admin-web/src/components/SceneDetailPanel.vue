@@ -139,21 +139,21 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
 <template>
   <div class="scene-detail">
     <div class="syp-card-title">
-      Сцена №{{ scene.number }}: кадры {{ scene.frames }}
+      Scene no. {{ scene.number }}: frames {{ scene.frames }}
       <span v-if="scene.title" class="scene-title">— {{ scene.title }}</span>
     </div>
     <p class="text-body-secondary small mb-2">
-      Место действия: {{ scene.location }}. Планов: {{ scene.shotCount }}.
+      Location: {{ scene.location }}. Shots: {{ scene.shotCount }}.
     </p>
 
     <div class="table-responsive">
       <table class="table table-sm align-middle shots">
         <thead>
           <tr>
-            <th>Кадр</th>
-            <th>Границы</th>
-            <th>Размер</th>
-            <th>Происхождение</th>
+            <th>Frame</th>
+            <th>Boundaries</th>
+            <th>Size</th>
+            <th>Origin</th>
           </tr>
         </thead>
         <tbody>
@@ -178,15 +178,15 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
                   backgroundSize: thumbOf(shot)?.backgroundSize,
                   backgroundPosition: thumbOf(shot)?.backgroundPosition,
                 }"
-                :title="`Показать кадр ${shot.firstFrame}`"
-                :aria-label="`Показать кадр ${shot.firstFrame}`"
+                :title="`Show frame ${shot.firstFrame}`"
+                :aria-label="`Show frame ${shot.firstFrame}`"
                 @click="emit('pick', shot.firstFrame)"
               />
-              <span v-else class="syp-unit">превью не загружено</span>
+              <span v-else class="syp-unit">preview is not loaded</span>
             </td>
             <td class="syp-number">
               {{ shot.frames }}
-              <span v-if="shot.isStale" class="text-bg-warning syp-origin">устарел</span>
+              <span v-if="shot.isStale" class="text-bg-warning syp-origin">stale</span>
             </td>
             <td>
               <span class="syp-mono">{{ shot.size }}</span>
@@ -204,15 +204,15 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
     </div>
 
     <div class="boundary">
-      <div class="syp-card-title">Доводка границы</div>
+      <div class="syp-card-title">Boundary adjustment</div>
       <p class="text-body-secondary small">
-        Граница сцены встаёт только на границу плана: сцена, разрезавшая план, оставила бы в базе
-        состояние, которого быть не может. Правка сохраняется сразу, отдельной кнопки «сохранить»
-        нет.
+        A scene boundary only lands on a shot boundary: a scene that cut a shot would leave frames
+        without a scene in the database. The edit is saved at once, there is no separate save
+        button.
       </p>
 
       <div class="boundary-form">
-        <label class="form-label" for="boundary-target">Новый кадр границы</label>
+        <label class="form-label" for="boundary-target">New boundary frame</label>
         <input
           id="boundary-target"
           v-model.number="target"
@@ -229,7 +229,7 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
             :disabled="busy || target === null"
             @click="splitHere"
           >
-            разделить сцену здесь
+            split the scene here
           </button>
           <button
             type="button"
@@ -237,7 +237,7 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
             :disabled="busy || target === null || scene.firstFrame === 0"
             @click="moveStart"
           >
-            сдвинуть начало
+            move the start
           </button>
           <button
             type="button"
@@ -245,7 +245,7 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
             :disabled="busy || target === null || scene.lastFrame >= frameCount - 1"
             @click="moveEnd"
           >
-            сдвинуть конец
+            move the end
           </button>
           <button
             type="button"
@@ -253,13 +253,13 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
             :disabled="busy || scene.firstFrame === 0"
             @click="mergeWithPrevious"
           >
-            объединить с предыдущей
+            merge with the previous one
           </button>
         </div>
       </div>
 
       <div v-if="candidates.length > 0" class="candidates">
-        <span class="syp-unit">Границы планов сцены:</span>
+        <span class="syp-unit">Shot boundaries of the scene:</span>
         <button
           v-for="frame in candidates"
           :key="frame"
@@ -272,7 +272,8 @@ function thumbOf(shot: { firstFrame: number }): ShotThumbRow | undefined {
         </button>
       </div>
       <p v-else class="syp-unit">
-        У сцены нет внутренних границ планов: разделять её не на чем, сдвинуть можно только конец.
+        The scene has no inner shot boundaries: there is nothing to split it by, only the end can be
+        moved.
       </p>
     </div>
   </div>

@@ -4,11 +4,11 @@
  *
  * Форма перенесена по старому проекту. Слева — персоны файла, они же цель для
  * перетаскивания; справа — матрица миниатюр лиц и страницы лиц. Сверху фильтры
- * типов лиц: не эталон, эталон, не ручной, ручной; в старом проекте они стоят в
+ * типов faces: не exemplar, exemplar, не ручной, ручной; в старом проекте они стоят в
  * левой части окна, хотя управляют именно этой вкладкой.
  *
  * Порядок работы оператора, ради которого вкладка и делается: выбрать лицо или
- * несколько, назначить персону, пометить эталон, поставить кадр в фото персоны.
+ * несколько, назначить персону, пометить exemplar, поставить кадр в photo персоны.
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import {
@@ -57,7 +57,7 @@ const projectId = ref(0)
 /** Открыто ли окно выбора персоны. */
 const selectOpen = ref(false)
 
-/** Персона, которую правят в открытом окне. */
+/** Person, которую правят в открытом окне. */
 const editing = ref<PersonView | null>(null)
 
 /** Лица, прошедшие фильтры типов. */
@@ -74,7 +74,7 @@ const pages = computed(() =>
   Math.max(1, Math.ceil((faces.value?.facesTotal ?? 0) / (faces.value?.limit || 1))),
 )
 
-/** Персона, которой назначаются выбранные лица. */
+/** Person, которой назначаются выбранные лица. */
 const target = computed(() => persons.value.find((person) => person.id === targetPerson.value))
 
 /**
@@ -97,7 +97,7 @@ function clearSelection(): void {
 async function assignToPerson(personId: number): Promise<void> {
   const person = persons.value.find((item) => item.id === personId)
   if (person === undefined) {
-    notice.value = 'Персона не найдена: назначать некого'
+    notice.value = 'Person не найдена: назначать некого'
     return
   }
   if (selectedFaces.value.length === 0) {
@@ -132,7 +132,7 @@ async function markExamples(marked: boolean): Promise<void> {
   }
   try {
     const answer = await markFaceExamples(props.videofileId, selectedFaces.value, marked)
-    notice.value = `помечено эталоном: ${answer.isExample ? 'да' : 'нет'}, изменено лиц: ${answer.changed}`
+    notice.value = `помечено эталоном: ${answer.isExample ? 'yes' : 'no'}, изменено faces: ${answer.changed}`
     error.value = ''
     await reload()
   } catch (failure) {
@@ -140,7 +140,7 @@ async function markExamples(marked: boolean): Promise<void> {
   }
 }
 
-/** Ставит кадр выбранного лица в фото выбранной персоны. */
+/** Ставит кадр выбранного лица в photo выбранной персоны. */
 async function makePhoto(): Promise<void> {
   const face = (faces.value?.faces ?? []).find((item) => selectedFaces.value.includes(item.id))
   if (face === undefined) {
@@ -148,12 +148,12 @@ async function makePhoto(): Promise<void> {
     return
   }
   if (target.value === undefined) {
-    notice.value = 'Выберите персону, которой принадлежит фото'
+    notice.value = 'Выберите персону, которой принадлежит photo'
     return
   }
   try {
     await setPersonPhoto(props.videofileId, target.value.id, face.frameNumber)
-    notice.value = `фото персоны «${target.value.name}» взято с кадра ${face.frameNumber}`
+    notice.value = `photo персоны «${target.value.name}» взято с кадра ${face.frameNumber}`
     error.value = ''
     await reload()
   } catch (failure) {

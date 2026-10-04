@@ -63,7 +63,7 @@ const lastFailure = computed<JobView | null>(() => {
   return jobs.value.filter((job) => job.state === 'ERROR').slice(-1)[0] ?? null
 })
 
-/** Процент заполнения полосы, от 0 до 100. */
+/** Процент заполнения полосы, от 0 to 100. */
 const percent = computed<number>(() => {
   const job = headline.value
   if (job === null || job.progressPercent === null) {
@@ -131,10 +131,10 @@ onBeforeUnmount(() => {
 <template>
   <div class="job-meter" role="status" aria-live="polite">
     <template v-if="!reachable">
-      <span class="job-meter__state job-meter__state--error"> Бэкенд админки недоступен </span>
+      <span class="job-meter__state job-meter__state--error"> Admin backend is unavailable </span>
     </template>
     <template v-else-if="headline === null">
-      <span class="job-meter__idle">Очередь пуста</span>
+      <span class="job-meter__idle">Queue is empty</span>
     </template>
     <div v-if="lastFailure !== null" class="job-meter__failure">
       <span>Задание упало: {{ lastFailure.errorText ?? 'причина не записана' }}</span>
@@ -143,7 +143,7 @@ onBeforeUnmount(() => {
         class="btn btn-sm btn-link"
         @click="dismissed = lastFailure?.id ?? null"
       >
-        скрыть
+        hide
       </button>
     </div>
     <template v-else>

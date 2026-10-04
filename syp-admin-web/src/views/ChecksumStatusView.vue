@@ -34,7 +34,7 @@ watch(videofileId, (next) => {
 const stateTitle = computed(() => {
   const value = store.checksum.value
   if (value === null) {
-    return 'Сумма не считалась'
+    return 'Sum не считалась'
   }
   switch (value.state) {
     case 'CREATING':
@@ -44,7 +44,7 @@ const stateTitle = computed(() => {
     case 'ERROR':
       return 'Подсчёт не удался'
     case 'DONE':
-      return value.isStale ? 'Сумма устарела: файл изменился после подсчёта' : 'Сумма актуальна'
+      return value.isStale ? 'Sum устарела: файл изменился после подсчёта' : 'Sum актуальна'
     default:
       return value.state
   }
@@ -68,63 +68,68 @@ async function recalculate(): Promise<boolean> {
 
 <template>
   <section class="checksum">
-    <h2>Состояние суммы исходника</h2>
+    <h2>Source sum state</h2>
     <p class="note">
-      Сумма <code>SHA-256</code> файла видеофайла — эталон, с которым машина пользователя сверяет
-      файл <em>до</em> нарезки. Без актуальной суммы сценарий сборки выдавать нельзя.
+      Sum <code>SHA-256</code> of the videofile is the exemplar the user machine compares against
+      when cutting. Without a fresh sum the build script must not publish.
     </p>
-
-    <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
+    <p v-if="store.loading.value" class="note">Request to the backend…</p>
 
     <p v-if="store.error.value" class="error" role="alert">
       <span v-if="store.errorCode.value" class="code">{{ store.errorCode.value }}</span>
       {{ store.error.value }}
-      <button type="button" @click="store.clearError()">скрыть</button>
+      <button type="button" @click="store.clearError()">hide</button>
     </p>
 
     <p class="state">
       <strong>{{ stateTitle }}</strong>
-      <span v-if="isRunning" class="note">Подсчёт идёт заданием, экран не блокируется.</span>
+      <span v-if="isRunning" class="note"
+        >The sum is computed by a job, the screen is not blocked.</span
+      >
     </p>
 
     <table v-if="store.checksum.value">
       <tbody>
         <tr>
-          <th>Алгоритм</th>
+          <th>Algorithm</th>
           <td>{{ store.checksum.value.algorithm }}</td>
         </tr>
         <tr>
-          <th>Сумма</th>
+          <th>Sum</th>
           <td class="digest">
             {{ formatDigest(store.checksum.value.digest) }}
           </td>
         </tr>
         <tr>
-          <th>Посчитана</th>
+          <th>Computed</th>
           <td>{{ formatDate(store.checksum.value.computedAt) }}</td>
         </tr>
         <tr>
-          <th>Устарела</th>
-          <td>{{ store.checksum.value.isStale ? 'да, файл изменился после подсчёта' : 'нет' }}</td>
+          <th>Stale</th>
+          <td>
+            {{
+              store.checksum.value.isStale ? 'yes, the file changed after the sum was made' : 'no'
+            }}
+          </td>
         </tr>
         <tr>
-          <th>Пригодна для сверки</th>
-          <td>{{ store.checksum.value.isUsable ? 'да' : 'нет' }}</td>
+          <th>Usable for verification</th>
+          <td>{{ store.checksum.value.isUsable ? 'yes' : 'no' }}</td>
         </tr>
         <tr>
-          <th>Размер файла при подсчёте</th>
+          <th>File size during summation</th>
           <td>{{ formatBytes(store.checksum.value.byteSize) }}</td>
         </tr>
         <tr>
-          <th>Время изменения файла</th>
+          <th>File change time</th>
           <td>{{ formatDate(store.checksum.value.fileMtime) }}</td>
         </tr>
         <tr>
-          <th>Записей пересчётов</th>
+          <th>Recomputation records</th>
           <td>{{ store.checksum.value.historyCount }}</td>
         </tr>
         <tr v-if="store.checksum.value.errorText">
-          <th>Ошибка</th>
+          <th>Error</th>
           <td>{{ store.checksum.value.errorText }}</td>
         </tr>
       </tbody>
@@ -132,20 +137,20 @@ async function recalculate(): Promise<boolean> {
 
     <div class="form">
       <button type="button" :disabled="store.loading.value" @click="recalculate">
-        поставить пересчёт
+        queue a recomputation
       </button>
-      <button type="button" @click="router.back()">назад</button>
+      <button type="button" @click="router.back()">back</button>
     </div>
 
     <p v-if="store.checksum.value" class="note">
-      Повторный пересчёт не затирает прежнюю запись: она остаётся в истории и помечается устаревшей.
-      Актуальной остаётся ровно одна сумма на видеофайл.
+      A repeated recomputation does not erase the previous record: it stays in the history and is
+      marked stale. Exactly one sum per videofile stays fresh.
     </p>
     <p v-if="store.checksum.value" class="note">
-      Проверить сумму у себя можно командой
-      <code>sha256sum путь/к/файлу</code> — формат значения совпадает.
+      The sum can be checked locally with a command
+      <code>sha256sum path/to/file</code> — the value format is the same.
     </p>
-    <p class="note">Чтение файла 5,6 ГБ занимает около 32 секунд на этой машине.</p>
+    <p class="note">Reading a 5.6 GB file takes about 32 seconds on this machine.</p>
   </section>
 </template>
 

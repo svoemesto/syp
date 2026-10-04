@@ -1,6 +1,6 @@
 // Экран лиц видеофайла (задача T072). // // Экран отвечает на два вопроса оператора: «кого и
 сколько здесь найдено» и // «кто это». Первый вопрос — про найденные лица, второй — про кластеры: //
-похожие лица группируются, и кластеру даётся имя. Обе задачи решаются // здесь, потому что до
+похожие лица группируются, и кластеру даётся имя. Обе задачи решаются // здесь, потому что to
 обучения модели это единственный способ узнать имена. // // Неопознанные лица **показываются и не
 пропадают**: «распознано, имя не // подтверждено» и «не лицо» — это заглушки, а не ошибка (Р-12,
 FR-036). Если // бы они скрывались, оператор не видел бы, что детектор где-то ошибся.
@@ -67,11 +67,11 @@ async function loadClusterFaces(videofileId: number): Promise<void> {
 
 /** Персоны проекта. */
 /**
- * Фильтр лиц по метке эталона: все, эталоны, не эталоны.
+ * Face filter by exemplar mark: все, эталоны, не эталоны.
  *
- * В старом проекте здесь четыре чекбокса: «не эталон», «эталон», «не ручное»,
+ * В старом проекте здесь четыре чекбокса: «не exemplar», «exemplar», «не ручное»,
  * «ручное». Три переносятся один в один, четвёртый — нет: ручных лиц в нашей
- * модели нет, создавать лицо вручную пока нечем, и фильтровать не по чему.
+ * модели нет, создавать лицо manually пока нечем, и фильтровать не по чему.
  */
 type ExampleFilter = 'all' | 'example' | 'not-example'
 
@@ -131,7 +131,7 @@ const hasPreviousPage = computed(() => (faces.value?.offset ?? 0) > 0)
 /**
  * Самое крупное лицо каждой персоны на странице.
  *
- * По нему оператор ставит фото персоны: на кадре с самым крупным лицом человек
+ * По нему оператор ставит photo персоны: на кадре с самым крупным лицом человек
  * виден лучше всего.
  */
 const biggestFaces = computed(() => {
@@ -238,7 +238,7 @@ function startRenaming(person: PersonView): void {
  * Сообщает о пометке эталона.
  *
  * Отдельная подпись нужна, потому что метка неочевидна: оператор должен видеть,
- * что действие состоялось, иначе «эталон» выглядит как декоративная кнопка.
+ * что действие состоялось, иначе «exemplar» выглядит как декоративная кнопка.
  *
  * @param payload помеченное лицо и число изменившихся лиц
  */
@@ -260,7 +260,7 @@ async function giveName(clusterId: string): Promise<void> {
   notice.value = null
   const name = clusterName.value.trim()
   if (name === '') {
-    error.value = 'Имя персоны обязательно: кластер без имени остаётся безымянным'
+    error.value = 'Person name обязательно: кластер без имени остаётся безымянным'
     return
   }
   try {
@@ -285,12 +285,12 @@ async function saveName(person: PersonView): Promise<void> {
   notice.value = null
   const name = personName.value.trim()
   if (name === '') {
-    error.value = 'Имя персоны обязательно'
+    error.value = 'Person name обязательно'
     return
   }
   try {
     await renamePerson(person.id, name)
-    notice.value = `Персона переименована в «${name}»`
+    notice.value = `Person переименована в «${name}»`
     renamingPerson.value = null
     personName.value = ''
     await reload()
@@ -314,7 +314,7 @@ async function remove(person: PersonView): Promise<void> {
   notice.value = null
   try {
     await deletePerson(person.id)
-    notice.value = `Персона «${person.name}» удалена; её лица перешли в неопознанные и не потеряны`
+    notice.value = `Person «${person.name}» удалена; её лица перешли в неопознанные и не потеряны`
     await reload()
   } catch (failure) {
     error.value = failure instanceof Error ? failure.message : String(failure)
@@ -354,48 +354,51 @@ function personKindTitle(kind: string): string {
 
 <template>
   <section class="faces">
-    <h2>Лица видеофайла</h2>
+    <h2>Videofile faces</h2>
 
-    <p v-if="loading" class="note">Запрос к бэкенду…</p>
+    <p v-if="loading" class="note">Request to the backend…</p>
 
     <p v-if="error" class="error" role="alert">
       {{ error }}
-      <button type="button" @click="error = null">скрыть</button>
+      <button type="button" @click="error = null">hide</button>
     </p>
 
     <p v-if="notice" class="notice" role="status">
       {{ notice }}
-      <button type="button" @click="notice = null">скрыть</button>
+      <button type="button" @click="notice = null">hide</button>
     </p>
 
     <p v-if="faces" class="state">
-      Лиц найдено: {{ faces.facesTotal }} на странице показано {{ faceList.length }}. Разрешение
-      кадра: {{ faces.frameWidth }}×{{ faces.frameHeight }}.
+      Faces found: {{ faces.facesTotal }}, {{ faceList.length }} shown on the page. Frame
+      resolution: {{ faces.frameWidth }}×{{ faces.frameHeight }}.
     </p>
 
     <p v-if="clusters" class="state">
-      Кластеров без имени: {{ clusters.clustersTotal }}
+      Unnamed clusters: {{ clusters.clustersTotal }}
       <span v-if="clusters.embeddingModelKey">
-        (ключ модели эмбеддингов: {{ clusters.embeddingModelKey }}).
+        (embedding model key: {{ clusters.embeddingModelKey }}).
       </span>
     </p>
 
     <p v-if="faces && faces.facesTotal === 0" class="note">
-      Лиц не найдено. Это не «лиц нет в видеофайле»: детекция могла не выполняться или оборваться.
-      Проверьте задание <code>FACES</code> в очереди.
+      No faces found. This does not mean the videofile has no faces: detection may not have run or
+      may have failed. Check the <code>FACES</code> job in the queue.
     </p>
 
-    <nav class="face-filters" aria-label="Фильтр лиц по метке эталона">
-      <label><input v-model="exampleFilter" type="radio" value="all" /> все</label>
-      <label><input v-model="exampleFilter" type="radio" value="example" /> эталоны</label>
-      <label><input v-model="exampleFilter" type="radio" value="not-example" /> не эталоны</label>
+    <nav class="face-filters" aria-label="Face filter by exemplar mark">
+      <label><input v-model="exampleFilter" type="radio" value="all" /> all</label>
+      <label><input v-model="exampleFilter" type="radio" value="example" /> exemplars</label>
+      <label
+        ><input v-model="exampleFilter" type="radio" value="not-example" /> not exemplars</label
+      >
     </nav>
 
     <section v-if="clusters && clusters.clusters.length > 0" class="clusters">
-      <h3>Кластеры похожих лиц без имени</h3>
+      <h3>Unnamed face clusters</h3>
       <p class="note">
-        Кластер — это группа похожих лиц, которой ещё не дано имя. Дайте имя — и лица кластера
-        получат его. Кластер строится до обучения модели, по векторам признаков.
+        A cluster is a group of similar faces that has not been given a name yet. Give it a name and
+        the faces of the cluster will get it. A cluster is built before the model is trained, from
+        feature vectors.
       </p>
       <ul class="cluster-list">
         <li v-for="cluster in clusters.clusters" :key="cluster.id" class="cluster">
@@ -406,14 +409,14 @@ function personKindTitle(kind: string): string {
               :faces="clusterFaces[cluster.id] ?? []"
             />
           </span>
-          <span class="cluster-size">лиц: {{ cluster.size }}</span>
+          <span class="cluster-size">faces: {{ cluster.size }}</span>
           <span class="cluster-id">{{ cluster.id }}</span>
           <template v-if="namingCluster === cluster.id">
-            <input v-model="clusterName" type="text" placeholder="Имя персоны" />
-            <button type="button" @click="giveName(cluster.id)">дать имя</button>
-            <button type="button" @click="namingCluster = null">отмена</button>
+            <input v-model="clusterName" type="text" placeholder="Person name" />
+            <button type="button" @click="giveName(cluster.id)">name it</button>
+            <button type="button" @click="namingCluster = null">cancelled</button>
           </template>
-          <button v-else type="button" @click="startNaming(cluster.id)">дать имя</button>
+          <button v-else type="button" @click="startNaming(cluster.id)">name it</button>
         </li>
       </ul>
     </section>
@@ -426,12 +429,12 @@ function personKindTitle(kind: string): string {
     />
 
     <section v-if="faces" class="groups">
-      <h3>Лица по персонам</h3>
+      <h3>Faces by persons</h3>
       <div v-for="[personId, group] in facesByPerson" :key="personId" class="group">
         <h4>
           {{ group.name }}
           <small :title="personKindTitle(group.kind)">({{ group.kind }})</small>
-          <span class="count">на странице: {{ group.faces.length }}</span>
+          <span class="count">on the page: {{ group.faces.length }}</span>
         </h4>
         <FaceThumbnails
           :videofile-id="videofileId"
@@ -444,20 +447,18 @@ function personKindTitle(kind: string): string {
     </section>
 
     <nav v-if="faces" class="pager">
-      <button type="button" :disabled="!hasPreviousPage" @click="turnPage(-limit)">
-        предыдущие
-      </button>
+      <button type="button" :disabled="!hasPreviousPage" @click="turnPage(-limit)">previous</button>
       <span>{{ faces.offset }}…{{ faces.offset + faces.faces.length }}</span>
-      <button type="button" :disabled="!hasNextPage" @click="turnPage(limit)">следующие</button>
+      <button type="button" :disabled="!hasNextPage" @click="turnPage(limit)">next</button>
     </nav>
 
     <section v-if="namedPersons.length > 0" class="persons">
-      <h3>Персоны проекта</h3>
+      <h3>Project persons</h3>
       <table>
         <thead>
           <tr>
-            <th>Имя</th>
-            <th>Ключ класса в модели</th>
+            <th>Name</th>
+            <th>Model class key</th>
             <th></th>
           </tr>
         </thead>
@@ -466,15 +467,15 @@ function personKindTitle(kind: string): string {
             <td>
               <template v-if="renamingPerson === person.id">
                 <input v-model="personName" type="text" />
-                <button type="button" @click="saveName(person)">сохранить</button>
-                <button type="button" @click="renamingPerson = null">отмена</button>
+                <button type="button" @click="saveName(person)">save</button>
+                <button type="button" @click="renamingPerson = null">cancelled</button>
               </template>
               <template v-else>{{ person.name }}</template>
             </td>
             <td>{{ person.recognizerKey }}</td>
             <td>
-              <button type="button" @click="startRenaming(person)">переименовать</button>
-              <button type="button" @click="remove(person)">удалить</button>
+              <button type="button" @click="startRenaming(person)">rename</button>
+              <button type="button" @click="remove(person)">delete</button>
             </td>
           </tr>
         </tbody>

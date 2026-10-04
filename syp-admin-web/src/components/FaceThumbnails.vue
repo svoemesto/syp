@@ -3,7 +3,7 @@
 показывается **кадром, а не отдельным файлом**: кадров в // исходном разрешении система не хранит
 (FR-024), а уменьшённые превью всех // кадров уже лежат на листах. Отдельная картинка на каждое лицо
 означала бы // ещё около 17,5 ГБ данных, которые ничего не добавляют оператору (Q10). // // Рамка
-лица рисуется поверх кадра: координаты приходят в пикселях кадра // полного разрешения, а картинка —
+лица рисуется поверх frame: координаты приходят в пикселях кадра // полного разрешения, а картинка —
 135×75. Масштаб считается от разрешения // видеофайла, поэтому рамка попадает на лицо при любом
 размере миниатюры.
 
@@ -31,7 +31,7 @@ const props = defineProps<{
   /** Высота кадра видеофайла. */
   /** Показывать ли кнопку метки эталона. */
   markable?: boolean
-  /** Считать ли рамки рамками, а не заливкой: так показывают нарисованные вручную. */
+  /** Считать ли рамки рамками, а не заливкой: так показывают нарисованные manually. */
   outlined?: boolean
   /** Разрешено ли перетаскивать лицо на персону. */
   draggable?: boolean
@@ -128,17 +128,21 @@ function caption(face: FaceView): string {
         :aria-pressed="face.isExample"
         :title="
           face.isExample
-            ? 'Эталон: снять метку «этот человек известен»'
-            : 'Пометить эталоном: подтвердить, что это этот человек'
+            ? 'Exemplar: clear the mark this person is known»'
+            : 'Mark as exemplar: confirm this is the person'
         "
         @click="toggleExample(face.id)"
       >
-        эталон
+        exemplar
       </button>
       <span class="caption">
-        кадр {{ face.frameNumber }}
-        <span v-if="face.origin === 'OPERATOR'" class="operator" title="рамку нарисовал оператор">
-          вручную
+        frame {{ face.frameNumber }}
+        <span
+          v-if="face.origin === 'OPERATOR'"
+          class="operator"
+          title="the frame was drawn by the operator"
+        >
+          manually
         </span>
       </span>
     </li>

@@ -21,7 +21,7 @@ import JobProgressMeter from './JobProgressMeter.vue'
 const route = useRoute()
 const catalog = useCatalogStore()
 
-/** Разделы админки в порядке работы оператора. */
+/** Admin sections в порядке работы оператора. */
 const sections = computed(() => [
   { name: 'intake', title: 'Intake', hint: 'Projects, series, file parameters' },
   { name: 'project', title: 'Project', hint: 'Project parameters, files, tracks' },
@@ -52,7 +52,7 @@ const selectedVideofileLabel = computed(() => {
     return catalogEntry.project.name
   }
   // Каталог заполняется на экране приёма. При прямом заходе по адресу
-  // видеофайла он пуст, и подпись «проект не выбран» противоречила тому, что
+  // видеофайла он пуст, и подпись «no project selected» противоречила тому, что
   // видно: задание по этому видеофайлу работает. Лучше сказать, какой видеофайл
   // открыт, чем утверждать, что ничего не выбрано.
   const raw = route.params.videofileId
@@ -60,13 +60,13 @@ const selectedVideofileLabel = computed(() => {
     return `видеофайл ${raw}`
   }
   // На странице проекта идентификатор лежит прямо в адресе: без этого шапка
-  // писала «проект не выбран» там, где проект открыт, и три пункта навигации
+  // писала «no project selected» там, где проект открыт, и три пункта навигации
   // оставались недоступными.
   const project = routeProjectName.value
-  return project ?? 'проект не выбран'
+  return project ?? 'no project selected'
 })
 
-/** Название проекта, открытого по адресу, либо `null`. */
+/** Project title, открытого по адресу, либо `null`. */
 const routeProjectName = ref<string | null>(null)
 
 /** Читает название проекта, указанного в адресе. */
@@ -204,7 +204,7 @@ function isActive(name: string): boolean {
              два показателя об одном задании разойдутся с ним же. -->
         <div class="syp-live d-flex align-items-center gap-2 flex-wrap">
           <span v-if="queue !== null" class="syp-queue text-body-secondary">
-            очередь: {{ queue.summary }}
+            queue: {{ queue.summary }}
           </span>
           <span class="badge" :class="connectionBadge">{{ connection }}</span>
           <button
@@ -213,12 +213,12 @@ function isActive(name: string): boolean {
             class="btn btn-sm btn-outline-light"
             @click="retryNotifications"
           >
-            подключиться снова
+            connect again
           </button>
         </div>
       </div>
 
-      <nav class="syp-nav" aria-label="Разделы админки">
+      <nav class="syp-nav" aria-label="Admin sections">
         <!-- Пункт без проекта остаётся видимым и помечается недоступным: раньше
              такие пункты просто исчезали, и оператор не видел, что раздел есть. -->
         <template v-for="section in sections" :key="section.name">
@@ -234,7 +234,7 @@ function isActive(name: string): boolean {
           <span
             v-else
             class="syp-nav-link is-off"
-            :title="`${section.hint}. Раздел откроется, когда будет выбран проект`"
+            :title="`${section.hint}. The section opens when a project is selected`"
           >
             {{ section.title }}
           </span>

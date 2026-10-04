@@ -7,7 +7,7 @@
  * событие — green on the right. Поэтому здесь оранжевая полоса слева.
  *
  * В отличие от старого проекта удаление сцен работает: там обработчик удаления
- * был пустым, кнопка на месте, а действия нет.
+ * был пустым, кнопка на месте, а действия none.
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import {
@@ -226,7 +226,7 @@ watch(
               :class="{ selected: selected.includes(scene.id) }"
               @click="toggle(scene.id)"
             >
-              <td>{{ scene.title ?? `Сцена ${scene.id}` }}</td>
+              <td>{{ scene.title ?? `Scene ${scene.id}` }}</td>
               <td class="thumb-cell">
                 <span class="shot-mark" />
                 <ShotThumb
@@ -250,15 +250,16 @@ watch(
         </table>
         <div class="actions">
           <button type="button" class="btn btn-sm btn-outline-secondary" @click="createFromShots">
-            Создать сцену по выбранным планам
+            Create a scene from the selected shots
           </button>
           <button type="button" class="btn btn-sm btn-outline-secondary" @click="removeSelected">
-            Удалить выбранные сцены
+            Delete the selected scenes
           </button>
         </div>
         <p class="legend">
-          Сцена на миниатюре плана помечается <span class="swatch scene">orange on the left</span>,
-          событие — <span class="swatch event">green on the right</span>.
+          A scene is marked on the shot thumbnail
+          <span class="swatch scene">orange on the left</span>, event —
+          <span class="swatch event">green on the right</span>.
         </p>
       </div>
 
@@ -300,7 +301,7 @@ watch(
             :disabled="chosen.length === 0"
             @click="moveBoundary(chosen[0]?.firstFrame ?? 0, -1)"
           >
-            Начало левее
+            Start is further left
           </button>
           <button
             type="button"
@@ -308,7 +309,7 @@ watch(
             :disabled="chosen.length === 0"
             @click="moveBoundary(chosen[0]?.firstFrame ?? 0, 1)"
           >
-            Начало правее
+            Start is further right
           </button>
           <button
             type="button"
@@ -316,7 +317,7 @@ watch(
             :disabled="chosen.length === 0"
             @click="splitAt(chosen[0]?.firstFrame ?? 0)"
           >
-            Разрезать
+            Cut
           </button>
           <button
             type="button"
@@ -324,7 +325,7 @@ watch(
             :disabled="chosen.length < 2"
             @click="mergeAt(chosen[0]?.lastFrame ?? 0)"
           >
-            Слить
+            Merge
           </button>
         </div>
       </div>
@@ -358,7 +359,7 @@ watch(
                 class="btn btn-sm btn-outline-secondary"
                 @click="removeProperty(property.key)"
               >
-                удалить
+                delete
               </button>
             </td>
           </tr>
@@ -375,9 +376,7 @@ watch(
           rows="2"
           placeholder="Value"
         ></textarea>
-        <button type="button" class="btn btn-primary" @click="addProperty">
-          Добавить свойство
-        </button>
+        <button type="button" class="btn btn-primary" @click="addProperty">Add property</button>
       </div>
     </div>
 

@@ -111,7 +111,7 @@ onMounted(reload)
 <template>
   <div class="frame-view">
     <div class="frame-box">
-      <img v-if="source !== ''" :src="source" alt="Кадр выбранного плана" />
+      <img v-if="source !== ''" :src="source" alt="Selected shot frame" />
       <p v-else class="empty">No shot selected</p>
       <span
         v-for="box in boxes"

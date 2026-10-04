@@ -74,7 +74,7 @@ function openChecksum(videofileId: number): void {
 /**
  * Открывает экран сцен и планов видеофайла.
  *
- * Переход живёт рядом с «суммой» не украшением, а потому что иначе до сцен
+ * Переход живёт рядом с «суммой» не украшением, а потому что иначе to сцен
  * можно было добраться только вкладкой в шапке, а эта вкладка появляется лишь
  * после выбора проекта. Оператору сценарий «открыл проект — посмотрел сцены»
  * обрывался, и найти экран было нечем.
@@ -98,7 +98,7 @@ function openFaces(videofileId: number): void {
 <template>
   <section class="intake">
     <div class="intake-head">
-      <h2>Приём проектов и видеофайлов</h2>
+      <h2>Intake of projects and videofiles</h2>
       <!-- В старом проекте выбор базы данных жил в меню главного окна, а
            главное окно было экраном приёма проектов; кнопка оставлена здесь. -->
       <button type="button" class="btn btn-sm btn-outline-secondary" @click="databaseOpen = true">
@@ -108,22 +108,22 @@ function openFaces(videofileId: number): void {
 
     <DatabaseSelectDialog v-if="databaseOpen" @closed="databaseOpen = false" />
 
-    <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
+    <p v-if="store.loading.value" class="note">Request to the backend…</p>
 
     <p v-if="store.error.value" class="error" role="alert">
       <span v-if="store.errorCode.value" class="code">{{ store.errorCode.value }}</span>
       {{ store.error.value }}
-      <button type="button" @click="store.clearError()">скрыть</button>
+      <button type="button" @click="store.clearError()">hide</button>
     </p>
 
     <fieldset>
-      <legend>Проекты</legend>
+      <legend>Projects</legend>
       <table>
         <thead>
           <tr>
-            <th>Название</th>
-            <th>Корень каталога</th>
-            <th>Видеофайлов</th>
+            <th>Title</th>
+            <th>Catalog root</th>
+            <th>Videofiles</th>
             <th />
           </tr>
         </thead>
@@ -135,49 +135,49 @@ function openFaces(videofileId: number): void {
             </td>
             <td>{{ project.videofileCount }}</td>
             <td>
-              <!-- Кнопка «открыть» выбирает проект в состоянии и открывает
+              <!-- Кнопка «open» выбирает проект в состоянии и открывает
                    главное окно: в старом проекте `Open…` из меню вёл именно
                    в него, а не в список файлов. -->
-              <button type="button" @click="openMainWindow(project.id)">открыть</button>
+              <button type="button" @click="openMainWindow(project.id)">open</button>
             </td>
           </tr>
           <tr v-if="store.projects.value.length === 0">
-            <td colspan="4" class="note">Проектов пока нет</td>
+            <td colspan="4" class="note">No projects yet</td>
           </tr>
         </tbody>
       </table>
 
       <div class="form">
-        <input v-model="projectName" type="text" placeholder="Название проекта" />
+        <input v-model="projectName" type="text" placeholder="Project title" />
         <input
           v-model="projectRoot"
           type="text"
-          placeholder="Корень каталога, например /disks/HDD_16Tb_Clouds/GOT"
+          placeholder="Catalog root, for example /disks/HDD_16Tb_Clouds/GOT"
         />
         <button type="button" :disabled="store.loading.value" @click="submitProject">
-          создать проект
+          create a project
         </button>
       </div>
       <p class="note">
-        Корень обязателен: сценарий сборки обращается к файлам по путям относительно него, и
-        относительный путь вне корня был бы выдуманным.
+        The root is required: the build script addresses files by paths relative to it, and a
+        relative path outside the root would be made up.
       </p>
     </fieldset>
 
     <fieldset v-if="store.current.value">
-      <legend>Видеофайла проекта «{{ store.current.value.project.name }}»</legend>
+      <legend>Videofiles of the project {{ store.current.value.project.name }}</legend>
       <table>
         <thead>
           <tr>
-            <th>Название</th>
-            <th>Путь</th>
-            <th>Кадров</th>
-            <th>Разрешение</th>
-            <th>Частота кадров</th>
-            <th>Длительность</th>
-            <th>Размер</th>
-            <th>Ключевых кадров</th>
-            <th>Перейти</th>
+            <th>Title</th>
+            <th>Path</th>
+            <th>Frames</th>
+            <th>Resolution</th>
+            <th>Frame rate</th>
+            <th>Duration</th>
+            <th>Size</th>
+            <th>Key frames</th>
+            <th>Go</th>
           </tr>
         </thead>
         <tbody>
@@ -190,16 +190,16 @@ function openFaces(videofileId: number): void {
             <td>{{ videofile.width }}×{{ videofile.height }}</td>
             <td>{{ videofile.frameRate }}</td>
             <td>{{ formatDuration(videofile.durationSeconds) }}</td>
-            <td>{{ formatBytes(videofile.byteSize, 'байт', 0) }}</td>
+            <td>{{ formatBytes(videofile.byteSize, 'B', 0) }}</td>
             <td>{{ videofile.keyframeCount }}</td>
             <td class="go">
-              <button type="button" @click="openChecksum(videofile.id)">сумма</button>
-              <button type="button" @click="openStructure(videofile.id)">сцены</button>
-              <button type="button" @click="openFaces(videofile.id)">лица</button>
+              <button type="button" @click="openChecksum(videofile.id)">sum</button>
+              <button type="button" @click="openStructure(videofile.id)">scenes</button>
+              <button type="button" @click="openFaces(videofile.id)">faces</button>
             </td>
           </tr>
           <tr v-if="store.videofile.value.length === 0">
-            <td colspan="9" class="note">Видеофайлов пока нет</td>
+            <td colspan="9" class="note">No videofiles yet</td>
           </tr>
         </tbody>
       </table>
@@ -208,24 +208,21 @@ function openFaces(videofileId: number): void {
         <input
           v-model="videofilePath"
           type="text"
-          placeholder="Путь к файлу видеофайла внутри корня проекта"
+          placeholder="Path to the videofile inside the project root"
         />
-        <input
-          v-model="videofileName"
-          type="text"
-          placeholder="Название видеофайла (необязательно)"
-        />
+        <input v-model="videofileName" type="text" placeholder="Videofile name (optional)" />
         <button
           type="button"
           :disabled="!store.canRegisterVideofile.value || store.loading.value"
           @click="submitVideofile"
         >
-          добавить видеофайл
+          add videofile
         </button>
       </div>
       <p class="note">
-        Параметры файла определяет система: оператор их не вводит. Путь обязан лежать внутри корня
-        проекта, иначе придёт отказ <code>SOURCE_UNREADABLE</code> с путём в тексте.
+        The system determines the file parameters: the operator does not enter them. The path must
+        lie inside the project root, otherwise a <code>SOURCE_UNREADABLE</code> failure comes with
+        the path in the text.
       </p>
     </fieldset>
   </section>

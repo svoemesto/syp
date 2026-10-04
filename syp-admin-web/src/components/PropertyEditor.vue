@@ -12,8 +12,8 @@ import {
  * Редактор произвольных свойств владельца.
  *
  * В старом проекте это таблица «ключ — значение» с полями ввода и шестью
- * кнопками: перенести свойство в начало, вверх, вниз, в конец и удалить. Здесь
- * порядок задаёт сама база (`ordinal`), а кнопка одна — «записать», потому что
+ * кнопками: перенести свойство в начало, вверх, вниз, в конец и delete. Здесь
+ * порядок задаёт сама база (`ordinal`), а кнопка одна — «write», потому что
  * перестановка свойств оператору нужна заметно реже, чем их заведение.
  *
  * Ключ вводит оператор: системных ключей нет ни одного, и это не недочёт —
@@ -86,18 +86,19 @@ watch(() => [props.kind, props.ownerId], reload)
 
 <template>
   <section class="properties">
-    <div class="syp-card-title">{{ title ?? 'Свойства' }}</div>
+    <div class="syp-card-title">{{ title ?? 'Properties' }}</div>
 
     <p v-if="properties.length === 0" class="syp-unit">
-      Свойств нет. Ключ и значение вводите сами — список заданных ключей в проекте не ведётся.
+      No properties. You enter the key and the value yourself — the project keeps no list of known
+      keys.
     </p>
 
     <table v-else class="table table-sm align-middle">
       <thead>
         <tr>
-          <th>Ключ</th>
-          <th>Значение</th>
-          <th aria-label="действие"></th>
+          <th>Key</th>
+          <th>Value</th>
+          <th aria-label="action"></th>
         </tr>
       </thead>
       <tbody>
@@ -111,7 +112,7 @@ watch(() => [props.kind, props.ownerId], reload)
               :disabled="busy"
               @click="remove(property)"
             >
-              удалить
+              delete
             </button>
           </td>
         </tr>
@@ -119,10 +120,10 @@ watch(() => [props.kind, props.ownerId], reload)
     </table>
 
     <form class="properties-fields" @submit.prevent="save">
-      <input v-model="key" class="form-control" placeholder="Ключ, например: локация" />
-      <input v-model="value" class="form-control" placeholder="Значение" />
+      <input v-model="key" class="form-control" placeholder="Key, for example: location" />
+      <input v-model="value" class="form-control" placeholder="Value" />
       <button type="submit" class="btn btn-primary" :disabled="busy || key.trim() === ''">
-        записать
+        write
       </button>
     </form>
 

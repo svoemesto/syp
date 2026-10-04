@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Вкладка кадров: матрица миниатюр и страницы кадров.
+ * Вкладка frames: матрица миниатюр и страницы кадров.
  *
  * Форма перенесена по старому проекту. Там границы планов правятся **двойным
  * щелчком по миниатюре кадра**, и это первое действие оператора: разбиение на
@@ -225,24 +225,24 @@ watch(
 
     <div class="toolbar">
       <div class="swatches">
-        <span class="swatch keyframe">ключевой кадр</span>
-        <span class="swatch has-faces">есть лица</span>
+        <span class="swatch keyframe">key frame</span>
+        <span class="swatch has-faces">has faces</span>
         <span class="swatch boundary-found">boundary found</span>
-        <span class="swatch boundary-cancelled">отменена</span>
-        <span class="swatch boundary-added">добавлена</span>
+        <span class="swatch boundary-cancelled">cancelled</span>
+        <span class="swatch boundary-added">added</span>
       </div>
       <div class="actions">
         <button type="button" class="btn btn-sm btn-primary" @click="apply">
-          Применить к границам планов
+          Apply to shot boundaries
         </button>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="openFaces">
-          Лица кадра
+          Faces of the frame
         </button>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(-1)">
-          К предыдущей странице
+          To previous page
         </button>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(1)">
-          К следующей странице
+          To next page
         </button>
       </div>
     </div>
@@ -274,8 +274,8 @@ watch(
     </table>
 
     <p class="state">
-      Состояние границы: {{ boundaryState }} из 3 (0 — не найдена, 1 — найдена, 2 — отменена, 3 —
-      добавлена). Выбран кадр: {{ chosenFrame ?? 'no' }}. Страница {{ page + 1 }} из {{ pages }}.
+      Boundary state: {{ boundaryState }} of 3 (0 — not found, 1 — found, 2 — cancelled, 3 — added).
+      Selected frame: {{ chosenFrame ?? 'no' }}. Page {{ page + 1 }} of {{ pages }}.
     </p>
 
     <div class="frames-matrix">
@@ -284,21 +284,21 @@ watch(
         :key="frame.frameNumber"
         type="button"
         :class="frameClass(frame)"
-        :title="`кадр ${frame.frameNumber}, лиц: ${frame.faceCount}`"
+        :title="`frame ${frame.frameNumber}, faces: ${frame.faceCount}`"
         @click="choose(frame)"
         @dblclick="toggleBoundary(frame)"
       >
         <span class="number">{{ frame.frameNumber }}</span>
         <span class="time">{{ timeOf(frame.frameNumber) ?? frame.frameNumber }}</span>
         <span v-if="frame.isKeyframe" class="mark key">I</span>
-        <span v-if="frame.faceCount > 0" class="mark faces">лица</span>
+        <span v-if="frame.faceCount > 0" class="mark faces">faces</span>
       </button>
       <p v-if="shown.length === 0" class="empty">No frames on this page</p>
     </div>
 
     <p v-if="!structureLoaded" class="notice" role="status">
-      Планы ещё не созданы, поэтому границы править не на чем. Правка станет доступна после разбора
-      файла.
+      Shots are not created yet, so there is nothing to edit boundaries on. Editing becomes
+      available after the structure is analysed.
     </p>
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
 

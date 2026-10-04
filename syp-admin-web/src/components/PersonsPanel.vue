@@ -17,7 +17,7 @@ import {
  * имени.
  *
  * Перетаскивание работает раньше, чем появится модель распознавания: лица уже
- * найдены, а персону можно завести по имени вручную. Поэтому разметка не ждёт
+ * найдены, а персону можно add по имени manually. Поэтому разметка не ждёт
  * кластеров.
  */
 const props = defineProps<{
@@ -84,7 +84,7 @@ async function drop(event: DragEvent, person: PersonView): Promise<void> {
 }
 
 /**
- * Ставит кадр персоны в её фото.
+ * Ставит кадр персоны в её photo.
  *
  * В старом проекте это пункт меню на выделенных лицах. Здесь — кнопка у строки
  * персоны: она берёт самое крупное лицо этой персоны на текущей странице, то есть
@@ -105,7 +105,7 @@ async function makePhoto(
   busy.value = true
   try {
     await setPersonPhoto(props.videofileId, person.id, face.frameNumber)
-    notice.value = `фото персоны «${person.name}» взято с кадра ${face.frameNumber}`
+    notice.value = `photo персоны «${person.name}» взято с кадра ${face.frameNumber}`
     error.value = ''
     await reload()
   } catch (failure) {
@@ -120,11 +120,11 @@ onMounted(reload)
 
 <template>
   <section class="persons">
-    <div class="syp-card-title">Персоны</div>
+    <div class="syp-card-title">Persons</div>
 
     <p v-if="persons.length === 0" class="syp-unit">
-      Персон нет. Заведите первую по имени — лица уже найдены, и перетаскиванием на строку можно
-      разнести их по людям.
+      No persons. Create the first one by name — the faces are already found, and dragging a face
+      onto a person assigns it.
     </p>
 
     <ul v-else class="person-list">
@@ -142,26 +142,26 @@ onMounted(reload)
           v-if="person.photoFrameNumber !== null"
           class="person-photo"
           :src="facePreviewUrl(person.photoVideofileId ?? videofileId, person.photoFrameNumber)"
-          :alt="`Фото персоны ${person.name}`"
+          :alt="`Person photo ${person.name}`"
         />
         <span class="person-name">{{ person.name }}</span>
-        <small :title="person.isService ? 'служебная персона' : ''">({{ person.kind }})</small>
-        <span class="syp-unit">перетащите лицо сюда</span>
+        <small :title="person.isService ? 'service person' : ''">({{ person.kind }})</small>
+        <span class="syp-unit">drag a face here</span>
         <button
           type="button"
           class="btn btn-sm btn-outline-secondary photo-button"
           :disabled="busy || !props.biggestFaces[person.id]"
           @click="makePhoto(person, props.biggestFaces[person.id])"
         >
-          фото
+          photo
         </button>
       </li>
     </ul>
 
     <form class="person-fields" @submit.prevent="addPerson">
-      <input v-model="newName" class="form-control" placeholder="Имя персоны" />
+      <input v-model="newName" class="form-control" placeholder="Person name" />
       <button type="submit" class="btn btn-primary" :disabled="busy || newName.trim() === ''">
-        завести
+        add
       </button>
     </form>
 

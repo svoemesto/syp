@@ -59,7 +59,7 @@ const fileProperties = ref<PropertyView[]>([])
 /** Ключ нового свойства. */
 const propertyKey = ref('')
 
-/** Значение нового свойства. */
+/** Value нового свойства. */
 const propertyValue = ref('')
 
 /** Ошибка чтения или записи. */
@@ -247,40 +247,40 @@ onMounted(async () => {
 
 <template>
   <section class="main">
-    <h1 class="syp-page-title">Проект</h1>
+    <h1 class="syp-page-title">Project</h1>
 
     <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
 
     <!-- Меню главного окна. Блокировки повторяют старые: без проекта выключены
          операции, фильтры и персоны, без файла — правка планов. -->
-    <nav class="menu" aria-label="Меню проекта">
-      <RouterLink :to="{ name: 'intake' }" class="menu-item">Открыть проект</RouterLink>
+    <nav class="menu" aria-label="Project menu">
+      <RouterLink :to="{ name: 'intake' }" class="menu-item">Open project</RouterLink>
       <button type="button" class="menu-item danger" :disabled="!hasProject" @click="removeProject">
-        Удалить проект
+        Delete the project
       </button>
       <button type="button" class="menu-item" :disabled="!hasProject" @click="projectActions">
-        Операции над проектом
+        Project actions
       </button>
       <button type="button" class="menu-item" :disabled="!hasFile" @click="editShots">
-        Правка планов
+        Editing shots
       </button>
       <button type="button" class="menu-item" :disabled="!hasProject" @click="editFilters">
-        Правка фильтров
+        Editing filters
       </button>
       <button type="button" class="menu-item" :disabled="!hasProject" @click="editPersons">
-        Правка персон
+        Editing persons
       </button>
       <button type="button" class="menu-item" @click="databaseOpen = true">
-        Выбрать базу данных
+        Choose a database
       </button>
     </nav>
 
     <div class="panes">
       <!-- Левая половина: проект и файлы -->
       <div class="pane">
-        <div class="syp-card-title">Проект</div>
+        <div class="syp-card-title">Project</div>
         <div class="line">
-          <label for="p-name">Имя:</label>
+          <label for="p-name">Name:</label>
           <input
             id="p-name"
             class="form-control form-control-sm"
@@ -290,17 +290,17 @@ onMounted(async () => {
           />
         </div>
         <div class="line">
-          <label for="p-short">Короткое имя:</label>
+          <label for="p-short">Short name:</label>
           <input
             id="p-short"
             class="form-control form-control-sm"
             type="text"
-            value="поля в проекте нет"
+            value="the project has no such field"
             disabled
           />
         </div>
         <div class="line">
-          <label for="p-folder">Папка:</label>
+          <label for="p-folder">Folder:</label>
           <input
             id="p-folder"
             class="form-control form-control-sm"
@@ -314,25 +314,26 @@ onMounted(async () => {
              нашей модели принадлежат файлу. Здесь стоит именно это, а не
              правдоподобные значения: подставить их значило бы выдать чужое
              поле за наше. -->
-        <div class="syp-card-title">Параметры видео и звука</div>
+        <div class="syp-card-title">Video and audio parameters</div>
         <p class="absent">
-          В нашей модели ширина, высота, частота кадров и кодеки — свойства
-          <strong>файла</strong>, а не проекта, поэтому показаны справа. Битриты видео и звука,
-          контейнер и контейнер lossless сервер не отдаёт: таких полей в проекте нет.
+          In our model width, height, frame rate and codecs are properties of the
+          <strong>file</strong>, not of the project, so they are shown on the right. Video and audio
+          bitrates, along with the container and the lossless container, are not served by the
+          server: the project has no such fields.
         </p>
 
-        <div class="syp-card-title">Свойства</div>
+        <div class="syp-card-title">Properties</div>
         <table class="table table-sm">
           <thead>
             <tr>
-              <th>Ключ</th>
-              <th>Значение</th>
+              <th>Key</th>
+              <th>Value</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="projectProperties.length === 0">
-              <td colspan="3" class="empty">свойств проекта нет</td>
+              <td colspan="3" class="empty">no project properties</td>
             </tr>
             <tr v-for="item in projectProperties" :key="item.key">
               <td>{{ item.key }}</td>
@@ -341,7 +342,7 @@ onMounted(async () => {
                 <button
                   type="button"
                   class="row-del"
-                  title="Удалить свойство"
+                  title="Delete property"
                   @click="removeProperty(item)"
                 >
                   ×
@@ -355,28 +356,30 @@ onMounted(async () => {
             v-model="propertyKey"
             class="form-control form-control-sm"
             type="text"
-            placeholder="ключ свойства"
+            placeholder="property key"
           />
           <input
             v-model="propertyValue"
             class="form-control form-control-sm"
             type="text"
-            placeholder="значение"
+            placeholder="value"
           />
           <button type="button" class="btn btn-sm btn-outline-secondary" @click="addProperty">
-            Добавить
+            Add
           </button>
         </div>
 
-        <div class="syp-card-title">Свойства, зависящие от машины</div>
-        <p class="absent">Таких свойств в проекте нет: машина оператора не влияет на разметку.</p>
+        <div class="syp-card-title">Machine dependent properties</div>
+        <p class="absent">
+          The project has no such properties: the operator machine does not affect the markup.
+        </p>
 
-        <div class="syp-card-title">Файлы</div>
+        <div class="syp-card-title">Files</div>
         <table class="table table-sm">
           <thead>
             <tr>
               <th class="num">#</th>
-              <th>Файл</th>
+              <th>File</th>
             </tr>
           </thead>
           <tbody>
@@ -397,9 +400,9 @@ onMounted(async () => {
 
       <!-- Правая половина: выбранный файл -->
       <div class="pane">
-        <div class="syp-card-title">Файл</div>
+        <div class="syp-card-title">File</div>
         <div class="line">
-          <label for="f-name">Имя:</label>
+          <label for="f-name">Name:</label>
           <input
             id="f-name"
             class="form-control form-control-sm"
@@ -409,7 +412,7 @@ onMounted(async () => {
           />
         </div>
         <div class="line">
-          <label for="f-short">Обозначение:</label>
+          <label for="f-short">Label:</label>
           <input
             id="f-short"
             class="form-control form-control-sm"
@@ -419,7 +422,7 @@ onMounted(async () => {
           />
         </div>
         <div class="line">
-          <label for="f-path">Путь:</label>
+          <label for="f-path">Path:</label>
           <input
             id="f-path"
             class="form-control form-control-sm"
@@ -429,30 +432,30 @@ onMounted(async () => {
           />
         </div>
 
-        <div class="syp-card-title">Параметры</div>
+        <div class="syp-card-title">Parameters</div>
         <div class="grid">
-          <span>Ширина, пиксели</span><span>{{ chosen?.width ?? '—' }}</span>
-          <span>Высота, пиксели</span><span>{{ chosen?.height ?? '—' }}</span>
-          <span>Частота кадров</span><span>{{ chosen?.frameRate ?? '—' }}</span>
-          <span>Видеокодек</span><span>{{ chosen?.videoCodec ?? '—' }}</span> <span>Аудиокодек</span
-          ><span>{{ chosen?.audioCodec ?? '—' }}</span> <span>Частота звука, Гц</span
-          ><span>{{ chosen?.audioSampleRate ?? '—' }}</span> <span>Кадров</span
-          ><span>{{ chosen?.frameCount ?? '—' }}</span> <span>Длительность</span
+          <span>Width, pixels</span><span>{{ chosen?.width ?? '—' }}</span>
+          <span>Height, pixels</span><span>{{ chosen?.height ?? '—' }}</span> <span>Frame rate</span
+          ><span>{{ chosen?.frameRate ?? '—' }}</span> <span>Video codec</span
+          ><span>{{ chosen?.videoCodec ?? '—' }}</span> <span>Audio codec</span
+          ><span>{{ chosen?.audioCodec ?? '—' }}</span> <span>Audio rate, Hz</span
+          ><span>{{ chosen?.audioSampleRate ?? '—' }}</span> <span>Frames</span
+          ><span>{{ chosen?.frameCount ?? '—' }}</span> <span>Duration</span
           ><span>{{ durationText }}</span>
         </div>
 
-        <div class="syp-card-title">Свойства файла</div>
+        <div class="syp-card-title">File properties</div>
         <table class="table table-sm">
           <thead>
             <tr>
-              <th>Ключ</th>
-              <th>Значение</th>
+              <th>Key</th>
+              <th>Value</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="fileProperties.length === 0">
-              <td colspan="3" class="empty">свойств файла нет</td>
+              <td colspan="3" class="empty">no file properties</td>
             </tr>
             <tr v-for="item in fileProperties" :key="item.key">
               <td>{{ item.key }}</td>
@@ -461,7 +464,7 @@ onMounted(async () => {
                 <button
                   type="button"
                   class="row-del"
-                  title="Удалить свойство"
+                  title="Delete property"
                   @click="removeProperty(item)"
                 >
                   ×
@@ -471,21 +474,21 @@ onMounted(async () => {
           </tbody>
         </table>
 
-        <div class="syp-card-title">Дорожки</div>
+        <div class="syp-card-title">Tracks</div>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="getTracks">
-          Получить дорожки файла
+          Fetch the file tracks
         </button>
         <table class="table table-sm">
           <thead>
             <tr>
               <th class="num">#</th>
-              <th>Тип</th>
-              <th>Кодек</th>
+              <th>Type</th>
+              <th>Codec</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="(chosen?.tracks ?? []).length === 0">
-              <td colspan="3" class="empty">дорожек нет</td>
+              <td colspan="3" class="empty">no tracks</td>
             </tr>
             <tr v-for="track in chosen?.tracks ?? []" :key="track.index">
               <td class="num">{{ track.ordinal }}</td>
