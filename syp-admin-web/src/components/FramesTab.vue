@@ -97,17 +97,6 @@ const pageRows = computed(() => {
 /** Всего страниц кадров. */
 const pages = computed(() => Math.max(1, Math.ceil((frames.value?.total ?? 0) / PAGE_SIZE)))
 
-/**
- * Подпись кадра в странице: время в секундах по номеру кадра.
- *
- * Время считается из номера кадра и частоты кадров в секунду, известной из
- * структуры видеофайла. Точнее взять неоткуда: отдельной частоты в ответе по
- * кадрам нет, и выдумывать её здесь нельзя.
- */
-function timeOf(frameNumber: number): string {
-  return String(frameNumber)
-}
-
 /** Стиль рамки кадра по состоянию границы. */
 function frameClass(frame: FrameView): string[] {
   const classes = ['frame-cell']
@@ -291,7 +280,7 @@ watch(
         @dblclick="toggleBoundary(frame)"
       >
         <span class="number">{{ frame.frameNumber }}</span>
-        <span class="time">{{ timeOf(frame.frameNumber) }}</span>
+        <span class="time">{{ timeOf(frame.frameNumber) ?? frame.frameNumber }}</span>
         <span v-if="frame.isKeyframe" class="mark key">I</span>
         <span v-if="frame.faceCount > 0" class="mark faces">лица</span>
       </button>
