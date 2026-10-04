@@ -8,7 +8,7 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useCatalogStore } from '../stores/catalog'
-import { readVideofile } from '../api/catalog'
+import { readProjects, readVideofile } from '../api/catalog'
 import {
   connectionIsAttention,
   connectionLabel,
@@ -59,8 +59,31 @@ const selectedVideofileLabel = computed(() => {
   if (typeof raw === 'string' && raw !== '') {
     return `видеофайл ${raw}`
   }
-  return 'проект не выбран'
+  // На странице проекта идентификатор лежит прямо в адресе: без этого шапка
+  // писала «проект не выбран» там, где проект открыт, и три пункта навигации
+  // оставались недоступными.
+  const project = routeProjectName.value
+  return project ?? 'проект не выбран'
 })
+
+/** Название проекта, открытого по адресу, либо `null`. */
+const routeProjectName = ref<string | null>(null)
+
+/** Читает название проекта, указанного в адресе. */
+async function readRouteProject(): Promise<void> {
+  const raw = route.params.projectId
+  if (typeof raw !== 'string' || raw === '') {
+    routeProjectName.value = null
+    return
+  }
+  try {
+    const found = (await readProjects()).find((entry) => entry.id === Number(raw))
+    routeProjectName.value = found?.name ?? null
+  } catch {
+    // Неизвестный проект — обычное дело для адреса, введённого руками.
+    routeProjectName.value = null
+  }
+}
 
 /**
  * Проект, для которого открыт раздел, либо `null`, если он не известен.
@@ -77,7 +100,11 @@ const projectOfSection = computed<number | null>(() => {
     return current.project.id
   }
   const raw = route.params.videofileId
-  return typeof raw === 'string' && raw !== '' ? videofileProject.value : null
+  if (typeof raw === 'string' && raw !== '') {
+    return videofileProject.value
+  }
+  const fromRoute = route.params.projectId
+  return typeof fromRoute === 'string' && fromRoute !== '' ? Number(fromRoute) : null
 })
 
 /** Проект видеофайла, открытого по адресу. */
@@ -98,6 +125,7 @@ async function readVideofileProject(): Promise<void> {
   }
 }
 
+watch(() => route.params.projectId, readRouteProject, { immediate: true })
 watch(() => route.params.videofileId, readVideofileProject, { immediate: true })
 
 /**
