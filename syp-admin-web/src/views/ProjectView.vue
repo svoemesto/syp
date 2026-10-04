@@ -415,7 +415,7 @@ onMounted(async () => {
           <span>Аудиокодек</span><span>{{ chosen?.audioCodec ?? '—' }}</span>
           <span>Частота звука, Гц</span><span>{{ chosen?.audioSampleRate ?? '—' }}</span>
           <span>Кадров</span><span>{{ chosen?.frameCount ?? '—' }}</span>
-          <span>Длительность, с</span><span>{{ chosen?.durationSeconds ?? '—' }}</span>
+          <span>Длительность</span><span>{{ durationText }}</span>
         </div>
 
         <div class="syp-card-title">Свойства файла</div>
