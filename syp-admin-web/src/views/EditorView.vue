@@ -345,14 +345,19 @@ onMounted(async () => {
 .editor-body {
   display: grid;
   gap: 1rem;
-  /* Левая часть 730 px и правая от 920 px — пропорции старой формы. */
-  grid-template-columns: minmax(30rem, 730px) minmax(30rem, 1fr);
+  /*
+   * Левая часть: колонка планов 440 px плюс крупный кадр 720 px, как в старой
+   * форме. Заявленные там 730 px на всю левую часть меньше этой суммы, и
+   * JavaFX давал колонкам выйти за границу; здесь ширина берётся по содержимому,
+   * а правая часть получает остаток окна и не меньше 920 px.
+   */
+  grid-template-columns: minmax(27.5rem, max-content) minmax(57.5rem, 1fr);
   align-items: start;
 }
 
 .left {
   display: grid;
-  grid-template-columns: minmax(17rem, 21rem) minmax(18rem, 1fr);
+  grid-template-columns: 27.5rem 45rem;
   gap: 0.75rem;
   /* Без этого колонку с крупным кадром раздувает сама картинка: по умолчанию
      элемент сетки не сжимается меньше содержимого. */
