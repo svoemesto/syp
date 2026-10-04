@@ -23,6 +23,7 @@ const catalog = useCatalogStore()
 /** Разделы админки в порядке работы оператора. */
 const sections = computed(() => [
   { name: 'intake', title: 'Приём проектов', hint: 'Проекты, серии, параметры файла' },
+  { name: 'project', title: 'Проект', hint: 'Параметры проекта, файлы, дорожки' },
   { name: 'sums', title: 'Суммы', hint: 'Состояние подсчёта SHA-256 серии' },
   { name: 'structure', title: 'Структура', hint: 'Сцены, планы, границы' },
   { name: 'faces', title: 'Лица', hint: 'Детекция, кластеры, персоны' },
@@ -75,7 +76,7 @@ function linkFor(name: string): {
 } {
   // Операции живут по проекту: набор файлов и признаки «уже сделано» имеют
   // смысл только для всех файлов проекта вместе, а не для одного видеофайла.
-  if (name === 'actions' || name === 'filters') {
+  if (name === 'actions' || name === 'filters' || name === 'project') {
     const projectId = catalog.current.value?.project.id
     return projectId === undefined || projectId === null
       ? { name }
