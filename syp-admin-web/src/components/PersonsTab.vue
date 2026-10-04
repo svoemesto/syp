@@ -317,13 +317,13 @@ watch(
 }
 
 .persons-list {
-  border: 1px solid #d8dde5;
+  border: 1px solid var(--syp-border);
   border-radius: 4px;
   padding: 0.5rem;
 }
 
 .persons-list.over {
-  border-color: #2f9e44;
+  border-color: var(--syp-success);
 }
 
 .persons-list ul {
@@ -345,7 +345,7 @@ watch(
 }
 
 .persons-list li.selected {
-  background: #e7f0fd;
+  background: var(--syp-tint);
   border-color: var(--syp-link);
 }
 
@@ -357,7 +357,7 @@ watch(
 }
 
 .hint {
-  color: #777;
+  color: var(--syp-text-muted);
   font-size: 0.8rem;
 }
 
@@ -369,7 +369,7 @@ watch(
 }
 
 .filters {
-  border: 1px solid #d8dde5;
+  border: 1px solid var(--syp-border);
   border-radius: 4px;
   display: grid;
   gap: 0.25rem;
@@ -389,14 +389,14 @@ watch(
 }
 
 .selection {
-  color: #555;
+  color: var(--syp-text-muted);
 }
 
 .empty {
-  color: #777;
+  color: var(--syp-text-muted);
 }
 
 .error {
-  color: #a61b1b;
+  color: var(--syp-danger);
 }
 </style>

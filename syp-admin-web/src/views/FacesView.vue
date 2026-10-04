@@ -453,22 +453,22 @@ function personKindTitle(kind: string): string {
 }
 
 .state {
-  color: #444444;
+  color: var(--syp-text-muted);
 }
 
 .note {
-  color: #555555;
+  color: var(--syp-text-muted);
 }
 
 .error {
-  color: #b71c1c;
-  border: 1px solid #b71c1c;
+  color: var(--syp-danger);
+  border: 1px solid var(--syp-danger);
   padding: 6px 8px;
 }
 
 .notice {
-  color: #1b5e20;
-  border: 1px solid #1b5e20;
+  color: var(--syp-success);
+  border: 1px solid var(--syp-success);
   padding: 6px 8px;
 }
 
@@ -488,7 +488,7 @@ function personKindTitle(kind: string): string {
 
 .cluster-id {
   font-family: monospace;
-  color: #666666;
+  color: var(--syp-text-muted);
 }
 
 .group h4 {
@@ -509,7 +509,7 @@ function personKindTitle(kind: string): string {
 
 .count {
   font-weight: 400;
-  color: #777777;
+  color: var(--syp-text-muted);
   font-size: 12px;
   flex: 0 0 100%;
 }
@@ -527,7 +527,7 @@ function personKindTitle(kind: string): string {
 
 .persons th,
 .persons td {
-  border: 1px solid #d0d4d8;
+  border: 1px solid var(--syp-border-control);
   padding: 4px 8px;
   text-align: left;
 }

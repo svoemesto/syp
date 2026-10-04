@@ -142,7 +142,7 @@ onMounted(reload)
 }
 
 .frame {
-  background: #000;
+  background: var(--syp-bg);
   min-height: 12rem;
   position: relative;
 }
@@ -153,7 +153,7 @@ onMounted(reload)
 }
 
 .box {
-  border: 2px solid #4dabf7;
+  border: 2px solid var(--syp-info);
   position: absolute;
 }
 
@@ -187,11 +187,11 @@ onMounted(reload)
 }
 
 .empty {
-  color: #777;
+  color: var(--syp-text-muted);
 }
 
 .error {
-  color: #a61b1b;
+  color: var(--syp-danger);
   margin: 0;
 }
 </style>

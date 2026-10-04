@@ -245,7 +245,7 @@ function openFaces(videofileId: number): void {
 }
 
 fieldset {
-  border: 1px solid #d0d0d0;
+  border: 1px solid var(--syp-border-control);
   padding: 0.75rem 1rem 1rem;
 }
 
@@ -261,7 +261,7 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #e6e6e6;
+  border-bottom: 1px solid var(--syp-text-muted);
   padding: 0.35rem 0.5rem;
   text-align: left;
   font-size: 0.9rem;
@@ -285,7 +285,7 @@ input {
 }
 
 .error {
-  border-left: 3px solid #b3261e;
+  border-left: 3px solid var(--syp-danger);
   padding-left: 0.5rem;
 }
 
@@ -295,7 +295,7 @@ input {
 }
 
 .note {
-  color: #555555;
+  color: var(--syp-text-muted);
   font-size: 0.85rem;
 }
 </style>

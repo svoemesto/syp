@@ -163,7 +163,7 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #e6e6e6;
+  border-bottom: 1px solid var(--syp-text-muted);
   padding: 0.35rem 0.75rem 0.35rem 0;
   text-align: left;
   font-size: 0.9rem;
@@ -172,7 +172,7 @@ td {
 
 th {
   width: 16rem;
-  color: #444444;
+  color: var(--syp-text-muted);
   font-weight: 500;
 }
 
@@ -189,7 +189,7 @@ th {
 }
 
 .error {
-  border-left: 3px solid #b3261e;
+  border-left: 3px solid var(--syp-danger);
   padding-left: 0.5rem;
 }
 
@@ -204,7 +204,7 @@ th {
 }
 
 .note {
-  color: #555555;
+  color: var(--syp-text-muted);
   font-size: 0.85rem;
 }
 </style>

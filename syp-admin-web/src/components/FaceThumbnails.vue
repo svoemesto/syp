@@ -193,7 +193,7 @@ function caption(face: FaceView): string {
 .thumb {
   width: 135px;
   position: relative;
-  border: 1px solid #d0d4d8;
+  border: 1px solid var(--syp-border-control);
   background: var(--syp-surface);
 }
 
@@ -202,7 +202,7 @@ function caption(face: FaceView): string {
 }
 
 .outlined {
-  border-color: #2f7d32;
+  border-color: var(--syp-success);
 }
 
 /* Ячейка вырезки: кадр показывается во весь размер ячейки, а рамка лица
@@ -228,26 +228,26 @@ function caption(face: FaceView): string {
   inset: 2px;
   width: auto;
   height: auto;
-  border: 2px solid #c62828;
+  border: 2px solid var(--syp-danger);
   box-sizing: border-box;
   pointer-events: none;
 }
 
 .thumb.outlined .box {
   border-style: dashed;
-  border-color: #2f7d32;
+  border-color: var(--syp-success);
 }
 
 .caption {
   font-size: 11px;
   padding: 2px 4px;
-  color: #333333;
+  color: var(--syp-text-muted);
   display: flex;
   gap: 4px;
   justify-content: space-between;
 }
 
 .operator {
-  color: #2f7d32;
+  color: var(--syp-success);
 }
 </style>

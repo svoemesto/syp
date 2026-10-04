@@ -189,7 +189,7 @@ onMounted(reload)
 }
 
 .person.over {
-  border-color: var(--syp-accent, #4c8dff);
+  border-color: var(--syp-accent, var(--syp-primary));
 }
 
 .person-name {
