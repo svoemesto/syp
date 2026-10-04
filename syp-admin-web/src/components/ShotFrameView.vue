@@ -112,7 +112,7 @@ onMounted(reload)
   <div class="frame-view">
     <div class="frame-box">
       <img v-if="source !== ''" :src="source" alt="Кадр выбранного плана" />
-      <p v-else class="empty">План не выбран</p>
+      <p v-else class="empty">No shot selected</p>
       <span
         v-for="box in boxes"
         :key="box.id"
@@ -126,14 +126,14 @@ onMounted(reload)
       />
     </div>
     <div class="frame-actions">
-      <span class="caption"> Кадр {{ frame ?? '—' }}; лиц в плане: {{ faces.length }} </span>
+      <span class="caption"> Frame {{ frame ?? '—' }}; faces in shot: {{ faces.length }} </span>
       <button
         type="button"
         class="btn btn-sm btn-outline-secondary"
         :disabled="frame === null"
         @click="editing = true"
       >
-        Править лица кадра
+        Edit frame faces
       </button>
     </div>
     <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
