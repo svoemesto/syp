@@ -18,8 +18,12 @@
  */
 import { computed, ref } from 'vue'
 import { shotsFor, stubEventNames, type StubEvent } from '../api/event-stubs'
+import ShotThumb from './ShotThumb.vue'
 
-const props = defineProps<{ shotsTotal: number; firstFrame: number; lastFrame: number }>()
+const props = defineProps<{ videofileId: number; shotsTotal: number; firstFrame: number; lastFrame: number }>()
+
+/** Ширина миниатюры кадра в колонках FROM и TO, как в старой форме. */
+const THUMB = 96
 
 /** События примера. Пока это единственный источник: бекенда нет. */
 const events = ref<StubEvent[]>([])
@@ -187,8 +191,13 @@ seed()
               @click="selected = selected.includes(event.id) ? selected.filter((id) => id !== event.id) : [...selected, event.id]"
             >
               <td>{{ event.name }}</td>
-              <td>{{ event.firstFrame }}</td>
-              <td>{{ event.lastFrame }}</td>
+              <td class="thumb-cell">
+                <span class="event-mark" />
+                <ShotThumb :videofile-id="props.videofileId" :frame-number="event.firstFrame" :width="THUMB" />
+              </td>
+              <td class="thumb-cell">
+                <ShotThumb :videofile-id="props.videofileId" :frame-number="event.lastFrame" :width="THUMB" />
+              </td>
             </tr>
             <tr v-if="events.length === 0">
               <td colspan="3" class="empty">Событий нет</td>
@@ -216,8 +225,12 @@ seed()
           </thead>
           <tbody>
             <tr v-for="(shot, index) in selectedShots" :key="`${shot.first}-${index}`">
-              <td>{{ shot.first }}</td>
-              <td>{{ shot.last }}</td>
+              <td class="thumb-cell">
+                <ShotThumb :videofile-id="props.videofileId" :frame-number="shot.first" :width="THUMB" />
+              </td>
+              <td class="thumb-cell">
+                <ShotThumb :videofile-id="props.videofileId" :frame-number="shot.last" :width="THUMB" />
+              </td>
             </tr>
             <tr v-if="selectedShots.length === 0">
               <td colspan="2" class="empty">Планов нет</td>
@@ -282,6 +295,22 @@ seed()
 </template>
 
 <style scoped>
+/* Ячейка с миниатюрой: кадр и подпись занимают всю ширину колонки. */
+.thumb-cell {
+  padding: 0.2rem;
+  vertical-align: top;
+}
+
+.event-mark {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 0.8rem solid transparent;
+  border-bottom: 0.8rem solid transparent;
+  border-left: 0.6rem solid var(--syp-success);
+  float: right;
+}
+
 .events {
   display: grid;
   gap: 1rem;

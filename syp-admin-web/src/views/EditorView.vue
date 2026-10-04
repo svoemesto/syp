@@ -25,7 +25,7 @@ const props = defineProps<{ videofileId: number }>()
 
 /** Активная вкладка правой части. Порядок — как в старом проекте. */
 const TABS = ['Frames', 'Persons', 'Scenes', 'Events'] as const
-const tab = ref<(typeof TABS)[number]>('Persons')
+const tab = ref<(typeof TABS)[number]>('Scenes')
 
 /** Разобранный видеофайл: планы и сцены. */
 const structure = ref<StructureView | null>(null)
@@ -326,6 +326,7 @@ onMounted(async () => {
 
         <EventsTab
           v-if="tab === 'Events'"
+          :videofile-id="Number(props.videofileId)"
           :shots-total="structure?.shotsTotal ?? 0"
           :first-frame="bounds.first"
           :last-frame="bounds.last"
