@@ -79,7 +79,7 @@ function select(): void {
     <div class="dialog-actions">
       <button type="button" class="btn btn-sm btn-primary" @click="select">OK</button>
       <button type="button" class="btn btn-sm btn-outline-secondary" @click="editing = true">
-        Edit the database
+        Редактировать базу данных
       </button>
       <button
         type="button"
@@ -89,7 +89,7 @@ function select(): void {
             'A new database cannot be added: the project works with one database, and a second one would mean a second deployment. That is a change of the environment, not an operator action'
         "
       >
-        Add new database
+        Добавить новую базу данных
       </button>
       <button
         type="button"
@@ -99,10 +99,10 @@ function select(): void {
             'Deleting the database is not performed: it holds filters, events, faces and properties. The button is left in place so that it is visible that there is no action, not to erase the data'
         "
       >
-        Delete the selected database
+        Удалить выбранную базу данных
       </button>
       <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">
-        Cancel
+        Отмена
       </button>
     </div>
 
@@ -118,8 +118,8 @@ function select(): void {
   inset: 50% auto auto 50%;
   transform: translate(-50%, -50%);
   z-index: 30;
-  min-width: 24rem;
-  max-width: 34rem;
+  min-width: 18.75rem;
+  max-width: 18.75rem;
   background: var(--syp-surface);
   border: 1px solid var(--syp-border);
   border-radius: 0.4rem;

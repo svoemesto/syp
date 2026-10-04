@@ -121,7 +121,7 @@ const notice = ref('')
   inset: 50% auto auto 50%;
   transform: translate(-50%, -50%);
   z-index: 31;
-  min-width: 26rem;
+  min-width: 25rem;
   background: var(--syp-surface);
   border: 1px solid var(--syp-border);
   border-radius: 0.4rem;

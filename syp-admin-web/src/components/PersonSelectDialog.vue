@@ -11,7 +11,13 @@
  * здесь же, но отдельной командой, чтобы его нельзя было выбрать случайно.
  */
 import { computed, onMounted, ref } from 'vue'
-import { createPerson, facePreviewUrl, readPersons, type PersonView } from '../api/characters'
+import {
+  createPerson,
+  deletePerson,
+  facePreviewUrl,
+  readPersons,
+  type PersonView,
+} from '../api/characters'
 
 const props = defineProps<{ videofileId: number; projectId: number }>()
 
@@ -32,7 +38,6 @@ const query = ref('')
 const chosen = ref<number | null>(null)
 
 /** New person name: отдельное поле, чтобы заведение не выбралось случаем. */
-const newName = ref('')
 
 const error = ref('')
 
@@ -55,16 +60,32 @@ function accept(): void {
 }
 
 /** Заводит персону по имени. */
-async function addPerson(): Promise<void> {
-  if (newName.value.trim() === '') {
-    error.value = 'Person name обязательно: без него персону не add'
+async function addByName(): Promise<void> {
+  const name = query.value.trim()
+  if (name === '') {
+    error.value = 'Person name обязательно: без него завести персону нечем'
     return
   }
   try {
-    const created = await createPerson(props.videofileId, newName.value.trim())
-    newName.value = ''
+    const created = await createPerson(props.videofileId, name)
+    query.value = ''
     persons.value = [...persons.value, created]
     chosen.value = created.id
+    error.value = ''
+  } catch (failure) {
+    error.value = (failure as Error).message
+  }
+}
+
+/** Удаляет выбранную персону. Лица при этом переходят в неподтверждённые. */
+async function removeChosen(): Promise<void> {
+  if (chosen.value === null) {
+    return
+  }
+  try {
+    await deletePerson(chosen.value)
+    persons.value = persons.value.filter((p) => p.id !== chosen.value)
+    chosen.value = null
     error.value = ''
   } catch (failure) {
     error.value = (failure as Error).message
@@ -84,39 +105,57 @@ onMounted(async () => {
 <template>
   <div class="dialog" role="dialog" aria-label="PERSON">
     <div class="dialog-body">
-      <h2 class="syp-card-title">PERSON</h2>
-
+      <!-- Форма person-select: поле поиска сверху, под ним таблица PERSON
+           шириной 150 px и две квадратные кнопки 46 на 46, затем OK и
+           Отмена во всю ширину. Заголовка у формы нет. -->
       <input
         v-model="query"
-        class="form-control"
+        class="form-control search"
         type="search"
         placeholder="Search by name"
-        @keyup.enter="persons.length > 0 && (chosen = shown[0]?.id ?? null)"
+        @keyup.enter="accept"
       />
 
-      <ul class="person-list">
-        <li
-          v-for="person in shown"
-          :key="person.id"
-          :class="{ selected: chosen === person.id }"
-          @click="chosen = person.id"
-          @dblclick="accept"
-        >
-          <img
-            v-if="person.photoFrameNumber !== null"
-            :src="facePreviewUrl(props.videofileId, person.photoFrameNumber)"
-            :alt="`Person photo ${person.name}`"
-            class="person-photo"
-          />
-          <span>{{ person.name }}</span>
-          <small v-if="person.isService" class="service">service</small>
-        </li>
-        <li v-if="shown.length === 0" class="empty">Nobody found</li>
-      </ul>
+      <div class="select-area">
+        <table class="table table-sm persons-table">
+          <thead>
+            <tr>
+              <th>PERSON</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="person in shown"
+              :key="person.id"
+              :class="{ selected: chosen === person.id }"
+              @click="chosen = person.id"
+              @dblclick="accept"
+            >
+              <td>
+                <img
+                  v-if="person.photoFrameNumber !== null"
+                  :src="facePreviewUrl(props.videofileId, person.photoFrameNumber)"
+                  :alt="`Person photo ${person.name}`"
+                  class="person-photo"
+                />
+                <span>{{ person.name }}</span>
+                <small v-if="person.isService" class="service">service</small>
+              </td>
+            </tr>
+            <tr v-if="shown.length === 0">
+              <td class="empty">Nobody found</td>
+            </tr>
+          </tbody>
+        </table>
 
-      <div class="new-person">
-        <input v-model="newName" class="form-control" placeholder="New person name" />
-        <button type="button" class="btn btn-outline-secondary" @click="addPerson">Add</button>
+        <div class="glyph-buttons">
+          <button type="button" class="glyph" title="Add person" @click="addByName">
+            &#10133;
+          </button>
+          <button type="button" class="glyph" title="Delete person" @click="removeChosen">
+            &#10006;
+          </button>
+        </div>
       </div>
 
       <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
@@ -124,7 +163,7 @@ onMounted(async () => {
       <div class="dialog-actions">
         <button type="button" class="btn btn-primary" @click="accept">OK</button>
         <button type="button" class="btn btn-outline-secondary" @click="emit('closed')">
-          Cancel
+          Отмена
         </button>
       </div>
     </div>
@@ -144,13 +183,61 @@ onMounted(async () => {
 
 .dialog-body {
   background: var(--syp-surface);
-  border-radius: 6px;
-  display: grid;
-  gap: 0.5rem;
-  max-height: 80vh;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 90vh;
   overflow: auto;
-  padding: 1rem;
-  width: 22rem;
+  padding: 0.25rem;
+  /* Форма объявлена шириной 210: таблица 150 плюс две кнопки по 46. */
+  width: 13.125rem;
+}
+
+.select-area {
+  display: flex;
+  gap: 0.25rem;
+  align-items: stretch;
+}
+
+.persons-table {
+  width: 9.375rem;
+  flex: 0 0 auto;
+  table-layout: fixed;
+  margin-bottom: 0;
+}
+
+.person-photo {
+  height: 1.5rem;
+  width: 1.5rem;
+  object-fit: cover;
+  vertical-align: middle;
+}
+
+.glyph-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 2.875rem;
+  flex: 0 0 auto;
+}
+
+.glyph {
+  width: 2.875rem;
+  height: 2.875rem;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dialog-actions .btn {
+  width: 100%;
 }
 
 .person-list {
