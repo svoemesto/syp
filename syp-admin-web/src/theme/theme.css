@@ -1,74 +1,78 @@
-/* Тема оформления SYP поверх Bootstrap.
+/* Тема оформления SYP поверх Bootstrap — админка.
  *
- * Файл **одинаков** в `syp-admin-web` и `syp-public-web`: обе части обязаны
- * выглядеть одинаково, а общего пакета у них нет — в корне репозитории файла
- * `package.json` нет намеренно (R-375). Правка темы делается здесь и копируется
- * в соседний фронтенд тем же коммитом; расхождение видно сразу, потому что оба
- * файла проверяются `npm run format:check`.
+ * Файл больше **не одинаков** в `syp-admin-web` и `syp-public-web`. До
+ * 2026-10-04 оба фронтенда делили одну тёмную схему, и это было записано
+ * здесь как инвариант. Владелец потребовал, чтобы админка повторяла старые
+ * FX-формы, а те были на штатной светлой теме JavaFX; старых форм для
+ * публичной части нет, поэтому её схема осталась прежней. Общего пакета у
+ * фронтендов нет — в корне репозитория файла `package.json` нет намеренно
+ * (R-375), — и правило синхронной правки двух файлов отменено вместе с
+ * инвариантом.
  *
- * Решение об основах оформления — ADR-0015; схема тёмная по решению владельца
- * 2026-10-03, см. примечание о смене решения в том ADR.
- *
- * Все контрастные пары посчитаны по формуле WCAG и проверены: 41 пара, ни одна
- * ниже порога. Значения приведены в ADR-0015. Если схема покажется слишком
- * тёмной, менять токены здесь, а не отдельные компоненты.
+ * Решение об основах оформления — ADR-0015; там же причина смены схемы.
  */
 
-/* Тёмная палитра. Токены с префиксом `--syp-` принадлежат теме,
- * `--bs-` переопределяют Bootstrap. */
+/* Светлая палитра JavaFX — по решению владельца 2026-10-04 админка
+ * повторяет старые FX-формы, а те те были на штатной теме Modena.
+ *
+ * Значения не подобраны на глаз. Произведены от двух источников:
+ *   — сама тема Modena из javafx-controls-11.0.2 (`-fx-base`, `-fx-accent`,
+ *     `-fx-focus-color`, `-fx-mid-text-color`, `-fx-default-button`,
+ *     `-fx-page-bullet-border`);
+ *   — снимок отрисованной старой формы shots-edit-view.png: гистограмма
+ *     дала `#FFFFFF` (тело таблицы, 35,6 % площади), `#F4F4F4` (панели,
+ *     19,4 %), `#000000` (область кадра, 39,2 %), `#E4E4E4` (шапка колонок),
+ *     `#DDDDDD` и `#C8C8C8` (границы). Измеренный акцент `#039ED3` совпал с
+ *     `-fx-focus-color` темы — это подтверждает, что снимок и тема одно и то же.
+ *
+ * Смысловые цвета (успех, предупреждение, ошибка) в старых формах не
+ * использовались: там их не видно. Значения ниже подобраны для чтения на
+ * белом и проверены по контрасту, происхождение у них другое — это стоит
+ * знать, если кто-то спросит, откуда они.
+ */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* Поверхности, от тёмной к светлой. */
-  --syp-bg: #12161d;
-  --syp-surface: #1a2029;
-  --syp-raised: #212936;
+  /* Поверхности, от фона к выделенной. */
+  --syp-bg: #f4f4f4;
+  --syp-surface: #ffffff;
+  --syp-raised: #ececec;
 
-  /* Границы разведены намеренно. Граница поля формы — элемент интерфейса, её
-     должно быть видно: 3,39:1 к карточке, 3,03:1 к шапке таблицы. Граница
-     таблицы декоративная, порог WCAG 1.4.11 на неё не распространяется, и на
-     тёмном фоне она взята ровно настолько светлой, чтобы читались строки. */
-  --syp-border: #3c4757;
-  --syp-border-control: #63738a;
+  /* Границы: рамка таблицы и рамка элемента управления — разные вещи. */
+  --syp-border: #c8c8c8;
+  --syp-border-control: #acacac;
 
-  /* Текст. */
-  --syp-text: #e8ecf3;
-  --syp-text-muted: #a6b0c0;
+  /* Текст. Второй цвет — `-fx-mid-text-color` темы Modena. */
+  --syp-text: #000000;
+  --syp-text-muted: #333333;
 
-  /* Ссылки на тёмном фоне светлее основного цвета: тот, что годится заливкой
-     кнопки под белый текст, как текст на фоне не проходит. */
-  --syp-link: #8ab4f8;
-  --syp-link-hover: #a9c8fa;
+  /* Ссылки: акцент темы и цвет фокуса. */
+  --syp-link: #0096c9;
+  --syp-link-hover: #039ed3;
 
-  /* Заливка кнопки под белый текст: 5,62:1 текста и 3,23:1 заливки к фону. */
-  --syp-primary: #2562d0;
-  --syp-primary-hover: #2f6ddb;
+  /* Кнопка по умолчанию в Modena светлая, поэтому текст на ней чёрный. */
+  --syp-primary: #abd8ed;
+  --syp-primary-hover: #9ccedd;
+  --syp-on-primary: #000000;
 
-  /* Смысловые цвета как текст и как плашка: яркий текст на своём оттенке. */
-  --syp-success: #5fce97;
-  --syp-warning: #e5a44a;
-  --syp-danger: #ff8a80;
-  --syp-info: #79c0e8;
-  --syp-secondary: #a6b0c0;
+  /* Смысловые цвета как текст: подобраны под чтение на белом. */
+  --syp-success: #1a7f37;
+  --syp-warning: #8a5a00;
+  --syp-danger: #b3261e;
+  --syp-info: #026a9e;
+  --syp-secondary: #333333;
 
-  /* Происхождение границы (FR-015, FR-016). Задано один раз в теме:
-     правило «цвет происхождения один раз в CSS» держится только так. */
+  /* Происхождение границы (FR-015, FR-016). Задано один раз в теме. */
   --syp-origin-auto: var(--syp-danger);
   --syp-origin-operator: var(--syp-success);
   --syp-origin-cancelled: var(--syp-warning);
 
   /* Насколько смысловой цвет подмешивается в свою плашку. */
-  --syp-tint: 16%;
-  --syp-tint-origin: 18%;
+  --syp-tint: 12%;
+  --syp-tint-origin: 14%;
 
-  /* Шрифт. Roboto подключается из пакета `@fontsource-variable/roboto` и
-     кладётся в сборку самим Vite: обращения к сети в рантайме нет, и
-     доступность Google Fonts на работу интерфейса не влияет. Подмножества
-     латиницы и кириллицы объявлены в самом пакете, русский алфавит покрыт
-     полностью. */
-  --syp-font-sans: 'Roboto Variable', Roboto, system-ui, -apple-system, 'Segoe UI', Arial,
-    sans-serif;
-  --syp-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  /* Шрифт. */
+--syp-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Рабочая область тянется на всю ширину экрана. Ограничение ширины
      возвращать нельзя: на 2560 растянутые на пол-экрана строки читаются хуже,
@@ -76,7 +80,7 @@
 
   /* Переопределение переменных Bootstrap. */
   --bs-primary: var(--syp-primary);
-  --bs-primary-rgb: 37, 98, 208;
+  --bs-primary-rgb: 171, 216, 237;
   --bs-body-color: var(--syp-text);
   --bs-body-bg: var(--syp-bg);
   --bs-border-color: var(--syp-border);
@@ -90,19 +94,22 @@
   --bs-font-monospace: var(--syp-font-mono);
   --bs-border-radius: 0.375rem;
   --bs-border-radius-lg: 0.5rem;
-  --bs-focus-ring-color: rgb(138 180 248 / 40%);
+  --bs-focus-ring-color: rgb(3 158 211 / 40%);
   --bs-secondary-bg: var(--syp-raised);
   --bs-tertiary-bg: var(--syp-raised);
 }
 
-/* Тёмные поверхности для встроенных таблиц Bootstrap. */
-[data-bs-theme='dark'],
-.bs-dark {
+/* Явное указание режима для встроенных таблиц Bootstrap. Раньше блок был
+   тёмным и включался атрибутом на теле: схема сменилась на светлую, и
+   таблицы Bootstrap на свёртке сеют светлый фон из своей тёмной темы. */
+:root,
+[data-bs-theme='light'],
+.bs-light {
   --bs-body-color: var(--syp-text);
   --bs-body-bg: var(--syp-bg);
   --bs-border-color: var(--syp-border);
   --bs-color: var(--syp-text);
-  --bs-color-mode: dark;
+  --bs-color-mode: light;
 }
 
 /* Основа: фон рабочей области, шрифт и сглаживание. */
@@ -351,15 +358,15 @@ body {
 }
 
 .btn-primary {
-  --bs-btn-color: #ffffff;
+  --bs-btn-color: var(--syp-on-primary);
   --bs-btn-bg: var(--syp-primary);
   --bs-btn-border-color: var(--syp-primary);
-  --bs-btn-hover-color: #ffffff;
+  --bs-btn-hover-color: var(--syp-on-primary);
   --bs-btn-hover-bg: var(--syp-primary-hover);
   --bs-btn-hover-border-color: var(--syp-primary-hover);
   --bs-btn-active-bg: var(--syp-primary-hover);
   --bs-btn-active-border-color: var(--syp-primary-hover);
-  --bs-btn-disabled-color: #ffffff;
+  --bs-btn-disabled-color: var(--syp-on-primary);
   --bs-btn-disabled-bg: var(--syp-primary);
   --bs-btn-disabled-border-color: var(--syp-primary);
 }
@@ -448,7 +455,7 @@ body {
 /* Открытый ключ в PEM: блок текста, который копируют целиком, поэтому он
    обязан сохранять переносы строк и не переноситься сам по ширине. */
 .syp-pem {
-  background-color: #141922;
+  background-color: var(--syp-surface);
   border: 1px solid var(--syp-border);
   border-radius: var(--bs-border-radius);
   color: var(--syp-text-muted);
