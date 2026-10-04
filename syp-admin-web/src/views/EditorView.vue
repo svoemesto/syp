@@ -63,6 +63,9 @@ const TYPE_MARKS: Record<string, string> = {
 /** Ошибка чтения: молча пустой экран хуже названной ошибки. */
 const error = ref('')
 
+/** Ответ на последнее действие оператора: показывается под формой. */
+const notice = ref('')
+
 /** Ключ и значение свойства плана. */
 const propertyKey = ref('')
 const propertyValue = ref('')
@@ -166,6 +169,7 @@ onMounted(async () => {
     <h1 class="syp-page-title">Редактор планов</h1>
 
     <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
+    <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
 
     <div class="editor-body">
       <!-- Левая часть по форме shots-edit-view: планы и их свойства слева,
@@ -496,6 +500,11 @@ onMounted(async () => {
 }
 
 .error {
-  color: #a61b1b;
+  color: var(--syp-danger);
+}
+
+.notice {
+  color: var(--syp-text-muted);
+  font-size: 0.8125rem;
 }
 </style>
