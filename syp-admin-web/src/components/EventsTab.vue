@@ -4,7 +4,7 @@
  *
  * Форма перенесена по старому проекту: событие — полный аналог сцены, с теми же
  * таблицами, кнопками и полями свойств. Отличие от сцены одно и оно смысловое:
- * событие отмечается **зелёным справа** на миниатюре плана, сцена — **оранжевым
+ * событие отмечается **green on the right** на миниатюре плана, сцена — **оранжевым
  * слева**. По этому оператор различает их в кадре, поэтому цвет и сторона здесь
  * не украшение, а часть интерфейса.
  *
@@ -30,7 +30,7 @@ const props = defineProps<{
 /** Ширина миниатюры кадра в колонках FROM и TO, как в старой форме. */
 const THUMB = 96
 
-/** События примера. Пока это единственный источник: бекенда нет. */
+/** Events примера. Пока это единственный источник: бекенда нет. */
 const events = ref<StubEvent[]>([])
 
 /** Идентификаторы выбранных событий — выбор множественный, как в старом проекте. */
@@ -52,7 +52,7 @@ const notice = ref('')
  */
 function createFromShots(): void {
   if (!continuousRange()) {
-    notice.value = 'Выделены планы не подряд: событие строилось бы из разорванного куска'
+    notice.value = 'Selected shots: nе подряд: событие строилось бы из разорванного куска'
     return
   }
   const id = events.value.length + 1
@@ -75,7 +75,7 @@ function createFromShots(): void {
 /** Удаляет выбранные события. */
 function removeSelected(): void {
   if (selected.value.length === 0) {
-    notice.value = 'Не выбрано ни одного события: удалять нечего'
+    notice.value = 'Not a single shot selectedого события: удалять нечего'
     return
   }
   const count = selected.value.length
@@ -88,7 +88,7 @@ function removeSelected(): void {
 function addProperty(): void {
   const event = events.value.find((item) => item.id === selected.value[0])
   if (event === undefined) {
-    notice.value = 'Свойство добавляется к выбранному событию: выберите событие'
+    notice.value = 'Property addedется к выбранному событию: выберите событие'
     return
   }
   if (propertyKey.value.trim() === '') {
@@ -143,12 +143,12 @@ function removeProperty(key: string): void {
   notice.value = 'свойство удалено на заглушке'
 }
 
-/** Планы выбранных событий — объединение по всем выбранным. */
+/** Shots of selected events — объединение по всем выбранным. */
 const selectedShots = computed(() =>
   events.value.filter((event) => selected.value.includes(event.id)).flatMap((event) => event.shots),
 )
 
-/** Персоны выбранных событий. */
+/** Persons of selected events. */
 const selectedPersons = computed(() =>
   events.value
     .filter((event) => selected.value.includes(event.id))
@@ -182,16 +182,16 @@ seed()
 <template>
   <section class="events">
     <header class="events-head">
-      <h2 class="syp-card-title">События</h2>
+      <h2 class="syp-card-title">Events</h2>
       <p class="stub" role="note">
-        Заглушка: бекенда событий нет. Форма, действия и данные примера работают на стороне
-        браузера, к серверу не обращается.
+        Заглушка: бекенда событий нет. Форма, действия и sample data работают на стороне браузера, к
+        серверу не обращается.
       </p>
     </header>
 
     <div class="events-grid">
       <div class="column column-wide">
-        <div class="syp-card-title">События файла</div>
+        <div class="syp-card-title">File events</div>
         <table class="table table-sm">
           <thead>
             <tr>
@@ -229,7 +229,7 @@ seed()
               </td>
             </tr>
             <tr v-if="events.length === 0">
-              <td colspan="3" class="empty">Событий нет</td>
+              <td colspan="3" class="empty">No events</td>
             </tr>
           </tbody>
         </table>
@@ -245,8 +245,8 @@ seed()
 
       <div class="column">
         <div class="syp-card-title">
-          Планы выбранных событий
-          <span class="stub-note">данные примера</span>
+          Shots of selected events
+          <span class="stub-note">sample data</span>
         </div>
         <table class="table table-sm">
           <thead>
@@ -273,27 +273,28 @@ seed()
               </td>
             </tr>
             <tr v-if="selectedShots.length === 0">
-              <td colspan="2" class="empty">Планов нет</td>
+              <td colspan="2" class="empty">No shots</td>
             </tr>
           </tbody>
         </table>
         <p class="legend">
-          Событие на миниатюре плана помечается <span class="swatch event">зелёным справа</span>,
-          сцена — <span class="swatch scene">оранжевым слева</span>.
+          Событие на миниатюре плана помечается
+          <span class="swatch event">green on the right</span>, сцена —
+          <span class="swatch scene">orange on the left</span>.
         </p>
       </div>
 
       <div class="column">
-        <div class="syp-card-title">Персоны выбранных событий</div>
+        <div class="syp-card-title">Persons of selected events</div>
         <ul class="persons">
           <li v-for="person in selectedPersons" :key="person">{{ person }}</li>
-          <li v-if="selectedPersons.length === 0" class="empty">Персон нет</li>
+          <li v-if="selectedPersons.length === 0" class="empty">No persons</li>
         </ul>
       </div>
     </div>
 
     <div class="properties">
-      <div class="syp-card-title">Свойства события</div>
+      <div class="syp-card-title">Event properties</div>
       <table class="table table-sm">
         <thead>
           <tr>
@@ -322,7 +323,7 @@ seed()
           <tr
             v-if="(events.find((event) => event.id === selected[0])?.properties ?? []).length === 0"
           >
-            <td colspan="3" class="empty">Свойств нет</td>
+            <td colspan="3" class="empty">No properties</td>
           </tr>
         </tbody>
       </table>
