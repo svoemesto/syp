@@ -13,8 +13,6 @@ import { formatBytes, formatDuration } from '../format/values'
 
 const store = useCatalogStore()
 
-const router = useRouter()
-
 /**
  * Открывает главное окно выбранного проекта.
  *
