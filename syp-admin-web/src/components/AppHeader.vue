@@ -26,6 +26,7 @@ const sections = computed(() => [
   { name: 'sums', title: 'Суммы', hint: 'Состояние подсчёта SHA-256 серии' },
   { name: 'structure', title: 'Структура', hint: 'Сцены, планы, границы' },
   { name: 'faces', title: 'Лица', hint: 'Детекция, кластеры, персоны' },
+  { name: 'actions', title: 'Операции', hint: 'Запуск обработки по файлам проекта' },
   { name: 'recipes', title: 'Сценарии', hint: 'Фильтры, выдача, подпись' },
 ])
 
@@ -67,7 +68,18 @@ const selectedVideofileLabel = computed(() => {
  * @param name имя раздела
  * @returns адрес маршрута
  */
-function linkFor(name: string): { name: string; params?: { videofileId: string } } {
+function linkFor(name: string): {
+  name: string
+  params?: { videofileId: string } | { projectId: string }
+} {
+  // Операции живут по проекту: набор файлов и признаки «уже сделано» имеют
+  // смысл только для всех файлов проекта вместе, а не для одного видеофайла.
+  if (name === 'actions') {
+    const projectId = catalog.current.value?.project.id
+    return projectId === undefined || projectId === null
+      ? { name }
+      : { name, params: { projectId: String(projectId) } }
+  }
   const perVideofile: Record<string, string> = {
     sums: 'checksum',
     structure: 'structure',

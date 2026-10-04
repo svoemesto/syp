@@ -200,6 +200,9 @@ data class FaceClusterView(
  * @property frameHeight высота кадра эпизода
  * @property embeddingModelKey ключ модели эмбеддингов, которой получены векторы
  * @property clustersTotal сколько кластеров без имени у эпизода
+ * @property facesNamed сколько лиц отнесено к именованным кластерам, то есть
+ *   к персонам: без этого числа экран операций вынужден показывать «распознано
+ *   неизвестно», хотя ответ уже посчитан вместе с кластерами
  * @property clusters кластеры по убыванию числа лиц
  */
 data class FaceClustersView(
@@ -208,6 +211,7 @@ data class FaceClustersView(
     val frameHeight: Int,
     val embeddingModelKey: String,
     val clustersTotal: Int,
+    val facesNamed: Int,
     val clusters: List<FaceClusterView>,
 )
 
@@ -464,13 +468,15 @@ class CharactersController(
         val videofile = requireVideofile(videofileId)
         val namedKeys =
             persons.listByProject(videofile.projectId).mapNotNull { it.recognizerKey }.toSet()
-        val unnamed = clustersOf(videofileId).filter { it.id !in namedKeys }
+        val all = clustersOf(videofileId)
+        val unnamed = all.filter { it.id !in namedKeys }
         return FaceClustersView(
             videofileId = videofileId,
             frameWidth = videofile.width,
             frameHeight = videofile.height,
             embeddingModelKey = embeddingModelKey,
             clustersTotal = unnamed.size,
+            facesNamed = all.filter { it.id in namedKeys }.sumOf { it.size },
             clusters =
                 unnamed.map { cluster ->
                     FaceClusterView(
