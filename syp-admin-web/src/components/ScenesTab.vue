@@ -18,9 +18,14 @@ import {
   type SceneView,
   type ShotView,
 } from '../api/structure'
-import { readFaces, readPersons, type PersonView } from '../api/characters'
+import ShotThumb from './ShotThumb.vue'
+import { readFaces
+  readPersons, type PersonView } from '../api/characters'
 
 const props = defineProps<{ videofileId: number }>()
+
+/** Ширина миниатюры кадра в колонках FROM и TO, как в старой форме. */
+const THUMB = 96
 
 /** Сцены файла. */
 const scenes = ref<SceneView[]>([])
@@ -215,10 +220,13 @@ watch(
           <tbody>
             <tr v-for="scene in scenes" :key="scene.id" :class="{ selected: selected.includes(scene.id) }" @click="toggle(scene.id)">
               <td>{{ scene.title ?? `Сцена ${scene.id}` }}</td>
-              <td>
-                <span class="shot-mark"> {{ scene.firstFrame }}</span>
+              <td class="thumb-cell">
+                <span class="shot-mark" />
+                <ShotThumb :videofile-id="props.videofileId" :frame-number="scene.firstFrame" :width="THUMB" />
               </td>
-              <td>{{ scene.lastFrame }}</td>
+              <td class="thumb-cell">
+                <ShotThumb :videofile-id="props.videofileId" :frame-number="scene.lastFrame" :width="THUMB" />
+              </td>
             </tr>
             <tr v-if="scenes.length === 0">
               <td colspan="3" class="empty">Сцен нет</td>
@@ -248,8 +256,12 @@ watch(
           </thead>
           <tbody>
             <tr v-for="shot in chosenShots" :key="shot.id">
-              <td>{{ shot.firstFrame }}</td>
-              <td>{{ shot.lastFrame }}</td>
+              <td class="thumb-cell">
+                <ShotThumb :videofile-id="props.videofileId" :frame-number="shot.firstFrame" :width="THUMB" />
+              </td>
+              <td class="thumb-cell">
+                <ShotThumb :videofile-id="props.videofileId" :frame-number="shot.lastFrame" :width="THUMB" />
+              </td>
             </tr>
             <tr v-if="chosenShots.length === 0">
               <td colspan="2" class="empty">Планов нет</td>
@@ -326,6 +338,22 @@ watch(
 </template>
 
 <style scoped>
+/* Ячейка с миниатюрой: кадр и подпись занимают всю ширину колонки. */
+.thumb-cell {
+  padding: 0.2rem;
+  vertical-align: top;
+}
+
+.event-mark {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 0.8rem solid transparent;
+  border-bottom: 0.8rem solid transparent;
+  border-left: 0.6rem solid var(--syp-success);
+  float: right;
+}
+
 .scenes {
   display: grid;
   gap: 1rem;
