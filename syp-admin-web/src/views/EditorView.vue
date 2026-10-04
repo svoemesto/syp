@@ -52,14 +52,21 @@ function toggleShot(id: number): void {
     : [...selectedShots.value, id]
 }
 
+/**
+ * Все планы видеофайла, собранные из сцен.
+ *
+ * Отдельного списка планов в ответе нет: планы лежат внутри сцен, и верхнего
+ * уровня у ответа не существует. Здесь они собираются в один список, потому что
+ * левая часть показывает планы целиком, а не по сценам.
+ */
+const shots = computed<ShotView[]>(() => (structure.value?.scenes ?? []).flatMap((scene) => scene.shots))
+
 /** Планы выбранного: первый из выбранных. */
-const currentShot = computed<ShotView | undefined>(() =>
-  structure.value?.shots.find((shot) => shot.id === selectedShots.value[0]),
-)
+const currentShot = computed<ShotView | undefined>(() => shots.value.find((shot) => shot.id === selectedShots.value[0]))
 
 /** Границы выбранных планов — по первому и последнему. */
 const bounds = computed(() => {
-  const chosen = (structure.value?.shots ?? []).filter((shot) => selectedShots.value.includes(shot.id))
+  const chosen = shots.value.filter((shot) => selectedShots.value.includes(shot.id))
   if (chosen.length === 0) {
     return { first: 0, last: 0 }
   }
@@ -92,8 +99,8 @@ onMounted(async () => {
     // а персоны принадлежат проекту, а не видеофайлу.
     const faces = await readFaces(Number(props.videofileId), 0, 1)
     persons.value = (await readPersons(faces.projectId)).persons
-    if (structure.value.shots.length > 0) {
-      selectedShots.value = [structure.value.shots[0].id]
+    if (shots.value.length > 0) {
+      selectedShots.value = [shots.value[0].id]
     }
   } catch (failure) {
     error.value = (failure as Error).message
@@ -120,7 +127,7 @@ onMounted(async () => {
           </thead>
           <tbody>
             <tr
-              v-for="shot in structure?.shots ?? []"
+              v-for="shot in shots"
               :key="shot.id"
               :class="{ selected: selectedShots.includes(shot.id) }"
               @click="toggleShot(shot.id)"
@@ -129,7 +136,7 @@ onMounted(async () => {
               <td>{{ shot.lastFrame }}</td>
               <td>{{ shot.size }}</td>
             </tr>
-            <tr v-if="(structure?.shots ?? []).length === 0">
+            <tr v-if="shots.length === 0">
               <td colspan="3" class="empty">Планов нет</td>
             </tr>
           </tbody>
