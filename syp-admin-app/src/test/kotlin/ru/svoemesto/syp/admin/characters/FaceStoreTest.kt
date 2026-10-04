@@ -328,4 +328,40 @@ class FaceStoreTest {
             ),
         )
     }
+
+    @Test
+    fun `лица по перечню возвращаются по идентификаторам`() {
+        val videofile = newVideofile()
+        val videofileId = requireNotNull(videofile.id)
+        val unrecognized =
+            requireNotNull(persons.servicePerson(videofile.projectId, PersonKind.UNRECOGNIZED).id)
+        faces.saveFrame(
+            videofileId = videofileId,
+            frameNumber = 7,
+            found =
+                listOf(
+                    DetectedFace(x1 = 10, y1 = 20, x2 = 60, y2 = 90, confidence = 0.5),
+                    DetectedFace(x1 = 100, y1 = 120, x2 = 200, y2 = 240, confidence = 0.6),
+                ),
+            personOf = { unrecognized },
+            frameWidth = frameWidth,
+            frameHeight = frameHeight,
+        )
+        val all = faces.listByVideofile(videofileId)
+        assertEquals(2, all.size, "в кадре два лица")
+        val wanted = listOf(requireNotNull(all[1].id), requireNotNull(all[0].id))
+
+        val found = faces.listByIds(videofileId, wanted)
+
+        assertEquals(
+            listOf(all[0].id, all[1].id),
+            found.map { it.id },
+            "лица отданы по возрастанию идентификатора независимо от порядка перечня",
+        )
+        assertTrue(faces.listByIds(videofileId, emptyList()).isEmpty(), "пустой перечень даёт пустой список")
+        assertTrue(
+            faces.listByIds(requireNotNull(newVideofile().id), wanted).isEmpty(),
+            "лица чужого эпизода не отдаются",
+        )
+    }
 }

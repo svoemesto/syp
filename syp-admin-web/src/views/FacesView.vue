@@ -9,6 +9,7 @@ FR-036). Если // бы они скрывались, оператор не в�
 import PersonsPanel from '../components/PersonsPanel.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { readFacesByIds, type FaceView } from '../api/characters'
 import FaceThumbnails from '../components/FaceThumbnails.vue'
 import {
   type FaceClustersView,
@@ -30,6 +31,39 @@ const faces = ref<FacesView | null>(null)
 
 /** Кластеры видеофайла без имени. */
 const clusters = ref<FaceClustersView | null>(null)
+
+/** Лица кластеров, загруженные по их идентификаторам, для миниатюр. */
+const clusterFaces = ref<Record<string, FaceView[]>>({})
+
+/**
+ * Загружает лица для показанных кластеров.
+ *
+ * У кластера в ответе есть только идентификаторы лиц, поэтому за ними нужно
+ * идти отдельно. Берётся не больше `CLUSTER_FACES_AT_ONCE` лиц на кластер:
+ * страница с двумя тысячами миниатюр оператору не помогает.
+ */
+const CLUSTER_FACES_AT_ONCE = 4
+
+async function loadClusterFaces(videofileId: number): Promise<void> {
+  const list = clusters.value?.clusters ?? []
+  if (list.length === 0) {
+    clusterFaces.value = {}
+    return
+  }
+  const wanted = list.flatMap((cluster) => cluster.faceIds.slice(0, CLUSTER_FACES_AT_ONCE))
+  try {
+    const view = await readFacesByIds(videofileId, [...new Set(wanted)])
+    const byId: Record<string, FaceView[]> = {}
+    for (const cluster of list) {
+      const ids = new Set(cluster.faceIds.slice(0, CLUSTER_FACES_AT_ONCE).map(String))
+      byId[cluster.id] = view.faces.filter((face) => ids.has(String(face.id)))
+    }
+    clusterFaces.value = byId
+  } catch {
+    // Миниатюры не обязательны: без них кластер остаётся списком с числом лиц.
+    clusterFaces.value = {}
+  }
+}
 
 /** Персоны проекта. */
 /**
@@ -167,6 +201,7 @@ async function reload(): Promise<void> {
     const loaded = await readFaces(videofileId.value, offset.value, limit)
     faces.value = loaded
     clusters.value = await readClusters(videofileId.value)
+    await loadClusterFaces(videofileId.value)
     persons.value = await readPersons(loaded.projectId)
   } catch (failure) {
     error.value = failure instanceof Error ? failure.message : String(failure)
@@ -364,6 +399,15 @@ function personKindTitle(kind: string): string {
       </p>
       <ul class="cluster-list">
         <li v-for="cluster in clusters.clusters" :key="cluster.id" class="cluster">
+          <span class="cluster-faces">
+            <FaceThumbnails
+              v-if="(clusterFaces[cluster.id] ?? []).length > 0"
+              :videofile-id="props.videofileId"
+              :faces="clusterFaces[cluster.id] ?? []"
+              :frame-width="faces?.frameWidth ?? 1920"
+              :frame-height="faces?.frameHeight ?? 1080"
+            />
+          </span>
           <span class="cluster-size">лиц: {{ cluster.size }}</span>
           <span class="cluster-id">{{ cluster.id }}</span>
           <template v-if="namingCluster === cluster.id">
@@ -470,6 +514,25 @@ function personKindTitle(kind: string): string {
   color: var(--syp-success);
   border: 1px solid var(--syp-success);
   padding: 6px 8px;
+}
+
+.face-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin: 0.5rem 0;
+}
+
+.face-filters label {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.cluster-faces {
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .cluster-list {

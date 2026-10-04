@@ -447,6 +447,50 @@ class CharactersController(
     }
 
     /**
+     * Отдаёт лица эпизода по перечню идентификаторов.
+     *
+     * Нужны миниатюры кластеров: у кластера есть только идентификаторы лиц, а
+     * оператор должен видеть само лицо. Смещение и размер при этом не имеют
+     * смысла — выборка идёт ровно по перечню, поэтому обе величины равны
+     * фактическому числу отданных лиц.
+     *
+     * @param videofileId идентификатор эпизода
+     * @param ids перечень идентификаторов через запятую
+     * @return запрошенные лица с их персоной
+     * @throws DomainException с кодом `NOT_FOUND`, если эпизода нет
+     * @throws DomainException с кодом `BAD_REQUEST`, если перечень велик
+     */
+    @GetMapping("/videofiles/{videofileId}/faces/by-ids")
+    fun readFacesByIds(
+        @PathVariable videofileId: Long,
+        @RequestParam ids: String,
+    ): FacesView {
+        val videofile = requireVideofile(videofileId)
+        val wanted =
+            ids
+                .split(',')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .map { it.toLongOrNull() ?: throw DomainException(ErrorCode.BAD_REQUEST, "Не число в перечне лиц: $it") }
+                .distinct()
+        if (wanted.size > MAX_PAGE) {
+            throw DomainException(ErrorCode.BAD_REQUEST, "Перечень лиц длиннее $MAX_PAGE")
+        }
+        val found = faces.listByIds(videofileId, wanted)
+        val byId = namedPersons(found.map { it.personId }.distinct())
+        return FacesView(
+            videofileId = videofileId,
+            projectId = videofile.projectId,
+            frameWidth = videofile.width,
+            frameHeight = videofile.height,
+            facesTotal = found.size,
+            offset = 0,
+            limit = found.size,
+            faces = found.map { face -> face.toView(byId[face.personId]) },
+        )
+    }
+
+    /**
      * Отдаёт кластеры похожих лиц эпизода, у которых ещё нет имени.
      *
      * Кластеры **вычисляются** из эмбеддингов при чтении и не хранятся: они
