@@ -20,6 +20,7 @@
 // Меню повторяет блокировки старого окна: без проекта выключены удаление
 // проекта, операции, фильтры и персоны; без выбранного файла — правка планов.
 
+import { formatDuration } from '../format/values'
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useRouter } from 'vue-router'
@@ -77,6 +78,18 @@ const progressNote = ref('файлы не перечитывались')
 const hasProject = computed(() => loaded.value !== null)
 
 /** Выбран ли файл: без него правка планов выключена. */
+/**
+ * Длительность выбранного файла для показа.
+ *
+ * Сервер отдаёт секунды с полной точностью: 3697.1517916666667. Это и
+ * число, и отрезок времени оператору не нужен, поэтому показывается через
+ * общий форматтер, как в приёме проектов.
+ */
+const durationText = computed(() => {
+  const value = chosen.value?.durationSeconds
+  return value === undefined || value === null ? '—' : formatDuration(value)
+})
+
 const hasFile = computed(() => chosen.value !== null)
 
 /**
