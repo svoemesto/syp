@@ -78,7 +78,7 @@ async function readRouteProject(): Promise<void> {
   }
   try {
     const found = await readProject(Number(raw))
-    routeProjectName.value = found.name
+    routeProjectName.value = found.project.name
   } catch {
     // Неизвестный проект — обычное дело для адреса, введённого руками.
     routeProjectName.value = null
