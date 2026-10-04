@@ -21,6 +21,8 @@ import ru.svoemesto.syp.core.contract.ErrorCode
 import ru.svoemesto.syp.core.jobs.JobKind
 import ru.svoemesto.syp.core.jobs.JobQueue
 import ru.svoemesto.syp.core.jobs.JobSubject
+import ru.svoemesto.syp.core.media.FrameCrop
+import ru.svoemesto.syp.core.media.FrameExtractor
 
 /**
  * Запрос «записать кадр персоны».
@@ -275,6 +277,45 @@ data class RenamePersonRequest(
 )
 
 /**
+ * Рамка вырезки миниатюры лица.
+ *
+ * Рамка лица расширяется на треть с каждой стороны, чтобы в миниатюре были
+ * видны голова и плечи, и обрезается по границам кадра: детектор иногда
+ * ставит рамку вплотную к краю.
+ */
+internal object FaceCrop {
+    /** Во сколько раз расширяется рамка лица. */
+    const val MARGIN: Double = 1.66
+
+    /**
+     * Рамка вырезки для лица.
+     *
+     * @param face лицо
+     * @param frameWidth ширина кадра
+     * @param frameHeight высота кадра
+     * @return рамка в пикселях кадра, обрезанная по его границам
+     */
+    fun of(
+        face: Face,
+        frameWidth: Int,
+        frameHeight: Int,
+    ): FrameCrop {
+        val width = ((face.x2 - face.x1) * MARGIN).toInt().coerceAtLeast(1)
+        val height = ((face.y2 - face.y1) * MARGIN).toInt().coerceAtLeast(1)
+        val x = (face.x1 - (width - (face.x2 - face.x1)) / 2).coerceIn(0, (frameWidth - width).coerceAtLeast(0))
+        val y = (face.y1 - (height - (face.y2 - face.y1)) / 2).coerceIn(0, (frameHeight - height).coerceAtLeast(0))
+        val clippedWidth = width.coerceAtMost(frameWidth)
+        val clippedHeight = height.coerceAtMost(frameHeight)
+        return FrameCrop(
+            x = x.coerceAtMost(frameWidth - clippedWidth),
+            y = y.coerceAtMost(frameHeight - clippedHeight),
+            width = clippedWidth,
+            height = clippedHeight,
+        )
+    }
+}
+
+/**
  * Эндпоинты лиц, кластеров и персон.
  *
  * Это чтение того, что нашла детекция, и те две операции, без которых экран
@@ -307,6 +348,7 @@ class CharactersController(
     private val settingsStore: ProjectSettingsStore,
     private val embeddingModelKey: String,
     private val queue: JobQueue,
+    private val frameExtractor: FrameExtractor,
 ) {
     /**
      * Ставит задание поиска лиц по эпизоду.
@@ -488,6 +530,47 @@ class CharactersController(
             limit = found.size,
             faces = found.map { face -> face.toView(byId[face.personId]) },
         )
+    }
+
+    /**
+     * Отдаёт миниатюру лица.
+     *
+     * Вырезку делает декодер, а не браузер: лицо может занимать в кадре
+     * два десятка пикселей, и растянуть его на экране до размера ячейки
+     * можно только потеряв резкость. Здесь картинка сразу нужного размера,
+     * и размер кадра на неё не влияет.
+     *
+     * @param faceId иденти��атор лица
+     * @param size сторона квадратной миниатюры в пикселях
+     * @return содержимое миниатюры
+     * @throws DomainException с кодом `NOT_FOUND`, если лица нет
+     * @throws DomainException с кодом `BAD_REQUEST`, если размер недопустим
+     */
+    @GetMapping("/faces/{faceId}/image")
+    fun readFaceImage(
+        @PathVariable faceId: Long,
+        @RequestParam(defaultValue = "135") size: Int,
+    ): ResponseEntity<ByteArray> {
+        val side = size.coerceIn(MIN_FACE_IMAGE, MAX_FACE_IMAGE)
+        val face =
+            faces.byId(faceId)
+                ?: throw DomainException(ErrorCode.NOT_FOUND, "лица $faceId нет")
+        val videofile = requireVideofile(face.videofileId)
+        val bytes =
+            frameExtractor.extract(
+                sourcePath = videofile.sourcePath,
+                frameNumber = face.frameNumber,
+                timeBaseNum = videofile.timeBaseNum,
+                timeBaseDen = videofile.timeBaseDen,
+                frameCount = videofile.frameCount,
+                widthTarget = side,
+                cropRect = FaceCrop.of(face, videofile.width, videofile.height),
+            )
+        return ResponseEntity
+            .ok()
+            .header("Content-Type", "image/jpeg")
+            .header("Cache-Control", "private, max-age=3600")
+            .body(bytes)
     }
 
     /**
@@ -789,6 +872,12 @@ class CharactersController(
 
         /** Верхняя граница размера выборки. */
         const val MAX_PAGE: Int = 1000
+
+        /** Наименьший размер миниатюры лица. */
+        const val MIN_FACE_IMAGE: Int = 48
+
+        /** Наибольший размер миниатюры лица. */
+        const val MAX_FACE_IMAGE: Int = 512
     }
 }
 
