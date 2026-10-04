@@ -257,7 +257,8 @@ onMounted(reload)
             Обновить
           </button>
         </div>
-        <table class="table table-sm files-table">
+        <div class="files-wrap">
+          <table class="table table-sm files-table">
           <thead>
             <tr>
               <th v-for="indicator in INDICATORS" :key="indicator.code" :title="indicator.title">
@@ -292,7 +293,8 @@ onMounted(reload)
               </td>
             </tr>
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       <aside class="side">
@@ -354,6 +356,13 @@ onMounted(reload)
   gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
+/* Семнадцать колонок не помещаются в левую часть: без прокрутки последние
+   обрезались и операции на них нельзя было увидеть. */
+.files-wrap {
+  max-height: 26rem;
+  overflow: auto;
+}
+
 .files-table th,
 .files-table td {
   padding: 0.15rem 0.3rem;
