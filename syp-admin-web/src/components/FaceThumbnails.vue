@@ -21,6 +21,8 @@ import { type FaceView } from '../api/characters'
 import { frameImageUrl } from '../api/structure'
 
 const props = defineProps<{
+  /** Ширина кадра-источника; `0` берёт значение по умолчанию. */
+  sourceWidth?: number
   /** Видеофайл-владелец лиц. */
   videofileId: number
   /** Лица для показа. */
@@ -91,7 +93,13 @@ async function toggleExample(faceId: number): Promise<void> {
 /** Запас вокруг лица: во столько раз кадр больше самой рамки лица. */
 const CROP_MARGIN = 2.6
 
-/** Ширина кадра, из которого вырезается миниатюра. */
+/**
+ * Ширина кадра, из которого вырезается миниатюра, по умолчанию.
+ *
+ * Лицо на кадре 1920 занимает иногда два десятка пикселей. При источнике в
+ * 640 px от него остаётся десять, и вырезка растягивается вчетверо — лицо
+ * выходит мутным. Там, где миниатюр немного, источник берётся крупнее.
+ */
 const SOURCE_WIDTH = 640
 
 /** Высота того же кадра: нужна, чтобы картинка не искажалась по вертикали. */
@@ -110,8 +118,12 @@ const CELL = 96
  */
 const MAX_SCALE = 6
 
+/** Ширина кадра-источника для миниатюры с учётом переопределения. */
+const sourceOf = computed(() => (props.sourceWidth > 0 ? props.sourceWidth : SOURCE_WIDTH))
+
 const crops = computed(() =>
   props.faces.map((face) => {
+    const source = props.sourceWidth > 0 ? props.sourceWidth : SOURCE_WIDTH
     const faceWidth = Math.max(face.x2 - face.x1, 1)
     const faceHeight = Math.max(face.y2 - face.y1, 1)
     // Источник — кадр шириной SOURCE_WIDTH, и одному кадровому пикселю в нём
@@ -129,8 +141,8 @@ const crops = computed(() =>
     const centreX = ((face.x1 + face.x2) / 2) * ratio
     const centreY = ((face.y1 + face.y2) / 2) * ratio
     return {
-      width: `${Math.round(SOURCE_WIDTH * scale)}px`,
-      height: `${Math.round(SOURCE_HEIGHT * scale)}px`,
+      width: `${Math.round(source * scale)}px`,
+      height: `${Math.round((source * SOURCE_HEIGHT) / SOURCE_WIDTH * scale)}px`,
       left: `calc(50% - ${(centreX * scale).toFixed(1)}px)`,
       top: `calc(50% - ${(centreY * scale).toFixed(1)}px)`,
     }
@@ -159,7 +171,7 @@ function caption(face: FaceView): string {
       <span class="crop">
         <img
           class="frame"
-          :src="frameImageUrl(videofileId, face.frameNumber, SOURCE_WIDTH)"
+          :src="frameImageUrl(videofileId, face.frameNumber, sourceOf)"
           :alt="caption(face)"
           :draggable="draggable === true"
           loading="lazy"
