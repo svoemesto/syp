@@ -7,6 +7,21 @@
 
 import { request } from './http'
 
+/**
+ * Дорожка видеофайла.
+ *
+ * @property index номер дорожки в файле
+ * @property ordinal порядковый номер дорожки
+ * @property codecType тип кодека: видео, звук или субтитры
+ * @property codecName имя кодека
+ */
+export interface VideoTrackView {
+  index: number
+  ordinal: number
+  codecType: string
+  codecName: string
+}
+
 /** Описание проекта в ответе. */
 export interface ProjectView {
   /** Идентификатор проекта. */
