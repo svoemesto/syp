@@ -2405,3 +2405,20 @@ ln -sfn /home/nsa/syp/.data/node_modules <копия>/syp-admin-web/node_modules
   файлах (DatabaseEdit, DatabaseSelect, FilterCondition, FrameFaces,
   FramesTab, JobProgressMeter, PersonEdit, PersonSelect).
 - Девять форм вне редактора не начаты.
+
+## Символическая ссылка на node_modules попала в репозиторий
+
+Перенос зависимостей в `.data/node_modules` породил ссылку
+`syp-admin-web/node_modules -> /home/nsa/syp/.data/node_modules`, и она
+уехала в коммит: `git add -A` в рабочей копии добавляет и её.
+
+Правило `node_modules/` в `.gitignore` её не ловило. Причина в черте в
+конце: с ней правило совпадает только с каталогом, а git считает
+символическую ссылку файлом. Ссылка на саму себя в
+`syp-public-web/node_modules` была в репозитории и до этого — ровно тот
+дефект, который описывает guard R-0.7.0, но guard смотрит на рабочую
+копию, а не на то, что лежит в индексе.
+
+Ссылка в репозитории ломает свежий клон: пути `/home/nsa/syp/...` там
+нет. Обе ссылки убраны из индекса, правило исправлено на `node_modules`
+без черты в конце.
