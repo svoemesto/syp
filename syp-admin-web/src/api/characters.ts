@@ -339,3 +339,20 @@ export async function readFacesByIds(
   }
   return (await response.json()) as FacesView
 }
+
+/**
+ * Адрес миниатюры лица.
+ *
+ * Вырезку делает сервер: лицо в кадре бывает в два десятка пикселей, и
+ * растянуть его в браузере до размера ячейки можно только потеряв резкость.
+ *
+ * @param faceId идентификатор лица
+ * @param size сторона миниатюры в пикселях
+ * @returns адрес миниатюры
+ */
+export function faceImageUrl(
+  faceId: number,
+  size: number,
+): string {
+  return `/api/faces/${faceId}/image?size=${size}`
+}

@@ -250,6 +250,7 @@ class CharactersConfiguration {
         projectStore: ProjectStore,
         settingsStore: ProjectSettingsStore,
         queue: JobQueue,
+        frameExtractor: FrameExtractor,
     ): CharactersController =
         CharactersController(
             faces = faceStore,
@@ -259,6 +260,7 @@ class CharactersConfiguration {
             videofileStore = videofileStore,
             projects = projectStore,
             settingsStore = settingsStore,
+            frameExtractor = frameExtractor,
             embeddingModelKey = env(ENV_FACE_EMBEDDING_MODEL_KEY, DEFAULT_FACE_EMBEDDING_MODEL_KEY),
             queue = queue,
         )

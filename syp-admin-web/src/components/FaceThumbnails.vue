@@ -11,6 +11,9 @@
 import { computed } from 'vue'
 import { markFaceExamples } from '../api/characters'
 
+/** Сторона миниатюры лица в пикселях. */
+const THUMB_SIZE = 135
+
 const emit = defineEmits<{
   /** Лицо помечено эталоном или метка снята. */
   example: [payload: { faceId: number; marked: boolean; changed: number }]
@@ -18,11 +21,9 @@ const emit = defineEmits<{
   select: [faceId: number]
 }>()
 import { type FaceView } from '../api/characters'
-import { frameImageUrl } from '../api/structure'
+import { faceImageUrl } from '../api/characters'
 
 const props = defineProps<{
-  /** Ширина кадра-источника; `0` берёт значение по умолчанию. */
-  sourceWidth?: number
   /** Видеофайл-владелец лиц. */
   videofileId: number
   /** Лица для показа. */
@@ -90,75 +91,6 @@ async function toggleExample(faceId: number): Promise<void> {
  * каждое лицо в проекте нет, а на целом кадре лицо занимает единицы
  * процентов ширины и оператор его не различает.
  */
-/**
- * Запас вокруг лица по умолчанию.
- *
- * Крупному лицу запас нужен, чтобы видеть голову и плечи, а мелкому — нет:
- * при запасе 2,6 лицо в два десятка пикселей занимает меньше трети ячейки,
- * и вокруг него остаётся тёмное поле. Запас уменьшается вместе с размером
- * лица, чтобы оно занимало ячейку целиком.
- */
-const CROP_MARGIN = 2.6
-
-
-/**
- * Ширина кадра, из которого вырезается миниатюра, по умолчанию.
- *
- * Лицо на кадре 1920 занимает иногда два десятка пикселей. При источнике в
- * 640 px от него остаётся десять, и вырезка растягивается вчетверо — лицо
- * выходит мутным. Там, где миниатюр немного, источник берётся крупнее.
- */
-const SOURCE_WIDTH = 640
-
-/** Высота того же кадра: нужна, чтобы картинка не искажалась по вертикали. */
-const SOURCE_HEIGHT = 360
-
-/** Сторона ячейки вырезки в пикселях: по ней считается увеличение. */
-const CELL = 96
-
-/**
- * Предел увеличения.
- *
- * Лицо может занимать в кадре два десятка пикселей: без предела вырезка
- * растягивалась в двадцать раз и превращалась в мутное пятно. Лучше
- * изображение меньше ячейки, но различимое, чем заполняющее ячейку и не
- *различимое.
- */
-const MAX_SCALE = 6
-
-/** Ширина кадра-источника для миниатюры с учётом переопределения. */
-const sourceOf = computed(() => {
-  const given = props.sourceWidth ?? 0
-  return given > 0 ? given : SOURCE_WIDTH
-})
-
-const crops = computed(() =>
-  props.faces.map((face) => {
-    const source = sourceOf.value
-    const faceWidth = Math.max(face.x2 - face.x1, 1)
-    const faceHeight = Math.max(face.y2 - face.y1, 1)
-    // Источник — кадр шириной SOURCE_WIDTH, и одному кадровому пикселю в нём
-    // соответствует SOURCE_WIDTH / frameWidth. Масштаб считается от источника:
-    // при подсчёте от разрешения кадра картинка растягивалась в десятки тысяч
-    // пикселей по ширине и не отрисовывалась вовсе.
-    const ratio = SOURCE_WIDTH / Math.max(props.frameWidth, 1)
-    const cropWidth = faceWidth * ratio * CROP_MARGIN
-    const cropHeight = faceHeight * ratio * CROP_MARGIN
-    const scale = Math.min(
-      CELL / Math.max(cropWidth, 1),
-      CELL / Math.max(cropHeight, 1),
-      MAX_SCALE,
-    )
-    const centreX = ((face.x1 + face.x2) / 2) * ratio
-    const centreY = ((face.y1 + face.y2) / 2) * ratio
-    return {
-      width: `${Math.round(source * scale)}px`,
-      height: `${Math.round((source * SOURCE_HEIGHT) / SOURCE_WIDTH * scale)}px`,
-      left: `calc(50% - ${(centreX * scale).toFixed(1)}px)`,
-      top: `calc(50% - ${(centreY * scale).toFixed(1)}px)`,
-    }
-  }),
-)
 
 /**
  * Подпись миниатюры для оператора.
@@ -182,11 +114,10 @@ function caption(face: FaceView): string {
       <span class="crop">
         <img
           class="frame"
-          :src="frameImageUrl(videofileId, face.frameNumber, sourceOf)"
+          :src="faceImageUrl(face.id, THUMB_SIZE)"
           :alt="caption(face)"
           :draggable="draggable === true"
           loading="lazy"
-          :style="crops[index]"
           @click="emit('select', face.id)"
           @dragstart="startDrag($event, face)"
         />

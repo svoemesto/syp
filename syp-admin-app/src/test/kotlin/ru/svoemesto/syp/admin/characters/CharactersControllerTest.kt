@@ -12,6 +12,7 @@ import ru.svoemesto.syp.admin.catalog.Videofile
 import ru.svoemesto.syp.admin.catalog.VideofileStore
 import ru.svoemesto.syp.core.db.Db
 import ru.svoemesto.syp.core.jobs.JobQueue
+import ru.svoemesto.syp.core.media.FrameExtractor
 import java.time.OffsetDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -75,6 +76,7 @@ class CharactersControllerTest {
                 settingsStore = settingsStore,
                 embeddingModelKey = embeddingModelKey,
                 queue = JobQueue(db),
+                FrameExtractor("ffmpeg"),
             )
     }
 

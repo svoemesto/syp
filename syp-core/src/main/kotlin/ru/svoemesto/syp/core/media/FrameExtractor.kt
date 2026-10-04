@@ -4,6 +4,33 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 /**
+ * Рамка вырезки кадра в пикселях кадра.
+ *
+ * Нужна для миниатюры лица: вырезка делается декодером, поэтому размер
+ * исходника не влияет на резкость картинки.
+ *
+ * @property x левый край
+ * @property y верхний край
+ * @property width ширина
+ * @property height высота
+ */
+data class FrameCrop(
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+) {
+    init {
+        require(width > 0 && height > 0) {
+            "Рамка вырезки вырождена: " + width + " на " + height
+        }
+        require(x >= 0 && y >= 0) {
+            "Рамка вырезки начинается за кадром: " + x + ", " + y
+        }
+    }
+}
+
+/**
  * Извлечение одного кадра из видео по его номеру.
  *
  * **Зачем отдельным классом, а не через [FrameChannel].** Каналь читает кадры
@@ -35,6 +62,7 @@ class FrameExtractor(
      * @param timeBaseNum числитель базы времени
      * @param timeBaseDen знаменатель базы времени
      * @param frameCount сколько кадров в эпизоде
+     * @param cropRect рамка вырезки в пикселях кадра; `null` — без вырезки
      * @param widthTarget ширина картинки; `0` — без масштабирования
      * @return байты картинки
      * @throws FrameExtractionFailed если декодер не запустился, кадра нет или
@@ -47,6 +75,7 @@ class FrameExtractor(
         timeBaseDen: Int,
         frameCount: Int,
         widthTarget: Int = 0,
+        cropRect: FrameCrop? = null,
     ): ByteArray {
         require(timeBaseNum > 0 && timeBaseDen > 0) {
             "База времени эпизода вырождена: $timeBaseNum/$timeBaseDen"
@@ -69,9 +98,18 @@ class FrameExtractor(
                 add("%.3f".format(java.util.Locale.ROOT, seconds))
                 add("-i")
                 add(sourcePath)
-                if (widthTarget > 0) {
+                val filters =
+                    buildList {
+                        if (cropRect != null) {
+                            add("crop=" + cropRect.width + ":" + cropRect.height + ":" + cropRect.x + ":" + cropRect.y)
+                        }
+                        if (widthTarget > 0) {
+                            add("scale=$widthTarget:-2")
+                        }
+                    }
+                if (filters.isNotEmpty()) {
                     add("-vf")
-                    add("scale=$widthTarget:-2")
+                    add(filters.joinToString(","))
                 }
                 add("-frames:v")
                 add("1")
