@@ -46,6 +46,23 @@ const headline = computed<JobView | null>(() => {
   return jobs.value.length > 0 ? jobs.value[jobs.value.length - 1] : null
 })
 
+/** Снято ли упавшее задание оператором. */
+const dismissed = ref<number | null>(null)
+
+/**
+ * Задание, упавшее раньше, чем оператор открыл экран.
+ *
+ * Показывается отдельной строкой и снимается кнопкой: последнее упавшее
+ * задание иначе занимало шапку на всех экранах и не уходило, хотя активной
+ * работы не было. Ошибка должна быть видна, но не должна застрягивать.
+ */
+const lastFailure = computed<JobView | null>(() => {
+  if (active.value.length > 0 || dismissed.value !== null) {
+    return null
+  }
+  return jobs.value.filter((job) => job.state === 'ERROR').slice(-1)[0] ?? null
+})
+
 /** Процент заполнения полосы, от 0 до 100. */
 const percent = computed<number>(() => {
   const job = headline.value
@@ -119,6 +136,12 @@ onBeforeUnmount(() => {
     <template v-else-if="headline === null">
       <span class="job-meter__idle">Очередь пуста</span>
     </template>
+    <div v-if="lastFailure !== null" class="job-meter__failure">
+      <span>Задание упало: {{ lastFailure.errorText ?? 'причина не записана' }}</span>
+      <button type="button" class="btn btn-sm btn-link" @click="dismissed = lastFailure?.id ?? null">
+        скрыть
+      </button>
+    </div>
     <template v-else>
       <div class="job-meter__row">
         <span class="job-meter__state">{{ label }}</span>
@@ -207,6 +230,22 @@ onBeforeUnmount(() => {
   );
   background-size: 1rem 1rem;
   animation: job-meter-stripes 1s linear infinite;
+}
+
+.job-meter__failure {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 32rem;
+  overflow: hidden;
+  color: var(--syp-danger);
+  font-size: 0.75rem;
+}
+
+.job-meter__failure span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .job-meter__detail {

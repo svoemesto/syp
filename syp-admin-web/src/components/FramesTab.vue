@@ -53,6 +53,47 @@ const notice = ref('')
 /** Число кадров на странице. */
 const shown = computed(() => frames.value?.frames ?? [])
 
+/**
+ * Кадров в секунду видеофайла.
+ *
+ * Берётся у самого файла: без него страницу нечем подписать временем, а в
+ * старой форме в таблице страниц есть колонки «Время: с» и «Время: по».
+ */
+const framesPerSecond = ref(0)
+
+/**
+ * Время кадра в секундах.
+ *
+ * @param frameNumber номер кадра
+ * @returns время в секундах либо `null`, когда частота кадров неизвестна
+ */
+function timeOf(frameNumber: number): string | null {
+  return framesPerSecond.value > 0 ? (frameNumber / framesPerSecond.value).toFixed(1) : null
+}
+
+/**
+ * Страницы кадров для таблицы.
+ *
+ * Границы выводятся из общего числа кадров и размера страницы, а не из
+ * загруженной страницы: иначе таблица показывала бы только текущую.
+ */
+const pageRows = computed(() => {
+  const total = frames.value?.total ?? 0
+  const rows: {
+    number: number
+    from: number
+    to: number
+    fromTime: string | null
+    toTime: string | null
+  }[] = []
+  for (let index = 0; index < pages.value; index += 1) {
+    const from = index * PAGE_SIZE
+    const to = Math.min(from + PAGE_SIZE - 1, Math.max(total - 1, 0))
+    rows.push({ number: index, from, to, fromTime: timeOf(from), toTime: timeOf(to) })
+  }
+  return rows
+})
+
 /** Всего страниц кадров. */
 const pages = computed(() => Math.max(1, Math.ceil((frames.value?.total ?? 0) / PAGE_SIZE)))
 
@@ -147,6 +188,13 @@ async function turnPage(delta: number): Promise<void> {
 
 /** Перечитывает кадры текущей страницы. */
 async function reload(): Promise<void> {
+  // Частота кадров нужна таблице страниц: без неё колонки времени пусты.
+  try {
+    const file = await readVideofile(props.videofileId)
+    framesPerSecond.value = file.timeBaseDen > 0 ? file.timeBaseNum / file.timeBaseDen : 0
+  } catch {
+    framesPerSecond.value = 0
+  }
   try {
     frames.value = await readFrames(props.videofileId, page.value * PAGE_SIZE, PAGE_SIZE)
     error.value = ''
@@ -200,6 +248,32 @@ watch(
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(1)">К следующей странице</button>
       </div>
     </div>
+
+    <!-- Таблица страниц: в старой форме она называется tblPagesFrames и несёт
+         четыре колонки — время и номера кадров начала и конца. -->
+    <table class="table table-sm pages">
+      <thead>
+        <tr>
+          <th>Время: с</th>
+          <th>Время: по</th>
+          <th>Кадры: с</th>
+          <th>Кадры: по</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          v-for="row in pageRows"
+          :key="row.number"
+          :class="{ picked: row.number === page }"
+          @click="turnPage(row.number - page)"
+        >
+          <td>{{ row.fromTime ?? '—' }}</td>
+          <td>{{ row.toTime ?? '—' }}</td>
+          <td>{{ row.from }}</td>
+          <td>{{ row.to }}</td>
+        </tr>
+      </tbody>
+    </table>
 
     <p class="state">
       Состояние границы: {{ boundaryState }} из 3 (0 — не найдена, 1 — найдена, 2 — отменена, 3 — добавлена).
@@ -288,6 +362,27 @@ watch(
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
+}
+
+.pages {
+  max-height: 13rem;
+  overflow: auto;
+  margin-bottom: 0.5rem;
+}
+
+.pages td,
+.pages th {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pages tbody tr {
+  cursor: pointer;
+}
+
+.pages tbody tr.picked {
+  background: var(--syp-tint);
 }
 
 .frames-matrix {
