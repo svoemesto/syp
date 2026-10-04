@@ -28,9 +28,7 @@ const props = defineProps<{
   /** Лица для показа. */
   faces: FaceView[]
   /** Разрешение кадра видеофайла: по нему считается положение рамки. */
-  frameWidth: number
   /** Высота кадра видеофайла. */
-  frameHeight: number
   /** Показывать ли кнопку метки эталона. */
   markable?: boolean
   /** Считать ли рамки рамками, а не заливкой: так показывают нарисованные вручную. */
@@ -183,10 +181,12 @@ function caption(face: FaceView): string {
   background: var(--syp-bg);
 }
 
+/* Миниатюра приходит с сервера нужного размера и просто заполняет ячейку. */
 .frame {
   display: block;
-  position: absolute;
-  max-width: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* Рамка после вырезки: лицо занимает ячейку, поэтому рисуется по её краям. */

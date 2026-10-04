@@ -282,8 +282,6 @@ watch(
         <FaceThumbnails
           :videofile-id="props.videofileId"
           :faces="visibleFaces"
-          :frame-width="faces?.frameWidth ?? 1920"
-          :frame-height="faces?.frameHeight ?? 1080"
           :selected-ids="selectedFaces"
           @select="toggleFace"
         />
