@@ -119,11 +119,14 @@ const CELL = 96
 const MAX_SCALE = 6
 
 /** Ширина кадра-источника для миниатюры с учётом переопределения. */
-const sourceOf = computed(() => (props.sourceWidth > 0 ? props.sourceWidth : SOURCE_WIDTH))
+const sourceOf = computed(() => {
+  const given = props.sourceWidth ?? 0
+  return given > 0 ? given : SOURCE_WIDTH
+})
 
 const crops = computed(() =>
   props.faces.map((face) => {
-    const source = props.sourceWidth > 0 ? props.sourceWidth : SOURCE_WIDTH
+    const source = sourceOf.value
     const faceWidth = Math.max(face.x2 - face.x1, 1)
     const faceHeight = Math.max(face.y2 - face.y1, 1)
     // Источник — кадр шириной SOURCE_WIDTH, и одному кадровому пикселю в нём
