@@ -8,9 +8,13 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCatalogStore } from '../stores/catalog'
+import DatabaseSelectDialog from '../components/DatabaseSelectDialog.vue'
 import { formatBytes, formatDuration } from '../format/values'
 
 const store = useCatalogStore()
+
+/** Открыто ли окно выбора базы данных. */
+const databaseOpen = ref(false)
 const router = useRouter()
 
 const projectName = ref('')
@@ -80,7 +84,16 @@ function openFaces(videofileId: number): void {
 
 <template>
   <section class="intake">
-    <h2>Приём проектов и видеофайлов</h2>
+    <div class="intake-head">
+      <h2>Приём проектов и видеофайлов</h2>
+      <!-- В старом проекте выбор базы данных жил в меню главного окна, а
+           главное окно было экраном приёма проектов; кнопка оставлена здесь. -->
+      <button type="button" class="btn btn-sm btn-outline-secondary" @click="databaseOpen = true">
+        База данных
+      </button>
+    </div>
+
+    <DatabaseSelectDialog v-if="databaseOpen" @closed="databaseOpen = false" />
 
     <p v-if="store.loading.value" class="note">Запрос к бэкенду…</p>
 
@@ -203,6 +216,12 @@ function openFaces(videofileId: number): void {
 </template>
 
 <style scoped>
+.intake-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
 .intake {
   display: flex;
   flex-direction: column;
