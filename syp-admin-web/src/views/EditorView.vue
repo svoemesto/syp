@@ -137,7 +137,7 @@ onMounted(async () => {
             >
               <td>{{ shot.firstFrame }}</td>
               <td>{{ shot.lastFrame }}</td>
-              <td>{{ shot.size }}</td>
+              <td>{{ shot.lastFrame - shot.firstFrame + 1 }}</td>
             </tr>
             <tr v-if="shots.length === 0">
               <td colspan="3" class="empty">Планов нет</td>
@@ -253,7 +253,7 @@ onMounted(async () => {
 }
 
 .tab.active {
-  background: #fff;
+  background: var(--syp-surface);
   font-weight: 600;
 }
 

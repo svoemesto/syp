@@ -469,26 +469,26 @@ onMounted(async () => {
   gap: 0.25rem;
   margin-bottom: 0.75rem;
   padding-bottom: 0.4rem;
-  border-bottom: 1px solid #e6e8eb;
+  border-bottom: 1px solid var(--syp-border);
 }
 .menu-item {
   border: none;
   background: none;
-  color: #1a4f8a;
+  color: var(--syp-link);
   font-size: 0.875rem;
   padding: 0.25rem 0.5rem;
   text-decoration: none;
   border-radius: 0.25rem;
 }
 .menu-item:hover:not(:disabled) {
-  background: #eef2f7;
+  background: var(--syp-raised);
 }
 .menu-item:disabled {
-  color: #a0a6ad;
+  color: var(--syp-text-muted);
   cursor: default;
 }
 .menu-item.danger {
-  color: #a40e26;
+  color: var(--syp-danger);
 }
 .panes {
   display: flex;
@@ -514,9 +514,9 @@ onMounted(async () => {
 }
 .absent {
   font-size: 0.78rem;
-  color: #57606a;
-  background: #f6f8fa;
-  border: 1px solid #d8dee4;
+  color: var(--syp-text-muted);
+  background: var(--syp-raised);
+  border: 1px solid var(--syp-border);
   border-radius: 0.3rem;
   padding: 0.4rem 0.5rem;
 }
@@ -528,7 +528,7 @@ onMounted(async () => {
   margin-bottom: 0.5rem;
 }
 .grid span:nth-child(odd) {
-  color: #57606a;
+  color: var(--syp-text-muted);
 }
 .table td,
 .table th {
@@ -536,19 +536,19 @@ onMounted(async () => {
   font-size: 0.8125rem;
 }
 .table tbody tr.picked {
-  background: #e8f0fe;
+  background: var(--syp-tint);
 }
 .num {
   text-align: right;
 }
 .empty {
   text-align: center;
-  color: #868e96;
+  color: var(--syp-text-muted);
 }
 .row-del {
   border: none;
   background: none;
-  color: #a40e26;
+  color: var(--syp-danger);
 }
 .files-progress {
   width: 100%;
@@ -556,6 +556,6 @@ onMounted(async () => {
 }
 .progress-note {
   font-size: 0.78rem;
-  color: #57606a;
+  color: var(--syp-text-muted);
 }
 </style>

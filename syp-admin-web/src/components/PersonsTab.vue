@@ -346,7 +346,7 @@ watch(
 
 .persons-list li.selected {
   background: #e7f0fd;
-  border-color: #1a4f8a;
+  border-color: var(--syp-link);
 }
 
 .person-photo {

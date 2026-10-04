@@ -91,17 +91,17 @@ const notice = ref('')
   transform: translate(-50%, -50%);
   z-index: 31;
   min-width: 26rem;
-  background: #fff;
-  border: 1px solid #d0d7de;
+  background: var(--syp-surface);
+  border: 1px solid var(--syp-border);
   border-radius: 0.4rem;
-  box-shadow: 0 1rem 3rem rgb(0 0 0 / 25%);
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 45%);
   padding: 1rem;
 }
 .stub {
   font-size: 0.78rem;
-  color: #57606a;
-  background: #f6f8fa;
-  border: 1px solid #d8dee4;
+  color: var(--syp-text-muted);
+  background: var(--syp-raised);
+  border: 1px solid var(--syp-border);
   border-radius: 0.3rem;
   padding: 0.5rem;
 }

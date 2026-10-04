@@ -141,7 +141,7 @@ onMounted(async () => {
 }
 
 .dialog-body {
-  background: #fff;
+  background: var(--syp-surface);
   border-radius: 6px;
   display: grid;
   gap: 0.5rem;
@@ -171,7 +171,7 @@ onMounted(async () => {
 
 .person-list li.selected {
   background: #e7f0fd;
-  border-color: #1a4f8a;
+  border-color: var(--syp-link);
 }
 
 .person-photo {

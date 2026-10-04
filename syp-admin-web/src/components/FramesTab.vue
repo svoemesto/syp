@@ -340,7 +340,7 @@ watch(
 }
 
 .time {
-  color: #868e96;
+  color: var(--syp-text-muted);
   font-size: 0.75rem;
 }
 

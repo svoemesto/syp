@@ -495,7 +495,7 @@ class StructureService(
         videofileId: Long,
     ): List<Scene> =
         connection
-            .prepareStatement("$SCENE_READ_SQL WHERE id_videofile = ? ORDER BY first_frame")
+            .prepareStatement("$SCENE_READ_SQL WHERE $WORKING_CONDITION ORDER BY first_frame")
             .use { statement ->
                 statement.setLong(1, videofileId)
                 statement.executeQuery().use { resultSet ->
@@ -527,7 +527,7 @@ class StructureService(
         videofileId: Long,
     ): List<Shot> =
         connection
-            .prepareStatement("$SHOT_READ_SQL WHERE id_videofile = ? ORDER BY first_frame")
+            .prepareStatement("$SHOT_READ_SQL WHERE $WORKING_CONDITION ORDER BY first_frame")
             .use { statement ->
                 statement.setLong(1, videofileId)
                 statement.executeQuery().use { resultSet ->
@@ -633,5 +633,17 @@ class StructureService(
 
         /** Текст запроса выборки плана. */
         val SHOT_READ_SQL: String = "SELECT ${Shot.READ_COLUMNS} FROM $SHOT_TABLE"
+
+        /**
+         * Условие отбора рабочей структуры.
+         *
+         * Каждый прогон анализа помечает прежнюю структуру устаревшей, а не
+         * удаляет её: ручные правки оператора по старым границам должны были
+         * сохраниться. Но читать их наряду с действующими нельзя — на стенде
+         * после пяти прогонов один и тот же кадровый диапазон возвращался
+         * пять раз, и список планов в редакторе показывал в пять раз больше
+         * строк, чем планов на самом деле.
+         */
+        const val WORKING_CONDITION: String = "id_videofile = ? AND is_stale = FALSE"
     }
 }

@@ -375,28 +375,28 @@ onMounted(reload)
   cursor: pointer;
 }
 .files-table tbody tr.picked {
-  background: #e8f0fe;
+  background: var(--syp-tint);
 }
 .mark {
   text-align: center;
 }
 .mark.yes {
-  color: #1a7f37;
+  color: var(--syp-success);
   font-weight: 600;
 }
 .mark.no {
-  color: #a40e26;
+  color: var(--syp-danger);
 }
 .mark.absent {
-  color: #868e96;
+  color: var(--syp-text-muted);
 }
 .mark.unknown {
-  color: #9a6700;
+  color: var(--syp-warning);
   font-weight: 600;
 }
 .empty {
   text-align: center;
-  color: #868e96;
+  color: var(--syp-text-muted);
 }
 .side {
   flex: 0 0 26rem;
@@ -405,16 +405,16 @@ onMounted(reload)
   gap: 0.4rem;
 }
 .operation {
-  border-bottom: 1px solid #e6e8eb;
+  border-bottom: 1px solid var(--syp-border);
   padding-bottom: 0.2rem;
 }
 .effect {
   margin: 0 0 0.2rem 1.5rem;
   font-size: 0.75rem;
-  color: #868e96;
+  color: var(--syp-text-muted);
 }
 .effect.runs {
-  color: #1a4f8a;
+  color: var(--syp-link);
 }
 .progress-row {
   display: flex;
@@ -428,10 +428,10 @@ onMounted(reload)
 }
 .progress-note {
   font-size: 0.8rem;
-  color: #57606a;
+  color: var(--syp-text-muted);
 }
 .counts {
   font-size: 0.8rem;
-  color: #57606a;
+  color: var(--syp-text-muted);
 }
 </style>
