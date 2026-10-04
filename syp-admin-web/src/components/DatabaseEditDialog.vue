@@ -13,7 +13,9 @@
 
 import { ref } from 'vue'
 
-const props = defineProps<{ database: { id: string; name: string; driver: string; url: string; user: string } }>()
+const props = defineProps<{
+  database: { id: string; name: string; driver: string; url: string; user: string }
+}>()
 
 const emit = defineEmits<{ closed: [] }>()
 
@@ -26,18 +28,29 @@ const notice = ref('')
     <h2 class="syp-card-title">Карточка базы данных</h2>
 
     <p class="stub">
-      Поля не правятся: параметры подключения читаются при старте из окружения
-      развёртывания, и изменение здесь было бы стёрто следующим запуском. Место
-      для правки — `deploy/.env`.
+      Поля не правятся: параметры подключения читаются при старте из окружения развёртывания, и
+      изменение здесь было бы стёрто следующим запуском. Место для правки — `deploy/.env`.
     </p>
 
     <div class="row">
       <label for="db-id">ID:</label>
-      <input id="db-id" class="form-control form-control-sm" type="text" :value="props.database.id" disabled />
+      <input
+        id="db-id"
+        class="form-control form-control-sm"
+        type="text"
+        :value="props.database.id"
+        disabled
+      />
     </div>
     <div class="row">
       <label for="db-name">Имя:</label>
-      <input id="db-name" class="form-control form-control-sm" type="text" :value="props.database.name" disabled />
+      <input
+        id="db-name"
+        class="form-control form-control-sm"
+        type="text"
+        :value="props.database.name"
+        disabled
+      />
     </div>
     <div class="row">
       <label for="db-driver">Драйвер:</label>
@@ -51,11 +64,23 @@ const notice = ref('')
     </div>
     <div class="row">
       <label for="db-url">Адрес:</label>
-      <input id="db-url" class="form-control form-control-sm" type="text" :value="props.database.url" disabled />
+      <input
+        id="db-url"
+        class="form-control form-control-sm"
+        type="text"
+        :value="props.database.url"
+        disabled
+      />
     </div>
     <div class="row">
       <label for="db-user">Пользователь:</label>
-      <input id="db-user" class="form-control form-control-sm" type="text" :value="props.database.user" disabled />
+      <input
+        id="db-user"
+        class="form-control form-control-sm"
+        type="text"
+        :value="props.database.user"
+        disabled
+      />
     </div>
     <div class="row">
       <label for="db-password">Пароль:</label>
@@ -73,11 +98,15 @@ const notice = ref('')
       <button
         type="button"
         class="btn btn-sm btn-primary"
-        @click="notice = 'Сохранения нет: поля берутся из окружения развёртывания при каждом старте'"
+        @click="
+          notice = 'Сохранения нет: поля берутся из окружения развёртывания при каждом старте'
+        "
       >
         Подтвердить
       </button>
-      <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">Отмена</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">
+        Отмена
+      </button>
     </div>
 
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>

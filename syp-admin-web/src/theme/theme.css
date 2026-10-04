@@ -72,7 +72,7 @@
   --syp-tint-origin: 14%;
 
   /* Шрифт. */
---syp-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --syp-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Рабочая область тянется на всю ширину экрана. Ограничение ширины
      возвращать нельзя: на 2560 растянутые на пол-экрана строки читаются хуже,

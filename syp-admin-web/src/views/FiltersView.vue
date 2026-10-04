@@ -71,13 +71,22 @@ const currentFilter = computed(() => filters.value[filterIndex.value] ?? null)
 const currentGroup = computed(() => currentFilter.value?.groups[groupIndex.value] ?? null)
 
 /** Выбранное условие, если оно есть. */
-const currentCondition = computed(() => currentGroup.value?.conditions[conditionIndex.value] ?? null)
+const currentCondition = computed(
+  () => currentGroup.value?.conditions[conditionIndex.value] ?? null,
+)
 
 /**
  * Переносит элемент списка на другое место.
  *
  * Порядок в фильтрах задаёт порядок проверки, поэтому перестановка — не
  * украшение, а часть смысла фильтра.
+ *
+ * @param list список
+ * @param from откуда
+ * @param to куда
+ */
+/**
+ * Переставляет элемент списка.
  *
  * @param list список
  * @param from откуда
@@ -90,6 +99,43 @@ function move<T>(list: T[], from: number, to: number): void {
   const [item] = list.splice(from, 1)
   list.splice(to, 0, item)
   reindex()
+}
+
+/**
+ * Выбор фильтра сбрасывает вложенные указатели.
+ *
+ * Обработчик вынесен в метод, а не оставлен в разметке: выражение из трёх
+ * операторов не влезает в строку, prettier переносит его по строкам, а
+ * компилятор шаблона перенос без точек с запятой не принимает. С именем
+ * строка получается короткой и переживает форматирование.
+ *
+ * @param index номер выбранного фильтра
+ */
+function pickFilter(index: number): void {
+  filterIndex.value = index
+  groupIndex.value = 0
+  conditionIndex.value = 0
+}
+
+/**
+ * Выбор группы сбрасывает указатель на условие.
+ *
+ * @param index номер выбранной группы
+ */
+function pickGroup(index: number): void {
+  groupIndex.value = index
+  conditionIndex.value = 0
+}
+
+/**
+ * Отмечает или снимает отметку у файла.
+ *
+ * @param fileId номер файла
+ */
+function toggleFile(fileId: number): void {
+  chosenFiles.value = chosenFiles.value.includes(fileId)
+    ? chosenFiles.value.filter((item) => item !== fileId)
+    : [...chosenFiles.value, fileId]
 }
 
 /** Пересчитывает порядковые номера после перестановки. */
@@ -257,7 +303,7 @@ onMounted(async () => {
                 v-for="(item, index) in filters"
                 :key="index"
                 :class="{ picked: index === filterIndex }"
-                @click="filterIndex = index; groupIndex = 0; conditionIndex = 0"
+                @click="pickFilter(index)"
               >
                 <td class="num">{{ index }}</td>
                 <td>{{ item.name }}</td>
@@ -273,16 +319,38 @@ onMounted(async () => {
             placeholder="имя фильтра"
           />
           <div class="andor">
-            <label><input v-model="currentFilter!.isAnd" type="radio" :checked="currentFilter!.isAnd" /> AND</label>
-            <label><input v-model="currentFilter!.isAnd" type="radio" :checked="!currentFilter!.isAnd" /> OR</label>
+            <label
+              ><input v-model="currentFilter!.isAnd" type="radio" :checked="currentFilter!.isAnd" />
+              AND</label
+            >
+            <label
+              ><input
+                v-model="currentFilter!.isAnd"
+                type="radio"
+                :checked="!currentFilter!.isAnd"
+              />
+              OR</label
+            >
           </div>
           <div class="row-buttons">
             <button type="button" title="В начало" @click="move(filters, filterIndex, 0)">⟰</button>
-            <button type="button" title="Выше" @click="move(filters, filterIndex, filterIndex - 1)">⇧</button>
-            <button type="button" title="Ниже" @click="move(filters, filterIndex, filterIndex + 1)">⇩</button>
-            <button type="button" title="В конец" @click="move(filters, filterIndex, filters.length - 1)">⟱</button>
+            <button type="button" title="Выше" @click="move(filters, filterIndex, filterIndex - 1)">
+              ⇧
+            </button>
+            <button type="button" title="Ниже" @click="move(filters, filterIndex, filterIndex + 1)">
+              ⇩
+            </button>
+            <button
+              type="button"
+              title="В конец"
+              @click="move(filters, filterIndex, filters.length - 1)"
+            >
+              ⟱
+            </button>
             <button type="button" class="add" title="Добавить фильтр" @click="addFilter">+</button>
-            <button type="button" class="del" title="Удалить фильтр" @click="removeFilter">×</button>
+            <button type="button" class="del" title="Удалить фильтр" @click="removeFilter">
+              ×
+            </button>
           </div>
         </div>
 
@@ -305,7 +373,7 @@ onMounted(async () => {
                 v-for="(item, index) in currentFilter?.groups ?? []"
                 :key="index"
                 :class="{ picked: index === groupIndex }"
-                @click="groupIndex = index; conditionIndex = 0"
+                @click="pickGroup(index)"
               >
                 <td class="num">{{ index }}</td>
                 <td>{{ item.name }}</td>
@@ -321,8 +389,14 @@ onMounted(async () => {
             placeholder="имя группы"
           />
           <div v-if="currentGroup" class="andor">
-            <label><input v-model="currentGroup.isAnd" type="radio" :checked="currentGroup.isAnd" /> AND</label>
-            <label><input v-model="currentGroup.isAnd" type="radio" :checked="!currentGroup.isAnd" /> OR</label>
+            <label
+              ><input v-model="currentGroup.isAnd" type="radio" :checked="currentGroup.isAnd" />
+              AND</label
+            >
+            <label
+              ><input v-model="currentGroup.isAnd" type="radio" :checked="!currentGroup.isAnd" />
+              OR</label
+            >
           </div>
           <div class="row-buttons">
             <button
@@ -349,7 +423,13 @@ onMounted(async () => {
             <button
               type="button"
               title="В конец"
-              @click="move(currentFilter?.groups ?? [], groupIndex, (currentFilter?.groups.length ?? 1) - 1)"
+              @click="
+                move(
+                  currentFilter?.groups ?? [],
+                  groupIndex,
+                  (currentFilter?.groups.length ?? 1) - 1,
+                )
+              "
             >
               ⟱
             </button>
@@ -408,12 +488,22 @@ onMounted(async () => {
             <button
               type="button"
               title="В конец"
-              @click="move(currentGroup?.conditions ?? [], conditionIndex, (currentGroup?.conditions.length ?? 1) - 1)"
+              @click="
+                move(
+                  currentGroup?.conditions ?? [],
+                  conditionIndex,
+                  (currentGroup?.conditions.length ?? 1) - 1,
+                )
+              "
             >
               ⟱
             </button>
-            <button type="button" class="add" title="Добавить условие" @click="addCondition">+</button>
-            <button type="button" class="del" title="Удалить условие" @click="removeCondition">×</button>
+            <button type="button" class="add" title="Добавить условие" @click="addCondition">
+              +
+            </button>
+            <button type="button" class="del" title="Удалить условие" @click="removeCondition">
+              ×
+            </button>
           </div>
         </div>
       </div>
@@ -433,18 +523,19 @@ onMounted(async () => {
               v-for="file in files"
               :key="file.id"
               :class="{ picked: chosenFiles.includes(file.id) }"
-              @click="
-                chosenFiles = chosenFiles.includes(file.id)
-                  ? chosenFiles.filter((item) => item !== file.id)
-                  : [...chosenFiles, file.id]
-              "
+              @click="toggleFile(file.id)"
             >
               <td class="num">{{ file.ordinal }}</td>
               <td>{{ file.name }}</td>
             </tr>
           </tbody>
         </table>
-        <button type="button" class="btn btn-sm btn-primary apply-button" :disabled="busy" @click="apply">
+        <button
+          type="button"
+          class="btn btn-sm btn-primary apply-button"
+          :disabled="busy"
+          @click="apply"
+        >
           &gt;&gt; Применить фильтр
         </button>
         <div class="syp-card-title">Планы</div>
@@ -470,7 +561,11 @@ onMounted(async () => {
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="createVideo">
           Создать видео по отобранным планам
         </button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="createVideoForAllPersons">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          @click="createVideoForAllPersons"
+        >
           Создать видео по отобранным планам для всех персон
         </button>
       </div>
@@ -485,8 +580,8 @@ onMounted(async () => {
 
     <FilterConditionDialog
       v-if="draft !== null"
+      v-model:draft="draft"
       :project-id="project"
-      :draft="draft"
       @confirmed="onConditionConfirmed"
       @closed="draft = null"
     />

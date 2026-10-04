@@ -63,7 +63,9 @@ const second = ref({ done: 0, total: 0, note: '' })
 const training = ref(false)
 
 /** Коды индикаторов, по которым состояние выводится из сервера. */
-const CODES = INDICATORS.map((indicator) => indicator.code).filter((code) => code !== '#' && code !== 'Файл')
+const CODES = INDICATORS.map((indicator) => indicator.code).filter(
+  (code) => code !== '#' && code !== 'Файл',
+)
 
 /** Операции, которые действительно запускают задание. */
 const runnable = computed(() => OPERATIONS.filter((operation) => operation.runs))
@@ -92,7 +94,9 @@ function stateOf(row: PipelineRow, code: string): PipelineState {
 function titleOf(row: PipelineRow, code: string): string {
   const state = stateOf(row, code)
   const reason = row.reasons[code]
-  return reason === undefined || reason === '' ? STATE_TITLE[state] : `${STATE_TITLE[state]}: ${reason}`
+  return reason === undefined || reason === ''
+    ? STATE_TITLE[state]
+    : `${STATE_TITLE[state]}: ${reason}`
 }
 
 /**
@@ -117,7 +121,8 @@ function pick(videofileId: number): void {
 
 /** Выбирает все файлы или снимает выбор со всех. */
 function pickAll(): void {
-  selected.value = selected.value.length === files.value.length ? [] : files.value.map((file) => file.id)
+  selected.value =
+    selected.value.length === files.value.length ? [] : files.value.map((file) => file.id)
 }
 
 /**
@@ -134,12 +139,15 @@ async function run(): Promise<void> {
     notice.value = 'Не выбран ни один файл: запускать нечего'
     return
   }
-  const analysisWanted = OPERATIONS.some((operation) => chosen.value[operation.code] && operation.runs)
+  const analysisWanted = OPERATIONS.some(
+    (operation) => chosen.value[operation.code] && operation.runs,
+  )
   const facesWanted = OPERATIONS.some(
     (operation) => chosen.value[operation.code] && operation.code === 'DF',
   )
   if (!analysisWanted && !facesWanted) {
-    notice.value = 'Не отмечено ни одной операции, которая что-то запускает: отмеченные операции в проекте не выполняются'
+    notice.value =
+      'Не отмечено ни одной операции, которая что-то запускает: отмеченные операции в проекте не выполняются'
     return
   }
   const targets = rows.value.filter((row) => selected.value.includes(row.videofileId))
@@ -169,9 +177,7 @@ async function run(): Promise<void> {
     error.value = ''
     notice.value =
       `заданий поставлено: ${queued}, пропущено как уже сделанные: ${skipped}` +
-      (skipped > 0 && !recreate.value
-        ? ' — повтор включите переключателем RECREATE IF EXISTS'
-        : '')
+      (skipped > 0 && !recreate.value ? ' — повтор включите переключателем RECREATE IF EXISTS' : '')
   } catch (failure) {
     error.value = (failure as Error).message
     if (refusals.length > 0) {
@@ -253,46 +259,51 @@ onMounted(reload)
           <button type="button" class="btn btn-sm btn-outline-secondary" @click="pickAll">
             {{ selected.length === files.length ? 'Снять выбор' : 'Выбрать все' }}
           </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="busy" @click="reload">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            :disabled="busy"
+            @click="reload"
+          >
             Обновить
           </button>
         </div>
         <div class="files-wrap">
           <table class="table table-sm files-table">
-          <thead>
-            <tr>
-              <th v-for="indicator in INDICATORS" :key="indicator.code" :title="indicator.title">
-                {{ indicator.code }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="row in rows"
-              :key="row.videofileId"
-              :class="{ picked: selected.includes(row.videofileId) }"
-              @click="pick(row.videofileId)"
-            >
-              <td class="num">{{ row.ordinal }}</td>
-              <td class="name" :title="`${row.name}, кадров: ${row.framesTotal ?? 'неизвестно'}`">
-                {{ row.name }}
-              </td>
-              <td
-                v-for="code in CODES"
-                :key="code"
-                class="mark"
-                :class="stateOf(row, code)"
-                :title="titleOf(row, code)"
+            <thead>
+              <tr>
+                <th v-for="indicator in INDICATORS" :key="indicator.code" :title="indicator.title">
+                  {{ indicator.code }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in rows"
+                :key="row.videofileId"
+                :class="{ picked: selected.includes(row.videofileId) }"
+                @click="pick(row.videofileId)"
               >
-                {{ STATE_MARK[stateOf(row, code)] }}
-              </td>
-            </tr>
-            <tr v-if="rows.length === 0">
-              <td :colspan="INDICATORS.length" class="empty">
-                {{ busy ? 'Читаю состояние файлов…' : 'В проекте нет файлов' }}
-              </td>
-            </tr>
-          </tbody>
+                <td class="num">{{ row.ordinal }}</td>
+                <td class="name" :title="`${row.name}, кадров: ${row.framesTotal ?? 'неизвестно'}`">
+                  {{ row.name }}
+                </td>
+                <td
+                  v-for="code in CODES"
+                  :key="code"
+                  class="mark"
+                  :class="stateOf(row, code)"
+                  :title="titleOf(row, code)"
+                >
+                  {{ STATE_MARK[stateOf(row, code)] }}
+                </td>
+              </tr>
+              <tr v-if="rows.length === 0">
+                <td :colspan="INDICATORS.length" class="empty">
+                  {{ busy ? 'Читаю состояние файлов…' : 'В проекте нет файлов' }}
+                </td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -303,8 +314,15 @@ onMounted(reload)
           <input id="recreate" v-model="recreate" class="form-check-input" type="checkbox" />
           <label class="form-check-label" for="recreate">RECREATE IF EXISTS</label>
         </div>
-        <button type="button" class="btn btn-sm btn-primary" :disabled="busy" @click="run">Выполнить операции</button>
-        <button type="button" class="btn btn-sm btn-outline-primary" :disabled="training" @click="train">
+        <button type="button" class="btn btn-sm btn-primary" :disabled="busy" @click="run">
+          Выполнить операции
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary"
+          :disabled="training"
+          @click="train"
+        >
           Обучить модель лиц
         </button>
         <div class="syp-card-title">Операции</div>
@@ -317,7 +335,9 @@ onMounted(reload)
               :checked="chosen[operation.code] === true"
               @change="toggle(operation.code)"
             />
-            <label class="form-check-label" :for="`op-${operation.code}`">{{ operation.title }}</label>
+            <label class="form-check-label" :for="`op-${operation.code}`">{{
+              operation.title
+            }}</label>
           </div>
           <p class="effect" :class="{ runs: operation.runs }">{{ operation.effect }}</p>
         </div>
@@ -335,8 +355,8 @@ onMounted(reload)
 
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
     <p class="counts">
-      Заданий запускает операций: {{ runnable.length }} из {{ OPERATIONS.length }}; остальные в проекте не
-      выполняются, и это написано под каждым чекбоксом.
+      Заданий запускает операций: {{ runnable.length }} из {{ OPERATIONS.length }}; остальные в
+      проекте не выполняются, и это написано под каждым чекбоксом.
     </p>
   </section>
 </template>

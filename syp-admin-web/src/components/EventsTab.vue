@@ -20,7 +20,12 @@ import { computed, ref } from 'vue'
 import { shotsFor, stubEventNames, type StubEvent } from '../api/event-stubs'
 import ShotThumb from './ShotThumb.vue'
 
-const props = defineProps<{ videofileId: number; shotsTotal: number; firstFrame: number; lastFrame: number }>()
+const props = defineProps<{
+  videofileId: number
+  shotsTotal: number
+  firstFrame: number
+  lastFrame: number
+}>()
 
 /** Ширина миниатюры кадра в колонках FROM и TO, как в старой форме. */
 const THUMB = 96
@@ -110,7 +115,13 @@ function moveSelected(where: 'first' | 'up' | 'down' | 'last'): void {
     return
   }
   const target =
-    where === 'first' ? 0 : where === 'last' ? events.value.length - 1 : where === 'up' ? index - 1 : index + 1
+    where === 'first'
+      ? 0
+      : where === 'last'
+        ? events.value.length - 1
+        : where === 'up'
+          ? index - 1
+          : index + 1
   if (target < 0 || target >= events.value.length) {
     notice.value = 'Событие уже на краю: двигать некуда'
     return
@@ -133,10 +144,16 @@ function removeProperty(key: string): void {
 }
 
 /** Планы выбранных событий — объединение по всем выбранным. */
-const selectedShots = computed(() => events.value.filter((event) => selected.value.includes(event.id)).flatMap((event) => event.shots))
+const selectedShots = computed(() =>
+  events.value.filter((event) => selected.value.includes(event.id)).flatMap((event) => event.shots),
+)
 
 /** Персоны выбранных событий. */
-const selectedPersons = computed(() => events.value.filter((event) => selected.value.includes(event.id)).flatMap((event) => event.persons))
+const selectedPersons = computed(() =>
+  events.value
+    .filter((event) => selected.value.includes(event.id))
+    .flatMap((event) => event.persons),
+)
 
 /** Планы идут подряд, если каждый следующий начинается сразу за предыдущим. */
 function continuousRange(): boolean {
@@ -188,15 +205,27 @@ seed()
               v-for="event in events"
               :key="event.id"
               :class="{ selected: selected.includes(event.id) }"
-              @click="selected = selected.includes(event.id) ? selected.filter((id) => id !== event.id) : [...selected, event.id]"
+              @click="
+                selected = selected.includes(event.id)
+                  ? selected.filter((id) => id !== event.id)
+                  : [...selected, event.id]
+              "
             >
               <td>{{ event.name }}</td>
               <td class="thumb-cell">
                 <span class="event-mark" />
-                <ShotThumb :videofile-id="props.videofileId" :frame-number="event.firstFrame" :width="THUMB" />
+                <ShotThumb
+                  :videofile-id="props.videofileId"
+                  :frame-number="event.firstFrame"
+                  :width="THUMB"
+                />
               </td>
               <td class="thumb-cell">
-                <ShotThumb :videofile-id="props.videofileId" :frame-number="event.lastFrame" :width="THUMB" />
+                <ShotThumb
+                  :videofile-id="props.videofileId"
+                  :frame-number="event.lastFrame"
+                  :width="THUMB"
+                />
               </td>
             </tr>
             <tr v-if="events.length === 0">
@@ -229,10 +258,18 @@ seed()
           <tbody>
             <tr v-for="(shot, index) in selectedShots" :key="`${shot.first}-${index}`">
               <td class="thumb-cell">
-                <ShotThumb :videofile-id="props.videofileId" :frame-number="shot.first" :width="THUMB" />
+                <ShotThumb
+                  :videofile-id="props.videofileId"
+                  :frame-number="shot.first"
+                  :width="THUMB"
+                />
               </td>
               <td class="thumb-cell">
-                <ShotThumb :videofile-id="props.videofileId" :frame-number="shot.last" :width="THUMB" />
+                <ShotThumb
+                  :videofile-id="props.videofileId"
+                  :frame-number="shot.last"
+                  :width="THUMB"
+                />
               </td>
             </tr>
             <tr v-if="selectedShots.length === 0">
@@ -266,30 +303,66 @@ seed()
           </tr>
         </thead>
         <tbody>
-          <tr v-for="property in (events.find((event) => event.id === selected[0])?.properties ?? [])" :key="property.key">
+          <tr
+            v-for="property in events.find((event) => event.id === selected[0])?.properties ?? []"
+            :key="property.key"
+          >
             <td>{{ property.key }}</td>
             <td>{{ property.value }}</td>
             <td>
-              <button type="button" class="btn btn-sm btn-outline-secondary" @click="removeProperty(property.key)">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                @click="removeProperty(property.key)"
+              >
                 удалить
               </button>
             </td>
           </tr>
-          <tr v-if="(events.find((event) => event.id === selected[0])?.properties ?? []).length === 0">
+          <tr
+            v-if="(events.find((event) => event.id === selected[0])?.properties ?? []).length === 0"
+          >
             <td colspan="3" class="empty">Свойств нет</td>
           </tr>
         </tbody>
       </table>
       <div class="actions">
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="moveSelected('first')">В начало</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="moveSelected('up')">Вверх</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="moveSelected('down')">Вниз</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="moveSelected('last')">В конец</button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          @click="moveSelected('first')"
+        >
+          В начало
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="moveSelected('up')">
+          Вверх
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          @click="moveSelected('down')"
+        >
+          Вниз
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          @click="moveSelected('last')"
+        >
+          В конец
+        </button>
       </div>
       <div class="fields">
         <input v-model="propertyKey" class="form-control" placeholder="Key" />
-        <textarea v-model="propertyValue" class="form-control" rows="2" placeholder="Value"></textarea>
-        <button type="button" class="btn btn-primary" @click="addProperty">Добавить свойство</button>
+        <textarea
+          v-model="propertyValue"
+          class="form-control"
+          rows="2"
+          placeholder="Value"
+        ></textarea>
+        <button type="button" class="btn btn-primary" @click="addProperty">
+          Добавить свойство
+        </button>
       </div>
     </div>
 

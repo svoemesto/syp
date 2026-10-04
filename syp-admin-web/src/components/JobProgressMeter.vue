@@ -138,7 +138,11 @@ onBeforeUnmount(() => {
     </template>
     <div v-if="lastFailure !== null" class="job-meter__failure">
       <span>Задание упало: {{ lastFailure.errorText ?? 'причина не записана' }}</span>
-      <button type="button" class="btn btn-sm btn-link" @click="dismissed = lastFailure?.id ?? null">
+      <button
+        type="button"
+        class="btn btn-sm btn-link"
+        @click="dismissed = lastFailure?.id ?? null"
+      >
         скрыть
       </button>
     </div>

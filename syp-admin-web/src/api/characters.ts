@@ -327,13 +327,8 @@ export async function setPersonPhoto(
  * @param ids идентификаторы лиц
  * @returns запрошенные лица
  */
-export async function readFacesByIds(
-  videofileId: number,
-  ids: number[],
-): Promise<FacesView> {
-  const response = await fetch(
-    `/api/videofiles/${videofileId}/faces/by-ids?ids=${ids.join(',')}`,
-  )
+export async function readFacesByIds(videofileId: number, ids: number[]): Promise<FacesView> {
+  const response = await fetch(`/api/videofiles/${videofileId}/faces/by-ids?ids=${ids.join(',')}`)
   if (!response.ok) {
     throw new Error(`Лица по перечню не отданы: ${response.status}`)
   }
@@ -350,9 +345,6 @@ export async function readFacesByIds(
  * @param size сторона миниатюры в пикселях
  * @returns адрес миниатюры
  */
-export function faceImageUrl(
-  faceId: number,
-  size: number,
-): string {
+export function faceImageUrl(faceId: number, size: number): string {
   return `/api/faces/${faceId}/image?size=${size}`
 }

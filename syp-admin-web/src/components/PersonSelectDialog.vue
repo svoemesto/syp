@@ -123,7 +123,9 @@ onMounted(async () => {
 
       <div class="dialog-actions">
         <button type="button" class="btn btn-primary" @click="accept">Подтвердить</button>
-        <button type="button" class="btn btn-outline-secondary" @click="emit('closed')">Отмена</button>
+        <button type="button" class="btn btn-outline-secondary" @click="emit('closed')">
+          Отмена
+        </button>
       </div>
     </div>
   </div>

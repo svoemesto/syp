@@ -14,7 +14,12 @@ import { ref } from 'vue'
 import { readStructure, type StructureView } from './structure'
 
 /** Что ищем условием. */
-export type ConditionObjectClass = 'PERSON' | 'PERSON_PROPERTY' | 'SHOT_PROPERTY' | 'SCENE_PROPERTY' | 'EVENT_PROPERTY'
+export type ConditionObjectClass =
+  | 'PERSON'
+  | 'PERSON_PROPERTY'
+  | 'SHOT_PROPERTY'
+  | 'SCENE_PROPERTY'
+  | 'EVENT_PROPERTY'
 
 /** Включено условие или исключено. */
 export type ConditionIncluded = boolean

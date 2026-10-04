@@ -232,10 +232,18 @@ watch(
         <span class="swatch boundary-added">добавлена</span>
       </div>
       <div class="actions">
-        <button type="button" class="btn btn-sm btn-primary" @click="apply">Применить к границам планов</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="openFaces">Лица кадра</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(-1)">К предыдущей странице</button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(1)">К следующей странице</button>
+        <button type="button" class="btn btn-sm btn-primary" @click="apply">
+          Применить к границам планов
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="openFaces">
+          Лица кадра
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(-1)">
+          К предыдущей странице
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(1)">
+          К следующей странице
+        </button>
       </div>
     </div>
 
@@ -266,8 +274,8 @@ watch(
     </table>
 
     <p class="state">
-      Состояние границы: {{ boundaryState }} из 3 (0 — не найдена, 1 — найдена, 2 — отменена, 3 — добавлена).
-      Выбран кадр: {{ chosenFrame ?? 'нет' }}. Страница {{ page + 1 }} из {{ pages }}.
+      Состояние границы: {{ boundaryState }} из 3 (0 — не найдена, 1 — найдена, 2 — отменена, 3 —
+      добавлена). Выбран кадр: {{ chosenFrame ?? 'нет' }}. Страница {{ page + 1 }} из {{ pages }}.
     </p>
 
     <div class="frames-matrix">
@@ -289,7 +297,8 @@ watch(
     </div>
 
     <p v-if="!structureLoaded" class="notice" role="status">
-      Планы ещё не созданы, поэтому границы править не на чем. Правка станет доступна после разбора файла.
+      Планы ещё не созданы, поэтому границы править не на чем. Правка станет доступна после разбора
+      файла.
     </p>
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
 

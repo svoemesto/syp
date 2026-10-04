@@ -74,9 +74,23 @@ onMounted(reload)
       <h2 class="syp-card-title">Лица кадра {{ props.frameNumber }}</h2>
 
       <div class="frame">
-        <img v-if="frameUrl !== ''" :src="frameUrl" :alt="`Кадр ${props.frameNumber}`" class="frame-image" />
+        <img
+          v-if="frameUrl !== ''"
+          :src="frameUrl"
+          :alt="`Кадр ${props.frameNumber}`"
+          class="frame-image"
+        />
         <p v-else class="empty">Кадр не показывается: адрес не получен</p>
-        <div v-if="boxGiven" class="box" :style="{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` }"></div>
+        <div
+          v-if="boxGiven"
+          class="box"
+          :style="{
+            left: `${box.x}px`,
+            top: `${box.y}px`,
+            width: `${box.w}px`,
+            height: `${box.h}px`,
+          }"
+        ></div>
       </div>
 
       <div class="box-fields">
@@ -84,7 +98,9 @@ onMounted(reload)
         <label>Y<input v-model.number="box.y" type="number" class="form-control" /></label>
         <label>Ширина<input v-model.number="box.w" type="number" class="form-control" /></label>
         <label>Высота<input v-model.number="box.h" type="number" class="form-control" /></label>
-        <button type="button" class="btn btn-outline-secondary" @click="createFace">Создать лицо</button>
+        <button type="button" class="btn btn-outline-secondary" @click="createFace">
+          Создать лицо
+        </button>
       </div>
 
       <table class="table table-sm">
@@ -98,7 +114,11 @@ onMounted(reload)
         <tbody>
           <tr v-for="face in faces" :key="face.id">
             <td>
-              <img :src="facePreviewUrl(props.videofileId, face.frameNumber)" :alt="`Лицо ${face.id}`" class="face-thumb" />
+              <img
+                :src="facePreviewUrl(props.videofileId, face.frameNumber)"
+                :alt="`Лицо ${face.id}`"
+                class="face-thumb"
+              />
             </td>
             <td>{{ face.personName }}</td>
             <td>{{ face.origin === 'OPERATOR' ? 'да' : '' }}</td>

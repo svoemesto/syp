@@ -44,8 +44,6 @@ const clusterFaces = ref<Record<string, FaceView[]>>({})
  */
 const CLUSTER_FACES_AT_ONCE = 4
 
-
-
 async function loadClusterFaces(videofileId: number): Promise<void> {
   const list = clusters.value?.clusters ?? []
   if (list.length === 0) {

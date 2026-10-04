@@ -27,7 +27,18 @@ import {
   type FilterCondition,
 } from '../api/filter-stubs'
 
-const props = defineProps<{ projectId: number; draft: FilterCondition }>()
+const props = defineProps<{ projectId: number }>()
+
+/**
+ * Черновик условия — двусторонняя связь, а не чужой объект.
+ *
+ * Раньше окно меняло переданный объект на месте, и родитель видел правку
+ * только потому, что держал его в `ref`. Правило `vue/no-mutating-props`
+ * такую правку запрещает, и правильно: правка чужого объекта из окна
+ * неожиданна для вызывающего. Родитель передаёт черновик через `v-model`,
+ * окно отдаёт ему же готовый объект при подтверждении.
+ */
+const draft = defineModel<FilterCondition>('draft', { required: true })
 
 const emit = defineEmits<{
   confirmed: [condition: FilterCondition]
@@ -60,13 +71,13 @@ const SUBJECTS: { value: ConditionSubject; title: string }[] = [
 ]
 
 /** Подпись кнопки выбора — меняется по типу объекта, как в старой форме. */
-const selectText = computed(() => SELECT_BUTTON_TEXT[props.draft.objectClass])
+const selectText = computed(() => SELECT_BUTTON_TEXT[draft.value.objectClass])
 
 /** Живая формулировка условия. */
-const name = computed(() => conditionName(props.draft))
+const name = computed(() => conditionName(draft.value))
 
 /** Выбран ли объект: без него условие бессмысленно. */
-const canConfirm = computed(() => props.draft.objectKey !== null && props.draft.objectName !== '')
+const canConfirm = computed(() => draft.value.objectKey !== null && draft.value.objectName !== '')
 
 /**
  * Смена типа объекта сбрасывает выбор.
@@ -77,12 +88,12 @@ const canConfirm = computed(() => props.draft.objectKey !== null && props.draft.
  * @param objectClass новый тип объекта
  */
 function changeObjectClass(objectClass: ConditionObjectClass): void {
-  if (props.draft.objectClass === objectClass) {
+  if (draft.value.objectClass === objectClass) {
     return
   }
-  props.draft.objectClass = objectClass
-  props.draft.objectKey = null
-  props.draft.objectName = ''
+  draft.value.objectClass = objectClass
+  draft.value.objectKey = null
+  draft.value.objectName = ''
 }
 
 /**
@@ -113,8 +124,8 @@ function onChosen(personId: number): void {
     error.value = 'Персона не найдена: условие останется без объекта'
     return
   }
-  props.draft.objectKey = String(person.id)
-  props.draft.objectName = person.name
+  draft.value.objectKey = String(person.id)
+  draft.value.objectName = person.name
   selectOpen.value = false
   error.value = ''
 }
@@ -125,7 +136,7 @@ function onChosen(personId: number): void {
  * @param isIncluded включено или исключено
  */
 function changeIncluded(isIncluded: ConditionIncluded): void {
-  props.draft.isIncluded = isIncluded
+  draft.value.isIncluded = isIncluded
 }
 
 /**
@@ -134,7 +145,7 @@ function changeIncluded(isIncluded: ConditionIncluded): void {
  * @param subject где искать
  */
 function changeSubject(subject: ConditionSubject): void {
-  props.draft.subject = subject
+  draft.value.subject = subject
 }
 
 /** Подтверждает условие. */
@@ -143,7 +154,7 @@ function confirm(): void {
     error.value = 'Объект не выбран: подтверждать нечего'
     return
   }
-  emit('confirmed', { ...props.draft })
+  emit('confirmed', { ...draft.value })
 }
 
 onMounted(async () => {
@@ -174,7 +185,11 @@ onMounted(async () => {
         />
         <label class="form-check-label" :for="`oc-${item.value}`">{{ item.title }}</label>
       </div>
-      <button type="button" class="btn btn-sm btn-outline-secondary" @click="chooseObject(draft.objectClass)">
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-secondary"
+        @click="chooseObject(draft.objectClass)"
+      >
         {{ selectText }}
       </button>
     </fieldset>
@@ -228,7 +243,9 @@ onMounted(async () => {
       <button type="button" class="btn btn-sm btn-primary" :disabled="!canConfirm" @click="confirm">
         {{ CONFIRM_BUTTON_TEXT }}
       </button>
-      <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">Отмена</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">
+        Отмена
+      </button>
     </div>
 
     <PersonSelectDialog

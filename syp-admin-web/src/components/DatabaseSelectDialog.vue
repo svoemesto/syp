@@ -56,11 +56,10 @@ function select(): void {
     <h2 class="syp-card-title">Выбор базы данных</h2>
 
     <p class="stub">
-      Заглушка в том, что базу нельзя переключить из интерфейса: в проекте база одна, и
-      параметры подключения задаются переменными окружения развёртывания
-      (`SYP_DB_HOST_PORT`, `SYP_DB_NAME`, `SYP_DB_USER`, `SYP_DB_PASSWORD`). Список баз
-      переключаемым быть не может — иначе правка адреса и пользователя была бы
-      операцией оператора, а не изменением развёртывания.
+      Заглушка в том, что базу нельзя переключить из интерфейса: в проекте база одна, и параметры
+      подключения задаются переменными окружения развёртывания (`SYP_DB_HOST_PORT`, `SYP_DB_NAME`,
+      `SYP_DB_USER`, `SYP_DB_PASSWORD`). Список баз переключаемым быть не может — иначе правка
+      адреса и пользователя была бы операцией оператора, а не изменением развёртывания.
     </p>
 
     <table class="table table-sm">
@@ -101,7 +100,9 @@ function select(): void {
       >
         Удалить выбранную базу данных
       </button>
-      <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">Отмена</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">
+        Отмена
+      </button>
     </div>
 
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>

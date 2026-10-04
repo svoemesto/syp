@@ -91,10 +91,14 @@ function toggleShot(id: number): void {
  * уровня у ответа не существует. Здесь они собираются в один список, потому что
  * левая часть показывает планы целиком, а не по сценам.
  */
-const shots = computed<ShotView[]>(() => (structure.value?.scenes ?? []).flatMap((scene) => scene.shots))
+const shots = computed<ShotView[]>(() =>
+  (structure.value?.scenes ?? []).flatMap((scene) => scene.shots),
+)
 
 /** Планы выбранного: первый из выбранных. */
-const currentShot = computed<ShotView | undefined>(() => shots.value.find((shot) => shot.id === selectedShots.value[0]))
+const currentShot = computed<ShotView | undefined>(() =>
+  shots.value.find((shot) => shot.id === selectedShots.value[0]),
+)
 
 /** Границы выбранных планов — по первому и последнему. */
 const bounds = computed(() => {
@@ -102,7 +106,10 @@ const bounds = computed(() => {
   if (chosen.length === 0) {
     return { first: 0, last: 0 }
   }
-  return { first: Math.min(...chosen.map((shot) => shot.firstFrame)), last: Math.max(...chosen.map((shot) => shot.lastFrame)) }
+  return {
+    first: Math.min(...chosen.map((shot) => shot.firstFrame)),
+    last: Math.max(...chosen.map((shot) => shot.lastFrame)),
+  }
 })
 
 /** Добавляет свойство к выбранному плану. */
@@ -219,7 +226,9 @@ onMounted(async () => {
                       type="button"
                       class="btn btn-sm btn-outline-secondary"
                       title="Выбрать тип плана"
-                      @click.stop="notice = `Тип плана меняется оператором: в проекте нет эндпоинта, меняющего тип`"
+                      @click.stop="
+                        notice = `Тип плана меняется оператором: в проекте нет эндпоинта, меняющего тип`
+                      "
                     >
                       ▾
                     </button>
@@ -288,22 +297,33 @@ onMounted(async () => {
               </div>
               <div class="filter-group">
                 <span class="filter-title">Типы лиц:</span>
-                <label><input v-model="faceTypes" type="checkbox" value="notExample" /> Not example</label>
+                <label
+                  ><input v-model="faceTypes" type="checkbox" value="notExample" /> Not
+                  example</label
+                >
                 <label><input v-model="faceTypes" type="checkbox" value="example" /> Example</label>
-                <label><input v-model="faceTypes" type="checkbox" value="notManual" /> Not manual</label>
+                <label
+                  ><input v-model="faceTypes" type="checkbox" value="notManual" /> Not manual</label
+                >
                 <label><input v-model="faceTypes" type="checkbox" value="manual" /> Manual</label>
               </div>
             </div>
           </div>
           <ul class="persons">
-            <li v-for="person in persons" :key="person.id" :title="`персона плана, кадров: ${bounds.first}—${bounds.last}`">
+            <li
+              v-for="person in persons"
+              :key="person.id"
+              :title="`персона плана, кадров: ${bounds.first}—${bounds.last}`"
+            >
               {{ person.name }}
             </li>
-            <li v-if="persons.length === 0" class="empty">
-              План не выбран или в нём нет персон
-            </li>
+            <li v-if="persons.length === 0" class="empty">План не выбран или в нём нет персон</li>
           </ul>
-          <progress class="left-progress" :value="persons.length" :max="Math.max(persons.length, 1)" />
+          <progress
+            class="left-progress"
+            :value="persons.length"
+            :max="Math.max(persons.length, 1)"
+          />
 
           <div class="syp-card-title">Кадр</div>
           <ShotFrameView :videofile-id="Number(props.videofileId)" :shot="currentShot ?? null" />
