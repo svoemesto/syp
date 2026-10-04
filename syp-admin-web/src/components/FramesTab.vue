@@ -21,6 +21,7 @@ import {
   moveShotBoundary,
   readFrames,
   readStructure,
+  readVideofile,
   splitShot,
   type FrameView,
   type FramesView,
