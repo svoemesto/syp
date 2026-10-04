@@ -402,7 +402,7 @@ function personKindTitle(kind: string): string {
           <span class="cluster-faces">
             <FaceThumbnails
               v-if="(clusterFaces[cluster.id] ?? []).length > 0"
-              :videofile-id="props.videofileId"
+              :videofile-id="videofileId"
               :faces="clusterFaces[cluster.id] ?? []"
               :frame-width="faces?.frameWidth ?? 1920"
               :frame-height="faces?.frameHeight ?? 1080"
