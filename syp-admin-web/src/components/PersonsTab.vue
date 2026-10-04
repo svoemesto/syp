@@ -166,16 +166,32 @@ function onDrop(personId: number): void {
   void assignToPerson(personId)
 }
 
-/** Переходит на страницу лиц. */
-async function turnPage(delta: number): Promise<void> {
-  const next = page.value + delta
-  if (next < 0 || next >= pages.value) {
-    notice.value = 'Страница за пределами: переходить некуда'
+/**
+ * Переходит на страницу лиц по номеру из таблицы страниц.
+ *
+ * В старой форме страницы перебираются таблицей со столбцом «#», а не
+ * кнопками «предыдущая» и «следующая»: оператор видит, сколько страниц
+ * осталось, и попадает на нужную сразу.
+ *
+ * @param index номер страницы с нуля
+ */
+async function goToPage(index: number): Promise<void> {
+  if (index < 0 || index >= pages.value || index === page.value) {
     return
   }
-  page.value = next
+  page.value = index
   clearSelection()
   await reload()
+}
+
+/**
+ * Кладёт идентификатор персоны в переносимые данные строки.
+ *
+ * @param event событие начала переноса
+ * @param personId номер персоны
+ */
+function onDragStart(event: DragEvent, personId: number): void {
+  event.dataTransfer?.setData('text/plain', String(personId))
 }
 
 /** Перечитывает лица и персон. */
@@ -220,42 +236,52 @@ watch(
         @dragover.prevent
         @drop.prevent="onDrop(Number($event.dataTransfer?.getData('text/plain')))"
       >
-        <div class="syp-card-title">Персоны файла</div>
-        <p class="hint">Перетащите лицо на строку персоны, чтобы назначить</p>
-        <ul>
-          <li
-            v-for="person in persons"
-            :key="person.id"
-            :class="{ selected: targetPerson === person.id }"
-            :draggable="true"
-            @click="targetPerson = person.id"
-            @dragstart="$event.dataTransfer?.setData('text/plain', String(person.id))"
-            @dblclick="editing = person"
-          >
-            <img
-              v-if="person.photoFrameNumber !== null"
-              :src="facePreviewUrl(props.videofileId, person.photoFrameNumber)"
-              :alt="`Фото персоны ${person.name}`"
-              class="person-photo"
-            />
-            <span>{{ person.name }}</span>
-          </li>
-          <li v-if="persons.length === 0" class="empty">Персон нет</li>
-        </ul>
+        <table class="table table-sm persons-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="person in persons"
+              :key="person.id"
+              :class="{ selected: targetPerson === person.id }"
+              draggable="true"
+              @click="targetPerson = person.id"
+              @dragstart="onDragStart($event, person.id)"
+              @dblclick="editing = person"
+            >
+              <td>
+                <img
+                  v-if="person.photoFrameNumber !== null"
+                  :src="facePreviewUrl(props.videofileId, person.photoFrameNumber)"
+                  :alt="`Person photo ${person.name}`"
+                  class="person-photo"
+                />
+                <span>{{ person.name }}</span>
+              </td>
+            </tr>
+            <tr v-if="persons.length === 0">
+              <td class="empty">No persons</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="hint">Drag a face onto a person row to assign it</p>
       </aside>
 
       <div class="faces-area">
         <div class="toolbar">
           <fieldset class="filters">
-            <legend>Типы лиц</legend>
-            <label><input v-model="filters.notExample" type="checkbox" /> Не эталон</label>
-            <label><input v-model="filters.example" type="checkbox" /> Эталон</label>
-            <label><input v-model="filters.notManual" type="checkbox" /> Не ручной</label>
-            <label><input v-model="filters.manual" type="checkbox" /> Ручной</label>
+            <legend>Face types</legend>
+            <label><input v-model="filters.notExample" type="checkbox" /> Not reference</label>
+            <label><input v-model="filters.example" type="checkbox" /> Reference</label>
+            <label><input v-model="filters.notManual" type="checkbox" /> Not manual</label>
+            <label><input v-model="filters.manual" type="checkbox" /> Manual</label>
           </fieldset>
           <div class="actions">
             <button type="button" class="btn btn-sm btn-primary" @click="openSelect">
-              Назначить персоне
+              Assign to person
             </button>
             <button
               type="button"
@@ -263,45 +289,35 @@ watch(
               :disabled="target === undefined"
               @click="target !== undefined && assignToPerson(target.id)"
             >
-              Назначить выбранной строке
+              Assign to selected row
             </button>
             <button type="button" class="btn btn-sm btn-outline-secondary" @click="makePhoto">
-              Фото персоны
+              Person photo
             </button>
             <button
               type="button"
               class="btn btn-sm btn-outline-secondary"
               @click="markExamples(true)"
             >
-              Пометить эталоном
+              Mark as reference
             </button>
             <button
               type="button"
               class="btn btn-sm btn-outline-secondary"
               @click="markExamples(false)"
             >
-              Снять эталон
+              Clear reference
             </button>
             <button type="button" class="btn btn-sm btn-outline-secondary" @click="clearSelection">
-              Снять выделение
+              Clear selection
             </button>
           </div>
         </div>
 
         <p class="selection">
-          Выбрано лиц: {{ selectedFaces.length }} на странице {{ page + 1 }} из {{ pages }}. Клик по
-          миниатюре добавляет лицо к выделению, повторный — убирает.
+          Faces selected: {{ selectedFaces.length }} on page {{ page + 1 }} of {{ pages }}. A click
+          on a thumbnail adds the face to the selection, a second click removes it.
         </p>
-
-        <div class="pager">
-          <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(-1)">
-            К предыдущей странице
-          </button>
-          <span>Страница {{ page + 1 }} из {{ pages }}</span>
-          <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(1)">
-            К следующей странице
-          </button>
-        </div>
 
         <FaceThumbnails
           :videofile-id="props.videofileId"
@@ -310,6 +326,23 @@ watch(
           @select="toggleFace"
         />
       </div>
+      <table class="table table-sm pages-table">
+        <thead>
+          <tr>
+            <th>#</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="number in pages"
+            :key="number"
+            :class="{ selected: page === number - 1 }"
+            @click="goToPage(number - 1)"
+          >
+            <td>{{ number }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
@@ -334,8 +367,41 @@ watch(
 <style scoped>
 .persons-tab-body {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: 18rem 1fr;
+  gap: 0.5rem;
+  /* Три области, как во вкладке Persons старой формы: таблица персон
+     шириной 175 px, область лиц и таблица страниц шириной 200 px. */
+  grid-template-columns: 10.9375rem minmax(0, 1fr) 12.5rem;
+  align-items: start;
+}
+
+.persons-table,
+.pages-table {
+  width: 100%;
+  table-layout: fixed;
+  margin-bottom: 0;
+}
+
+.persons-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pages-table tbody tr {
+  cursor: pointer;
+}
+
+.pages-scroll {
+  max-height: 30rem;
+  overflow: auto;
+}
+
+.pages-table tbody td {
+  text-align: center;
+}
+
+.pages-table tr.selected td {
+  background-color: var(--syp-tint-origin, rgba(0, 150, 201, 0.14));
 }
 
 .persons-list {

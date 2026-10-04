@@ -3,8 +3,8 @@
  * Вкладка сцен: сцены файла, планы выбранных сцен, персоны и свойства сцены.
  *
  * Форма перенесена по старому проекту. Отличие сцены от события — в цвете и
- * стороне отметки на миниатюре плана: сцена помечается **оранжевым слева**,
- * событие — зелёным справа. Поэтому здесь оранжевая полоса слева.
+ * стороне отметки на миниатюре плана: сцена помечается **orange on the left**,
+ * событие — green on the right. Поэтому здесь оранжевая полоса слева.
  *
  * В отличие от старого проекта удаление сцен работает: там обработчик удаления
  * был пустым, кнопка на месте, а действия нет.
@@ -26,7 +26,7 @@ const props = defineProps<{ videofileId: number }>()
 /** Ширина миниатюры кадра в колонках FROM и TO, как в старой форме. */
 const THUMB = 96
 
-/** Сцены файла. */
+/** File scenes. */
 const scenes = ref<SceneView[]>([])
 
 /** Персоны проекта. */
@@ -39,7 +39,7 @@ const selected = ref<number[]>([])
 const propertyKey = ref('')
 const propertyValue = ref('')
 
-/** Свойства сцены по идентификатору сцены. */
+/** Scene properties по идентификатору сцены. */
 const properties = ref<Record<number, Array<{ key: string; value: string }>>>({})
 
 const error = ref('')
@@ -48,7 +48,7 @@ const notice = ref('')
 /** Сцены, выбранные оператором. */
 const chosen = computed(() => scenes.value.filter((scene) => selected.value.includes(scene.id)))
 
-/** Планы выбранных сцен, объединённые по всем выбранным. */
+/** Shots of selected scenes, объединённые по всем выбранным. */
 const chosenShots = computed<ShotView[]>(() => chosen.value.flatMap((scene) => scene.shots))
 
 /** Свойства первой из выбранных сцен — как в старом проекте, где таблица одна. */
@@ -71,33 +71,33 @@ function toggle(id: number): void {
 /** Создаёт сцену по выбранным планам. */
 function createFromShots(): void {
   if (chosenShots.value.length === 0) {
-    notice.value = 'Создание сцены идёт по выбранным планам: выберите планы в левой части'
+    notice.value = 'Scene creation is under way по выбранным планам: выберите планы в левой части'
     return
   }
   const ordered = [...chosenShots.value].sort((left, right) => left.firstFrame - right.firstFrame)
   for (let index = 1; index < ordered.length; index += 1) {
     if (ordered[index].firstFrame !== ordered[index - 1].lastFrame + 1) {
-      notice.value = 'Выделены планы не подряд: сцена из разорванного куска не получается'
+      notice.value = 'Selected shots: nе подряд: сцена из разорванного куска не получается'
       return
     }
   }
-  notice.value = 'Создание сцены по выбранным планам ещё не ходит в бэкенд: эндпоинта нет'
+  notice.value = 'Scene creation by выбранным планам ещё не ходит в бэкенд: эндпоинта нет'
 }
 
 /** Удаляет выбранные сцены. */
 function removeSelected(): void {
   if (selected.value.length === 0) {
-    notice.value = 'Не выбрано ни одной сцены: удалять нечего'
+    notice.value = 'Not a single shot selectedой сцены: удалять нечего'
     return
   }
-  notice.value = 'Удаление сцен ещё не ходит в бэкенд: эндпоинта нет'
+  notice.value = 'Scene deletion is not не ходит в бэкенд: эндпоинта нет'
 }
 
 /** Добавляет свойство выбранной сцене. */
 function addProperty(): void {
   const first = chosen.value[0]
   if (first === undefined) {
-    notice.value = 'Свойство добавляется к выбранной сцене: выберите сцену'
+    notice.value = 'Property addedется к выбранной сцене: выберите сцену'
     return
   }
   if (propertyKey.value.trim() === '') {
@@ -114,7 +114,7 @@ function addProperty(): void {
   }
   propertyKey.value = ''
   propertyValue.value = ''
-  notice.value = 'свойство сохранено'
+  notice.value = 'property saved'
 }
 
 /** Удаляет свойство выбранной сцены. */
@@ -127,14 +127,14 @@ function removeProperty(key: string): void {
     ...properties.value,
     [first.id]: (properties.value[first.id] ?? []).filter((item) => item.key !== key),
   }
-  notice.value = 'свойство удалено'
+  notice.value = 'property deleted'
 }
 
 /** Двигает начало сцены на кадр. */
 async function moveBoundary(frame: number, delta: number): Promise<void> {
   const first = chosen.value[0]
   if (first === undefined) {
-    notice.value = 'Граница двигается у выбранной сцены: выберите сцену'
+    notice.value = 'The boundary moves у выбранной сцены: выберите сцену'
     return
   }
   try {
@@ -210,7 +210,7 @@ watch(
 
     <div class="scenes-grid">
       <div class="column column-wide">
-        <div class="syp-card-title">Сцены файла</div>
+        <div class="syp-card-title">File scenes</div>
         <table class="table table-sm">
           <thead>
             <tr>
@@ -244,7 +244,7 @@ watch(
               </td>
             </tr>
             <tr v-if="scenes.length === 0">
-              <td colspan="3" class="empty">Сцен нет</td>
+              <td colspan="3" class="empty">No scenes</td>
             </tr>
           </tbody>
         </table>
@@ -257,13 +257,13 @@ watch(
           </button>
         </div>
         <p class="legend">
-          Сцена на миниатюре плана помечается <span class="swatch scene">оранжевым слева</span>,
-          событие — <span class="swatch event">зелёным справа</span>.
+          Сцена на миниатюре плана помечается <span class="swatch scene">orange on the left</span>,
+          событие — <span class="swatch event">green on the right</span>.
         </p>
       </div>
 
       <div class="column">
-        <div class="syp-card-title">Планы выбранных сцен</div>
+        <div class="syp-card-title">Shots of selected scenes</div>
         <table class="table table-sm">
           <thead>
             <tr>
@@ -289,7 +289,7 @@ watch(
               </td>
             </tr>
             <tr v-if="chosenShots.length === 0">
-              <td colspan="2" class="empty">Планов нет</td>
+              <td colspan="2" class="empty">No shots</td>
             </tr>
           </tbody>
         </table>
@@ -330,16 +330,16 @@ watch(
       </div>
 
       <div class="column">
-        <div class="syp-card-title">Персоны выбранных сцен</div>
+        <div class="syp-card-title">Persons of selected scenes</div>
         <ul class="persons">
           <li v-for="person in persons" :key="person.id">{{ person.name }}</li>
-          <li v-if="persons.length === 0" class="empty">Персон нет</li>
+          <li v-if="persons.length === 0" class="empty">No persons</li>
         </ul>
       </div>
     </div>
 
     <div class="properties">
-      <div class="syp-card-title">Свойства сцены</div>
+      <div class="syp-card-title">Scene properties</div>
       <table class="table table-sm">
         <thead>
           <tr>
@@ -363,7 +363,7 @@ watch(
             </td>
           </tr>
           <tr v-if="chosenProperties.length === 0">
-            <td colspan="3" class="empty">Свойств нет</td>
+            <td colspan="3" class="empty">No properties</td>
           </tr>
         </tbody>
       </table>
