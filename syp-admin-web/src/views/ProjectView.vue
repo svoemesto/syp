@@ -29,7 +29,7 @@ import {
   listVideofile,
   readProject,
   readVideofile,
-  type ProjectView,
+  type ProjectDetailView,
   type VideofileView,
 } from '../api/catalog'
 import { deleteProperty, readProperties, writeProperty, type PropertyView } from '../api/properties'
@@ -41,7 +41,7 @@ const router = useRouter()
 const project = computed(() => Number(props.projectId))
 
 /** Проект. */
-const loaded = ref<ProjectView | null>(null)
+const loaded = ref<ProjectDetailView['project'] | null>(null)
 
 /** Файлы проекта. */
 const files = ref<VideofileView[]>([])
@@ -218,7 +218,7 @@ async function getTracks(): Promise<void> {
 
 onMounted(async () => {
   try {
-    loaded.value = await readProject(project.value)
+    loaded.value = (await readProject(project.value)).project
     files.value = await listVideofile(project.value)
     await loadProperties('PROJECT', project.value, projectProperties)
     if (files.value.length > 0) {
