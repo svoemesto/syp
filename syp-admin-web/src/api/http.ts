@@ -77,8 +77,8 @@ export async function request<T>(
     })
   } catch (cause) {
     throw new Error(
-      `Админский бэкенд недоступен: ${cause instanceof Error ? cause.message : String(cause)}. ` +
-        'Проверьте, запущен ли контейнер syp-admin-app',
+      `The admin backend is unavailable: ${cause instanceof Error ? cause.message : String(cause)}. ` +
+        'Check whether the syp-admin-app container is running',
     )
   }
 

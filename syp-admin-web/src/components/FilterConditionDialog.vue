@@ -20,7 +20,6 @@ import PersonSelectDialog from './PersonSelectDialog.vue'
 import {
   CONFIRM_BUTTON_TEXT,
   SELECT_BUTTON_TEXT,
-  conditionName,
   type ConditionIncluded,
   type ConditionObjectClass,
   type ConditionSubject,
@@ -74,7 +73,6 @@ const SUBJECTS: { value: ConditionSubject; title: string }[] = [
 const selectText = computed(() => SELECT_BUTTON_TEXT[draft.value.objectClass])
 
 /** Живая формулировка условия. */
-const name = computed(() => conditionName(draft.value))
 
 /** Выбран ли объект: без него условие бессмысленно. */
 const canConfirm = computed(() => draft.value.objectKey !== null && draft.value.objectName !== '')
@@ -168,12 +166,11 @@ onMounted(async () => {
 
 <template>
   <div class="condition-dialog" role="dialog" aria-modal="true" aria-label="Filter condition">
-    <h2 class="syp-card-title">New filter condition</h2>
+    <h2 class="syp-card-title">Create new filter condition</h2>
 
     <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
 
     <fieldset>
-      <legend class="legend">What we look for</legend>
       <div v-for="item in OBJECT_CLASSES" :key="item.value" class="form-check">
         <input
           :id="`oc-${item.value}`"
@@ -197,7 +194,6 @@ onMounted(async () => {
     <hr />
 
     <fieldset>
-      <legend class="legend">Included or excluded</legend>
       <div class="form-check">
         <input
           id="in-yes"
@@ -237,7 +233,7 @@ onMounted(async () => {
     <!-- Формулировка показана вся, вместе с ключом объекта: в старом проекте
          она обрезалась шириной окна в 200 пикселей, а ключа не показывала
          вовсе, и ошибиться в выборе персоны было нечем. -->
-    <p class="statement" role="status">{{ name }}</p>
+    <p class="statement name-label" role="status">NAME</p>
 
     <div class="dialog-actions">
       <button type="button" class="btn btn-sm btn-primary" :disabled="!canConfirm" @click="confirm">
@@ -272,16 +268,16 @@ onMounted(async () => {
   box-shadow: 0 1rem 3rem rgb(0 0 0 / 45%);
   padding: 1rem;
 }
-.legend {
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
 .in-word {
   display: inline-block;
   margin: 0.25rem 0 0 1.5rem;
   font-size: 0.8125rem;
   color: var(--syp-text-muted);
 }
+.name-label {
+  color: var(--syp-danger);
+}
+
 .statement {
   margin: 0.75rem 0;
   padding: 0.5rem;

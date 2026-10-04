@@ -62,7 +62,7 @@ const error = ref('')
 const busy = ref(false)
 
 /** Ход работы под полосой: в старой форме здесь стоял английский `Label`. */
-const progressNote = ref('отбор не запускался')
+const progressNote = ref('the selection has not run')
 
 /** Выбранный фильтр, если он есть. */
 const currentFilter = computed(() => filters.value[filterIndex.value] ?? null)
@@ -255,7 +255,7 @@ async function apply(): Promise<void> {
 /** Создание видео по отобранным планам: подсистемы в проекте none. */
 function createVideo(): void {
   notice.value =
-    `Подсистемы нарезки видео в проекте нет, поэтому файлы по отобранным планам ` +
+    `The project has no video cutting subsystem, поэтому файлы по отобранным планам ` +
     `(${selectedShots.value.length}) не создаются. Кнопка оставлена на месте, чтобы ` +
     `отсутствие подсистемы было видно, а не выглядело как поломка`
 }
@@ -263,8 +263,8 @@ function createVideo(): void {
 /** Создание видео по отобранным планам для всех персон: то же самое. */
 function createVideoForAllPersons(): void {
   notice.value =
-    'Подсистемы нарезки видео в проекте нет, поэтому файлы для всех персон ' +
-    'по отобранным планам не создаются'
+    'The project has no video cutting subsystem, поэтому файлы для всех персон ' +
+    'nothing is created from the selected shots'
 }
 
 onMounted(async () => {
