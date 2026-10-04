@@ -22,6 +22,8 @@ import {
   type PersonView,
 } from '../api/characters'
 import FaceThumbnails from './FaceThumbnails.vue'
+import PersonSelectDialog from './PersonSelectDialog.vue'
+import PersonEditDialog from './PersonEditDialog.vue'
 
 const props = defineProps<{ videofileId: number }>()
 
@@ -47,6 +49,15 @@ const filters = ref({ notExample: true, example: true, notManual: true, manual: 
 const notice = ref('')
 
 const error = ref('')
+
+/** Идентификатор проекта: он нужен окну выбора персоны. */
+const projectId = ref(0)
+
+/** Открыто ли окно выбора персоны. */
+const selectOpen = ref(false)
+
+/** Персона, которую правят в открытом окне. */
+const editing = ref<PersonView | null>(null)
 
 /** Лица, прошедшие фильтры типов. */
 const visibleFaces = computed<FaceView[]>(() =>
@@ -80,9 +91,10 @@ function clearSelection(): void {
 }
 
 /** Назначает выбранные лица выбранной персоне. */
-async function assignToTarget(): Promise<void> {
-  if (target.value === undefined) {
-    notice.value = 'Выберите персону, которой назначаются лица'
+async function assignToPerson(personId: number): Promise<void> {
+  const person = persons.value.find((item) => item.id === personId)
+  if (person === undefined) {
+    notice.value = 'Персона не найдена: назначать некого'
     return
   }
   if (selectedFaces.value.length === 0) {
@@ -90,13 +102,23 @@ async function assignToTarget(): Promise<void> {
     return
   }
   try {
-    await assignFacesToPerson(props.videofileId, target.value.id, selectedFaces.value)
-    notice.value = `лиц перенесено к «${target.value.name}»: ${selectedFaces.value.length}`
+    await assignFacesToPerson(props.videofileId, person.id, selectedFaces.value)
+    notice.value = `лиц перенесено к «${person.name}»: ${selectedFaces.value.length}`
     error.value = ''
+    selectOpen.value = false
     await reload()
   } catch (failure) {
     error.value = (failure as Error).message
   }
+}
+
+/** Открывает окно выбора персоны. */
+function openSelect(): void {
+  if (selectedFaces.value.length === 0) {
+    notice.value = 'Не выбрано ни одного лица: выбирать персону не для чего'
+    return
+  }
+  selectOpen.value = true
 }
 
 /** Помечает выбранные лица эталонами и снимает пометку. */
@@ -137,8 +159,8 @@ async function makePhoto(): Promise<void> {
 }
 
 /** Лицо приняло перетаскивание персоны. */
-function onDrop(): void {
-  void assignToTarget()
+function onDrop(personId: number): void {
+  void assignToPerson(personId)
 }
 
 /** Переходит на страницу лиц. */
@@ -157,9 +179,10 @@ async function turnPage(delta: number): Promise<void> {
 async function reload(): Promise<void> {
   try {
     faces.value = await readFaces(props.videofileId, page.value * (faces.value?.limit ?? 200), faces.value?.limit ?? 200)
-    const projectId = faces.value?.projectId
-    if (projectId !== undefined) {
-      persons.value = (await readPersons(projectId)).persons
+    const loaded = faces.value?.projectId
+    if (loaded !== undefined) {
+      projectId.value = loaded
+      persons.value = (await readPersons(loaded)).persons
     }
     error.value = ''
   } catch (failure) {
@@ -188,7 +211,7 @@ watch(
         class="persons-list"
         :class="{ over: targetPerson !== null && selectedFaces.length > 0 }"
         @dragover.prevent
-        @drop.prevent="onDrop"
+        @drop.prevent="onDrop(Number(event.dataTransfer?.getData('text/plain')))"
       >
         <div class="syp-card-title">Персоны файла</div>
         <p class="hint">Перетащите лицо на строку персоны, чтобы назначить</p>
@@ -197,7 +220,10 @@ watch(
             v-for="person in persons"
             :key="person.id"
             :class="{ selected: targetPerson === person.id }"
+            :draggable="true"
             @click="targetPerson = person.id"
+            @dragstart="event.dataTransfer?.setData('text/plain', String(person.id))"
+            @dblclick="editing = person"
           >
             <img
               v-if="person.photoFrameNumber !== null"
@@ -221,7 +247,15 @@ watch(
             <label><input v-model="filters.manual" type="checkbox" /> Ручной</label>
           </fieldset>
           <div class="actions">
-            <button type="button" class="btn btn-sm btn-primary" @click="assignToTarget">Назначить персоне</button>
+            <button type="button" class="btn btn-sm btn-primary" @click="openSelect">Назначить персоне</button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              :disabled="target === undefined"
+              @click="target !== undefined && assignToPerson(target.id)"
+            >
+              Назначить выбранной строке
+            </button>
             <button type="button" class="btn btn-sm btn-outline-secondary" @click="makePhoto">Фото персоны</button>
             <button type="button" class="btn btn-sm btn-outline-secondary" @click="markExamples(true)">Пометить эталоном</button>
             <button type="button" class="btn btn-sm btn-outline-secondary" @click="markExamples(false)">Снять эталон</button>
@@ -256,6 +290,21 @@ watch(
     </div>
 
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
+
+    <PersonSelectDialog
+      v-if="selectOpen"
+      :videofile-id="props.videofileId"
+      :project-id="projectId"
+      @chosen="assignToPerson"
+      @closed="selectOpen = false"
+    />
+    <PersonEditDialog
+      v-if="editing !== null"
+      :videofile-id="props.videofileId"
+      :person="editing"
+      @saved="reload"
+      @closed="editing = null"
+    />
   </section>
 </template>
 

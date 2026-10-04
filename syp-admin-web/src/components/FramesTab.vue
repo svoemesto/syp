@@ -25,6 +25,7 @@ import {
   type FrameView,
   type FramesView,
 } from '../api/structure'
+import FrameFacesDialog from './FrameFacesDialog.vue'
 
 const props = defineProps<{ videofileId: number }>()
 
@@ -42,6 +43,9 @@ const boundaryState = ref(0)
 
 /** Номер выбранного кадра. */
 const chosenFrame = ref<number | null>(null)
+
+/** Открыто ли окно лиц выбранного кадра. */
+const facesOpen = ref(false)
 
 const error = ref('')
 const notice = ref('')
@@ -79,6 +83,15 @@ function frameClass(frame: FrameView): string[] {
 function choose(frame: FrameView): void {
   chosenFrame.value = frame.frameNumber
   notice.value = ''
+}
+
+/** Открывает окно лиц выбранного кадра. */
+function openFaces(): void {
+  if (chosenFrame.value === null) {
+    notice.value = 'Выберите кадр: лица смотреть нечего'
+    return
+  }
+  facesOpen.value = true
 }
 
 /**
@@ -182,6 +195,7 @@ watch(
       </div>
       <div class="actions">
         <button type="button" class="btn btn-sm btn-primary" @click="apply">Применить к границам планов</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="openFaces">Лица кадра</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(-1)">К предыдущей странице</button>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(1)">К следующей странице</button>
       </div>
@@ -214,6 +228,13 @@ watch(
       Планы ещё не созданы, поэтому границы править не на чем. Правка станет доступна после разбора файла.
     </p>
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
+
+    <FrameFacesDialog
+      v-if="facesOpen && chosenFrame !== null"
+      :videofile-id="props.videofileId"
+      :frame-number="chosenFrame"
+      @closed="facesOpen = false"
+    />
   </section>
 </template>
 
