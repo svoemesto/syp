@@ -8,7 +8,7 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useCatalogStore } from '../stores/catalog'
-import { readProjects, readVideofile } from '../api/catalog'
+import { readProject, readVideofile } from '../api/catalog'
 import {
   connectionIsAttention,
   connectionLabel,
@@ -77,8 +77,8 @@ async function readRouteProject(): Promise<void> {
     return
   }
   try {
-    const found = (await readProjects()).find((entry) => entry.id === Number(raw))
-    routeProjectName.value = found?.name ?? null
+    const found = await readProject(Number(raw))
+    routeProjectName.value = found.name
   } catch {
     // Неизвестный проект — обычное дело для адреса, введённого руками.
     routeProjectName.value = null
