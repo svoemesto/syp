@@ -17,6 +17,7 @@ import { readFaces, readPersons, type PersonView } from '../api/characters'
 import EventsTab from '../components/EventsTab.vue'
 import PersonsTab from '../components/PersonsTab.vue'
 import ScenesTab from '../components/ScenesTab.vue'
+import FramesTab from '../components/FramesTab.vue'
 
 const props = defineProps<{ videofileId: number }>()
 
@@ -212,10 +213,7 @@ onMounted(async () => {
 
         <ScenesTab v-else-if="tab === 'Scenes'" :videofile-id="Number(props.videofileId)" />
 
-        <section v-else class="placeholder">
-          <div class="syp-card-title">Кадры</div>
-          <p>Раздел переносится: матрица миниатюр кадров и страницы кадров.</p>
-        </section>
+        <FramesTab v-else :videofile-id="Number(props.videofileId)" />
       </div>
     </div>
   </section>

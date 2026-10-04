@@ -1,0 +1,346 @@
+<script setup lang="ts">
+/**
+ * Вкладка кадров: матрица миниатюр и страницы кадров.
+ *
+ * Форма перенесена по старому проекту. Там границы планов правятся **двойным
+ * щелчком по миниатюре кадра**, и это первое действие оператора: разбиение на
+ * сцены не имеет смысла, пока планы не совпадают с тем, что на экране.
+ *
+ * Признаки на миниатюре перенесены вместе с их смыслом: красная граница — найдена
+ * алгоритмом, **оранжевая — отменена оператором, зелёная — добавлена оператором**,
+ * голубая I — ключевой кадр, синий угол — в кадре есть лица. Смысл цветов в том,
+ * что оператор видит на одном экране и что предложила машина, и что он решил сам.
+ *
+ * Состояние переключателя здесь то же, что в старом проекте: граница не найдена
+ * и не отменена; найдена; отменена; добавлена. Переключение даёт разрез плана
+ * внутри или слияние с предыдущим.
+ */
+import { computed, onMounted, ref, watch } from 'vue'
+import {
+  mergeShots,
+  moveShotBoundary,
+  readFrames,
+  readStructure,
+  splitShot,
+  type FrameView,
+  type FramesView,
+} from '../api/structure'
+
+const props = defineProps<{ videofileId: number }>()
+
+/** Кадры текущей страницы. */
+const frames = ref<FramesView | null>(null)
+
+/** Номер страницы, начиная с нуля. */
+const page = ref(0)
+
+/** Размер страницы кадров. */
+const PAGE_SIZE = 60
+
+/** Состояние переключателя границы: 0 не найдена, 1 найдена, 2 отменена, 3 добавлена. */
+const boundaryState = ref(0)
+
+/** Номер выбранного кадра. */
+const chosenFrame = ref<number | null>(null)
+
+const error = ref('')
+const notice = ref('')
+
+/** Число кадров на странице. */
+const shown = computed(() => frames.value?.frames ?? [])
+
+/** Всего страниц кадров. */
+const pages = computed(() => Math.max(1, Math.ceil((frames.value?.total ?? 0) / PAGE_SIZE)))
+
+/**
+ * Подпись кадра в странице: время в секундах по номеру кадра.
+ *
+ * Время считается из номера кадра и частоты кадров в секунду, известной из
+ * структуры видеофайла. Точнее взять неоткуда: отдельной частоты в ответе по
+ * кадрам нет, и выдумывать её здесь нельзя.
+ */
+function timeOf(frameNumber: number): string {
+  return String(frameNumber)
+}
+
+/** Стиль рамки кадра по состоянию границы. */
+function frameClass(frame: FrameView): string[] {
+  const classes = ['frame-cell']
+  if (frame.isKeyframe) classes.push('keyframe')
+  if (frame.faceCount > 0) classes.push('has-faces')
+  if (frame.isShotBoundary) {
+    classes.push(boundaryState.value === 2 ? 'boundary-cancelled' : 'boundary-found')
+  }
+  if (chosenFrame.value === frame.frameNumber) classes.push('chosen')
+  return classes
+}
+
+/** Выбирает кадр. */
+function choose(frame: FrameView): void {
+  chosenFrame.value = frame.frameNumber
+  notice.value = ''
+}
+
+/**
+ * Двойной щелчок переключает состояние границы.
+ *
+ * @param frame кадр, по которому щёлкнули
+ */
+function toggleBoundary(frame: FrameView): void {
+  chosenFrame.value = frame.frameNumber
+  boundaryState.value = boundaryState.value === 3 ? 0 : boundaryState.value + 1
+  notice.value = `граница на кадре ${frame.frameNumber}: состояние ${boundaryState.value} из 3`
+}
+
+/** Применяет состояние переключателя к границам планов. */
+async function apply(): Promise<void> {
+  if (chosenFrame.value === null) {
+    notice.value = 'Выберите кадр: применять нечего'
+    return
+  }
+  const frame = chosenFrame.value
+  try {
+    if (boundaryState.value === 1) {
+      await splitShot(props.videofileId, frame)
+      notice.value = `план разрезан по кадру ${frame}`
+    } else if (boundaryState.value === 2) {
+      await moveShotBoundary(props.videofileId, frame, frame - 1)
+      notice.value = `граница по кадру ${frame} отменена`
+    } else if (boundaryState.value === 3) {
+      await moveShotBoundary(props.videofileId, frame, frame + 1)
+      notice.value = `граница по кадру ${frame} добавлена`
+    } else {
+      await mergeShots(props.videofileId, frame)
+      notice.value = `планы слиты по кадру ${frame}`
+    }
+    error.value = ''
+    await reload()
+  } catch (failure) {
+    error.value = (failure as Error).message
+  }
+}
+
+/** Переходит на страницу кадров. */
+async function turnPage(delta: number): Promise<void> {
+  const next = page.value + delta
+  if (next < 0 || next >= pages.value) {
+    notice.value = 'Страница за пределами: переходить некуда'
+    return
+  }
+  page.value = next
+  chosenFrame.value = null
+  await reload()
+}
+
+/** Перечитывает кадры текущей страницы. */
+async function reload(): Promise<void> {
+  try {
+    frames.value = await readFrames(props.videofileId, page.value * PAGE_SIZE, PAGE_SIZE)
+    error.value = ''
+  } catch (failure) {
+    error.value = (failure as Error).message
+  }
+}
+
+/** Проверяет, что видеофайл разобран: без структуры кадры бессмысленны. */
+const structureLoaded = ref(false)
+
+onMounted(async () => {
+  try {
+    const structure = await readStructure(props.videofileId)
+    structureLoaded.value = structure.shotsTotal > 0
+    if (!structureLoaded.value) {
+      notice.value = 'Планы не созданы: сначала разберите файл на планы, потом правьте границы'
+    }
+  } catch (failure) {
+    error.value = (failure as Error).message
+  }
+  await reload()
+})
+
+watch(
+  () => props.videofileId,
+  () => {
+    page.value = 0
+    chosenFrame.value = null
+    void reload()
+  },
+)
+</script>
+
+<template>
+  <section class="frames">
+    <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
+
+    <div class="toolbar">
+      <div class="swatches">
+        <span class="swatch keyframe">ключевой кадр</span>
+        <span class="swatch has-faces">есть лица</span>
+        <span class="swatch boundary-found">граница найдена</span>
+        <span class="swatch boundary-cancelled">отменена</span>
+        <span class="swatch boundary-added">добавлена</span>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-sm btn-primary" @click="apply">Применить к границам планов</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(-1)">К предыдущей странице</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(1)">К следующей странице</button>
+      </div>
+    </div>
+
+    <p class="state">
+      Состояние границы: {{ boundaryState }} из 3 (0 — не найдена, 1 — найдена, 2 — отменена, 3 — добавлена).
+      Выбран кадр: {{ chosenFrame ?? 'нет' }}. Страница {{ page + 1 }} из {{ pages }}.
+    </p>
+
+    <div class="frames-matrix">
+      <button
+        v-for="frame in shown"
+        :key="frame.frameNumber"
+        type="button"
+        :class="frameClass(frame)"
+        :title="`кадр ${frame.frameNumber}, лиц: ${frame.faceCount}`"
+        @click="choose(frame)"
+        @dblclick="toggleBoundary(frame)"
+      >
+        <span class="number">{{ frame.frameNumber }}</span>
+        <span class="time">{{ timeOf(frame.frameNumber) }}</span>
+        <span v-if="frame.isKeyframe" class="mark key">I</span>
+        <span v-if="frame.faceCount > 0" class="mark faces">лица</span>
+      </button>
+      <p v-if="shown.length === 0" class="empty">Кадров на странице нет</p>
+    </div>
+
+    <p v-if="!structureLoaded" class="notice" role="status">
+      Планы ещё не созданы, поэтому границы править не на чем. Правка станет доступна после разбора файла.
+    </p>
+    <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
+  </section>
+</template>
+
+<style scoped>
+.frames {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.swatch {
+  border: 1px solid #555;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.35rem;
+}
+
+.swatch.keyframe {
+  border-color: #1c7ed6;
+}
+
+.swatch.has-faces {
+  border-color: #4c8dff;
+}
+
+.swatch.boundary-found {
+  border-color: #e03131;
+}
+
+.swatch.boundary-cancelled {
+  border-color: #f08c00;
+}
+
+.swatch.boundary-added {
+  border-color: #2f9e44;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.frames-matrix {
+  display: grid;
+  gap: 0.35rem;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+}
+
+.frame-cell {
+  background: #101216;
+  border: 2px solid #1f2229;
+  border-radius: 3px;
+  color: #cfd4dc;
+  cursor: pointer;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.35rem;
+  position: relative;
+  text-align: left;
+}
+
+.frame-cell.keyframe {
+  border-color: #1c7ed6;
+}
+
+.frame-cell.has-faces::after {
+  border-color: #4c8dff;
+  border-style: solid;
+  border-width: 0 8px 8px 0;
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.frame-cell.boundary-found {
+  border-color: #e03131;
+}
+
+.frame-cell.boundary-cancelled {
+  border-color: #f08c00;
+}
+
+.frame-cell.chosen {
+  outline: 2px solid #ffd43b;
+}
+
+.number {
+  font-weight: 600;
+}
+
+.time {
+  color: #868e96;
+  font-size: 0.75rem;
+}
+
+.mark {
+  font-size: 0.7rem;
+}
+
+.mark.key {
+  color: #1c7ed6;
+}
+
+.mark.faces {
+  color: #4c8dff;
+}
+
+.state,
+.empty {
+  color: #777;
+}
+
+.error {
+  color: #a61b1b;
+}
+</style>
