@@ -72,6 +72,19 @@ const boxes = computed(() =>
   })),
 )
 
+/**
+ * Правка лиц кадра сохранена.
+ *
+ * В шаблоне несколько операторов и приведение типа не разбираются, поэтому
+ * обработчик назван здесь.
+ */
+function onSaved(): void {
+  void reload()
+  if (frame.value !== null) {
+    emit('editing', frame.value)
+  }
+}
+
 /** Читает лица выбранного плана. */
 async function reload(): Promise<void> {
   if (props.shot === null) {
@@ -129,10 +142,7 @@ onMounted(reload)
       :videofile-id="videofileId"
       :frame-number="frame"
       @closed="editing = false"
-      @saved="
-        reload()
-        emit('editing', frame as number)
-      "
+      @saved="onSaved"
     />
   </div>
 </template>
