@@ -115,7 +115,7 @@ export const SELECT_BUTTON_TEXT: Readonly<Record<ConditionObjectClass, string>> 
 }
 
 /** Подпись кнопки подтверждения. */
-export const CONFIRM_BUTTON_TEXT = 'Добавить условие'
+export const CONFIRM_BUTTON_TEXT = 'Create new filter condition'
 
 /**
  * Заготовка условия: по умолчанию ищем персону, включая её в план.
@@ -200,12 +200,11 @@ export const IS_STUB = true
  * Текст пометки о заглушке.
  */
 export const STUB_NOTICE =
-  'Заглушка: бэкенда фильтров в проекте нет, поэтому фильтры, группы и условия ' +
-  'хранятся только в этой форме и исчезают при перезагрузке. Список файлов и ' +
-  'планы справа — настоящие.'
+  'Stub: the project has no filters backend, so filters, groups and ' +
+  'conditions live only in this form and disappear on reload. The file ' +
+  'list and the shots on the right are real ones.'
 
 /**
- * Планы, попавшие под отбор.
  *
  * Отбор — заглушка: он ничего не исключает и честно об этом говорит
  * вызывающим. Считать «отобранные» планы по заготовленным условиям без
