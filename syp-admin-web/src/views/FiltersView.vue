@@ -513,7 +513,7 @@ onMounted(async () => {
           <thead>
             <tr>
               <th class="num">#</th>
-              <th>File</th>
+              <th>Файл</th>
             </tr>
           </thead>
           <tbody>
@@ -557,14 +557,14 @@ onMounted(async () => {
           </tbody>
         </table>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="createVideo">
-          Create a video from the selected shots
+          Create Video File
         </button>
         <button
           type="button"
           class="btn btn-sm btn-outline-secondary"
           @click="createVideoForAllPersons"
         >
-          Create a video from the selected shots for all persons
+          Create Video File for all ended persons
         </button>
       </div>
     </div>
@@ -594,6 +594,11 @@ onMounted(async () => {
   border-radius: 0.3rem;
   font-size: 0.8125rem;
 }
+.files thead th {
+  /* В форме колонка подписана «Файл», а не «ФАЙЛ». */
+  text-transform: none;
+}
+
 .filters-body {
   display: flex;
   gap: 1rem;
