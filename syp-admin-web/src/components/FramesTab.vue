@@ -21,11 +21,11 @@ import {
   moveShotBoundary,
   readFrames,
   readStructure,
-  readVideofile,
   splitShot,
   type FrameView,
   type FramesView,
 } from '../api/structure'
+import { readVideofile } from '../api/catalog'
 import FrameFacesDialog from './FrameFacesDialog.vue'
 
 const props = defineProps<{ videofileId: number }>()
