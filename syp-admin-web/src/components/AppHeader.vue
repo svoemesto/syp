@@ -27,6 +27,7 @@ const sections = computed(() => [
   { name: 'structure', title: 'Структура', hint: 'Сцены, планы, границы' },
   { name: 'faces', title: 'Лица', hint: 'Детекция, кластеры, персоны' },
   { name: 'actions', title: 'Операции', hint: 'Запуск обработки по файлам проекта' },
+  { name: 'filters', title: 'Фильтры', hint: 'Построение условий отбора планов' },
   { name: 'recipes', title: 'Сценарии', hint: 'Фильтры, выдача, подпись' },
 ])
 
@@ -74,7 +75,7 @@ function linkFor(name: string): {
 } {
   // Операции живут по проекту: набор файлов и признаки «уже сделано» имеют
   // смысл только для всех файлов проекта вместе, а не для одного видеофайла.
-  if (name === 'actions') {
+  if (name === 'actions' || name === 'filters') {
     const projectId = catalog.current.value?.project.id
     return projectId === undefined || projectId === null
       ? { name }
