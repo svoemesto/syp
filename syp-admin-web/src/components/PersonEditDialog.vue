@@ -179,7 +179,7 @@ onMounted(reload)
 }
 
 .dialog-body {
-  background: #fff;
+  background: var(--syp-surface);
   border-radius: 6px;
   display: grid;
   gap: 0.5rem;

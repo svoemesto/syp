@@ -249,10 +249,10 @@ onMounted(async () => {
   z-index: 30;
   min-width: 26rem;
   max-width: 40rem;
-  background: #fff;
-  border: 1px solid #d0d7de;
+  background: var(--syp-surface);
+  border: 1px solid var(--syp-border);
   border-radius: 0.4rem;
-  box-shadow: 0 1rem 3rem rgb(0 0 0 / 25%);
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 45%);
   padding: 1rem;
 }
 .legend {
@@ -263,16 +263,16 @@ onMounted(async () => {
   display: inline-block;
   margin: 0.25rem 0 0 1.5rem;
   font-size: 0.8125rem;
-  color: #57606a;
+  color: var(--syp-text-muted);
 }
 .statement {
   margin: 0.75rem 0;
   padding: 0.5rem;
   min-height: 3rem;
-  color: #cf222e;
+  color: var(--syp-danger);
   font-weight: 600;
-  background: #fff8f8;
-  border: 1px solid #ffd7d5;
+  background: var(--syp-surface);
+  border: 1px solid var(--syp-danger);
   border-radius: 0.3rem;
   white-space: normal;
   overflow-wrap: anywhere;

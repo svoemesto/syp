@@ -118,17 +118,17 @@ function select(): void {
   z-index: 30;
   min-width: 24rem;
   max-width: 34rem;
-  background: #fff;
-  border: 1px solid #d0d7de;
+  background: var(--syp-surface);
+  border: 1px solid var(--syp-border);
   border-radius: 0.4rem;
-  box-shadow: 0 1rem 3rem rgb(0 0 0 / 25%);
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 45%);
   padding: 1rem;
 }
 .stub {
   font-size: 0.78rem;
-  color: #57606a;
-  background: #f6f8fa;
-  border: 1px solid #d8dee4;
+  color: var(--syp-text-muted);
+  background: var(--syp-raised);
+  border: 1px solid var(--syp-border);
   border-radius: 0.3rem;
   padding: 0.5rem;
 }
@@ -136,7 +136,7 @@ function select(): void {
   cursor: pointer;
 }
 .table tbody tr.picked {
-  background: #e8f0fe;
+  background: var(--syp-tint);
 }
 .dialog-actions {
   display: flex;

@@ -496,8 +496,8 @@ onMounted(async () => {
 <style scoped>
 .stub {
   padding: 0.5rem 0.75rem;
-  background: #fff8e6;
-  border: 1px solid #f0d48a;
+  background: var(--syp-tint);
+  border: 1px solid var(--syp-warning);
   border-radius: 0.3rem;
   font-size: 0.8125rem;
 }
@@ -525,7 +525,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 .level .table tbody tr.picked {
-  background: #e8f0fe;
+  background: var(--syp-tint);
 }
 .num {
   text-align: right;
@@ -535,7 +535,7 @@ onMounted(async () => {
 }
 .empty {
   text-align: center;
-  color: #868e96;
+  color: var(--syp-text-muted);
 }
 .andor {
   display: flex;
@@ -557,7 +557,7 @@ onMounted(async () => {
   margin-left: auto;
 }
 .row-buttons .del {
-  color: #a40e26;
+  color: var(--syp-danger);
 }
 .apply {
   flex: 0 0 24rem;
@@ -571,7 +571,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 .apply .files tbody tr.picked {
-  background: #e8f0fe;
+  background: var(--syp-tint);
 }
 .apply-button {
   margin: 0.35rem 0 0.75rem;
@@ -588,6 +588,6 @@ onMounted(async () => {
 }
 .progress-note {
   font-size: 0.8rem;
-  color: #57606a;
+  color: var(--syp-text-muted);
 }
 </style>

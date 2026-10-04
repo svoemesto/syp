@@ -29,6 +29,6 @@ main {
 }
 
 nav a {
-  color: #1a4f8a;
+  color: var(--syp-link);
 }
 </style>

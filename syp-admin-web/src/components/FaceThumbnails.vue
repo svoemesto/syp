@@ -156,11 +156,11 @@ function caption(face: FaceView): string {
   width: 135px;
   position: relative;
   border: 1px solid #d0d4d8;
-  background: #ffffff;
+  background: var(--syp-surface);
 }
 
 .thumb.thumb.chosen {
-  outline: 2px solid #1a4f8a;
+  outline: 2px solid var(--syp-link);
 }
 
 .outlined {
