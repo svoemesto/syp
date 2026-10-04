@@ -255,25 +255,24 @@ onMounted(async () => {
          операции, фильтры и персоны, без файла — правка планов. -->
     <nav class="menu" aria-label="Меню проекта">
       <RouterLink :to="{ name: 'intake' }" class="menu-item">Открыть проект</RouterLink>
-      <button
-        type="button"
-        class="menu-item danger"
-        :disabled="!hasProject"
-        @click="removeProject"
-      >
+      <button type="button" class="menu-item danger" :disabled="!hasProject" @click="removeProject">
         Удалить проект
       </button>
       <button type="button" class="menu-item" :disabled="!hasProject" @click="projectActions">
         Операции над проектом
       </button>
-      <button type="button" class="menu-item" :disabled="!hasFile" @click="editShots">Правка планов</button>
+      <button type="button" class="menu-item" :disabled="!hasFile" @click="editShots">
+        Правка планов
+      </button>
       <button type="button" class="menu-item" :disabled="!hasProject" @click="editFilters">
         Правка фильтров
       </button>
       <button type="button" class="menu-item" :disabled="!hasProject" @click="editPersons">
         Правка персон
       </button>
-      <button type="button" class="menu-item" @click="databaseOpen = true">Выбрать базу данных</button>
+      <button type="button" class="menu-item" @click="databaseOpen = true">
+        Выбрать базу данных
+      </button>
     </nav>
 
     <div class="panes">
@@ -282,11 +281,23 @@ onMounted(async () => {
         <div class="syp-card-title">Проект</div>
         <div class="line">
           <label for="p-name">Имя:</label>
-          <input id="p-name" class="form-control form-control-sm" type="text" :value="loaded?.name ?? ''" disabled />
+          <input
+            id="p-name"
+            class="form-control form-control-sm"
+            type="text"
+            :value="loaded?.name ?? ''"
+            disabled
+          />
         </div>
         <div class="line">
           <label for="p-short">Короткое имя:</label>
-          <input id="p-short" class="form-control form-control-sm" type="text" value="поля в проекте нет" disabled />
+          <input
+            id="p-short"
+            class="form-control form-control-sm"
+            type="text"
+            value="поля в проекте нет"
+            disabled
+          />
         </div>
         <div class="line">
           <label for="p-folder">Папка:</label>
@@ -306,9 +317,8 @@ onMounted(async () => {
         <div class="syp-card-title">Параметры видео и звука</div>
         <p class="absent">
           В нашей модели ширина, высота, частота кадров и кодеки — свойства
-          <strong>файла</strong>, а не проекта, поэтому показаны справа. Битриты видео и
-          звука, контейнер и контейнер lossless сервер не отдаёт: таких полей в проекте
-          нет.
+          <strong>файла</strong>, а не проекта, поэтому показаны справа. Битриты видео и звука,
+          контейнер и контейнер lossless сервер не отдаёт: таких полей в проекте нет.
         </p>
 
         <div class="syp-card-title">Свойства</div>
@@ -328,7 +338,12 @@ onMounted(async () => {
               <td>{{ item.key }}</td>
               <td>{{ item.value }}</td>
               <td>
-                <button type="button" class="row-del" title="Удалить свойство" @click="removeProperty(item)">
+                <button
+                  type="button"
+                  class="row-del"
+                  title="Удалить свойство"
+                  @click="removeProperty(item)"
+                >
                   ×
                 </button>
               </td>
@@ -348,7 +363,9 @@ onMounted(async () => {
             type="text"
             placeholder="значение"
           />
-          <button type="button" class="btn btn-sm btn-outline-secondary" @click="addProperty">Добавить</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" @click="addProperty">
+            Добавить
+          </button>
         </div>
 
         <div class="syp-card-title">Свойства, зависящие от машины</div>
@@ -383,7 +400,13 @@ onMounted(async () => {
         <div class="syp-card-title">Файл</div>
         <div class="line">
           <label for="f-name">Имя:</label>
-          <input id="f-name" class="form-control form-control-sm" type="text" :value="chosen?.name ?? ''" disabled />
+          <input
+            id="f-name"
+            class="form-control form-control-sm"
+            type="text"
+            :value="chosen?.name ?? ''"
+            disabled
+          />
         </div>
         <div class="line">
           <label for="f-short">Обозначение:</label>
@@ -411,11 +434,11 @@ onMounted(async () => {
           <span>Ширина, пиксели</span><span>{{ chosen?.width ?? '—' }}</span>
           <span>Высота, пиксели</span><span>{{ chosen?.height ?? '—' }}</span>
           <span>Частота кадров</span><span>{{ chosen?.frameRate ?? '—' }}</span>
-          <span>Видеокодек</span><span>{{ chosen?.videoCodec ?? '—' }}</span>
-          <span>Аудиокодек</span><span>{{ chosen?.audioCodec ?? '—' }}</span>
-          <span>Частота звука, Гц</span><span>{{ chosen?.audioSampleRate ?? '—' }}</span>
-          <span>Кадров</span><span>{{ chosen?.frameCount ?? '—' }}</span>
-          <span>Длительность</span><span>{{ durationText }}</span>
+          <span>Видеокодек</span><span>{{ chosen?.videoCodec ?? '—' }}</span> <span>Аудиокодек</span
+          ><span>{{ chosen?.audioCodec ?? '—' }}</span> <span>Частота звука, Гц</span
+          ><span>{{ chosen?.audioSampleRate ?? '—' }}</span> <span>Кадров</span
+          ><span>{{ chosen?.frameCount ?? '—' }}</span> <span>Длительность</span
+          ><span>{{ durationText }}</span>
         </div>
 
         <div class="syp-card-title">Свойства файла</div>
@@ -435,7 +458,12 @@ onMounted(async () => {
               <td>{{ item.key }}</td>
               <td>{{ item.value }}</td>
               <td>
-                <button type="button" class="row-del" title="Удалить свойство" @click="removeProperty(item)">
+                <button
+                  type="button"
+                  class="row-del"
+                  title="Удалить свойство"
+                  @click="removeProperty(item)"
+                >
                   ×
                 </button>
               </td>

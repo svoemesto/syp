@@ -139,7 +139,11 @@ onMounted(reload)
             <td>{{ property.key }}</td>
             <td>{{ property.value }}</td>
             <td>
-              <button type="button" class="btn btn-sm btn-outline-secondary" @click="removeProperty(property.key)">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                @click="removeProperty(property.key)"
+              >
                 удалить
               </button>
             </td>
@@ -151,7 +155,12 @@ onMounted(reload)
       </table>
       <div class="property-fields">
         <input v-model="propertyKey" class="form-control" placeholder="Key" />
-        <textarea v-model="propertyValue" class="form-control" rows="2" placeholder="Value"></textarea>
+        <textarea
+          v-model="propertyValue"
+          class="form-control"
+          rows="2"
+          placeholder="Value"
+        ></textarea>
         <button type="button" class="btn btn-primary" @click="addProperty">Добавить</button>
       </div>
 
@@ -160,8 +169,12 @@ onMounted(reload)
 
       <div class="dialog-actions">
         <button type="button" class="btn btn-primary" @click="save">Подтвердить</button>
-        <button type="button" class="btn btn-outline-secondary" @click="remove">Удалить персону</button>
-        <button type="button" class="btn btn-outline-secondary" @click="emit('closed')">Закрыть</button>
+        <button type="button" class="btn btn-outline-secondary" @click="remove">
+          Удалить персону
+        </button>
+        <button type="button" class="btn btn-outline-secondary" @click="emit('closed')">
+          Закрыть
+        </button>
       </div>
     </div>
   </div>

@@ -107,7 +107,10 @@ function addProperty(): void {
   const existing = properties.value[first.id] ?? []
   properties.value = {
     ...properties.value,
-    [first.id]: [...existing.filter((item) => item.key !== propertyKey.value.trim()), { key: propertyKey.value.trim(), value: propertyValue.value }],
+    [first.id]: [
+      ...existing.filter((item) => item.key !== propertyKey.value.trim()),
+      { key: propertyKey.value.trim(), value: propertyValue.value },
+    ],
   }
   propertyKey.value = ''
   propertyValue.value = ''
@@ -217,14 +220,27 @@ watch(
             </tr>
           </thead>
           <tbody>
-            <tr v-for="scene in scenes" :key="scene.id" :class="{ selected: selected.includes(scene.id) }" @click="toggle(scene.id)">
+            <tr
+              v-for="scene in scenes"
+              :key="scene.id"
+              :class="{ selected: selected.includes(scene.id) }"
+              @click="toggle(scene.id)"
+            >
               <td>{{ scene.title ?? `Сцена ${scene.id}` }}</td>
               <td class="thumb-cell">
                 <span class="shot-mark" />
-                <ShotThumb :videofile-id="props.videofileId" :frame-number="scene.firstFrame" :width="THUMB" />
+                <ShotThumb
+                  :videofile-id="props.videofileId"
+                  :frame-number="scene.firstFrame"
+                  :width="THUMB"
+                />
               </td>
               <td class="thumb-cell">
-                <ShotThumb :videofile-id="props.videofileId" :frame-number="scene.lastFrame" :width="THUMB" />
+                <ShotThumb
+                  :videofile-id="props.videofileId"
+                  :frame-number="scene.lastFrame"
+                  :width="THUMB"
+                />
               </td>
             </tr>
             <tr v-if="scenes.length === 0">
@@ -236,7 +252,9 @@ watch(
           <button type="button" class="btn btn-sm btn-outline-secondary" @click="createFromShots">
             Создать сцену по выбранным планам
           </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" @click="removeSelected">Удалить выбранные сцены</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" @click="removeSelected">
+            Удалить выбранные сцены
+          </button>
         </div>
         <p class="legend">
           Сцена на миниатюре плана помечается <span class="swatch scene">оранжевым слева</span>,
@@ -256,10 +274,18 @@ watch(
           <tbody>
             <tr v-for="shot in chosenShots" :key="shot.id">
               <td class="thumb-cell">
-                <ShotThumb :videofile-id="props.videofileId" :frame-number="shot.firstFrame" :width="THUMB" />
+                <ShotThumb
+                  :videofile-id="props.videofileId"
+                  :frame-number="shot.firstFrame"
+                  :width="THUMB"
+                />
               </td>
               <td class="thumb-cell">
-                <ShotThumb :videofile-id="props.videofileId" :frame-number="shot.lastFrame" :width="THUMB" />
+                <ShotThumb
+                  :videofile-id="props.videofileId"
+                  :frame-number="shot.lastFrame"
+                  :width="THUMB"
+                />
               </td>
             </tr>
             <tr v-if="chosenShots.length === 0">
@@ -284,10 +310,20 @@ watch(
           >
             Начало правее
           </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="chosen.length === 0" @click="splitAt(chosen[0]?.firstFrame ?? 0)">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            :disabled="chosen.length === 0"
+            @click="splitAt(chosen[0]?.firstFrame ?? 0)"
+          >
             Разрезать
           </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="chosen.length < 2" @click="mergeAt(chosen[0]?.lastFrame ?? 0)">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            :disabled="chosen.length < 2"
+            @click="mergeAt(chosen[0]?.lastFrame ?? 0)"
+          >
             Слить
           </button>
         </div>
@@ -317,7 +353,13 @@ watch(
             <td>{{ property.key }}</td>
             <td>{{ property.value }}</td>
             <td>
-              <button type="button" class="btn btn-sm btn-outline-secondary" @click="removeProperty(property.key)">удалить</button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                @click="removeProperty(property.key)"
+              >
+                удалить
+              </button>
             </td>
           </tr>
           <tr v-if="chosenProperties.length === 0">
@@ -327,8 +369,15 @@ watch(
       </table>
       <div class="fields">
         <input v-model="propertyKey" class="form-control" placeholder="Key" />
-        <textarea v-model="propertyValue" class="form-control" rows="2" placeholder="Value"></textarea>
-        <button type="button" class="btn btn-primary" @click="addProperty">Добавить свойство</button>
+        <textarea
+          v-model="propertyValue"
+          class="form-control"
+          rows="2"
+          placeholder="Value"
+        ></textarea>
+        <button type="button" class="btn btn-primary" @click="addProperty">
+          Добавить свойство
+        </button>
       </div>
     </div>
 

@@ -45,9 +45,7 @@ const editing = ref(false)
  * начинается с пустоты, и оператор видел бы метку без рамок.
  */
 const frame = computed(() =>
-  props.shot === null
-    ? null
-    : Math.round((props.shot.firstFrame + props.shot.lastFrame) / 2),
+  props.shot === null ? null : Math.round((props.shot.firstFrame + props.shot.lastFrame) / 2),
 )
 
 /** Адрес кадра. */
@@ -119,13 +117,16 @@ onMounted(reload)
         v-for="box in boxes"
         :key="box.id"
         class="box"
-        :style="{ left: `${box.left}%`, top: `${box.top}%`, width: `${box.width}%`, height: `${box.height}%` }"
+        :style="{
+          left: `${box.left}%`,
+          top: `${box.top}%`,
+          width: `${box.width}%`,
+          height: `${box.height}%`,
+        }"
       />
     </div>
     <div class="frame-actions">
-      <span class="caption">
-        Кадр {{ frame ?? '—' }}; лиц в плане: {{ faces.length }}
-      </span>
+      <span class="caption"> Кадр {{ frame ?? '—' }}; лиц в плане: {{ faces.length }} </span>
       <button
         type="button"
         class="btn btn-sm btn-outline-secondary"

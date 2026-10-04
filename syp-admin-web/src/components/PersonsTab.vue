@@ -70,7 +70,9 @@ const visibleFaces = computed<FaceView[]>(() =>
 )
 
 /** Всего страниц лиц. */
-const pages = computed(() => Math.max(1, Math.ceil((faces.value?.facesTotal ?? 0) / (faces.value?.limit || 1))))
+const pages = computed(() =>
+  Math.max(1, Math.ceil((faces.value?.facesTotal ?? 0) / (faces.value?.limit || 1))),
+)
 
 /** Персона, которой назначаются выбранные лица. */
 const target = computed(() => persons.value.find((person) => person.id === targetPerson.value))
@@ -179,7 +181,11 @@ async function turnPage(delta: number): Promise<void> {
 /** Перечитывает лица и персон. */
 async function reload(): Promise<void> {
   try {
-    faces.value = await readFaces(props.videofileId, page.value * (faces.value?.limit ?? 200), faces.value?.limit ?? 200)
+    faces.value = await readFaces(
+      props.videofileId,
+      page.value * (faces.value?.limit ?? 200),
+      faces.value?.limit ?? 200,
+    )
     const loaded = faces.value?.projectId
     if (loaded !== undefined) {
       projectId.value = loaded
@@ -248,7 +254,9 @@ watch(
             <label><input v-model="filters.manual" type="checkbox" /> Ручной</label>
           </fieldset>
           <div class="actions">
-            <button type="button" class="btn btn-sm btn-primary" @click="openSelect">Назначить персоне</button>
+            <button type="button" class="btn btn-sm btn-primary" @click="openSelect">
+              Назначить персоне
+            </button>
             <button
               type="button"
               class="btn btn-sm btn-outline-secondary"
@@ -257,16 +265,32 @@ watch(
             >
               Назначить выбранной строке
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" @click="makePhoto">Фото персоны</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" @click="markExamples(true)">Пометить эталоном</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" @click="markExamples(false)">Снять эталон</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" @click="clearSelection">Снять выделение</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="makePhoto">
+              Фото персоны
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              @click="markExamples(true)"
+            >
+              Пометить эталоном
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              @click="markExamples(false)"
+            >
+              Снять эталон
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="clearSelection">
+              Снять выделение
+            </button>
           </div>
         </div>
 
         <p class="selection">
-          Выбрано лиц: {{ selectedFaces.length }} на странице {{ page + 1 }} из {{ pages }}.
-          Клик по миниатюре добавляет лицо к выделению, повторный — убирает.
+          Выбрано лиц: {{ selectedFaces.length }} на странице {{ page + 1 }} из {{ pages }}. Клик по
+          миниатюре добавляет лицо к выделению, повторный — убирает.
         </p>
 
         <div class="pager">
