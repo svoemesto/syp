@@ -234,6 +234,16 @@ watch(
           Клик по миниатюре добавляет лицо к выделению, повторный — убирает.
         </p>
 
+        <div class="pager">
+          <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(-1)">
+            К предыдущей странице
+          </button>
+          <span>Страница {{ page + 1 }} из {{ pages }}</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" @click="turnPage(1)">
+            К следующей странице
+          </button>
+        </div>
+
         <FaceThumbnails
           :videofile-id="props.videofileId"
           :faces="visibleFaces"
@@ -313,6 +323,13 @@ watch(
   border-radius: 4px;
   display: grid;
   gap: 0.25rem;
+}
+
+.pager {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
 }
 
 .actions {
