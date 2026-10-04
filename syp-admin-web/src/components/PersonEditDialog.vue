@@ -14,7 +14,7 @@
  */
 import { onMounted, ref } from 'vue'
 import { deleteProperty, readProperties, writeProperty, type PropertyView } from '../api/properties'
-import { deletePerson, renamePerson, type PersonView } from '../api/characters'
+import { deletePerson, facePreviewUrl, renamePerson, type PersonView } from '../api/characters'
 
 const props = defineProps<{ videofileId: number; person: PersonView }>()
 
@@ -114,7 +114,7 @@ onMounted(reload)
       <div class="photo">
         <img
           v-if="props.person.photoFrameNumber !== null"
-          :src="`/api/videofiles/${props.videofileId}/faces/${props.person.photoFrameNumber}/preview`"
+          :src="facePreviewUrl(props.videofileId, props.person.photoFrameNumber)"
           :alt="`Фото персоны ${props.person.name}`"
         />
         <p v-else class="empty">Фото не поставлено</p>

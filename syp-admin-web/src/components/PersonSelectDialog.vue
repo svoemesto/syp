@@ -11,7 +11,7 @@
  * здесь же, но отдельной командой, чтобы его нельзя было выбрать случайно.
  */
 import { computed, onMounted, ref } from 'vue'
-import { createPerson, readPersons, type PersonView } from '../api/characters'
+import { createPerson, facePreviewUrl, readPersons, type PersonView } from '../api/characters'
 
 const props = defineProps<{ videofileId: number; projectId: number }>()
 
@@ -104,7 +104,7 @@ onMounted(async () => {
         >
           <img
             v-if="person.photoFrameNumber !== null"
-            :src="`/api/videofiles/${props.videofileId}/faces/${person.photoFrameNumber}/preview`"
+            :src="facePreviewUrl(props.videofileId, person.photoFrameNumber)"
             :alt="`Фото персоны ${person.name}`"
             class="person-photo"
           />

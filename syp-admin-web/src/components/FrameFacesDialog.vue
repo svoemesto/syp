@@ -13,8 +13,7 @@
  * Кнопка создания без прямоугольника не создаёт ничего и говорит об этом.
  */
 import { computed, onMounted, ref } from 'vue'
-import { readFaces, type FaceView } from '../api/characters'
-import { readPreviewUrl } from '../api/structure'
+import { facePreviewUrl, readFaces, type FaceView } from '../api/characters'
 
 const props = defineProps<{ videofileId: number; frameNumber: number }>()
 
@@ -50,7 +49,7 @@ async function reload(): Promise<void> {
     // кадра попадут в ответ целиком, а фильтр по кадру идёт на стороне клиента.
     const answer = await readFaces(props.videofileId, 0, 100000)
     faces.value = answer.faces.filter((face) => face.frameNumber === props.frameNumber)
-    frameUrl.value = readPreviewUrl(props.videofileId, props.frameNumber)
+    frameUrl.value = `/api/videofiles/${props.videofileId}/frames/${props.frameNumber}/image`
     error.value = ''
   } catch (failure) {
     error.value = (failure as Error).message
@@ -99,7 +98,7 @@ onMounted(reload)
         <tbody>
           <tr v-for="face in faces" :key="face.id">
             <td>
-              <img :src="`/api/videofiles/${props.videofileId}/faces/${face.frameNumber}/preview`" :alt="`Лицо ${face.id}`" class="face-thumb" />
+              <img :src="facePreviewUrl(props.videofileId, face.frameNumber)" :alt="`Лицо ${face.id}`" class="face-thumb" />
             </td>
             <td>{{ face.personName }}</td>
             <td>{{ face.origin === 'OPERATOR' ? 'да' : '' }}</td>
