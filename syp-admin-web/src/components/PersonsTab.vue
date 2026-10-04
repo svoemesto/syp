@@ -211,7 +211,7 @@ watch(
         class="persons-list"
         :class="{ over: targetPerson !== null && selectedFaces.length > 0 }"
         @dragover.prevent
-        @drop.prevent="onDrop(Number(event.dataTransfer?.getData('text/plain')))"
+        @drop.prevent="onDrop(Number($event.dataTransfer?.getData('text/plain')))"
       >
         <div class="syp-card-title">Персоны файла</div>
         <p class="hint">Перетащите лицо на строку персоны, чтобы назначить</p>
@@ -222,12 +222,12 @@ watch(
             :class="{ selected: targetPerson === person.id }"
             :draggable="true"
             @click="targetPerson = person.id"
-            @dragstart="event.dataTransfer?.setData('text/plain', String(person.id))"
+            @dragstart="$event.dataTransfer?.setData('text/plain', String(person.id))"
             @dblclick="editing = person"
           >
             <img
               v-if="person.photoFrameNumber !== null"
-              :src="`/api/videofiles/${props.videofileId}/faces/${person.photoFrameNumber}/preview`"
+              :src="facePreviewUrl(props.videofileId, person.photoFrameNumber)"
               :alt="`Фото персоны ${person.name}`"
               class="person-photo"
             />
