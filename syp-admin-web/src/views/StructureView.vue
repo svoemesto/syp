@@ -47,7 +47,7 @@ const selected = computed(() => store.selectedScene.value)
  * ещё хуже.
  */
 watch(
-  () => selected.value?.firstFrame ?? store.row.value?.scenes?.[0]?.firstFrame ?? null,
+  () => selected.value?.firstFrame ?? null,
   (frame) => {
     if (frame !== null) {
       fullFrame.value = frame
