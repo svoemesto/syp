@@ -111,6 +111,13 @@ export interface FaceClustersView {
   embeddingModelKey: string
   /** Сколько кластеров без имени у видеофайла. */
   clustersTotal: number
+  /**
+   * Сколько лиц отнесено к именованным кластерам, то есть к персонам.
+   *
+   * Нужно экрану операций: без этого числа колонка «лица распознаны» стоила
+   * бы «неизвестно», хотя ответ уже посчитан вместе с кластерами.
+   */
+  facesNamed: number
   /** Кластеры по убыванию числа лиц. */
   clusters: FaceClusterView[]
 }
@@ -125,6 +132,30 @@ export interface ClusterNamedView {
   recognizerKey: string
   /** Сколько лиц переведено этой персоне. */
   facesAssigned: number
+}
+
+/** Ответ на постановку поиска лиц в очередь. */
+export interface FaceScanEnqueuedView {
+  /** Номер задания в очереди. */
+  jobId: number
+  /** Видеофайл, для которого поставлено задание. */
+  videofileId: number
+  /** Ключ модели эмбеддингов, которой посчитаются векторы. */
+  embeddingModelKey: string
+}
+
+/**
+ * Ставит в очередь поиск лиц видеофайла.
+ *
+ * Задание одно на детекцию, выделение векторов и превью: отдельных операций
+ * на каждое действие в проекте нет, и экран операций отмечает это под
+ * чекбоксами.
+ *
+ * @param videofileId идентификатор видеофайла
+ * @returns номер задания и ключ модели эмбеддингов
+ */
+export function startFacesScan(videofileId: number): Promise<FaceScanEnqueuedView> {
+  return request<FaceScanEnqueuedView>('POST', `/videofiles/${videofileId}/faces`)
 }
 
 /**

@@ -6,6 +6,7 @@
 // поэтому неизвестный адрес отправляется на приём.
 
 import { createRouter, createWebHistory } from 'vue-router'
+import ActionsView from './views/ActionsView.vue'
 import ChecksumStatusView from './views/ChecksumStatusView.vue'
 import FacesView from './views/FacesView.vue'
 import VideofileIntakeView from './views/VideofileIntakeView.vue'
@@ -44,6 +45,15 @@ export const router = createRouter({
       path: '/videofiles/:videofileId/faces',
       name: 'faces',
       component: FacesView,
+      props: true,
+    },
+    {
+      // Операции над проектом: таблица файлов с индикаторами конвейера,
+      // пятнадцать операций и запуск. Экран работает по проекту, а не по
+      // видеофайлу: операции применяются сразу ко всем файлам проекта.
+      path: '/projects/:projectId/actions',
+      name: 'actions',
+      component: ActionsView,
       props: true,
     },
     {
