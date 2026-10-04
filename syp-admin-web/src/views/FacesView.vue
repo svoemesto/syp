@@ -406,8 +406,6 @@ function personKindTitle(kind: string): string {
               v-if="(clusterFaces[cluster.id] ?? []).length > 0"
               :videofile-id="videofileId"
               :faces="clusterFaces[cluster.id] ?? []"
-              :frame-width="faces?.frameWidth ?? 1920"
-              :frame-height="faces?.frameHeight ?? 1080"
             />
           </span>
           <span class="cluster-size">лиц: {{ cluster.size }}</span>
@@ -441,8 +439,6 @@ function personKindTitle(kind: string): string {
           :videofile-id="videofileId"
           :faces="group.faces"
           draggable
-          :frame-width="faces.frameWidth"
-          :frame-height="faces.frameHeight"
           markable
           @example="onExample"
         />
