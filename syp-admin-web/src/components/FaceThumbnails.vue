@@ -100,6 +100,16 @@ const SOURCE_HEIGHT = 360
 /** Сторона ячейки вырезки в пикселях: по ней считается увеличение. */
 const CELL = 96
 
+/**
+ * Предел увеличения.
+ *
+ * Лицо может занимать в кадре два десятка пикселей: без предела вырезка
+ * растягивалась в двадцать раз и превращалась в мутное пятно. Лучше
+ * изображение меньше ячейки, но различимое, чем заполняющее ячейку и не
+ *различимое.
+ */
+const MAX_SCALE = 6
+
 const crops = computed(() =>
   props.faces.map((face) => {
     const faceWidth = Math.max(face.x2 - face.x1, 1)
@@ -111,7 +121,11 @@ const crops = computed(() =>
     const ratio = SOURCE_WIDTH / Math.max(props.frameWidth, 1)
     const cropWidth = faceWidth * ratio * CROP_MARGIN
     const cropHeight = faceHeight * ratio * CROP_MARGIN
-    const scale = Math.min(CELL / Math.max(cropWidth, 1), CELL / Math.max(cropHeight, 1))
+    const scale = Math.min(
+      CELL / Math.max(cropWidth, 1),
+      CELL / Math.max(cropHeight, 1),
+      MAX_SCALE,
+    )
     const centreX = ((face.x1 + face.x2) / 2) * ratio
     const centreY = ((face.y1 + face.y2) / 2) * ratio
     return {
