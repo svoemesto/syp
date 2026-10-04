@@ -20,6 +20,7 @@ import {
   type FaceView,
   type FacesView,
   type PersonView,
+  facePreviewUrl,
 } from '../api/characters'
 import FaceThumbnails from './FaceThumbnails.vue'
 import PersonSelectDialog from './PersonSelectDialog.vue'
