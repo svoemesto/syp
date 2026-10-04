@@ -12,8 +12,8 @@
  * обработчики у них были пустыми. Здесь кнопки не показываются вовсе: незаметная
  * кнопка хуже отсутствующей.
  */
-import { onMounted, ref } from 'vue'
-import { deleteProperty, readProperties, writeProperty, type PropertyView } from '../api/properties'
+import { computed, onMounted, ref } from 'vue'
+import { readProperties, writeProperty, type PropertyView } from '../api/properties'
 import { deletePerson, facePreviewUrl, renamePerson, type PersonView } from '../api/characters'
 
 const props = defineProps<{ videofileId: number; person: PersonView }>()
@@ -30,6 +30,16 @@ const name = ref(props.person.name)
 
 /** Properties персоны, привязанные к ней настоящим владельцем. */
 const properties = ref<PropertyView[]>([])
+
+/** Пусто ли в таблице свойств: от этого зависит надпись в пустой строке. */
+const hasProperties = computed(() => properties.value.length > 0)
+
+/** Адрес фотографии персоны; пустая строка — фотографии нет. */
+const photoUrl = computed(() =>
+  props.person.photoFrameNumber === null
+    ? ''
+    : facePreviewUrl(props.videofileId, props.person.photoFrameNumber),
+)
 
 /** Ключ и значение нового свойства. */
 const propertyKey = ref('')
@@ -93,88 +103,95 @@ async function addProperty(): Promise<void> {
   }
 }
 
-/** Удаляет свойство персоны. */
-async function removeProperty(key: string): Promise<void> {
-  try {
-    await deleteProperty('PERSON', props.person.id, key)
-    await reload()
-  } catch (failure) {
-    error.value = (failure as Error).message
-  }
-}
-
 onMounted(reload)
 </script>
 
 <template>
   <div class="dialog" role="dialog" aria-label="Person">
     <div class="dialog-body">
-      <h2 class="syp-card-title">PERSON</h2>
+      <!-- Форма person-edit: слева поле переименования, таблица PERSON и две
+           квадратные кнопки 46 на 46; справа фотография, Name:, заголовок
+           Properties, таблица Key и Value и кнопка OK во всю ширину.
+           Заголовка PERSON над всем окном в форме нет: это колонка. -->
+      <div class="edit-area">
+        <div class="persons-column">
+          <input
+            v-model="name"
+            class="form-control rename"
+            placeholder="Name:"
+            @keyup.enter="save"
+          />
 
-      <div class="photo">
-        <img
-          v-if="props.person.photoFrameNumber !== null"
-          :src="facePreviewUrl(props.videofileId, props.person.photoFrameNumber)"
-          :alt="`Person photo ${props.person.name}`"
-        />
-        <p v-else class="empty">No photo set</p>
-      </div>
+          <table class="table table-sm persons-table">
+            <thead>
+              <tr>
+                <th>PERSON</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!hasProperties">
+                <td class="empty">No content in table</td>
+              </tr>
+            </tbody>
+          </table>
 
-      <label class="field">
-        <span>Name:</span>
-        <input v-model="name" class="form-control" />
-      </label>
+          <div class="glyph-buttons">
+            <!-- Пара кнопок стоит рядом с таблицей PERSON, значит и
+                 работает с персонами: завести и удалить. -->
+            <button type="button" class="glyph" title="Add person" @click="addProperty">
+              &#10133;
+            </button>
+            <button type="button" class="glyph" title="Delete person" @click="remove">
+              &#10006;
+            </button>
+          </div>
+        </div>
 
-      <div class="syp-card-title">Properties</div>
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>Key</th>
-            <th>Value</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="property in properties" :key="property.key">
-            <td>{{ property.key }}</td>
-            <td>{{ property.value }}</td>
-            <td>
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-secondary"
-                @click="removeProperty(property.key)"
-              >
-                delete
-              </button>
-            </td>
-          </tr>
-          <tr v-if="properties.length === 0">
-            <td colspan="3" class="empty">No properties</td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="property-fields">
-        <input v-model="propertyKey" class="form-control" placeholder="Key" />
-        <textarea
-          v-model="propertyValue"
-          class="form-control"
-          rows="2"
-          placeholder="Value"
-        ></textarea>
-        <button type="button" class="btn btn-primary" @click="addProperty">Add</button>
-      </div>
+        <div class="properties-column">
+          <div class="photo">
+            <img v-if="photoUrl !== ''" :src="photoUrl" alt="Person photo" class="photo-image" />
+            <p v-else class="empty">No photo set</p>
+          </div>
 
-      <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
-      <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
+          <label class="field">
+            <span>Name:</span>
+            <input v-model="name" class="form-control" />
+          </label>
 
-      <div class="dialog-actions">
-        <button type="button" class="btn btn-primary" @click="save">OK</button>
-        <button type="button" class="btn btn-outline-secondary" @click="remove">
-          Delete the person
-        </button>
-        <button type="button" class="btn btn-outline-secondary" @click="emit('closed')">
-          Close
-        </button>
+          <div class="syp-card-title">Properties</div>
+          <table class="table table-sm properties-table">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="property in properties" :key="property.key">
+                <td>{{ property.key }}</td>
+                <td>{{ property.value }}</td>
+              </tr>
+              <tr v-if="!hasProperties">
+                <td colspan="2" class="empty">No content in table</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="property-fields">
+            <input v-model="propertyKey" class="form-control" placeholder="property key" />
+            <input v-model="propertyValue" class="form-control" placeholder="value" />
+            <button type="button" class="btn btn-primary" @click="addProperty">Add</button>
+          </div>
+
+          <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
+
+          <div class="dialog-actions">
+            <button type="button" class="btn btn-primary" @click="save">OK</button>
+            <button type="button" class="btn btn-outline-secondary" @click="emit('closed')">
+              Close
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -193,18 +210,73 @@ onMounted(reload)
 
 .dialog-body {
   background: var(--syp-surface);
-  border-radius: 6px;
-  display: grid;
-  gap: 0.5rem;
-  max-height: 85vh;
-  overflow: auto;
-  padding: 1rem;
-  width: 34rem;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  /* Форма объявлена 730 на 900. */
+  width: 45.625rem;
 }
 
-.photo img {
-  border-radius: 3px;
-  max-width: 18rem;
+.edit-area {
+  display: flex;
+  gap: 0.25rem;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.persons-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 13.4375rem;
+  flex: 0 0 auto;
+}
+
+.persons-table {
+  flex: 1 1 auto;
+  table-layout: fixed;
+  margin-bottom: 0;
+}
+
+.glyph-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.glyph {
+  width: 2.875rem;
+  height: 2.875rem;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.properties-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.photo {
+  background: var(--syp-bg);
+  min-height: 12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-image {
+  max-width: 100%;
+  max-height: 20rem;
+  object-fit: contain;
+}
+
+.properties-table {
+  table-layout: fixed;
+  margin-bottom: 0;
 }
 
 .field {
