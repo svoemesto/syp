@@ -237,7 +237,7 @@ onMounted(async () => {
     if (files.value.length > 0) {
       await choose(files.value[0])
     }
-    progressNote.value = `файлов в проекте: ${files.value.length}`
+    progressNote.value = `files in the project: ${files.value.length}`
     error.value = ''
   } catch (failure) {
     error.value = (failure as Error).message
@@ -290,7 +290,7 @@ onMounted(async () => {
           />
         </div>
         <div class="line">
-          <label for="p-short">Short name:</label>
+          <label for="p-short">Short:</label>
           <input
             id="p-short"
             class="form-control form-control-sm"
@@ -369,17 +369,18 @@ onMounted(async () => {
           </button>
         </div>
 
-        <div class="syp-card-title">Machine dependent properties</div>
+        <div class="syp-card-title">Computer-Depened-Properties</div>
         <p class="absent">
           The project has no such properties: the operator machine does not affect the markup.
         </p>
 
         <div class="syp-card-title">Files</div>
-        <table class="table table-sm">
+        <table class="table table-sm files-table">
           <thead>
             <tr>
               <th class="num">#</th>
-              <th>File</th>
+              <th>Файл</th>
+              <th>Label</th>
             </tr>
           </thead>
           <tbody>
@@ -391,6 +392,7 @@ onMounted(async () => {
             >
               <td class="num">{{ file.ordinal }}</td>
               <td>{{ file.name }}</td>
+              <td>{{ file.designation }}</td>
             </tr>
           </tbody>
         </table>
@@ -412,7 +414,7 @@ onMounted(async () => {
           />
         </div>
         <div class="line">
-          <label for="f-short">Label:</label>
+          <label for="f-short">Short name:</label>
           <input
             id="f-short"
             class="form-control form-control-sm"
@@ -507,6 +509,11 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.files-table thead th {
+  /* В форме колонка подписана «Файл», а не «ФАЙЛ». */
+  text-transform: none;
+}
+
 .menu {
   display: flex;
   flex-wrap: wrap;
