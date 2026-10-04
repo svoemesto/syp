@@ -66,6 +66,17 @@ export interface VideofileView {
   /** Частота дискретизации звука. */
   audioSampleRate?: number | null
   /** Сколько ключевых кадров найдено. */
+  /** Обозначение файла в серии, например `S00E00`. */
+  designation?: string | null
+  /** Номер сезона, если файл относится к сезону. */
+  seasonNumber?: number | null
+  /** Порядковый номер сезона, если файл относится к сезону. */
+  seasonOrdinal?: number | null
+  /**
+   * Дорожки файла: их отдаёт сведения о видеофайле, отдельного запуска
+   * MediaInfo в проекте нет.
+   */
+  tracks?: VideoTrackView[]
   keyframeCount: number
   /** Длина карты ключевых кадров в байтах. */
   keyframeMapBytes: number
