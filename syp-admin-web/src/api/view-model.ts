@@ -557,8 +557,8 @@ export function toStructureRow(dto: StructureView): StructureRow {
   return {
     seriesId: dto.videofileId,
     summary:
-      `сцен: ${formatNumber(dto.scenesTotal)}, планов: ${formatNumber(dto.shotsTotal)}, ` +
-      `кадров: ${formatNumber(dto.frameCount)}`,
+      `scenes: ${formatNumber(dto.scenesTotal)}, shots: ${formatNumber(dto.shotsTotal)}, ` +
+      `frames: ${formatNumber(dto.frameCount)}`,
     algorithmVersion: dto.algorithmVersion ?? '—',
     isStale: dto.isStale,
     staleCode: dto.staleResultCode ?? '',

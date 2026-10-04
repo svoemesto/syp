@@ -9,9 +9,9 @@ withDefaults(
   defineProps<{
     /** Идёт ли обращение к бэкенду. */
     loading?: boolean
-    /** Текст отказа; пустой текст означает, что отказа нет. */
+    /** Текст отказа; пустой текст означает, что отказа none. */
     error?: string
-    /** Машинный код отказа; пустой код означает, что его нет. */
+    /** Машинный код отказа; пустой код означает, что его none. */
     errorCode?: string
     /** Заголовок пустого состояния. */
     emptyTitle?: string
@@ -25,7 +25,7 @@ withDefaults(
     error: '',
     errorCode: '',
     emptyTitle: 'Пока пусто',
-    emptyText: 'Данных нет.',
+    emptyText: 'Данных none.',
     loadingText: 'Запрос к бэкенду…',
   },
 )
@@ -50,7 +50,7 @@ const emit = defineEmits<{ dismiss: [] }>()
         class="btn btn-sm btn-outline-secondary flex-shrink-0"
         @click="emit('dismiss')"
       >
-        скрыть
+        hide
       </button>
     </div>
   </div>

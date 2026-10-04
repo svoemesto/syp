@@ -121,24 +121,24 @@ function mergeWithPrevious(): void {
 <template>
   <div class="shot-detail">
     <div class="syp-card-title">
-      План: кадры {{ shot.frames }}
-      <span v-if="shot.isStale" class="text-bg-warning syp-origin">устарел</span>
+      Shot: frames {{ shot.frames }}
+      <span v-if="shot.isStale" class="text-bg-warning syp-origin">stale</span>
     </div>
     <p class="text-body-secondary small mb-2">
-      Размер: <span class="syp-mono">{{ shot.size }}</span> — {{ shot.sizeTitle }};
+      Size: <span class="syp-mono">{{ shot.size }}</span> — {{ shot.sizeTitle }};
       {{ shot.sizeOriginTitle }}.
     </p>
 
     <div class="boundary">
-      <div class="syp-card-title">Доводка границы</div>
+      <div class="syp-card-title">Boundary adjustment</div>
       <p class="text-body-secondary small">
-        Граница плана не может встать так, чтобы сцена начала с середины плана: сцена обязана
-        начинаться планом. Внутри плана границу не ставят — план разделяют. Правка сохраняется
-        сразу, отдельной кнопки «сохранить» нет.
+        A shot boundary cannot land so that a scene starts in the middle of a shot: a scene has to
+        start with a shot. Inside a shot no boundary is placed — the shot is split. The edit is
+        saved at once, there is no separate save button.
       </p>
 
       <div class="boundary-form">
-        <label class="form-label" for="shot-boundary-target">Новый кадр границы</label>
+        <label class="form-label" for="shot-boundary-target">New boundary frame</label>
         <input
           id="shot-boundary-target"
           v-model.number="target"
@@ -155,7 +155,7 @@ function mergeWithPrevious(): void {
             :disabled="busy || target === null"
             @click="splitHere"
           >
-            разделить план здесь
+            split the shot here
           </button>
           <button
             type="button"
@@ -163,7 +163,7 @@ function mergeWithPrevious(): void {
             :disabled="busy || target === null || shot.firstFrame === 0"
             @click="moveStart"
           >
-            сдвинуть начало
+            move the start
           </button>
           <button
             type="button"
@@ -171,7 +171,7 @@ function mergeWithPrevious(): void {
             :disabled="busy || target === null"
             @click="moveEnd"
           >
-            сдвинуть конец
+            move the end
           </button>
           <button
             type="button"
@@ -179,13 +179,13 @@ function mergeWithPrevious(): void {
             :disabled="busy || shot.firstFrame === 0"
             @click="mergeWithPrevious"
           >
-            объединить с предыдущим
+            merge with the previous one
           </button>
         </div>
       </div>
 
       <div v-if="candidates.length > 0" class="candidates">
-        <span class="syp-unit">Границы планов сцены внутри этого плана:</span>
+        <span class="syp-unit">Shot boundaries inside this shot:</span>
         <button
           v-for="frame in candidates"
           :key="frame"
@@ -198,7 +198,8 @@ function mergeWithPrevious(): void {
         </button>
       </div>
       <p v-else class="syp-unit">
-        Внутри плана границ планов нет: сдвигать некуда, остаётся разделение и объединение.
+        There are no shot boundaries inside a shot: there is nothing to move, only splitting and
+        merging.
       </p>
     </div>
   </div>

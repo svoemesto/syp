@@ -4,7 +4,7 @@
  *
  * Форма перенесена по старому проекту: событие — полный аналог сцены, с теми же
  * таблицами, кнопками и полями свойств. Отличие от сцены одно и оно смысловое:
- * событие отмечается **green on the right** на миниатюре плана, сцена — **оранжевым
+ * событие отмечается **green on the right** на миниатюре плана, scene — **оранжевым
  * слева**. По этому оператор различает их в кадре, поэтому цвет и сторона здесь
  * не украшение, а часть интерфейса.
  *
@@ -30,7 +30,7 @@ const props = defineProps<{
 /** Ширина миниатюры кадра в колонках FROM и TO, как в старой форме. */
 const THUMB = 96
 
-/** Events примера. Пока это единственный источник: бекенда нет. */
+/** Events примера. Пока это единственный источник: бекенда none. */
 const events = ref<StubEvent[]>([])
 
 /** Идентификаторы выбранных событий — выбор множественный, как в старом проекте. */
@@ -184,8 +184,8 @@ seed()
     <header class="events-head">
       <h2 class="syp-card-title">Events</h2>
       <p class="stub" role="note">
-        Заглушка: бекенда событий нет. Форма, действия и sample data работают на стороне браузера, к
-        серверу не обращается.
+        Stub: there is no events backend. The form, the actions and the sample data work on the
+        browser side and do not contact the server.
       </p>
     </header>
 
@@ -235,10 +235,10 @@ seed()
         </table>
         <div class="actions">
           <button type="button" class="btn btn-sm btn-outline-secondary" @click="createFromShots">
-            Создать событие по выбранным планам
+            Create an event from the selected shots
           </button>
           <button type="button" class="btn btn-sm btn-outline-secondary" @click="removeSelected">
-            Удалить выбранные события
+            Delete the selected events
           </button>
         </div>
       </div>
@@ -278,8 +278,8 @@ seed()
           </tbody>
         </table>
         <p class="legend">
-          Событие на миниатюре плана помечается
-          <span class="swatch event">green on the right</span>, сцена —
+          An event is marked on the shot thumbnail
+          <span class="swatch event">green on the right</span>, scene —
           <span class="swatch scene">orange on the left</span>.
         </p>
       </div>
@@ -316,7 +316,7 @@ seed()
                 class="btn btn-sm btn-outline-secondary"
                 @click="removeProperty(property.key)"
               >
-                удалить
+                delete
               </button>
             </td>
           </tr>
@@ -333,24 +333,24 @@ seed()
           class="btn btn-sm btn-outline-secondary"
           @click="moveSelected('first')"
         >
-          В начало
+          To the start
         </button>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="moveSelected('up')">
-          Вверх
+          Up
         </button>
         <button
           type="button"
           class="btn btn-sm btn-outline-secondary"
           @click="moveSelected('down')"
         >
-          Вниз
+          Down
         </button>
         <button
           type="button"
           class="btn btn-sm btn-outline-secondary"
           @click="moveSelected('last')"
         >
-          В конец
+          To the end
         </button>
       </div>
       <div class="fields">
@@ -361,9 +361,7 @@ seed()
           rows="2"
           placeholder="Value"
         ></textarea>
-        <button type="button" class="btn btn-primary" @click="addProperty">
-          Добавить свойство
-        </button>
+        <button type="button" class="btn btn-primary" @click="addProperty">Add property</button>
       </div>
     </div>
 

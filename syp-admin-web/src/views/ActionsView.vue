@@ -35,7 +35,7 @@ const files = ref<VideofileView[]>([])
 /** Состояние конвейера по каждому файлу. */
 const rows = ref<PipelineRow[]>([])
 
-/** Ошибка чтения; пустая строка — ошибки нет. */
+/** Ошибка чтения; пустая строка — ошибки none. */
 const error = ref('')
 
 /** Ответ сервера на последнее нажатие; показывается под таблицей. */
@@ -130,7 +130,7 @@ function pickAll(): void {
  *
  * Задание ставится в очередь один раз на файл: отмеченные операции
  * «Анализ структуры» и «Лица» — это два задания, а пятнадцать отметок сводятся
- * к ним, потому что других заданий в проекте нет. Файл, у которого нужный
+ * к ним, потому что других заданий в проекте none. Файл, у которого нужный
  * результат уже есть, повторно не ставится — так же, как в старом проекте, —
  * если только не включён `RECREATE IF EXISTS`.
  */
@@ -192,7 +192,7 @@ async function run(): Promise<void> {
 /**
  * Обучает модель распознавания лиц.
  *
- * Обучения в проекте нет: таблицы версий модели пусты, кода обучения нет.
+ * Обучения в проекте нет: таблицы версий модели пусты, кода обучения none.
  * Кнопка оставлена на месте и говорит об этом прямо, потому что по описанию
  * оператора «периодически запускает процесс дообучения» — и молчаливая
  * кнопка, которая ничего не делает, выглядела бы как поломка.
@@ -202,9 +202,9 @@ async function train(): Promise<void> {
   try {
     const named = rows.value
       .filter((row) => selected.value.includes(row.videofileId))
-      .map((row) => `${row.name}: распознано ${row.states.RF === 'yes' ? 'есть' : 'нет'}`)
+      .map((row) => `${row.name}: распознано ${row.states.RF === 'yes' ? 'есть' : 'no'}`)
     notice.value =
-      'Заглушка: обучения модели в проекте нет. ' +
+      'Заглушка: обучения модели в проекте none. ' +
       'Эталоны помечаются на вкладке «Персоны» главного редактора, ' +
       'но обученной версии модели в базе нет, поэтому обучать нечем. ' +
       (named.length > 0 ? `Выбрано файлов: ${named.length}.` : '')
@@ -248,16 +248,16 @@ onMounted(reload)
 
 <template>
   <section class="actions">
-    <h1 class="syp-page-title">Операции над проектом</h1>
+    <h1 class="syp-page-title">Project actions</h1>
 
     <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
 
     <div class="actions-body">
       <div class="files">
-        <div class="syp-card-title">Файлы</div>
+        <div class="syp-card-title">Files</div>
         <div class="files-toolbar">
           <button type="button" class="btn btn-sm btn-outline-secondary" @click="pickAll">
-            {{ selected.length === files.length ? 'Снять выбор' : 'Выбрать все' }}
+            {{ selected.length === files.length ? 'Clear selection' : 'Select all' }}
           </button>
           <button
             type="button"
@@ -265,7 +265,7 @@ onMounted(reload)
             :disabled="busy"
             @click="reload"
           >
-            Обновить
+            Refresh
           </button>
         </div>
         <div class="files-wrap">
@@ -285,7 +285,7 @@ onMounted(reload)
                 @click="pick(row.videofileId)"
               >
                 <td class="num">{{ row.ordinal }}</td>
-                <td class="name" :title="`${row.name}, кадров: ${row.framesTotal ?? 'неизвестно'}`">
+                <td class="name" :title="`${row.name}, frames: ${row.framesTotal ?? 'unknown'}`">
                   {{ row.name }}
                 </td>
                 <td
@@ -300,7 +300,7 @@ onMounted(reload)
               </tr>
               <tr v-if="rows.length === 0">
                 <td :colspan="INDICATORS.length" class="empty">
-                  {{ busy ? 'Читаю состояние файлов…' : 'В проекте нет файлов' }}
+                  {{ busy ? 'Reading the file state…' : 'The project has no files' }}
                 </td>
               </tr>
             </tbody>
@@ -309,13 +309,13 @@ onMounted(reload)
       </div>
 
       <aside class="side">
-        <div class="syp-card-title">Запуск обработки</div>
+        <div class="syp-card-title">Run processing</div>
         <div class="form-check">
           <input id="recreate" v-model="recreate" class="form-check-input" type="checkbox" />
           <label class="form-check-label" for="recreate">RECREATE IF EXISTS</label>
         </div>
         <button type="button" class="btn btn-sm btn-primary" :disabled="busy" @click="run">
-          Выполнить операции
+          Run operations
         </button>
         <button
           type="button"
@@ -323,9 +323,9 @@ onMounted(reload)
           :disabled="training"
           @click="train"
         >
-          Обучить модель лиц
+          Train the face model
         </button>
-        <div class="syp-card-title">Операции</div>
+        <div class="syp-card-title">Actions</div>
         <div v-for="operation in OPERATIONS" :key="operation.code" class="operation">
           <div class="form-check">
             <input
@@ -355,8 +355,8 @@ onMounted(reload)
 
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
     <p class="counts">
-      Заданий запускает операций: {{ runnable.length }} из {{ OPERATIONS.length }}; остальные в
-      проекте не выполняются, и это написано под каждым чекбоксом.
+      Jobs run the operations: {{ runnable.length }} of {{ OPERATIONS.length }}; the rest are not
+      performed in this deployment, and this is written under every checkbox.
     </p>
   </section>
 </template>

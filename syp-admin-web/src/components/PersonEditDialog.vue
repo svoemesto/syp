@@ -2,7 +2,7 @@
 /**
  * Окно правки персоны.
  *
- * Форма перенесена по старому проекту: имя, фото, произвольные свойства
+ * Форма перенесена по старому проекту: имя, photo, произвольные свойства
  * «ключ — значение» и подтверждение. Отличие от старого проекта одно и оно
  * существенное: свойства привязаны к персоне **настоящим владельцем**, а не
  * именем класса строкой. Поэтому ключи и значения хранятся в базе с привязкой к
@@ -19,16 +19,16 @@ import { deletePerson, facePreviewUrl, renamePerson, type PersonView } from '../
 const props = defineProps<{ videofileId: number; person: PersonView }>()
 
 const emit = defineEmits<{
-  /** Персона сохранена или удалена. */
+  /** Person сохранена или удалена. */
   saved: []
   /** Окно закрыто. */
   closed: []
 }>()
 
-/** Имя персоны: редактируется и сохраняется. */
+/** Name: персоны: редактируется и сохраняется. */
 const name = ref(props.person.name)
 
-/** Свойства персоны, привязанные к ней настоящим владельцем. */
+/** Properties персоны, привязанные к ней настоящим владельцем. */
 const properties = ref<PropertyView[]>([])
 
 /** Ключ и значение нового свойства. */
@@ -51,7 +51,7 @@ async function reload(): Promise<void> {
 /** Сохраняет имя и закрывает окно. */
 async function save(): Promise<void> {
   if (name.value.trim() === '') {
-    error.value = 'Имя персоны обязательно: без него персону не опознать'
+    error.value = 'Name: персоны обязательно: без него персону не опознать'
     return
   }
   try {
@@ -107,25 +107,25 @@ onMounted(reload)
 </script>
 
 <template>
-  <div class="dialog" role="dialog" aria-label="Персона">
+  <div class="dialog" role="dialog" aria-label="Person">
     <div class="dialog-body">
-      <h2 class="syp-card-title">Персона</h2>
+      <h2 class="syp-card-title">PERSON</h2>
 
       <div class="photo">
         <img
           v-if="props.person.photoFrameNumber !== null"
           :src="facePreviewUrl(props.videofileId, props.person.photoFrameNumber)"
-          :alt="`Фото персоны ${props.person.name}`"
+          :alt="`Person photo ${props.person.name}`"
         />
-        <p v-else class="empty">Фото не поставлено</p>
+        <p v-else class="empty">No photo set</p>
       </div>
 
       <label class="field">
-        <span>Имя</span>
+        <span>Name:</span>
         <input v-model="name" class="form-control" />
       </label>
 
-      <div class="syp-card-title">Свойства</div>
+      <div class="syp-card-title">Properties</div>
       <table class="table table-sm">
         <thead>
           <tr>
@@ -144,12 +144,12 @@ onMounted(reload)
                 class="btn btn-sm btn-outline-secondary"
                 @click="removeProperty(property.key)"
               >
-                удалить
+                delete
               </button>
             </td>
           </tr>
           <tr v-if="properties.length === 0">
-            <td colspan="3" class="empty">Свойств нет</td>
+            <td colspan="3" class="empty">No properties</td>
           </tr>
         </tbody>
       </table>
@@ -161,19 +161,19 @@ onMounted(reload)
           rows="2"
           placeholder="Value"
         ></textarea>
-        <button type="button" class="btn btn-primary" @click="addProperty">Добавить</button>
+        <button type="button" class="btn btn-primary" @click="addProperty">Add</button>
       </div>
 
       <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
       <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
 
       <div class="dialog-actions">
-        <button type="button" class="btn btn-primary" @click="save">Подтвердить</button>
+        <button type="button" class="btn btn-primary" @click="save">OK</button>
         <button type="button" class="btn btn-outline-secondary" @click="remove">
-          Удалить персону
+          Delete the person
         </button>
         <button type="button" class="btn btn-outline-secondary" @click="emit('closed')">
-          Закрыть
+          Close
         </button>
       </div>
     </div>

@@ -2,7 +2,7 @@
 // Окно выбора базы данных.
 //
 // Форма повторяет `database-select-view` старого проекта: список баз и пять
-// кнопок — подтвердить, редактировать, добавить, удалить, отмена.
+// кнопок — подтвердить, редактировать, добавить, delete, отмена.
 //
 // Отличие не в разметке, а в самом предмете. В старом проекте база данных была
 // переключаемой: список подключений, драйвер, адрес, пользователь, пароль —
@@ -52,14 +52,15 @@ function select(): void {
 </script>
 
 <template>
-  <div class="database-dialog" role="dialog" aria-modal="true" aria-label="Выбор базы данных">
-    <h2 class="syp-card-title">Выбор базы данных</h2>
+  <div class="database-dialog" role="dialog" aria-modal="true" aria-label="База данных">
+    <h2 class="syp-card-title">База данных</h2>
 
     <p class="stub">
-      Заглушка в том, что базу нельзя переключить из интерфейса: в проекте база одна, и параметры
-      подключения задаются переменными окружения развёртывания (`SYP_DB_HOST_PORT`, `SYP_DB_NAME`,
-      `SYP_DB_USER`, `SYP_DB_PASSWORD`). Список баз переключаемым быть не может — иначе правка
-      адреса и пользователя была бы операцией оператора, а не изменением развёртывания.
+      The stub is that the database cannot be switched from the interface: the project has one
+      database, and the connection parameters are set by the deployment environment variables
+      (`SYP_DB_HOST_PORT`, `SYP_DB_NAME`, `SYP_DB_USER`, `SYP_DB_PASSWORD`). The list of databases
+      cannot be switchable — otherwise changing the address and the user would be an operator
+      action, not a change of the deployment.
     </p>
 
     <table class="table table-sm">
@@ -76,32 +77,32 @@ function select(): void {
     </table>
 
     <div class="dialog-actions">
-      <button type="button" class="btn btn-sm btn-primary" @click="select">Подтвердить</button>
+      <button type="button" class="btn btn-sm btn-primary" @click="select">OK</button>
       <button type="button" class="btn btn-sm btn-outline-secondary" @click="editing = true">
-        Редактировать базу данных
+        Edit the database
       </button>
       <button
         type="button"
         class="btn btn-sm btn-outline-secondary"
         @click="
           notice =
-            'Новую базу добавить нельзя: проект работает с одной базой, и вторая база означала бы второе развёртывание. Это изменение окружения, а не операция оператора'
+            'A new database cannot be added: the project works with one database, and a second one would mean a second deployment. That is a change of the environment, not an operator action'
         "
       >
-        Добавить новую базу данных
+        Add new database
       </button>
       <button
         type="button"
         class="btn btn-sm btn-outline-danger"
         @click="
           notice =
-            'Удаление базы не выполняется: в ней фильмы, события, лица и свойства. Кнопка оставлена на месте, чтобы было видно, что действия нет, а не чтобы стереть данные'
+            'Deleting the database is not performed: it holds filters, events, faces and properties. The button is left in place so that it is visible that there is no action, not to erase the data'
         "
       >
-        Удалить выбранную базу данных
+        Delete the selected database
       </button>
       <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">
-        Отмена
+        Cancel
       </button>
     </div>
 

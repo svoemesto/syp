@@ -220,11 +220,11 @@ watch(revision, () => {
   <section class="structure">
     <header class="syp-page-head">
       <div>
-        <h1 class="syp-page-title">Структура видеофайла</h1>
+        <h1 class="syp-page-title">Videofile structure</h1>
         <p class="syp-page-lead">
-          Сцены и планы, найденные разбором, и листы превью, по которым видно, где в видеофайле
-          каждая из них. Границу сцены можно сдвинуть, сцену — разделить или объединить с соседней;
-          правка сохраняется сразу.
+          The scenes and shots found by the analysis, and the preview sheets that show where in the
+          videofile each of them happens. A scene boundary can be moved, a scene can be split or
+          merged with a neighbour; the edit is saved at once.
         </p>
       </div>
       <div class="head-actions">
@@ -234,7 +234,7 @@ watch(revision, () => {
           :disabled="store.loading.value"
           @click="reloadAll"
         >
-          обновить
+          refresh
         </button>
         <button
           type="button"
@@ -242,7 +242,7 @@ watch(revision, () => {
           :disabled="store.loading.value"
           @click="store.analyse(videofileId)"
         >
-          Разобрать видеофайл заново
+          Analyse the videofile again
         </button>
       </div>
     </header>
@@ -259,14 +259,14 @@ watch(revision, () => {
     <p v-if="store.row.value" class="counters">
       {{ store.row.value.summary }}.
       <span v-if="store.row.value.algorithmVersion !== '—'">
-        Версия алгоритма: {{ store.row.value.algorithmVersion }}.
+        Algorithm version: {{ store.row.value.algorithmVersion }}.
       </span>
     </p>
 
     <p v-if="store.isStale.value" class="syp-stale">
       <span class="syp-mono">{{ store.staleCode }}</span>
       {{ store.row.value?.staleReason }}
-      — прежние ручные правки сохранены, пересчёт запускает оператор.
+      — previous manual edits are kept, the operator starts the recomputation.
     </p>
 
     <p v-if="editNotice" class="notice" role="status">{{ editNotice }}</p>
@@ -274,31 +274,31 @@ watch(revision, () => {
     <div class="legacy-window">
       <div class="card column-left">
         <div class="card-body">
-          <div class="syp-card-title">Планы</div>
+          <div class="syp-card-title">Shots</div>
           <div class="legacy-shots">
             <span v-for="shot in shotsOfSelection" :key="shot.id" class="legacy-shot">
               {{ shot.firstFrame }}…{{ shot.lastFrame }}
             </span>
             <span v-if="shotsOfSelection.length === 0" class="syp-unit">
-              Выберите сцену — покажем её планы
+              Choose a scene — its shots will be shown
             </span>
           </div>
-          <div class="syp-card-title">Кадр</div>
+          <div class="syp-card-title">Frame</div>
           <img
             v-if="fullFrameUrl"
             class="legacy-full-frame"
             :src="fullFrameUrl"
-            alt="Кадр целиком"
+            alt="Whole frame"
             width="720"
             height="400"
           />
-          <p v-else class="syp-unit">Кадр не выбран</p>
+          <p v-else class="syp-unit">No frame selected</p>
         </div>
       </div>
 
       <div class="card column-main">
         <div class="card-body">
-          <div class="syp-card-title">Сцены</div>
+          <div class="syp-card-title">Scenes</div>
 
           <nav class="pager">
             <button
@@ -307,12 +307,12 @@ watch(revision, () => {
               :disabled="!hasPreviousPage"
               @click="store.previousPage(videofileId)"
             >
-              предыдущие
+              previous
             </button>
             <span class="syp-unit">
-              Показаны сцены с {{ store.row.value?.visibleFrom ?? 0 }} по
-              {{ store.row.value?.visibleTo ?? 0 }} из {{ store.row.value?.scenesTotal ?? 0 }}.
-              Номера считаются по полному списку.
+              Scenes from {{ store.row.value?.visibleFrom ?? 0 }} to
+              {{ store.row.value?.visibleTo ?? 0 }} of {{ store.row.value?.scenesTotal ?? 0 }} are
+              shown. Numbers are counted over the whole list.
             </span>
             <button
               type="button"
@@ -320,7 +320,7 @@ watch(revision, () => {
               :disabled="!hasNextPage"
               @click="store.nextPage(videofileId)"
             >
-              следующие
+              next
             </button>
             <button
               type="button"
@@ -330,8 +330,8 @@ watch(revision, () => {
             >
               {{
                 store.staleVisible.value
-                  ? 'скрыть устаревшие сцены'
-                  : `показать устаревшие сцены (${staleOnPage})`
+                  ? 'hide stale scenes'
+                  : `show stale scenes (${staleOnPage})`
               }}
             </button>
           </nav>
@@ -341,11 +341,11 @@ watch(revision, () => {
               <thead>
                 <tr>
                   <th>№</th>
-                  <th>Кадры</th>
-                  <th>Название</th>
-                  <th>Происхождение</th>
-                  <th>Место действия</th>
-                  <th>Планов</th>
+                  <th>Frames</th>
+                  <th>Title</th>
+                  <th>Origin</th>
+                  <th>Location</th>
+                  <th>Shots</th>
                 </tr>
               </thead>
               <tbody>
@@ -361,7 +361,7 @@ watch(revision, () => {
                   <td class="syp-number">{{ scene.number }}</td>
                   <td class="syp-number">
                     {{ scene.frames }}
-                    <span v-if="scene.isStale" class="text-bg-warning syp-origin">устарела</span>
+                    <span v-if="scene.isStale" class="text-bg-warning syp-origin">stale</span>
                   </td>
                   <td>{{ scene.title || '—' }}</td>
                   <td>
@@ -374,8 +374,8 @@ watch(revision, () => {
                 </tr>
                 <tr v-if="scenes.length === 0">
                   <td colspan="6" class="syp-empty">
-                    <div class="syp-empty-title">На этой странице сцен нет</div>
-                    <div>Перейдите на другую страницу или включите показ устаревших сцен.</div>
+                    <div class="syp-empty-title">No scenes on this page</div>
+                    <div>Go to another page or turn on showing stale scenes.</div>
                   </td>
                 </tr>
               </tbody>
@@ -384,7 +384,7 @@ watch(revision, () => {
         </div>
 
         <div v-if="selected" class="card-body selected-scene">
-          <PropertyEditor kind="SCENE" :owner-id="selected.id" title="Свойства сцены" />
+          <PropertyEditor kind="SCENE" :owner-id="selected.id" title="Scene properties" />
           <SceneDetailPanel
             :scene="selected"
             :thumbs="store.thumbs.value"
@@ -394,17 +394,17 @@ watch(revision, () => {
             @select="(shotId: number) => (selectedShotId = shotId)"
             @split="
               (frame: number) =>
-                applyEdit(() => store.split(videofileId, frame), `Разделение на кадре ${frame}`)
+                applyEdit(() => store.split(videofileId, frame), `Splitting at frame ${frame}`)
             "
             @merge="
               (frame: number) =>
-                applyEdit(() => store.merge(videofileId, frame), `Объединение с кадра ${frame}`)
+                applyEdit(() => store.merge(videofileId, frame), `Merging from frame ${frame}`)
             "
             @move="
               (from: number, to: number) =>
                 applyEdit(
                   () => store.moveBoundary(videofileId, from, to),
-                  `Сдвиг границы с ${from} на ${to}`,
+                  `Moving the boundary from ${from} to ${to}`,
                 )
             "
           />
@@ -420,21 +420,21 @@ watch(revision, () => {
               (frame: number) =>
                 applyShotEdit(
                   () => store.splitShotAt(videofileId, frame),
-                  `Разделение плана на кадре ${frame}`,
+                  `Splitting the shot at frame ${frame}`,
                 )
             "
             @merge="
               (frame: number) =>
                 applyShotEdit(
                   () => store.mergeShotAt(videofileId, frame),
-                  `Объединение плана с кадра ${frame}`,
+                  `Merging the shot from frame ${frame}`,
                 )
             "
             @move="
               (from: number, to: number) =>
                 applyShotEdit(
                   () => store.moveShotEdge(videofileId, from, to),
-                  `Сдвиг границы плана с ${from} на ${to}`,
+                  `Moving the shot boundary from ${from} to ${to}`,
                 )
             "
           />
@@ -443,13 +443,13 @@ watch(revision, () => {
 
       <div class="card column-sheet">
         <div class="card-body">
-          <div class="syp-card-title">Лист превью</div>
+          <div class="syp-card-title">Preview sheet</div>
           <p v-if="store.sheetNav.value" class="syp-unit">
             {{ store.sheetNav.value.position }}. {{ store.sheetNav.value.frames }}.
             <template v-if="store.sheetNav.value.isReady">
-              Размер: {{ store.sheetNav.value.byteSize }}.
+              Size: {{ store.sheetNav.value.byteSize }}.
             </template>
-            <template v-else> Лист ещё не готов.</template>
+            <template v-else> The sheet is not ready yet.</template>
           </p>
 
           <div class="sheet-nav">
@@ -459,7 +459,7 @@ watch(revision, () => {
               :disabled="store.loading.value || !store.sheetNav.value?.hasPrevious"
               @click="store.stepSheet(videofileId, -1)"
             >
-              предыдущий лист
+              previous sheet
             </button>
             <button
               type="button"
@@ -467,12 +467,12 @@ watch(revision, () => {
               :disabled="store.loading.value || !store.sheetNav.value?.hasNext"
               @click="store.stepSheet(videofileId, 1)"
             >
-              следующий лист
+              next sheet
             </button>
           </div>
 
           <form class="jump" @submit.prevent="goToFrame">
-            <label class="form-label" for="frame-jump">Перейти к кадру</label>
+            <label class="form-label" for="frame-jump">Go to frame</label>
             <div class="jump-row">
               <input
                 id="frame-jump"
@@ -482,7 +482,7 @@ watch(revision, () => {
                 min="0"
               />
               <button type="submit" class="btn btn-sm btn-primary" :disabled="store.loading.value">
-                перейти
+                go to
               </button>
             </div>
             <div class="form-text">
@@ -497,9 +497,9 @@ watch(revision, () => {
 
     <section v-if="store.rawVisible.value" class="card">
       <div class="card-body">
-        <div class="syp-card-title">Сырой результат автоматики</div>
+        <div class="syp-card-title">Raw automation result</div>
         <p class="syp-unit">
-          Границы, которые выдал алгоритм, до ручных правок. Рабочая структура выше — то, что
+          Границы, которые выдал алгоритм, to ручных правок. Рабочая структура выше — то, что
           осталось после правок; сравнивать их нужно рядом (FR-093).
         </p>
         <p v-if="store.raw.value" class="syp-unit">
@@ -510,8 +510,8 @@ watch(revision, () => {
           <table class="table table-sm">
             <thead>
               <tr>
-                <th>Уровень</th>
-                <th>Кадры</th>
+                <th>Level</th>
+                <th>Frames</th>
               </tr>
             </thead>
             <tbody>
@@ -523,7 +523,7 @@ watch(revision, () => {
           </table>
         </div>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="store.toggleRaw()">
-          скрыть сырой результат
+          hide the raw result
         </button>
       </div>
     </section>

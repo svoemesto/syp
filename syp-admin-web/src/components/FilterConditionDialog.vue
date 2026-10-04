@@ -114,14 +114,14 @@ async function chooseObject(objectClass: ConditionObjectClass): Promise<void> {
 }
 
 /**
- * Персона выбрана.
+ * Person выбрана.
  *
  * @param personId идентификатор персоны
  */
 function onChosen(personId: number): void {
   const person = persons.value.find((item) => item.id === personId)
   if (person === undefined) {
-    error.value = 'Персона не найдена: условие останется без объекта'
+    error.value = 'Person не найдена: условие останется без объекта'
     return
   }
   draft.value.objectKey = String(person.id)
@@ -167,13 +167,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="condition-dialog" role="dialog" aria-modal="true" aria-label="Условие фильтра">
-    <h2 class="syp-card-title">Новое условие фильтра</h2>
+  <div class="condition-dialog" role="dialog" aria-modal="true" aria-label="Filter condition">
+    <h2 class="syp-card-title">New filter condition</h2>
 
     <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
 
     <fieldset>
-      <legend class="legend">Что ищем</legend>
+      <legend class="legend">What we look for</legend>
       <div v-for="item in OBJECT_CLASSES" :key="item.value" class="form-check">
         <input
           :id="`oc-${item.value}`"
@@ -197,7 +197,7 @@ onMounted(async () => {
     <hr />
 
     <fieldset>
-      <legend class="legend">Включено или исключено</legend>
+      <legend class="legend">Included or excluded</legend>
       <div class="form-check">
         <input
           id="in-yes"
@@ -244,7 +244,7 @@ onMounted(async () => {
         {{ CONFIRM_BUTTON_TEXT }}
       </button>
       <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">
-        Отмена
+        Cancel
       </button>
     </div>
 

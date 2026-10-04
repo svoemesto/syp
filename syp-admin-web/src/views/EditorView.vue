@@ -41,7 +41,7 @@ const selectedShots = ref<number[]>([])
  */
 const personScope = ref<'file' | 'all'>('file')
 
-/** Охват лиц: `file` — лица файла (по умолчанию), `all` — все. */
+/** Охват faces: `file` — лица файла (по умолчанию), `all` — все. */
 const faceScope = ref<'file' | 'all'>('file')
 
 /** Отмеченные типы лиц; по умолчанию отмечены все четыре, как в старой форме. */

@@ -23,7 +23,7 @@ const source = computed(() => frameImageUrl(props.videofileId, props.frameNumber
   <figure class="shot-thumb">
     <img
       :src="source"
-      :alt="`кадр ${frameNumber}`"
+      :alt="`frame ${frameNumber}`"
       :width="width"
       :height="Math.round((width * 9) / 16)"
       loading="lazy"

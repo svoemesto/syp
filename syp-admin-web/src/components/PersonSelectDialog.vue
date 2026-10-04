@@ -7,7 +7,7 @@
  * фильтр по мере ввода, и это единственный способ найти персону, когда их
  * десятки, а имена известны частично.
  *
- * Смысл окна — выбрать персону для действия, а не завести новую. Заведение есть
+ * Смысл окна — выбрать персону для действия, а не add новую. Заведение есть
  * здесь же, но отдельной командой, чтобы его нельзя было выбрать случайно.
  */
 import { computed, onMounted, ref } from 'vue'
@@ -16,7 +16,7 @@ import { createPerson, facePreviewUrl, readPersons, type PersonView } from '../a
 const props = defineProps<{ videofileId: number; projectId: number }>()
 
 const emit = defineEmits<{
-  /** Персона выбрана и подтверждена. */
+  /** Person выбрана и подтверждена. */
   chosen: [personId: number]
   /** Окно закрыто без выбора. */
   closed: []
@@ -31,7 +31,7 @@ const query = ref('')
 /** Идентификатор выбранной персоны. */
 const chosen = ref<number | null>(null)
 
-/** Имя новой персоны: отдельное поле, чтобы заведение не выбралось случаем. */
+/** New person name: отдельное поле, чтобы заведение не выбралось случаем. */
 const newName = ref('')
 
 const error = ref('')
@@ -48,7 +48,7 @@ const shown = computed(() => {
 /** Подтверждает выбор и закрывает окно. */
 function accept(): void {
   if (chosen.value === null) {
-    error.value = 'Персона не выбрана: выбирать нечего'
+    error.value = 'Person не выбрана: выбирать нечего'
     return
   }
   emit('chosen', chosen.value)
@@ -57,7 +57,7 @@ function accept(): void {
 /** Заводит персону по имени. */
 async function addPerson(): Promise<void> {
   if (newName.value.trim() === '') {
-    error.value = 'Имя персоны обязательно: без него персону не завести'
+    error.value = 'Person name обязательно: без него персону не add'
     return
   }
   try {
@@ -82,15 +82,15 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="dialog" role="dialog" aria-label="Выбор персоны">
+  <div class="dialog" role="dialog" aria-label="PERSON">
     <div class="dialog-body">
-      <h2 class="syp-card-title">Выбор персоны</h2>
+      <h2 class="syp-card-title">PERSON</h2>
 
       <input
         v-model="query"
         class="form-control"
         type="search"
-        placeholder="Поиск по имени"
+        placeholder="Search by name"
         @keyup.enter="persons.length > 0 && (chosen = shown[0]?.id ?? null)"
       />
 
@@ -105,26 +105,26 @@ onMounted(async () => {
           <img
             v-if="person.photoFrameNumber !== null"
             :src="facePreviewUrl(props.videofileId, person.photoFrameNumber)"
-            :alt="`Фото персоны ${person.name}`"
+            :alt="`Person photo ${person.name}`"
             class="person-photo"
           />
           <span>{{ person.name }}</span>
-          <small v-if="person.isService" class="service">служебная</small>
+          <small v-if="person.isService" class="service">service</small>
         </li>
-        <li v-if="shown.length === 0" class="empty">Никого не найдено</li>
+        <li v-if="shown.length === 0" class="empty">Nobody found</li>
       </ul>
 
       <div class="new-person">
-        <input v-model="newName" class="form-control" placeholder="Имя новой персоны" />
-        <button type="button" class="btn btn-outline-secondary" @click="addPerson">Завести</button>
+        <input v-model="newName" class="form-control" placeholder="New person name" />
+        <button type="button" class="btn btn-outline-secondary" @click="addPerson">Add</button>
       </div>
 
       <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
 
       <div class="dialog-actions">
-        <button type="button" class="btn btn-primary" @click="accept">Подтвердить</button>
+        <button type="button" class="btn btn-primary" @click="accept">OK</button>
         <button type="button" class="btn btn-outline-secondary" @click="emit('closed')">
-          Отмена
+          Cancel
         </button>
       </div>
     </div>

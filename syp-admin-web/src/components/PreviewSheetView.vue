@@ -39,8 +39,9 @@ const cells = computed(() => {
     <figcaption>{{ sheet.caption }}</figcaption>
 
     <p v-if="!sheet.isReady" class="syp-stale">
-      Лист не готов: анализ не завершён или оборвался. Незавершённый лист не выдаётся — иначе
-      оператор увидел бы половину видеофайла и решил, что второй половины нет.
+      The sheet is not ready: the analysis did not finish or broke. An unfinished sheet is not
+      served — otherwise the operator would see half of the videofile and decide that the other half
+      does not exist.
     </p>
 
     <div v-else class="canvas">
@@ -57,8 +58,8 @@ const cells = computed(() => {
           type="button"
           class="cell"
           :disabled="!cell.exists"
-          :title="`Кадр ${cell.frame}`"
-          :aria-label="`Показать сцену с кадра ${cell.frame}`"
+          :title="`Frame ${cell.frame}`"
+          :aria-label="`Show scene from frame ${cell.frame}`"
           @click="emit('pick', cell.frame)"
         />
       </div>

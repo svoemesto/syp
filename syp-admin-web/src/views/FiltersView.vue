@@ -252,7 +252,7 @@ async function apply(): Promise<void> {
   }
 }
 
-/** Создание видео по отобранным планам: подсистемы в проекте нет. */
+/** Создание видео по отобранным планам: подсистемы в проекте none. */
 function createVideo(): void {
   notice.value =
     `Подсистемы нарезки видео в проекте нет, поэтому файлы по отобранным планам ` +
@@ -280,7 +280,7 @@ onMounted(async () => {
 
 <template>
   <section class="filters">
-    <h1 class="syp-page-title">Редактор фильтров</h1>
+    <h1 class="syp-page-title">Filters editor</h1>
 
     <p v-if="IS_STUB" class="stub" role="status">{{ STUB_NOTICE }}</p>
     <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
@@ -289,13 +289,13 @@ onMounted(async () => {
       <div class="levels">
         <!-- Уровень 1: фильтры -->
         <div class="level">
-          <div class="syp-card-title">Фильтры</div>
+          <div class="syp-card-title">Filters</div>
           <table class="table table-sm">
             <thead>
               <tr>
                 <th class="num">#</th>
                 <th>Filter</th>
-                <th class="join" title="Соединение групп">&amp;|</th>
+                <th class="join" title="Group join">&amp;|</th>
               </tr>
             </thead>
             <tbody>
@@ -307,7 +307,7 @@ onMounted(async () => {
               >
                 <td class="num">{{ index }}</td>
                 <td>{{ item.name }}</td>
-                <td class="join">{{ item.isAnd ? 'И' : 'ИЛИ' }}</td>
+                <td class="join">{{ item.isAnd ? 'AND' : 'OR' }}</td>
               </tr>
             </tbody>
           </table>
@@ -316,7 +316,7 @@ onMounted(async () => {
             v-model="currentFilter.name"
             class="form-control form-control-sm"
             type="text"
-            placeholder="имя фильтра"
+            placeholder="filter name"
           />
           <div class="andor">
             <label
@@ -333,30 +333,30 @@ onMounted(async () => {
             >
           </div>
           <div class="row-buttons">
-            <button type="button" title="В начало" @click="move(filters, filterIndex, 0)">⟰</button>
-            <button type="button" title="Выше" @click="move(filters, filterIndex, filterIndex - 1)">
+            <button type="button" title="To the start" @click="move(filters, filterIndex, 0)">
+              ⟰
+            </button>
+            <button type="button" title="Up" @click="move(filters, filterIndex, filterIndex - 1)">
               ⇧
             </button>
-            <button type="button" title="Ниже" @click="move(filters, filterIndex, filterIndex + 1)">
+            <button type="button" title="Down" @click="move(filters, filterIndex, filterIndex + 1)">
               ⇩
             </button>
             <button
               type="button"
-              title="В конец"
+              title="To the end"
               @click="move(filters, filterIndex, filters.length - 1)"
             >
               ⟱
             </button>
-            <button type="button" class="add" title="Добавить фильтр" @click="addFilter">+</button>
-            <button type="button" class="del" title="Удалить фильтр" @click="removeFilter">
-              ×
-            </button>
+            <button type="button" class="add" title="Add filter" @click="addFilter">+</button>
+            <button type="button" class="del" title="Delete filter" @click="removeFilter">×</button>
           </div>
         </div>
 
         <!-- Уровень 2: группы -->
         <div class="level">
-          <div class="syp-card-title">Группы</div>
+          <div class="syp-card-title">Groups</div>
           <table class="table table-sm">
             <thead>
               <tr>
@@ -367,7 +367,7 @@ onMounted(async () => {
             </thead>
             <tbody>
               <tr v-if="(currentFilter?.groups.length ?? 0) === 0">
-                <td colspan="3" class="empty">групп нет</td>
+                <td colspan="3" class="empty">no groups</td>
               </tr>
               <tr
                 v-for="(item, index) in currentFilter?.groups ?? []"
@@ -377,7 +377,7 @@ onMounted(async () => {
               >
                 <td class="num">{{ index }}</td>
                 <td>{{ item.name }}</td>
-                <td class="join">{{ item.isAnd ? 'И' : 'ИЛИ' }}</td>
+                <td class="join">{{ item.isAnd ? 'AND' : 'OR' }}</td>
               </tr>
             </tbody>
           </table>
@@ -386,7 +386,7 @@ onMounted(async () => {
             v-model="currentGroup.name"
             class="form-control form-control-sm"
             type="text"
-            placeholder="имя группы"
+            placeholder="group name"
           />
           <div v-if="currentGroup" class="andor">
             <label
@@ -401,28 +401,28 @@ onMounted(async () => {
           <div class="row-buttons">
             <button
               type="button"
-              title="В начало"
+              title="To the start"
               @click="move(currentFilter?.groups ?? [], groupIndex, 0)"
             >
               ⟰
             </button>
             <button
               type="button"
-              title="Выше"
+              title="Up"
               @click="move(currentFilter?.groups ?? [], groupIndex, groupIndex - 1)"
             >
               ⇧
             </button>
             <button
               type="button"
-              title="Ниже"
+              title="Down"
               @click="move(currentFilter?.groups ?? [], groupIndex, groupIndex + 1)"
             >
               ⇩
             </button>
             <button
               type="button"
-              title="В конец"
+              title="To the end"
               @click="
                 move(
                   currentFilter?.groups ?? [],
@@ -433,14 +433,14 @@ onMounted(async () => {
             >
               ⟱
             </button>
-            <button type="button" class="add" title="Добавить группу" @click="addGroup">+</button>
-            <button type="button" class="del" title="Удалить группу" @click="removeGroup">×</button>
+            <button type="button" class="add" title="Add group" @click="addGroup">+</button>
+            <button type="button" class="del" title="Delete group" @click="removeGroup">×</button>
           </div>
         </div>
 
         <!-- Уровень 3: условия -->
         <div class="level">
-          <div class="syp-card-title">Условия</div>
+          <div class="syp-card-title">Conditions</div>
           <table class="table table-sm">
             <thead>
               <tr>
@@ -450,7 +450,7 @@ onMounted(async () => {
             </thead>
             <tbody>
               <tr v-if="(currentGroup?.conditions.length ?? 0) === 0">
-                <td colspan="2" class="empty">условий нет</td>
+                <td colspan="2" class="empty">no conditions</td>
               </tr>
               <tr
                 v-for="(item, index) in currentGroup?.conditions ?? []"
@@ -466,28 +466,28 @@ onMounted(async () => {
           <div class="row-buttons">
             <button
               type="button"
-              title="В начало"
+              title="To the start"
               @click="move(currentGroup?.conditions ?? [], conditionIndex, 0)"
             >
               ⟰
             </button>
             <button
               type="button"
-              title="Выше"
+              title="Up"
               @click="move(currentGroup?.conditions ?? [], conditionIndex, conditionIndex - 1)"
             >
               ⇧
             </button>
             <button
               type="button"
-              title="Ниже"
+              title="Down"
               @click="move(currentGroup?.conditions ?? [], conditionIndex, conditionIndex + 1)"
             >
               ⇩
             </button>
             <button
               type="button"
-              title="В конец"
+              title="To the end"
               @click="
                 move(
                   currentGroup?.conditions ?? [],
@@ -498,10 +498,8 @@ onMounted(async () => {
             >
               ⟱
             </button>
-            <button type="button" class="add" title="Добавить условие" @click="addCondition">
-              +
-            </button>
-            <button type="button" class="del" title="Удалить условие" @click="removeCondition">
+            <button type="button" class="add" title="Add condition" @click="addCondition">+</button>
+            <button type="button" class="del" title="Delete condition" @click="removeCondition">
               ×
             </button>
           </div>
@@ -510,12 +508,12 @@ onMounted(async () => {
 
       <!-- Правая часть: файлы, кнопка применения и результат -->
       <div class="apply">
-        <div class="syp-card-title">Файлы</div>
+        <div class="syp-card-title">Files</div>
         <table class="table table-sm files">
           <thead>
             <tr>
               <th class="num">#</th>
-              <th>Файл</th>
+              <th>File</th>
             </tr>
           </thead>
           <tbody>
@@ -536,9 +534,9 @@ onMounted(async () => {
           :disabled="busy"
           @click="apply"
         >
-          &gt;&gt; Применить фильтр
+          &gt;&gt; Apply filter
         </button>
-        <div class="syp-card-title">Планы</div>
+        <div class="syp-card-title">Shots</div>
         <table class="table table-sm shots">
           <thead>
             <tr>
@@ -549,7 +547,7 @@ onMounted(async () => {
           </thead>
           <tbody>
             <tr v-if="selectedShots.length === 0">
-              <td colspan="3" class="empty">отбор не выполнялся</td>
+              <td colspan="3" class="empty">selection has not run</td>
             </tr>
             <tr v-for="(shot, index) in selectedShots" :key="index">
               <td>{{ shot.fileName }}</td>
@@ -559,14 +557,14 @@ onMounted(async () => {
           </tbody>
         </table>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="createVideo">
-          Создать видео по отобранным планам
+          Create a video from the selected shots
         </button>
         <button
           type="button"
           class="btn btn-sm btn-outline-secondary"
           @click="createVideoForAllPersons"
         >
-          Создать видео по отобранным планам для всех персон
+          Create a video from the selected shots for all persons
         </button>
       </div>
     </div>

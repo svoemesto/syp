@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Карточка базы данных.
+// Database card.
 //
 // Форма повторяет `database-edit-view` старого проекта: идентификатор (недоступен
 // для правки), имя, драйвер, адрес, пользователь, пароль и две кнопки.
@@ -24,12 +24,13 @@ const notice = ref('')
 </script>
 
 <template>
-  <div class="database-card" role="dialog" aria-modal="true" aria-label="Карточка базы данных">
-    <h2 class="syp-card-title">Карточка базы данных</h2>
+  <div class="database-card" role="dialog" aria-modal="true" aria-label="Database card">
+    <h2 class="syp-card-title">Database card</h2>
 
     <p class="stub">
-      Поля не правятся: параметры подключения читаются при старте из окружения развёртывания, и
-      изменение здесь было бы стёрто следующим запуском. Место для правки — `deploy/.env`.
+      The fields cannot be edited: the connection parameters are read at start from the deployment
+      environment, and this stand does not serve the database address. A change here would be wiped
+      by the next run. The place to edit is `deploy/.env`.
     </p>
 
     <div class="row">
@@ -43,7 +44,7 @@ const notice = ref('')
       />
     </div>
     <div class="row">
-      <label for="db-name">Имя:</label>
+      <label for="db-name">Name:</label>
       <input
         id="db-name"
         class="form-control form-control-sm"
@@ -53,7 +54,7 @@ const notice = ref('')
       />
     </div>
     <div class="row">
-      <label for="db-driver">Драйвер:</label>
+      <label for="db-driver">Driver:</label>
       <input
         id="db-driver"
         class="form-control form-control-sm"
@@ -63,7 +64,7 @@ const notice = ref('')
       />
     </div>
     <div class="row">
-      <label for="db-url">Адрес:</label>
+      <label for="db-url">Url:</label>
       <input
         id="db-url"
         class="form-control form-control-sm"
@@ -73,7 +74,7 @@ const notice = ref('')
       />
     </div>
     <div class="row">
-      <label for="db-user">Пользователь:</label>
+      <label for="db-user">User:</label>
       <input
         id="db-user"
         class="form-control form-control-sm"
@@ -83,14 +84,14 @@ const notice = ref('')
       />
     </div>
     <div class="row">
-      <label for="db-password">Пароль:</label>
+      <label for="db-password">Password:</label>
       <input
         id="db-password"
         class="form-control form-control-sm"
         type="password"
         :value="props.database.user"
         disabled
-        title="Пароль не показывается: секреты хранятся только в окружении развёртывания"
+        title="The password is not shown: secrets live only in the deployment environment"
       />
     </div>
 
@@ -99,13 +100,14 @@ const notice = ref('')
         type="button"
         class="btn btn-sm btn-primary"
         @click="
-          notice = 'Сохранения нет: поля берутся из окружения развёртывания при каждом старте'
+          notice =
+            'There is nothing to save: the fields are taken from the deployment environment at every start'
         "
       >
-        Подтвердить
+        OK
       </button>
       <button type="button" class="btn btn-sm btn-outline-secondary" @click="emit('closed')">
-        Отмена
+        Cancel
       </button>
     </div>
 
