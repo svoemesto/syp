@@ -58,7 +58,7 @@ const visibleFaces = computed<FaceView[]>(() =>
 )
 
 /** Всего страниц лиц. */
-const pages = computed(() => Math.max(1, Math.ceil((faces.value?.total ?? 0) / (faces.value?.limit || 1))))
+const pages = computed(() => Math.max(1, Math.ceil((faces.value?.facesTotal ?? 0) / (faces.value?.limit || 1))))
 
 /** Персона, которой назначаются выбранные лица. */
 const target = computed(() => persons.value.find((person) => person.id === targetPerson.value))
@@ -107,7 +107,7 @@ async function markExamples(marked: boolean): Promise<void> {
   }
   try {
     const answer = await markFaceExamples(props.videofileId, selectedFaces.value, marked)
-    notice.value = `эталонов: ${answer.marked}, снято пометок: ${answer.unmarked ?? 0}`
+    notice.value = `помечено эталоном: ${answer.isExample ? 'да' : 'нет'}, изменено лиц: ${answer.changed}`
     error.value = ''
     await reload()
   } catch (failure) {
