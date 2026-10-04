@@ -25,7 +25,7 @@ const props = defineProps<{ videofileId: number }>()
 
 /** Активная вкладка правой части. Порядок — как в старом проекте. */
 const TABS = ['Frames', 'Persons', 'Scenes', 'Events'] as const
-const tab = ref<(typeof TABS)[number]>('Frames')
+const tab = ref<(typeof TABS)[number]>('Persons')
 
 /** Разобранный видеофайл: планы и сцены. */
 const structure = ref<StructureView | null>(null)
