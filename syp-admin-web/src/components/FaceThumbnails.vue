@@ -8,7 +8,6 @@
 размере миниатюры.
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { markFaceExamples } from '../api/characters'
 
 /** Сторона миниатюры лица в пикселях. */
@@ -106,7 +105,7 @@ function caption(face: FaceView): string {
 <template>
   <ul class="thumbnails">
     <li
-      v-for="(face, index) in faces"
+      v-for="face in faces"
       :key="face.id"
       class="thumb"
       :class="{ outlined: outlined === true, chosen: (selectedIds ?? []).includes(face.id) }"
