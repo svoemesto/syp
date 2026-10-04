@@ -116,7 +116,12 @@ class FaceDetectorProcess(
      * @return найденные лица в координатах кадра полного разрешения
      * @throws FaceDetectorFailed если программа не ответила за отведённое
      *   время, ответила не на тот кадр или вернула оборванный ответ
+     *
+     * Запрос и ответ неразлучны: программа одна на все кадры, и чужой
+     * ответ, взятый из очереди, выглядит как «ответ на другой кадр» — именно
+     * это и происходило, когда метод вызывали из нескольких потоков.
      */
+    @Synchronized
     fun detect(frame: RawFrame): List<DetectedFace> {
         val running = process ?: throw FaceDetectorFailed("Программа детектора не запущена")
         val stream = input ?: throw FaceDetectorFailed("Программа детектора не запущена")
@@ -270,6 +275,10 @@ class FaceDetectorProcess(
                 )
             }
             if (System.nanoTime() >= deadline) {
+                // Ответ опоздает и останется в очереди, а следующий запрос
+                // заберёт именно его — и получит «ответ на другой кадр».
+                // Очередь очищается, чтобы опоздавшее не досталось следующему.
+                answers.clear()
                 throw FaceDetectorFailed(
                     "Программа детектора «$programPath» не объявила себя готовой за " +
                         "${frameTimeout.toSeconds()} с. Вывод программы: ${diagnostics.text()}",
