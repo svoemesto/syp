@@ -9,6 +9,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import ActionsView from './views/ActionsView.vue'
 import ChecksumStatusView from './views/ChecksumStatusView.vue'
 import FacesView from './views/FacesView.vue'
+import ProjectView from './views/ProjectView.vue'
 import FiltersView from './views/FiltersView.vue'
 import VideofileIntakeView from './views/VideofileIntakeView.vue'
 import StructureView from './views/StructureView.vue'
@@ -46,6 +47,13 @@ export const router = createRouter({
       path: '/videofiles/:videofileId/faces',
       name: 'faces',
       component: FacesView,
+      props: true,
+    },
+    {
+      // Главное окно проекта: слева проект с файлами, справа выбранный файл.
+      path: '/projects/:projectId',
+      name: 'project',
+      component: ProjectView,
       props: true,
     },
     {

@@ -13,6 +13,21 @@ import { formatBytes, formatDuration } from '../format/values'
 
 const store = useCatalogStore()
 
+const router = useRouter()
+
+/**
+ * Открывает главное окно выбранного проекта.
+ *
+ * Проект сначала выбирается в состоянии: главное окно читает его и список
+ * файлов, и без выбора пришло бы пустым.
+ *
+ * @param projectId идентификатор проекта
+ */
+async function openMainWindow(projectId: number): Promise<void> {
+  await store.openProject(projectId)
+  await router.push({ name: 'project', params: { projectId: String(projectId) } })
+}
+
 /** Открыто ли окно выбора базы данных. */
 const databaseOpen = ref(false)
 const router = useRouter()
@@ -122,7 +137,10 @@ function openFaces(videofileId: number): void {
             </td>
             <td>{{ project.videofileCount }}</td>
             <td>
-              <button type="button" @click="store.openProject(project.id)">открыть</button>
+              <!-- Кнопка «открыть» выбирает проект в состоянии и открывает
+                   главное окно: в старом проекте `Open…` из меню вёл именно
+                   в него, а не в список файлов. -->
+              <button type="button" @click="openMainWindow(project.id)">открыть</button>
             </td>
           </tr>
           <tr v-if="store.projects.value.length === 0">
