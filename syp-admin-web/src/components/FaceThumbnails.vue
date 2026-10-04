@@ -17,7 +17,8 @@ const emit = defineEmits<{
   /** Лицо выбрано или выбор снят. */
   select: [faceId: number]
 }>()
-import { type FaceView, facePreviewUrl } from '../api/characters'
+import { type FaceView } from '../api/characters'
+import { frameImageUrl } from '../api/structure'
 
 const props = defineProps<{
   /** Видеофайл-владелец лиц. */
@@ -90,6 +91,9 @@ async function toggleExample(faceId: number): Promise<void> {
 /** Запас вокруг лица: во столько раз кадр больше самой рамки лица. */
 const CROP_MARGIN = 2.6
 
+/** Ширина кадра, из которого вырезается миниатюра. */
+const SOURCE_WIDTH = 480
+
 const crops = computed(() =>
   props.faces.map((face) => {
     const faceWidth = Math.max(face.x2 - face.x1, 1)
@@ -128,7 +132,7 @@ function caption(face: FaceView): string {
       <span class="crop">
         <img
           class="frame"
-          :src="facePreviewUrl(videofileId, face.frameNumber)"
+          :src="frameImageUrl(videofileId, face.frameNumber, SOURCE_WIDTH)"
           :alt="caption(face)"
           :draggable="draggable === true"
           loading="lazy"
@@ -194,7 +198,7 @@ function caption(face: FaceView): string {
   display: block;
   position: relative;
   width: 100%;
-  height: 76px;
+  height: 96px;
   overflow: hidden;
   background: var(--syp-bg);
 }
