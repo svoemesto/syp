@@ -136,7 +136,7 @@ function pickAll(): void {
  */
 async function run(): Promise<void> {
   if (!hasSelection.value) {
-    notice.value = 'Не выбран ни один файл: запускать нечего'
+    notice.value = 'No file is selected: there is nothing to run'
     return
   }
   const analysisWanted = OPERATIONS.some(
@@ -147,7 +147,7 @@ async function run(): Promise<void> {
   )
   if (!analysisWanted && !facesWanted) {
     notice.value =
-      'Не отмечено ни одной операции, которая что-то запускает: отмеченные операции в проекте не выполняются'
+      'No operation that starts anything is marked: отмеченные операции в проекте не выполняются'
     return
   }
   const targets = rows.value.filter((row) => selected.value.includes(row.videofileId))
@@ -176,7 +176,7 @@ async function run(): Promise<void> {
     }
     error.value = ''
     notice.value =
-      `заданий поставлено: ${queued}, пропущено как уже сделанные: ${skipped}` +
+      `jobs queued: ${queued}, пропущено как уже сделанные: ${skipped}` +
       (skipped > 0 && !recreate.value ? ' — повтор включите переключателем RECREATE IF EXISTS' : '')
   } catch (failure) {
     error.value = (failure as Error).message
@@ -202,7 +202,7 @@ async function train(): Promise<void> {
   try {
     const named = rows.value
       .filter((row) => selected.value.includes(row.videofileId))
-      .map((row) => `${row.name}: распознано ${row.states.RF === 'yes' ? 'есть' : 'no'}`)
+      .map((row) => `${row.name}: recognised ${row.states.RF === 'yes' ? 'есть' : 'no'}`)
     notice.value =
       'Заглушка: обучения модели в проекте none. ' +
       'Эталоны помечаются на вкладке «Персоны» главного редактора, ' +
@@ -227,12 +227,12 @@ async function reload(): Promise<void> {
       first.value = {
         done: collected.length,
         total: files.value.length,
-        note: `файлов прочитано: ${collected.length} из ${files.value.length}`,
+        note: `files read: ${collected.length} из ${files.value.length}`,
       }
       second.value = {
         done: collected.filter((row) => stateOf(row, 'AF') === 'yes').length,
         total: collected.length,
-        note: 'проанализировано',
+        note: 'analysed',
       }
     }
     error.value = ''

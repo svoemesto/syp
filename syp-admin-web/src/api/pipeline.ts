@@ -38,23 +38,23 @@ export interface Indicator {
  * каждую операцию конвейера.
  */
 export const INDICATORS: readonly Indicator[] = [
-  { code: '#', title: 'Порядок файла' },
-  { code: 'Файл', title: 'Имя файла' },
-  { code: 'PW', title: 'Превью создано' },
-  { code: 'LL', title: 'Копия lossless создана' },
-  { code: 'FS', title: 'Кадры 175×35 созданы' },
-  { code: 'FM', title: 'Кадры 720×400 созданы' },
-  { code: 'FF', title: 'Кадры 1920×1080 созданы' },
-  { code: 'AF', title: 'Кадры проанализированы' },
-  { code: 'CS', title: 'Планы созданы' },
-  { code: 'DF', title: 'Лица обнаружены' },
-  { code: 'CF', title: 'Лица вырезаны в файлы' },
-  { code: 'CFP', title: 'Превью лиц созданы' },
-  { code: 'RF', title: 'Лица распознаны' },
-  { code: 'SCA', title: 'Видео планов сжатое, со звуком' },
-  { code: 'SLA', title: 'Видео планов lossless, со звуком' },
-  { code: 'SLN', title: 'Видео планов lossless, без звука' },
-  { code: 'CC', title: 'Сконкатенированный файл' },
+  { code: '#', title: '#' },
+  { code: 'Файл', title: 'Файл' },
+  { code: 'PW', title: 'PW' },
+  { code: 'LL', title: 'LL' },
+  { code: 'FS', title: 'FS' },
+  { code: 'FM', title: 'FM' },
+  { code: 'FF', title: 'FF' },
+  { code: 'AF', title: 'AF' },
+  { code: 'CS', title: 'CS' },
+  { code: 'DF', title: 'DF' },
+  { code: 'CF', title: 'CF' },
+  { code: 'CFP', title: 'CFP' },
+  { code: 'RF', title: 'RF' },
+  { code: 'SCA', title: 'SCA' },
+  { code: 'SLA', title: 'SLA' },
+  { code: 'SLN', title: 'SLN' },
+  { code: 'CC', title: 'CC' },
 ]
 
 /**
@@ -72,11 +72,11 @@ const NO_SUBSYSTEM: Readonly<Record<string, string>> = {
   FM: 'кадров трёх размеров в проекте нет',
   FF: 'кадров трёх размеров в проекте нет',
   CF: 'вырезания лиц в файлы в проекте нет',
-  CFP: 'отдельных превью лиц в проекте нет: превью берётся из листа кадра',
+  CFP: 'отдельных превью лиц в проекте нет: the preview is taken from the frame sheet',
   SCA: 'нарезки видео планов в проекте нет',
   SLA: 'нарезки видео планов в проекте нет',
   SLN: 'нарезки видео планов в проекте нет',
-  CC: 'склейки видео в проекте нет',
+  CC: 'the project has no video concatenation',
 }
 
 /** Состояние конвейера по одному видеофайлу. */
@@ -103,7 +103,7 @@ export interface Operation {
   readonly title: string
   /** Чем операция кончается сейчас. */
   readonly effect: string
-  /** Запускает ли операция задание сервера. */
+  /** Запускает ли операция the job сервера. */
   readonly runs: boolean
 }
 
@@ -117,92 +117,92 @@ export interface Operation {
 export const OPERATIONS: readonly Operation[] = [
   {
     code: 'PW',
-    title: '[PW] Создать превью',
-    effect: 'входит в задание «Анализ структуры»: отдельного задания нет',
+    title: '[PW] Create preview',
+    effect: 'part of the job Structure analysis: there is no separate job',
     runs: false,
   },
   {
     code: 'LL',
-    title: '[LL] Создать копию lossless',
-    effect: 'подсистемы нет: копирование исходника в проекте не выполняется',
+    title: '[LL] Create lossless',
+    effect: 'no subsystem: copying the source is not performed in the project',
     runs: false,
   },
   {
     code: 'FS',
-    title: '[FS] Создать кадры малые',
-    effect: 'подсистемы нет: кадры трёх размеров в проекте не создаются',
+    title: '[FS] Create frames small',
+    effect: 'no subsystem: the three frame sizes are not created in the project',
     runs: false,
   },
   {
     code: 'FM',
-    title: '[FM] Создать кадры средние',
-    effect: 'подсистемы нет: кадры трёх размеров в проекте не создаются',
+    title: '[FM] Create frames medium',
+    effect: 'no subsystem: the three frame sizes are not created in the project',
     runs: false,
   },
   {
     code: 'FF',
-    title: '[FF] Создать кадры полные',
-    effect: 'подсистемы нет: кадры трёх размеров в проекте не создаются',
+    title: '[FF] Create frames full',
+    effect: 'no subsystem: the three frame sizes are not created in the project',
     runs: false,
   },
   {
     code: 'AF',
-    title: '[AF] Проанализировать кадры',
-    effect: 'задание «Анализ структуры»: превью, кадры, границы планов и сцен',
+    title: '[AF] Analyze frames',
+    effect: 'the job Structure analysis: preview, frames, shot and scene boundaries',
     runs: true,
   },
   {
     code: 'CS',
-    title: '[CS] Создать планы',
-    effect: 'входит в задание «Анализ структуры»: отдельного задания нет',
+    title: '[CS] Create shots',
+    effect: 'part of the job Structure analysis: there is no separate job',
     runs: false,
   },
   {
     code: 'DF',
-    title: '[DF] Найти лица',
-    effect: 'задание «Лица»: детекция, выделение векторов и превью',
+    title: '[DF] Detect faces',
+    effect: 'the job Faces: detection, vector extraction and preview',
     runs: true,
   },
   {
     code: 'CF',
-    title: '[CF] Вырезать лица в файлы',
-    effect: 'подсистемы нет: лица хранятся в базе, отдельными файлами не вырезаются',
+    title: '[CF] Create faces',
+    effect: 'no subsystem: faces are kept in the database, not cut out as separate files',
     runs: false,
   },
   {
     code: 'CFP',
-    title: '[CFP] Создать превью лиц',
-    effect: 'входит в задание «Лица»: превью берётся из листа кадра',
+    title: '[CFP] Create faces preview',
+    effect: 'part of the job Faces: the preview is taken from the frame sheet',
     runs: false,
   },
   {
     code: 'RF',
-    title: '[RF] Распознать лица',
-    effect: 'подсистемы нет: обученной модели в проекте нет',
+    title: '[RF] Recognize faces',
+    effect: 'no subsystem: the project has no trained model',
     runs: false,
   },
   {
     code: 'SCA',
-    title: '[SCA] Создать видео планов (сжатое, со звуком) — нужен LL!!!',
-    effect: 'подсистемы нет: нарезки видео в проекте нет',
+    title: '[SCA] Create shots video files (compressed, with audio) - need LL!!!',
+    effect: 'no subsystem: the project has no video cutting',
     runs: false,
   },
   {
     code: 'SLA',
-    title: '[SLA] Создать видео планов (lossless, со звуком) — нужен LL!!!',
-    effect: 'подсистемы нет: нарезки видео в проекте нет',
+    title: '[SLA] Create shots video files (lossless mxf, with audio) - need LL!!!',
+    effect: 'no subsystem: the project has no video cutting',
     runs: false,
   },
   {
     code: 'SLN',
-    title: '[SLN] Создать видео планов (lossless, без звука) — нужен LL!!!',
-    effect: 'подсистемы нет: нарезки видео в проекте нет',
+    title: '[SLN] Create shots video files (lossless mxf, without audio) - need LL!!!',
+    effect: 'no subsystem: the project has no video cutting',
     runs: false,
   },
   {
     code: 'CC',
-    title: '[CC] Создать склеенный видеофайл — нужен SLA!!!',
-    effect: 'подсистемы нет: склейки видео в проекте нет',
+    title: '[CC] Create concatinated video file - need SLA!!!',
+    effect: 'no subsystem: the project has no video concatenation',
     runs: false,
   },
 ]
