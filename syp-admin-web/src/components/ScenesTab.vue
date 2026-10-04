@@ -19,8 +19,7 @@ import {
   type ShotView,
 } from '../api/structure'
 import ShotThumb from './ShotThumb.vue'
-import { readFaces
-  readPersons, type PersonView } from '../api/characters'
+import { readFaces, readPersons, type PersonView } from '../api/characters'
 
 const props = defineProps<{ videofileId: number }>()
 
