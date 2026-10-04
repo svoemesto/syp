@@ -16,6 +16,7 @@ import { readStructure, type ShotView, type StructureView } from '../api/structu
 import { readFaces, readPersons, type PersonView } from '../api/characters'
 import EventsTab from '../components/EventsTab.vue'
 import PersonsTab from '../components/PersonsTab.vue'
+import ScenesTab from '../components/ScenesTab.vue'
 
 const props = defineProps<{ videofileId: number }>()
 
@@ -209,10 +210,7 @@ onMounted(async () => {
 
         <PersonsTab v-else-if="tab === 'Persons'" :videofile-id="Number(props.videofileId)" />
 
-        <section v-else-if="tab === 'Scenes'" class="placeholder">
-          <div class="syp-card-title">Сцены</div>
-          <p>Раздел переносится: сцены файла, планы выбранных сцен, персоны и свойства сцены.</p>
-        </section>
+        <ScenesTab v-else-if="tab === 'Scenes'" :videofile-id="Number(props.videofileId)" />
 
         <section v-else class="placeholder">
           <div class="syp-card-title">Кадры</div>
