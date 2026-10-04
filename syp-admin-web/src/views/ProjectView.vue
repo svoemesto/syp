@@ -69,7 +69,7 @@ const error = ref('')
 const notice = ref('')
 
 /** Открыто ли окно выбора базы. */
-const databaseOpen = ref(false)
+const databaseOpen = ref(true)
 
 /** Ход работы под полосой: в старом окне здесь стоял английский `Label`. */
 const progressNote = ref('файлы не перечитывались')
