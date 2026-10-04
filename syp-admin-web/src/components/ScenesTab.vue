@@ -338,6 +338,14 @@ watch(
 
 <style scoped>
 /* Ячейка с миниатюрой: кадр и подпись занимают всю ширину колонки. */
+.column-wide table th:first-child,
+.column-wide table td:first-child {
+  min-width: 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .thumb-cell {
   padding: 0.2rem;
   vertical-align: top;
