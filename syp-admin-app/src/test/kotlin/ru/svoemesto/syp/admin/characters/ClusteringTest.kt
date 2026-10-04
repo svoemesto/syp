@@ -162,4 +162,34 @@ class ClusteringTest {
     fun `пустой список лиц не даёт кластеров`() {
         assertEquals(0, clustering.cluster(emptyList(), centerCount = 16, mergeThreshold = 0.9).size)
     }
+
+    @Test
+    fun `каждое лицо попадает в кластер, а не только центры`() {
+        val points =
+            (1..600).map { index ->
+                // Десять человек по разным направлениям, каждый в шестидесяти
+                // повторениях: так состав лиц известен заранее.
+                val person = (index - 1) / 60
+                val axis = index % 128
+                val vector = FloatArray(128)
+                vector[axis] = 1f
+                vector[(axis + person + 1) % 128] = 0.1f * person
+                ClusterPoint(index.toLong(), vector)
+            }
+        val clusters = clustering.cluster(points, centerCount = 16, mergeThreshold = 0.9)
+
+        // Сумма размеров обязана равняться числу лиц: иначе часть лиц не
+        // принадлежит ни одному кластеру, и группировка молча неполна.
+        assertEquals(
+            points.size,
+            clusters.sumOf { it.size },
+            "Часть лиц не попала ни в один кластер: лица, кластеры и их размеры — " +
+                "в ответе кластеров ${clusters.map { it.size }}",
+        )
+        assertEquals(
+            points.map { it.faceId }.toSet(),
+            clusters.flatMap { it.faceIds }.toSet(),
+            "Состав кластеров не совпадает с составом лиц",
+        )
+    }
 }

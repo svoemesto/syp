@@ -120,20 +120,32 @@ class Clustering {
                         merged = true
                     }
                 }
-                kept.add(Center(meanOf(group.map { it.center }), group.flatMap { it.members }))
+                val members = group.flatMap { it.members }
+                kept.add(Center(meanOfFaces(members.map { it.vector }), members))
             }
             centers = kept
         }
 
-        return centers
-            .filter { it.members.isNotEmpty() }
-            .map { center ->
+        // После слияния распределение делается заново: центр кластера сместился
+        // к общему среднему, и лицо, разбитое по старому центру, может быть
+        // ближе к чужому. Без этого прохода часть лиц осталась бы в кластере,
+        // чей центр они уже не разделяют.
+        val finalMembers = Array(centers.size) { mutableListOf<ClusterPoint>() }
+        assignAll(
+            points,
+            centers.map { toFloatUnit(it.center) },
+            finalMembers.toList(),
+        )
+        return centers.indices
+            .map { index ->
+                val members = finalMembers[index]
                 FaceCluster(
-                    id = clusterIdOf(center.members),
-                    faceIds = center.members,
-                    size = center.members.size,
+                    id = clusterIdOf(members.map { it.faceId }),
+                    faceIds = members.map { it.faceId },
+                    size = members.size,
                 )
-            }.sortedWith(compareByDescending<FaceCluster> { it.size }.thenBy { it.id })
+            }.filter { it.size > 0 }
+            .sortedWith(compareByDescending<FaceCluster> { it.size }.thenBy { it.id })
     }
 
     /**
@@ -151,13 +163,78 @@ class Clustering {
         points: List<ClusterPoint>,
         centers: Int,
     ): List<Center> {
-        val ordered = points.sortedBy { it.faceId }.take(minOf(centers, points.size))
-        return ordered.map { point ->
+        val count = minOf(centers, points.size)
+        if (count == 0) {
+            return emptyList()
+        }
+        val ordered = points.sortedBy { it.faceId }
+        // Зёрна берутся равномерным шагом по всему объёму, а не с начала: лица
+        // идут по кадрам, и первые двести пятьдесят шесть — это первые кадры, то есть
+        // практически один человек. Начало списка не представляет видео.
+        val seeds = List(count) { index -> ordered[index * (ordered.size / count)] }
+        val members = Array(count) { mutableListOf<ClusterPoint>() }
+        assignAll(ordered, seeds.map { normalize(it.vector) }, members.toList())
+        return seeds.indices.map { index ->
             Center(
-                center = DoubleArray(point.vector.size) { point.vector[it].toDouble() },
-                members = listOf(point.faceId),
+                center = meanOfFaces(members[index].map { it.vector }),
+                members = members[index],
             )
         }
+    }
+
+    /**
+     * Распределяет все точки по ближайшему центру.
+     *
+     * Мера — косинусная, то есть по направлению вектора. Все вектора
+     * приводятся к единичной длине заранее, и тогда близость — это простое
+     * скалярное произведение: одна операция на пару вместо трёх.
+     *
+     * @param points точки
+     * @param unitCenters центры единичной длины
+     * @param members списки, в которые раскладываются точки; один на центр
+     */
+    private fun assignAll(
+        points: List<ClusterPoint>,
+        unitCenters: List<FloatArray>,
+        members: List<MutableList<ClusterPoint>>,
+    ) {
+        val unitPoints = points.map { normalize(it.vector) }
+        unitPoints.forEachIndexed { index, point ->
+            var best = 0
+            var bestScore = Float.NEGATIVE_INFINITY
+            unitCenters.forEachIndexed { centerIndex, center ->
+                val score = dot(point, center)
+                if (score > bestScore) {
+                    bestScore = score
+                    best = centerIndex
+                }
+            }
+            members[best].add(points[index])
+        }
+    }
+
+    /** Переводит центр кластера в единичный вектор для распределения точек. */
+    private fun toFloatUnit(center: DoubleArray): FloatArray = normalize(FloatArray(center.size) { center[it].toFloat() })
+
+    /** Приводит вектор к единичной длине; нулевой остаётся нулём. */
+    private fun normalize(vector: FloatArray): FloatArray {
+        var sum = 0f
+        vector.forEach { value -> sum += value * value }
+        if (sum <= 0f) {
+            return vector.copyOf()
+        }
+        val scale = (1.0 / kotlin.math.sqrt(sum.toDouble())).toFloat()
+        return FloatArray(vector.size) { vector[it] * scale }
+    }
+
+    /** Скалярное произведение векторов одинаковой длины. */
+    private fun dot(
+        left: FloatArray,
+        right: FloatArray,
+    ): Float {
+        var sum = 0f
+        left.indices.forEach { sum += left[it] * right[it] }
+        return sum
     }
 
     /**
@@ -167,6 +244,25 @@ class Clustering {
      * @return средний вектор
      */
     private fun meanOf(vectors: List<DoubleArray>): DoubleArray {
+        val result = DoubleArray(vectors.first().size)
+        vectors.forEach { vector ->
+            vector.forEachIndexed { index, value -> result[index] += value }
+        }
+        result.indices.forEach { index -> result[index] /= vectors.size }
+        return result
+    }
+
+    /**
+     * Среднее векторов лиц покомпонентно.
+     *
+     * Отдельный метод, а не перегрузка: вектора лиц приходят
+     * `FloatArray`, центры считаются в `DoubleArray`, и смешивать их в одном
+     * методе значило бы приводить типы дважды на каждом слиянии.
+     *
+     * @param vectors вектора лиц
+     * @return средний вектор
+     */
+    private fun meanOfFaces(vectors: List<FloatArray>): DoubleArray {
         val result = DoubleArray(vectors.first().size)
         vectors.forEach { vector ->
             vector.forEachIndexed { index, value -> result[index] += value }
@@ -228,7 +324,7 @@ class Clustering {
      */
     private class Center(
         val center: DoubleArray,
-        val members: List<Long>,
+        val members: List<ClusterPoint>,
     )
 
     companion object {
