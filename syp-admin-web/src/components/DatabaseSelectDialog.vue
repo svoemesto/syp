@@ -106,7 +106,7 @@ function select(): void {
 
     <p v-if="notice !== ''" class="notice" role="status">{{ notice }}</p>
 
-    <DatabaseEditDialog v-if="editing" :database="database" @closed="editing = false" />
+    <DatabaseEditDialog v-if="true" :database="database" @closed="editing = false" />
   </div>
 </template>
 
