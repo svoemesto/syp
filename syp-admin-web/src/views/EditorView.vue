@@ -15,6 +15,8 @@ import { computed, onMounted, ref } from 'vue'
 import { readStructure, type ShotView, type StructureView } from '../api/structure'
 import { readFaces, readPersons, type PersonView } from '../api/characters'
 import EventsTab from '../components/EventsTab.vue'
+import ShotFrameView from '../components/ShotFrameView.vue'
+import ShotThumb from '../components/ShotThumb.vue'
 import PersonsTab from '../components/PersonsTab.vue'
 import ScenesTab from '../components/ScenesTab.vue'
 import FramesTab from '../components/FramesTab.vue'
@@ -33,6 +35,30 @@ const persons = ref<PersonView[]>([])
 
 /** Идентификаторы выбранных планов: выбор множественный, как в старом проекте. */
 const selectedShots = ref<number[]>([])
+
+/**
+ * Охват персон: `file` — персоны файла (по умолчанию), `all` — все.
+ */
+const personScope = ref<'file' | 'all'>('file')
+
+/** Охват лиц: `file` — лица файла (по умолчанию), `all` — все. */
+const faceScope = ref<'file' | 'all'>('file')
+
+/** Отмеченные типы лиц; по умолчанию отмечены все четыре, как в старой форме. */
+const faceTypes = ref<string[]>(['notExample', 'example', 'notManual', 'manual'])
+
+/** Ширина миниатюры кадра в колонках FROM и TO, как в старой форме. */
+const SHOT_THUMB_WIDTH = 96
+
+/** Значки типов плана вместо строкового значения в колонке данных. */
+const TYPE_MARKS: Record<string, string> = {
+  XLS: 'XL',
+  XS: 'XS',
+  S: 'S',
+  M: 'M',
+  L: 'L',
+  NONE: '—',
+}
 
 /** Ошибка чтения: молча пустой экран хуже названной ошибки. */
 const error = ref('')
@@ -95,6 +121,30 @@ function addShotProperty(): void {
   error.value = ''
 }
 
+/**
+ * Значок типа плана в колонке TYPE.
+ *
+ * В старой форме там пиктограмма; у нас тип приходит строкой (`XLS`, `NONE`),
+ * и показывать её как есть — значит вернуть ту самую заглушку в колонке
+ * данных. Поэтому показывается значок, а строковое значение уходит в подсказку.
+ *
+ * @param shot план
+ * @returns значок типа
+ */
+function typeMark(shot: { size: string }): string {
+  return TYPE_MARKS[shot.size] ?? '•'
+}
+
+/**
+ * Подсказка с настоящим значением типа.
+ *
+ * @param shot план
+ * @returns текст подсказки
+ */
+function typeTitle(shot: { size: string; sizeOrigin: string }): string {
+  return `тип: ${shot.size}, происхождение: ${shot.sizeOrigin}`
+}
+
 onMounted(async () => {
   try {
     structure.value = await readStructure(Number(props.videofileId))
@@ -118,73 +168,141 @@ onMounted(async () => {
     <p v-if="error !== ''" class="error" role="alert">{{ error }}</p>
 
     <div class="editor-body">
+      <!-- Левая часть по форме shots-edit-view: планы и их свойства слева,
+           персона выбранного плана и крупный кадр — в соседней колонке.
+           В старой форме ширина левой части ограничена 730 px, а правая
+           требует не меньше 920 px; здесь те же пропорции, но окно
+           пользователя может быть уже, поэтому колонки сжимаются. -->
       <aside class="left">
-        <div class="syp-card-title">Планы</div>
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>FROM</th>
-              <th>TO</th>
-              <th>Кадров</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="shot in shots"
-              :key="shot.id"
-              :class="{ selected: selectedShots.includes(shot.id) }"
-              @click="toggleShot(shot.id)"
-            >
-              <td>{{ shot.firstFrame }}</td>
-              <td>{{ shot.lastFrame }}</td>
-              <td>{{ shot.lastFrame - shot.firstFrame + 1 }}</td>
-            </tr>
-            <tr v-if="shots.length === 0">
-              <td colspan="3" class="empty">Планов нет</td>
-            </tr>
-          </tbody>
-        </table>
-        <p class="bounds">
-          Выделено планов: {{ selectedShots.length }}, кадры с {{ bounds.first }} по {{ bounds.last }}
-        </p>
+        <div class="left-plans">
+          <div class="syp-card-title">Планы</div>
+          <div class="shots-scroll">
+            <table class="table table-sm shots">
+              <thead>
+                <tr>
+                  <th>FROM</th>
+                  <th>TO</th>
+                  <th>TYPE</th>
+                  <th class="type-button" title="Выбрать тип плана"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="shot in shots"
+                  :key="shot.id"
+                  :class="{ selected: selectedShots.includes(shot.id) }"
+                  @click="toggleShot(shot.id)"
+                >
+                  <td>
+                    <ShotThumb
+                      :videofile-id="Number(props.videofileId)"
+                      :frame-number="shot.firstFrame"
+                      :width="SHOT_THUMB_WIDTH"
+                    />
+                  </td>
+                  <td>
+                    <ShotThumb
+                      :videofile-id="Number(props.videofileId)"
+                      :frame-number="shot.lastFrame"
+                      :width="SHOT_THUMB_WIDTH"
+                    />
+                  </td>
+                  <td class="type-cell">
+                    <span class="type-mark" :title="typeTitle(shot)">{{ typeMark(shot) }}</span>
+                  </td>
+                  <td class="type-button">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-secondary"
+                      title="Выбрать тип плана"
+                      @click.stop="notice = `Тип плана меняется оператором: в проекте нет эндпоинта, меняющего тип`"
+                    >
+                      ▾
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="shots.length === 0">
+                  <td colspan="4" class="empty">Планов нет</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <progress
+            class="left-progress"
+            :value="selectedShots.length"
+            :max="Math.max(shots.length, 1)"
+          />
+          <p class="bounds">
+            Выделено планов: {{ selectedShots.length }}, кадры с {{ bounds.first }} по
+            {{ bounds.last }}
+          </p>
 
-        <div class="syp-card-title">Персоны выбранного плана</div>
-        <ul class="persons">
-          <li v-for="person in persons" :key="person.id">{{ person.name }}</li>
-          <li v-if="persons.length === 0" class="empty">Персон нет</li>
-        </ul>
+          <div class="syp-card-title">Свойства плана</div>
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="property in shotProperties" :key="property.key">
+                <td>{{ property.key }}</td>
+                <td>{{ property.value }}</td>
+              </tr>
+              <tr v-if="shotProperties.length === 0">
+                <td colspan="2" class="empty">Свойств нет</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="property-fields">
+            <input v-model="propertyKey" class="form-control form-control-sm" placeholder="Key" />
+            <input
+              v-model="propertyValue"
+              class="form-control form-control-sm"
+              placeholder="Value"
+            />
+            <button type="button" class="btn btn-sm btn-primary" @click="addShotProperty">
+              Добавить
+            </button>
+          </div>
+        </div>
 
-        <fieldset class="filters">
-          <legend>Фильтры лиц</legend>
-          <p class="hint">Управляют вкладкой Persons</p>
-          <label><input type="checkbox" checked /> Не эталон</label>
-          <label><input type="checkbox" checked /> Эталон</label>
-          <label><input type="checkbox" checked /> Не ручной</label>
-          <label><input type="checkbox" checked /> Ручной</label>
-        </fieldset>
+        <div class="left-shot">
+          <div class="shot-head">
+            <div class="syp-card-title">Персоны выбранного плана</div>
+            <div class="shot-filters">
+              <div class="filter-group">
+                <span class="filter-title">Persons:</span>
+                <label><input v-model="personScope" type="radio" value="all" /> All</label>
+                <label><input v-model="personScope" type="radio" value="file" /> File</label>
+              </div>
+              <div class="filter-group">
+                <span class="filter-title">Faces:</span>
+                <label><input v-model="faceScope" type="radio" value="all" /> All</label>
+                <label><input v-model="faceScope" type="radio" value="file" /> File</label>
+              </div>
+              <div class="filter-group">
+                <span class="filter-title">Типы лиц:</span>
+                <label><input v-model="faceTypes" type="checkbox" value="notExample" /> Not example</label>
+                <label><input v-model="faceTypes" type="checkbox" value="example" /> Example</label>
+                <label><input v-model="faceTypes" type="checkbox" value="notManual" /> Not manual</label>
+                <label><input v-model="faceTypes" type="checkbox" value="manual" /> Manual</label>
+              </div>
+            </div>
+          </div>
+          <ul class="persons">
+            <li v-for="person in persons" :key="person.id" :title="`персона плана, кадров: ${bounds.first}—${bounds.last}`">
+              {{ person.name }}
+            </li>
+            <li v-if="persons.length === 0" class="empty">
+              План не выбран или в нём нет персон
+            </li>
+          </ul>
+          <progress class="left-progress" :value="persons.length" :max="Math.max(persons.length, 1)" />
 
-        <div class="syp-card-title">Свойства плана</div>
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="property in shotProperties" :key="property.key">
-              <td>{{ property.key }}</td>
-              <td>{{ property.value }}</td>
-            </tr>
-            <tr v-if="shotProperties.length === 0">
-              <td colspan="2" class="empty">Свойств нет</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="property-fields">
-          <input v-model="propertyKey" class="form-control" placeholder="Key" />
-          <input v-model="propertyValue" class="form-control" placeholder="Value" />
-          <button type="button" class="btn btn-sm btn-primary" @click="addShotProperty">Добавить</button>
+          <div class="syp-card-title">Кадр</div>
+          <ShotFrameView :videofile-id="Number(props.videofileId)" :shot="currentShot ?? null" />
         </div>
       </aside>
 
@@ -223,7 +341,89 @@ onMounted(async () => {
 .editor-body {
   display: grid;
   gap: 1rem;
-  grid-template-columns: 22rem 1fr;
+  /* Левая часть 730 px и правая от 920 px — пропорции старой формы. */
+  grid-template-columns: minmax(30rem, 730px) minmax(30rem, 1fr);
+  align-items: start;
+}
+
+.left {
+  display: grid;
+  grid-template-columns: minmax(19rem, 27.5rem) minmax(22rem, 1fr);
+  gap: 0.75rem;
+}
+
+.left-plans,
+.left-shot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.shots-scroll {
+  /* Список планов прокручивается сам: в старой форме таблица ограничена по
+     высоте, и без этого страница растёт на все планы подряд. */
+  max-height: 26rem;
+  overflow: auto;
+}
+
+.shots td {
+  padding: 0.2rem;
+  vertical-align: top;
+}
+
+.type-cell {
+  text-align: center;
+}
+
+.type-mark {
+  display: inline-block;
+  min-width: 1.75rem;
+  padding: 0.1rem 0.25rem;
+  border: 1px solid var(--syp-border);
+  border-radius: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--syp-text-muted);
+}
+
+.type-button {
+  width: 2rem;
+}
+
+.left-progress {
+  width: 100%;
+  height: 0.7rem;
+}
+
+.shot-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.shot-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.filter-title {
+  color: var(--syp-text-muted);
+}
+
+.filter-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  white-space: nowrap;
 }
 
 .left {

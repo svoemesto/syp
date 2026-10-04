@@ -483,3 +483,19 @@ export function mergeShots(videofileId: number, frame: number): Promise<ShotBoun
 export function previewSheetUrl(videofileId: number, index: number): string {
   return `/api/videofiles/${videofileId}/preview-sheets/${index}`
 }
+
+/**
+ * Адрес изображения кадра.
+ *
+ * Отдельная функция, а не строка в разных компонентах: без `/image` адрес
+ * отдавал пустоту, и это повторилось в двух местах, пока не вынесли.
+ *
+ * @param videofileId идентификатор видеофайла
+ * @param frameNumber номер кадра
+ * @param width требуемая ширина в пикселях; без неё отдаётся кадр целиком
+ * @returns адрес изображения кадра
+ */
+export function frameImageUrl(videofileId: number, frameNumber: number, width?: number): string {
+  const size = width === undefined ? '' : `?width=${width}`
+  return `/api/videofiles/${videofileId}/frames/${frameNumber}/image${size}`
+}
