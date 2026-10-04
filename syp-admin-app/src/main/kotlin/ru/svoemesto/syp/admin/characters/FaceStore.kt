@@ -347,6 +347,33 @@ class FaceStore(
     }
 
     /**
+     * Лица видеофайла по перечню идентификаторов.
+     *
+     * Нужны миниатюры кластеров: у кластера есть только идентификаторы лиц, а
+     * показать оператору надо само лицо. Значения идентификаторов подставляются
+     * параметрами запроса, поэтому порядок в перечне значения не имеет.
+     *
+     * @param videofileId идентификатор видеофайла
+     * @param ids идентификаторы лиц; пустой перечень даёт пустой список
+     * @return лица в порядке возрастания идентификатора
+     */
+    fun listByIds(
+        videofileId: Long,
+        ids: Collection<Long>,
+    ): List<Face> {
+        if (ids.isEmpty()) {
+            return emptyList()
+        }
+        val marks = ids.joinToString(",") { "?" }
+        return db.select(
+            "$SELECT_ALL WHERE id_videofile = ? AND id IN ($marks) ORDER BY id",
+            ::readRow,
+            videofileId,
+            *ids.toTypedArray(),
+        )
+    }
+
+    /**
      * Читает лица эпизода по возрастанию номера кадра и порядкового номера.
      *
      * @param videofileId идентификатор эпизода

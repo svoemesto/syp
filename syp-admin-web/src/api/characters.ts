@@ -317,3 +317,25 @@ export async function setPersonPhoto(
     frameNumber,
   })
 }
+
+/**
+ * Читает лица видеофайла по перечню идентификаторов.
+ *
+ * Нужны миниатюры кластеров: у кластера есть только идентификаторы лиц.
+ *
+ * @param videofileId идентификатор видеофайла
+ * @param ids идентификаторы лиц
+ * @returns запрошенные лица
+ */
+export async function readFacesByIds(
+  videofileId: number,
+  ids: number[],
+): Promise<FacesView> {
+  const response = await fetch(
+    `/api/videofiles/${videofileId}/faces/by-ids?ids=${ids.join(',')}`,
+  )
+  if (!response.ok) {
+    throw new Error(`Лица по перечню не отданы: ${response.status}`)
+  }
+  return (await response.json()) as FacesView
+}
