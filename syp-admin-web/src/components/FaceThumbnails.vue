@@ -14,6 +14,8 @@ import { markFaceExamples } from '../api/characters'
 const emit = defineEmits<{
   /** Лицо помечено эталоном или метка снята. */
   example: [payload: { faceId: number; marked: boolean; changed: number }]
+  /** Лицо выбрано или выбор снят. */
+  select: [faceId: number]
 }>()
 import { type FaceView, facePreviewUrl } from '../api/characters'
 
@@ -32,6 +34,8 @@ const props = defineProps<{
   outlined?: boolean
   /** Разрешено ли перетаскивать лицо на персону. */
   draggable?: boolean
+  /** Выбранные лица: показываются рамкой. */
+  selectedIds?: number[]
 }>()
 
 /**
@@ -101,7 +105,7 @@ function caption(face: FaceView): string {
       v-for="(face, index) in faces"
       :key="face.id"
       class="thumb"
-      :class="{ outlined: outlined === true }"
+      :class="{ outlined: outlined === true, chosen: (selectedIds ?? []).includes(face.id) }"
     >
       <img
         class="frame"
@@ -109,6 +113,7 @@ function caption(face: FaceView): string {
         :alt="caption(face)"
         :draggable="draggable === true"
         loading="lazy"
+        @click="emit('select', face.id)"
         @dragstart="startDrag($event, face)"
       />
       <span class="box" :style="boxes[index]" />
@@ -154,7 +159,11 @@ function caption(face: FaceView): string {
   background: #ffffff;
 }
 
-.thumb.outlined {
+.thumb.thumb.chosen {
+  outline: 2px solid #1a4f8a;
+}
+
+.outlined {
   border-color: #2f7d32;
 }
 
