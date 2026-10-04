@@ -80,21 +80,6 @@ async function toggleExample(faceId: number): Promise<void> {
  * показываться в любом размере, а рамка обязана остаться на месте.
  */
 /**
- * Положение и размер рамки лица в ячейке миниатюры.
- *
- * Считаются в процентах от разрешения кадра, поэтому рамка попадает на лицо
- * при любом размере ячейки.
- */
-const boxes = computed(() =>
-  props.faces.map((face) => ({
-    left: `${(face.x1 / props.frameWidth) * 100}%`,
-    top: `${(face.y1 / props.frameHeight) * 100}%`,
-    width: `${((face.x2 - face.x1) / props.frameWidth) * 100}%`,
-    height: `${((face.y2 - face.y1) / props.frameHeight) * 100}%`,
-  })),
-)
-
-/**
  * Вырезка кадра вокруг лица.
  *
  * Кадр показывается не целиком: он растянут во столько раз, чтобы лицо заняло
@@ -102,11 +87,14 @@ const boxes = computed(() =>
  * каждое лицо в проекте нет, а на целом кадре лицо занимает единицы
  * процентов ширины и оператор его не различает.
  */
+/** Запас вокруг лица: во столько раз кадр больше самой рамки лица. */
+const CROP_MARGIN = 2.6
+
 const crops = computed(() =>
   props.faces.map((face) => {
     const faceWidth = Math.max(face.x2 - face.x1, 1)
     const faceHeight = Math.max(face.y2 - face.y1, 1)
-    const scale = Math.max(props.frameWidth / faceWidth, props.frameHeight / faceHeight)
+    const scale = CROP_MARGIN * Math.max(props.frameWidth / faceWidth, props.frameHeight / faceHeight)
     const centreX = (face.x1 + face.x2) / 2
     const centreY = (face.y1 + face.y2) / 2
     return {
@@ -149,7 +137,7 @@ function caption(face: FaceView): string {
           @dragstart="startDrag($event, face)"
         />
       </span>
-      <span class="box" :style="boxes[index]" />
+      <span class="box" />
       <button
         v-if="markable === true"
         type="button"
