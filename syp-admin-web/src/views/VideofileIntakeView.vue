@@ -8,10 +8,12 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCatalogStore } from '../stores/catalog'
+import ProjectSelectDialog from '../components/ProjectSelectDialog.vue'
 import DatabaseSelectDialog from '../components/DatabaseSelectDialog.vue'
 import { formatBytes, formatDuration } from '../format/values'
 
 const store = useCatalogStore()
+const projectOpen = ref(false)
 
 /**
  * Открывает главное окно выбранного проекта.
@@ -21,7 +23,7 @@ const store = useCatalogStore()
  *
  * @param projectId идентификатор проекта
  */
-async function openMainWindow(projectId: number): Promise<void> {
+async function pickProject(projectId: number): Promise<void> {
   await store.openProject(projectId)
   await router.push({ name: 'project', params: { projectId: String(projectId) } })
 }
@@ -106,6 +108,7 @@ function openFaces(videofileId: number): void {
       </button>
     </div>
 
+    <ProjectSelectDialog v-if="projectOpen" @chosen="pickProject" @closed="projectOpen = false" />
     <DatabaseSelectDialog v-if="databaseOpen" @closed="databaseOpen = false" />
 
     <p v-if="store.loading.value" class="note">Request to the backend…</p>
@@ -138,7 +141,7 @@ function openFaces(videofileId: number): void {
               <!-- Кнопка «open» выбирает проект в состоянии и открывает
                    главное окно: в старом проекте `Open…` из меню вёл именно
                    в него, а не в список файлов. -->
-              <button type="button" @click="openMainWindow(project.id)">open</button>
+              <button type="button" @click="projectOpen = true">open</button>
             </td>
           </tr>
           <tr v-if="store.projects.value.length === 0">
