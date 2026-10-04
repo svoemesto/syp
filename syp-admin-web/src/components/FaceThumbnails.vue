@@ -92,18 +92,31 @@ async function toggleExample(faceId: number): Promise<void> {
 const CROP_MARGIN = 2.6
 
 /** Ширина кадра, из которого вырезается миниатюра. */
-const SOURCE_WIDTH = 480
+const SOURCE_WIDTH = 640
+
+/** Высота того же кадра: нужна, чтобы картинка не искажалась по вертикали. */
+const SOURCE_HEIGHT = 360
+
+/** Сторона ячейки вырезки в пикселях: по ней считается увеличение. */
+const CELL = 96
 
 const crops = computed(() =>
   props.faces.map((face) => {
     const faceWidth = Math.max(face.x2 - face.x1, 1)
     const faceHeight = Math.max(face.y2 - face.y1, 1)
-    const scale = CROP_MARGIN * Math.max(props.frameWidth / faceWidth, props.frameHeight / faceHeight)
-    const centreX = (face.x1 + face.x2) / 2
-    const centreY = (face.y1 + face.y2) / 2
+    // Источник — кадр шириной SOURCE_WIDTH, и одному кадровому пикселю в нём
+    // соответствует SOURCE_WIDTH / frameWidth. Масштаб считается от источника:
+    // при подсчёте от разрешения кадра картинка растягивалась в десятки тысяч
+    // пикселей по ширине и не отрисовывалась вовсе.
+    const ratio = SOURCE_WIDTH / Math.max(props.frameWidth, 1)
+    const cropWidth = faceWidth * ratio * CROP_MARGIN
+    const cropHeight = faceHeight * ratio * CROP_MARGIN
+    const scale = Math.min(CELL / Math.max(cropWidth, 1), CELL / Math.max(cropHeight, 1))
+    const centreX = ((face.x1 + face.x2) / 2) * ratio
+    const centreY = ((face.y1 + face.y2) / 2) * ratio
     return {
-      width: `${props.frameWidth * scale}px`,
-      height: `${props.frameHeight * scale}px`,
+      width: `${Math.round(SOURCE_WIDTH * scale)}px`,
+      height: `${Math.round(SOURCE_HEIGHT * scale)}px`,
       left: `calc(50% - ${(centreX * scale).toFixed(1)}px)`,
       top: `calc(50% - ${(centreY * scale).toFixed(1)}px)`,
     }
