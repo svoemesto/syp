@@ -90,8 +90,25 @@ async function toggleExample(faceId: number): Promise<void> {
  * каждое лицо в проекте нет, а на целом кадре лицо занимает единицы
  * процентов ширины и оператор его не различает.
  */
-/** Запас вокруг лица: во столько раз кадр больше самой рамки лица. */
+/**
+ * Запас вокруг лица по умолчанию.
+ *
+ * Крупному лицу запас нужен, чтобы видеть голову и плечи, а мелкому — нет:
+ * при запасе 2,6 лицо в два десятка пикселей занимает меньше трети ячейки,
+ * и вокруг него остаётся тёмное поле. Запас уменьшается вместе с размером
+ * лица, чтобы оно занимало ячейку целиком.
+ */
 const CROP_MARGIN = 2.6
+
+/**
+ * Запас для лица указанного размера в кадре-источнике.
+ *
+ * @param size размер лица в пикселях источника
+ * @returns во сколько раз область вырезки больше самого лица
+ */
+function marginOf(size: number): number {
+  return Math.min(CROP_MARGIN, Math.max(1, size / 40))
+}
 
 /**
  * Ширина кадра, из которого вырезается миниатюра, по умолчанию.
@@ -134,8 +151,9 @@ const crops = computed(() =>
     // при подсчёте от разрешения кадра картинка растягивалась в десятки тысяч
     // пикселей по ширине и не отрисовывалась вовсе.
     const ratio = SOURCE_WIDTH / Math.max(props.frameWidth, 1)
-    const cropWidth = faceWidth * ratio * CROP_MARGIN
-    const cropHeight = faceHeight * ratio * CROP_MARGIN
+    const margin = marginOf(Math.max(faceWidth, faceHeight) * ratio)
+    const cropWidth = faceWidth * ratio * margin
+    const cropHeight = faceHeight * ratio * margin
     const scale = Math.min(
       CELL / Math.max(cropWidth, 1),
       CELL / Math.max(cropHeight, 1),
