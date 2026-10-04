@@ -530,11 +530,11 @@ onMounted(async () => {
         </table>
         <button
           type="button"
-          class="btn btn-sm btn-primary apply-button"
+          class="btn btn-sm btn-primary shots-arrow"
           :disabled="busy"
           @click="apply"
         >
-          &gt;&gt; Apply filter
+          &gt;&gt;
         </button>
         <div class="syp-card-title">Shots</div>
         <table class="table table-sm shots">
@@ -556,16 +556,23 @@ onMounted(async () => {
             </tr>
           </tbody>
         </table>
-        <button type="button" class="btn btn-sm btn-outline-secondary" @click="createVideo">
-          Create Video File
-        </button>
-        <button
-          type="button"
-          class="btn btn-sm btn-outline-secondary"
-          @click="createVideoForAllPersons"
-        >
-          Create Video File for all ended persons
-        </button>
+        <div class="video-buttons">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            :disabled="busy"
+            @click="createVideo"
+          >
+            Create Video File
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            @click="createVideoForAllPersons"
+          >
+            Create Video File for all ended persons
+          </button>
+        </div>
       </div>
     </div>
 
@@ -599,17 +606,36 @@ onMounted(async () => {
   text-transform: none;
 }
 
+/* Раскладка формы filter-edit: слева область шириной 800, затем таблица
+   файлов 200, кнопка двумя знаками «>>», таблица планов 440 и колонка
+   кнопок создания видео. */
 .filters-body {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 50rem 12.5rem auto 27.5rem auto;
+  gap: 0.25rem;
+  align-items: start;
 }
+
+.video-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* В форме фильтры занимают всю ширину левой области, а группы и условия
+   стоят под ними в две колонки. */
 .levels {
-  display: flex;
-  gap: 0.75rem;
-  flex: 1 1 auto;
-  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-column: 1;
+  gap: 0.25rem;
+  align-items: start;
 }
+
+.levels > .level:first-child {
+  grid-column: 1 / -1;
+}
+
 .level {
   flex: 1 1 0;
   min-width: 0;
@@ -658,6 +684,34 @@ onMounted(async () => {
   color: var(--syp-danger);
 }
 .apply {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 2 / -1;
+  gap: 0.25rem;
+  align-items: start;
+}
+
+.apply > .syp-card-title,
+.apply > table {
+  grid-column: 1;
+}
+
+.apply > .shots-arrow {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.apply > .syp-card-title:nth-of-type(2),
+.apply > .shots {
+  grid-column: 3;
+}
+
+.apply > .video-buttons {
+  grid-column: 4;
+  grid-row: 1 / span 2;
+}
+
+.apply-old {
   flex: 0 0 24rem;
 }
 .apply .table td,
