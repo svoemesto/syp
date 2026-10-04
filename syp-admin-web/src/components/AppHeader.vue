@@ -5,9 +5,10 @@
 и кнопкой возврата в приём: // молчаливый переход на пустой экран выглядел бы как потеря данных.
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useCatalogStore } from '../stores/catalog'
+import { readVideofile } from '../api/catalog'
 import {
   connectionIsAttention,
   connectionLabel,
@@ -62,25 +63,60 @@ const selectedVideofileLabel = computed(() => {
 })
 
 /**
+ * Проект, для которого открыт раздел, либо `null`, если он не известен.
+ *
+ * Разделы «проект», «операции» и «фильтры» живут по проекту. При прямом
+ * заходе по адресу вида файла проект в каталоге не выбран, и раньше такие
+ * пункты молча пропадали из навигации: ссылка без обязательного параметра не
+ * разрешалась, и элемент не отрисовывался. Теперь пункт виден всегда, а без
+ * проекта помечен недоступным с внятной причиной.
+ */
+const projectOfSection = computed<number | null>(() => {
+  const current = catalog.current.value
+  if (current !== null) {
+    return current.project.id
+  }
+  const raw = route.params.videofileId
+  return typeof raw === 'string' && raw !== '' ? videofileProject.value : null
+})
+
+/** Проект видеофайла, открытого по адресу. */
+const videofileProject = ref<number | null>(null)
+
+/** Читает проект видеофайла, открытого по адресу. */
+async function readVideofileProject(): Promise<void> {
+  const raw = route.params.videofileId
+  if (typeof raw !== 'string' || raw === '' || catalog.current.value !== null) {
+    return
+  }
+  try {
+    videofileProject.value = (await readVideofile(Number(raw))).projectId
+  } catch {
+    // Неизвестный видеофайл — обычное дело при устаревшей ссылке: пункт остаётся
+    // недоступным с причиной, молчаливого обрыва здесь быть не должно.
+    videofileProject.value = null
+  }
+}
+
+watch(() => route.params.videofileId, readVideofileProject, { immediate: true })
+
+/**
  * Адрес раздела с учётом выбранной серии.
  *
  * Суммы, структура и лица живут для конкретной серии: пункт ведёт на её экран,
  * а пока серия не выбрана — на страницу с пояснением.
  *
  * @param name имя раздела
- * @returns адрес маршрута
+ * @returns адрес маршрута либо `null`, если раздел недоступен
  */
-function linkFor(name: string): {
-  name: string
-  params?: { videofileId: string } | { projectId: string }
-} {
+function linkFor(
+  name: string,
+): { name: string; params?: { videofileId: string } | { projectId: string } } | null {
   // Операции живут по проекту: набор файлов и признаки «уже сделано» имеют
   // смысл только для всех файлов проекта вместе, а не для одного видеофайла.
   if (name === 'actions' || name === 'filters' || name === 'project') {
-    const projectId = catalog.current.value?.project.id
-    return projectId === undefined || projectId === null
-      ? { name }
-      : { name, params: { projectId: String(projectId) } }
+    const projectId = projectOfSection.value
+    return projectId === null ? null : { name, params: { projectId: String(projectId) } }
   }
   const perVideofile: Record<string, string> = {
     sums: 'checksum',
@@ -155,16 +191,26 @@ function isActive(name: string): boolean {
       </div>
 
       <nav class="syp-nav" aria-label="Разделы админки">
-        <RouterLink
-          v-for="section in sections"
-          :key="section.name"
-          :to="linkFor(section.name)"
-          class="syp-nav-link"
-          :class="{ 'is-current': isActive(section.name) }"
-          :title="section.hint"
-        >
-          {{ section.title }}
-        </RouterLink>
+        <!-- Пункт без проекта остаётся видимым и помечается недоступным: раньше
+             такие пункты просто исчезали, и оператор не видел, что раздел есть. -->
+        <template v-for="section in sections" :key="section.name">
+          <RouterLink
+            v-if="linkFor(section.name) !== null"
+            :to="linkFor(section.name)!"
+            class="syp-nav-link"
+            :class="{ 'is-current': isActive(section.name) }"
+            :title="section.hint"
+          >
+            {{ section.title }}
+          </RouterLink>
+          <span
+            v-else
+            class="syp-nav-link is-off"
+            :title="`${section.hint}. Раздел откроется, когда будет выбран проект`"
+          >
+            {{ section.title }}
+          </span>
+        </template>
       </nav>
     </div>
   </header>
@@ -226,6 +272,11 @@ function isActive(name: string): boolean {
   color: var(--syp-primary-dark);
 }
 
+.syp-nav-link.is-off {
+  color: var(--syp-text-muted);
+  opacity: 0.55;
+  cursor: default;
+}
 .syp-nav-link.is-current {
   border-bottom-color: var(--syp-primary);
   color: var(--syp-primary-dark);
