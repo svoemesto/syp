@@ -44,13 +44,6 @@ const clusterFaces = ref<Record<string, FaceView[]>>({})
  */
 const CLUSTER_FACES_AT_ONCE = 4
 
-/**
- * Ширина кадра для миниатюр кластера.
- *
- * Миниатюр на странице кластеров немного — четыре на кластер, — поэтому
- * кадр берётся во всю ширину: лицо выходит резким.
- */
-const CLUSTER_SOURCE_WIDTH = 1920
 
 async function loadClusterFaces(videofileId: number): Promise<void> {
   const list = clusters.value?.clusters ?? []
@@ -411,7 +404,6 @@ function personKindTitle(kind: string): string {
             <FaceThumbnails
               v-if="(clusterFaces[cluster.id] ?? []).length > 0"
               :videofile-id="videofileId"
-              :source-width="CLUSTER_SOURCE_WIDTH"
               :faces="clusterFaces[cluster.id] ?? []"
               :frame-width="faces?.frameWidth ?? 1920"
               :frame-height="faces?.frameHeight ?? 1080"
