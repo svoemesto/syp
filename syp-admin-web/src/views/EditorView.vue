@@ -352,8 +352,15 @@ onMounted(async () => {
 
 .left {
   display: grid;
-  grid-template-columns: minmax(19rem, 27.5rem) minmax(22rem, 1fr);
+  grid-template-columns: minmax(17rem, 21rem) minmax(18rem, 1fr);
   gap: 0.75rem;
+  /* Без этого колонку с крупным кадром раздувает сама картинка: по умолчанию
+     элемент сетки не сжимается меньше содержимого. */
+  min-width: 0;
+}
+
+.left > * {
+  min-width: 0;
 }
 
 .left-plans,
