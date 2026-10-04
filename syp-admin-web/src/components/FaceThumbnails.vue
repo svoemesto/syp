@@ -79,6 +79,12 @@ async function toggleExample(faceId: number): Promise<void> {
  * Считается от разрешения видеофайла, а не от размеров картинки: миниатюра может
  * показываться в любом размере, а рамка обязана остаться на месте.
  */
+/**
+ * Положение и размер рамки лица в ячейке миниатюры.
+ *
+ * Считаются в процентах от разрешения кадра, поэтому рамка попадает на лицо
+ * при любом размере ячейки.
+ */
 const boxes = computed(() =>
   props.faces.map((face) => ({
     left: `${(face.x1 / props.frameWidth) * 100}%`,
@@ -86,6 +92,30 @@ const boxes = computed(() =>
     width: `${((face.x2 - face.x1) / props.frameWidth) * 100}%`,
     height: `${((face.y2 - face.y1) / props.frameHeight) * 100}%`,
   })),
+)
+
+/**
+ * Вырезка кадра вокруг лица.
+ *
+ * Кадр показывается не целиком: он растянут во столько раз, чтобы лицо заняло
+ * ячейку, и сдвинут так, чтобы оказаться по центру. Отдельной картинки на
+ * каждое лицо в проекте нет, а на целом кадре лицо занимает единицы
+ * процентов ширины и оператор его не различает.
+ */
+const crops = computed(() =>
+  props.faces.map((face) => {
+    const faceWidth = Math.max(face.x2 - face.x1, 1)
+    const faceHeight = Math.max(face.y2 - face.y1, 1)
+    const scale = Math.max(props.frameWidth / faceWidth, props.frameHeight / faceHeight)
+    const centreX = (face.x1 + face.x2) / 2
+    const centreY = (face.y1 + face.y2) / 2
+    return {
+      width: `${props.frameWidth * scale}px`,
+      height: `${props.frameHeight * scale}px`,
+      left: `calc(50% - ${(centreX * scale).toFixed(1)}px)`,
+      top: `calc(50% - ${(centreY * scale).toFixed(1)}px)`,
+    }
+  }),
 )
 
 /**
@@ -107,15 +137,18 @@ function caption(face: FaceView): string {
       class="thumb"
       :class="{ outlined: outlined === true, chosen: (selectedIds ?? []).includes(face.id) }"
     >
-      <img
-        class="frame"
-        :src="facePreviewUrl(videofileId, face.frameNumber)"
-        :alt="caption(face)"
-        :draggable="draggable === true"
-        loading="lazy"
-        @click="emit('select', face.id)"
-        @dragstart="startDrag($event, face)"
-      />
+      <span class="crop">
+        <img
+          class="frame"
+          :src="facePreviewUrl(videofileId, face.frameNumber)"
+          :alt="caption(face)"
+          :draggable="draggable === true"
+          loading="lazy"
+          :style="crops[index]"
+          @click="emit('select', face.id)"
+          @dragstart="startDrag($event, face)"
+        />
+      </span>
       <span class="box" :style="boxes[index]" />
       <button
         v-if="markable === true"
@@ -167,14 +200,29 @@ function caption(face: FaceView): string {
   border-color: #2f7d32;
 }
 
-.frame {
+/* Ячейка вырезки: кадр показывается во весь размер ячейки, а рамка лица
+   считается в её процентах, поэтому после вырезки рамка не нужна. */
+.crop {
   display: block;
+  position: relative;
   width: 100%;
-  height: auto;
+  height: 76px;
+  overflow: hidden;
+  background: var(--syp-bg);
 }
 
+.frame {
+  display: block;
+  position: absolute;
+  max-width: none;
+}
+
+/* Рамка после вырезки: лицо занимает ячейку, поэтому рисуется по её краям. */
 .box {
   position: absolute;
+  inset: 2px;
+  width: auto;
+  height: auto;
   border: 2px solid #c62828;
   box-sizing: border-box;
   pointer-events: none;
