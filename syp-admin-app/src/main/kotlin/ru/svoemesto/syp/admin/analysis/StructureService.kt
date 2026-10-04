@@ -495,7 +495,7 @@ class StructureService(
         videofileId: Long,
     ): List<Scene> =
         connection
-            .prepareStatement("$SCENE_READ_SQL WHERE $WORKING_CONDITION ORDER BY first_frame")
+            .prepareStatement("$SCENE_READ_SQL WHERE $EPISODE_CONDITION ORDER BY first_frame")
             .use { statement ->
                 statement.setLong(1, videofileId)
                 statement.executeQuery().use { resultSet ->
@@ -527,7 +527,7 @@ class StructureService(
         videofileId: Long,
     ): List<Shot> =
         connection
-            .prepareStatement("$SHOT_READ_SQL WHERE $WORKING_CONDITION ORDER BY first_frame")
+            .prepareStatement("$SHOT_READ_SQL WHERE $EPISODE_CONDITION ORDER BY first_frame")
             .use { statement ->
                 statement.setLong(1, videofileId)
                 statement.executeQuery().use { resultSet ->
@@ -635,15 +635,13 @@ class StructureService(
         val SHOT_READ_SQL: String = "SELECT ${Shot.READ_COLUMNS} FROM $SHOT_TABLE"
 
         /**
-         * Условие отбора рабочей структуры.
+         * Условие отбора по эпизоду.
          *
-         * Каждый прогон анализа помечает прежнюю структуру устаревшей, а не
-         * удаляет её: ручные правки оператора по старым границам должны были
-         * сохраниться. Но читать их наряду с действующими нельзя — на стенде
-         * после пяти прогонов один и тот же кадровый диапазон возвращался
-         * пять раз, и список планов в редакторе показывал в пять раз больше
-         * строк, чем планов на самом деле.
+         * Прежние строки структуры сюда **не входят**: их помечает, а не
+         * удаляет каждый новый прогон анализа, и оператор должен видеть их
+         * рядом с действующими, чтобы сравнить правку с результатом автоматики
+         * (FR-093). Отбор только рабочих строк — дело вызывающего.
          */
-        const val WORKING_CONDITION: String = "id_videofile = ? AND is_stale = FALSE"
+        const val EPISODE_CONDITION: String = "id_videofile = ?"
     }
 }

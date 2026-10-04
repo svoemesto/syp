@@ -542,8 +542,13 @@ class StructureController(
     ): StructureView {
         val videofile = requireVideofile(videofileId)
         val status = currentStatus(videofile)
-        val scenes = structure.listScenes(videofileId)
-        val shots = structure.listShots(videofileId)
+        // Чтение отдаёт все строки эпизода, включая прежние редакции
+        // структуры: оператор сравнивает их с результатом автоматики
+        // (FR-093). Редактору нужны только рабочие, иначе после нескольких
+        // прогонов один и тот же кадровый диапазон показывается столько
+        // раз, сколько было прогонов, а планов на самом деле меньше.
+        val scenes = structure.listScenes(videofileId).filterNot { it.isStale }
+        val shots = structure.listShots(videofileId).filterNot { it.isStale }
         val page = pageOf(scenes, offset, limit)
         val locations = locationsOf(videofile.projectId, page.mapNotNull { it.locationId })
         return StructureView(
