@@ -215,7 +215,10 @@ seed()
       </div>
 
       <div class="column">
-        <div class="syp-card-title">Планы выбранных событий</div>
+        <div class="syp-card-title">
+          Планы выбранных событий
+          <span class="stub-note">данные примера</span>
+        </div>
         <table class="table table-sm">
           <thead>
             <tr>
@@ -295,6 +298,15 @@ seed()
 </template>
 
 <style scoped>
+/* Пометка примера: без неё двадцать чёрных миниатюр из начала фильма
+   читаются как настоящие планы. */
+.stub-note {
+  margin-left: 0.4rem;
+  color: var(--syp-warning);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
 /* Ячейка с миниатюрой: кадр и подпись занимают всю ширину колонки. */
 .column-wide table th:first-child,
 .column-wide table td:first-child {
