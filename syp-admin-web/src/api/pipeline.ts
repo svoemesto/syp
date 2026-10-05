@@ -72,7 +72,7 @@ const NO_SUBSYSTEM: Readonly<Record<string, string>> = {
   FM: 'кадров трёх размеров в проекте нет',
   FF: 'кадров трёх размеров в проекте нет',
   CF: 'вырезания лиц в файлы в проекте нет',
-  CFP: 'отдельных превью лиц в проекте нет: the preview is taken from the frame sheet',
+  CFP: 'no separate face previews in the project: the preview is taken from the frame sheet',
   SCA: 'нарезки видео планов в проекте нет',
   SLA: 'нарезки видео планов в проекте нет',
   SLN: 'нарезки видео планов в проекте нет',

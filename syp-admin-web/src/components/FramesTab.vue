@@ -119,7 +119,7 @@ function choose(frame: FrameView): void {
 /** Открывает окно лиц выбранного кадра. */
 function openFaces(): void {
   if (chosenFrame.value === null) {
-    notice.value = 'Choose a frame: there is nothing to showчего'
+    notice.value = 'Choose a frame: there is nothing to show'
     return
   }
   facesOpen.value = true
@@ -168,7 +168,7 @@ async function apply(): Promise<void> {
 async function turnPage(delta: number): Promise<void> {
   const next = page.value + delta
   if (next < 0 || next >= pages.value) {
-    notice.value = 'Page out of range: moving toть некуда'
+    notice.value = 'The page is out of range: there is nowhere to move'
     return
   }
   page.value = next

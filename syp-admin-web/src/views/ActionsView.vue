@@ -147,7 +147,7 @@ async function run(): Promise<void> {
   )
   if (!analysisWanted && !facesWanted) {
     notice.value =
-      'No operation that starts anything is marked: отмеченные операции в проекте не выполняются'
+      'No operation that starts anything is marked: the marked operations are not performedе выполняются'
     return
   }
   const targets = rows.value.filter((row) => selected.value.includes(row.videofileId))
@@ -202,7 +202,7 @@ async function train(): Promise<void> {
   try {
     const named = rows.value
       .filter((row) => selected.value.includes(row.videofileId))
-      .map((row) => `${row.name}: recognised ${row.states.RF === 'yes' ? 'есть' : 'no'}`)
+      .map((row) => `${row.name}: recognised ${row.states.RF === 'yes' ? 'yes' : 'no'}`)
     notice.value =
       'Stub: the project has no model training none. ' +
       'Эталоны помечаются на вкладке «Персоны» главного редактора, ' +

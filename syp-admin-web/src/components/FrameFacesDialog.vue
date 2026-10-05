@@ -62,7 +62,7 @@ function createFace(): void {
     notice.value = 'Set the face box: there is nothing to create a face without it'
     return
   }
-  notice.value = 'Создание лица manually ещё не ходит в бэкенд: эндпоинта нет'
+  notice.value = 'Creating a face by hand does not reach the backend yet: there is no endpoint'
 }
 
 onMounted(reload)

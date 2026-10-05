@@ -104,7 +104,7 @@ async function chooseObject(objectClass: ConditionObjectClass): Promise<void> {
   if (objectClass !== 'PERSON') {
     // Свойства выбираются отдельным списком, а его в проекте нет: вместо
     // окна с пустым списком сказать прямо, чем оператор сейчас не может.
-    error.value = `Списка свойств для «${SELECT_BUTTON_TEXT[objectClass]}» in the project: there is nothing to choose`
+    error.value = `The list of properties for ${SELECT_BUTTON_TEXT[objectClass]} is not in the project: there is nothing to choose`
     return
   }
   error.value = ''
