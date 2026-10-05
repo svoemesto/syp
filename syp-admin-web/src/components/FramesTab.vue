@@ -146,7 +146,7 @@ async function apply(): Promise<void> {
   try {
     if (boundaryState.value === 1) {
       await splitShot(props.videofileId, frame)
-      notice.value = `план разрезан по кадру ${frame}`
+      notice.value = `the shot is split at the frame ${frame}`
     } else if (boundaryState.value === 2) {
       await moveShotBoundary(props.videofileId, frame, frame - 1)
       notice.value = `граница по кадру ${frame} отменена`
@@ -155,7 +155,7 @@ async function apply(): Promise<void> {
       notice.value = `граница по кадру ${frame} добавлена`
     } else {
       await mergeShots(props.videofileId, frame)
-      notice.value = `планы слиты по кадру ${frame}`
+      notice.value = `the shots are merged at the frame ${frame}`
     }
     error.value = ''
     await reload()

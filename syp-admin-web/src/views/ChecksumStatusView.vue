@@ -44,7 +44,9 @@ const stateTitle = computed(() => {
     case 'ERROR':
       return 'Подсчёт не удался'
     case 'DONE':
-      return value.isStale ? 'Sum устарела: файл изменился после подсчёта' : 'Sum актуальна'
+      return value.isStale
+        ? 'Sum is stale: the file changed after it was computed'
+        : 'Sum актуальна'
     default:
       return value.state
   }
