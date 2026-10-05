@@ -400,16 +400,16 @@ onMounted(async () => {
             :max="Math.max(persons.length, 1)"
           />
           <ShotFrameView :videofile-id="Number(props.videofileId)" :shot="currentShot ?? null" />
-          <button
-            type="button"
-            class="btn btn-primary ok-button"
-            @click="
-              notice = 'OK applies the operator\'s decision; in this build it only closes the view'
-            "
-          >
-            OK
-          </button>
         </div>
+        <button
+          type="button"
+          class="btn btn-primary ok-button"
+          @click="
+            notice = 'OK applies the operator\'s decision; in this build it only closes the view'
+          "
+        >
+          OK
+        </button>
       </aside>
 
       <div class="right">
