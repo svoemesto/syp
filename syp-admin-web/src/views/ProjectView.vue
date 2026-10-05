@@ -234,7 +234,7 @@ function editPersons(): void {
  */
 async function getTracks(): Promise<void> {
   if (chosen.value === null) {
-    notice.value = 'Файл не выбран: дорожки смотреть нечего'
+    notice.value = 'No file is selected: there are no tracks to look at'
     return
   }
   await choose(chosen.value)

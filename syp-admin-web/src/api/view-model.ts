@@ -428,7 +428,9 @@ export function toChecksumRow(dto: ChecksumView): ChecksumRow {
       stateTitle = 'Подсчёт не удался'
       break
     case 'DONE':
-      stateTitle = dto.isStale ? 'Сумма устарела: файл изменился после подсчёта' : 'Сумма актуальна'
+      stateTitle = dto.isStale
+        ? 'The sum is stale: the file changed after it was computed'
+        : 'Сумма актуальна'
       break
     default:
       stateTitle = dto.state

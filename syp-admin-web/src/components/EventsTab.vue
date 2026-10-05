@@ -123,7 +123,7 @@ function moveSelected(where: 'first' | 'up' | 'down' | 'last'): void {
           ? index - 1
           : index + 1
   if (target < 0 || target >= events.value.length) {
-    notice.value = 'Событие уже на краю: двигать некуда'
+    notice.value = 'The event is already at the edge: there is nowhere to move it'
     return
   }
   const ordered = [...events.value]

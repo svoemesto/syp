@@ -234,7 +234,7 @@ function onConditionConfirmed(condition: FilterCondition): void {
   currentGroup.value?.conditions.push(condition)
   conditionIndex.value = (currentGroup.value?.conditions.length ?? 1) - 1
   draft.value = null
-  notice.value = 'Условие добавлено в группу'
+  notice.value = 'The condition is added to the group'
 }
 
 /** Применяет фильтр к выбранным файлам. */

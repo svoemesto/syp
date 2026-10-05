@@ -171,7 +171,7 @@ export function startNotifications(): void {
       if (next === 'stopped') {
         publish(
           'warning',
-          'Связь с бэкендом потеряна',
+          'The connection to the backend is lost',
           'The notification stream is closed. The progress of jobs from this moment is not visible: ' +
             'состояние очереди смотрите на экране или нажмите «подключиться снова».',
         )
