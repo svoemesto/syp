@@ -132,7 +132,7 @@ async function markExamples(marked: boolean): Promise<void> {
   }
   try {
     const answer = await markFaceExamples(props.videofileId, selectedFaces.value, marked)
-    notice.value = `помечено эталоном: ${answer.isExample ? 'yes' : 'no'}, изменено faces: ${answer.changed}`
+    notice.value = `marked as exemplar: ${answer.isExample ? 'yes' : 'no'}, changed faces: ${answer.changed}`
     error.value = ''
     await reload()
   } catch (failure) {

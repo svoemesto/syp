@@ -71,7 +71,8 @@ function toggle(id: number): void {
 /** Создаёт сцену по выбранным планам. */
 function createFromShots(): void {
   if (chosenShots.value.length === 0) {
-    notice.value = 'Scene creation is under way по выбранным планам: выберите планы в левой части'
+    notice.value =
+      'Scene creation is under way from the selected shots: choose the shots in the left part'
     return
   }
   const ordered = [...chosenShots.value].sort((left, right) => left.firstFrame - right.firstFrame)
@@ -81,7 +82,8 @@ function createFromShots(): void {
       return
     }
   }
-  notice.value = 'Scene creation by выбранным планам ещё не ходит в бэкенд: эндпоинта нет'
+  notice.value =
+    'Scene creation by the selected shots does not reach the backend yet: there is no endpoint'
 }
 
 /** Удаляет выбранные сцены. */
@@ -90,7 +92,7 @@ function removeSelected(): void {
     notice.value = 'Not a single shot selectedой сцены: удалять нечего'
     return
   }
-  notice.value = 'Scene deletion is not не ходит в бэкенд: эндпоинта нет'
+  notice.value = 'Scene deletion does not reach the backend yet: there is no endpoint'
 }
 
 /** Добавляет свойство выбранной сцене. */

@@ -255,7 +255,7 @@ async function apply(): Promise<void> {
 /** Создание видео по отобранным планам: подсистемы в проекте none. */
 function createVideo(): void {
   notice.value =
-    `The project has no video cutting subsystem, поэтому файлы по отобранным планам ` +
+    `The project has no video cutting subsystem, nothing is created from the selected shots; ам ` +
     `(${selectedShots.value.length}) не создаются. Кнопка оставлена на месте, чтобы ` +
     `отсутствие подсистемы было видно, а не выглядело как поломка`
 }
