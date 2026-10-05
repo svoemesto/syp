@@ -59,7 +59,7 @@ async function reload(): Promise<void> {
 /** Создаёт лицо по заданной рамке. */
 function createFace(): void {
   if (!boxGiven.value) {
-    notice.value = 'Задайте рамку лица: без неё лицо создать нечем'
+    notice.value = 'Set the face box: there is nothing to create a face without it'
     return
   }
   notice.value = 'Создание лица manually ещё не ходит в бэкенд: эндпоинта нет'

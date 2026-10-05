@@ -224,7 +224,7 @@ export async function applyFilter(
   projectId: number,
   videofileIds: number[],
 ): Promise<{ shots: number; notice: string; structure: StructureView | null }> {
-  const notice = `Заглушка: отбор по условиям в проекте не выполняется. Файлов выбрано: ${videofileIds.length}, проект: ${projectId}. Показаны планы первого из выбранных файлов, чтобы правая часть формы не была пустой.`
+  const notice = `Stub: the project does not run the condition selection. Files selected: ${videofileIds.length}, проект: ${projectId}. Показаны планы первого из выбранных файлов, чтобы правая часть формы не была пустой.`
   if (videofileIds.length === 0) {
     selectedShots.value = []
     return { shots: 0, notice, structure: null }

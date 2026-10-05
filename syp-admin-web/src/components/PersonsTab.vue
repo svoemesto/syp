@@ -148,7 +148,7 @@ async function makePhoto(): Promise<void> {
     return
   }
   if (target.value === undefined) {
-    notice.value = 'Выберите персону, которой принадлежит photo'
+    notice.value = 'Choose the person to whom it belongs photo'
     return
   }
   try {

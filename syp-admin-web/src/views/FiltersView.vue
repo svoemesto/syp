@@ -179,7 +179,7 @@ function removeFilter(): void {
 /** Создаёт группу в выбранном фильтре. */
 function addGroup(): void {
   if (currentFilter.value === null) {
-    notice.value = 'Не выбран фильтр: группе негде жить'
+    notice.value = 'No filter is selected: the group has nowhere to live'
     return
   }
   currentFilter.value.groups.push(newGroup(currentFilter.value.groups.length))

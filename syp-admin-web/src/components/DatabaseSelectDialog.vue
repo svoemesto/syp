@@ -44,7 +44,7 @@ const notice = ref('')
 /** Подтверждает выбор и закрывает окно. */
 function select(): void {
   if (!selected.value) {
-    notice.value = 'База не выбрана: подтверждать нечего'
+    notice.value = 'No database is selected: there is nothing to confirm'
     return
   }
   emit('closed')
