@@ -198,7 +198,7 @@ onMounted(async () => {
                   <th>FROM</th>
                   <th>TO</th>
                   <th>TYPE</th>
-                  <th class="type-button" title="Choose shot type"></th>
+                  <th class="name-column">Name</th>
                 </tr>
               </thead>
               <tbody>
@@ -224,19 +224,19 @@ onMounted(async () => {
                   </td>
                   <td class="type-cell">
                     <span class="type-mark" :title="typeTitle(shot)">{{ typeMark(shot) }}</span>
-                  </td>
-                  <td class="type-button">
                     <button
                       type="button"
                       class="btn btn-sm btn-outline-secondary"
                       title="Choose shot type"
                       @click.stop="
-                        notice =
-                          'Shot type is set by the operator: the project has no endpoint that changes it'
+                        notice = 'Shot type is set by the operator: the project does not serve it'
                       "
                     >
                       ▾
                     </button>
+                  </td>
+                  <td class="name-column">
+                    <span class="no-name">the server does not serve shot names</span>
                   </td>
                 </tr>
                 <tr v-if="shots.length === 0">
@@ -493,7 +493,16 @@ onMounted(async () => {
 }
 
 .shots th.type-button,
-.shots td.type-button {
+.shots td.name-column {
+  width: 30%;
+}
+
+.no-name {
+  color: var(--syp-muted);
+  font-size: 0.75rem;
+}
+
+.type-button {
   width: 1.5625rem;
 }
 
