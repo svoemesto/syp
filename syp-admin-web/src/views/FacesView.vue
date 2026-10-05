@@ -481,8 +481,8 @@ function personKindTitle(kind: string): string {
         </tbody>
       </table>
       <p class="note">
-        Удаление персоны не удаляет её лица: они переходят в «распознано, имя не подтверждено» и
-        остаются в разметке.
+        Deleting a person does not delete its faces: they move to "recognised, name not confirmed"
+        and остаются в разметке.
       </p>
     </section>
   </section>
