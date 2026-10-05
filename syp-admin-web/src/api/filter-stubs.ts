@@ -179,7 +179,7 @@ const STARTER: FilterDefinition[] = [
   },
   {
     order: 1,
-    name: 'Сцены с названным свойством',
+    name: 'Scenes with a named property',
     isAnd: false,
     groups: [],
   },

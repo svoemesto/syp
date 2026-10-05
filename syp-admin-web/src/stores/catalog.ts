@@ -135,7 +135,7 @@ export function useCatalogStore() {
   async function addVideofile(sourcePath: string, name?: string): Promise<boolean> {
     if (current.value === null) {
       errorCode.value = 'BAD_REQUEST'
-      error.value = 'Сначала откройте проект: видеофайл заводится только в нём'
+      error.value = 'Open the project first: a videofile is registered only in it'
       return false
     }
     loading.value = true

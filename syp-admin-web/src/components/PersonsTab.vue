@@ -144,7 +144,7 @@ async function markExamples(marked: boolean): Promise<void> {
 async function makePhoto(): Promise<void> {
   const face = (faces.value?.faces ?? []).find((item) => selectedFaces.value.includes(item.id))
   if (face === undefined) {
-    notice.value = 'Фото берётся с кадра выбранного лица: выберите лицо'
+    notice.value = 'The photo is taken from the frame of the selected face: choose a face'
     return
   }
   if (target.value === undefined) {

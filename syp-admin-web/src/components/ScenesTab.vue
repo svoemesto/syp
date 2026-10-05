@@ -166,7 +166,7 @@ async function splitAt(frame: number): Promise<void> {
 /** Сливает выбранные сцены по кадру. */
 async function mergeAt(frame: number): Promise<void> {
   if (chosen.value.length < 2) {
-    notice.value = 'Слияние нужно для двух и более сцен: выбрано иное количество'
+    notice.value = 'A merge needs two or more scenes: a different number is selected'
     return
   }
   try {
