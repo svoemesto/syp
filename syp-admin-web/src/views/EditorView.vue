@@ -152,7 +152,7 @@ function typeMark(shot: { size: string }): string {
  * @returns текст подсказки
  */
 function typeTitle(shot: { size: string; sizeOrigin: string }): string {
-  return `тип: ${shot.size}, происхождение: ${shot.sizeOrigin}`
+  return `type: ${shot.size}, origin: ${shot.sizeOrigin}`
 }
 
 onMounted(async () => {

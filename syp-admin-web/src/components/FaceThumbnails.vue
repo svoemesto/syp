@@ -96,7 +96,7 @@ async function toggleExample(faceId: number): Promise<void> {
  * @returns текст для `alt`
  */
 function caption(face: FaceView): string {
-  return `Лицо на кадре ${face.frameNumber}, ${face.personName}`
+  return `Face on frame ${face.frameNumber}, ${face.personName}`
 }
 </script>
 

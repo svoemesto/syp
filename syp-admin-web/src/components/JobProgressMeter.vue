@@ -93,7 +93,7 @@ const detail = computed<string>(() => {
     return ''
   }
   if (job.state === 'ERROR') {
-    return job.errorText ?? 'причина не записана'
+    return job.errorText ?? 'the reason was not recorded'
   }
   if (job.state === 'DONE') {
     return job.progressNote !== '' ? job.progressNote : 'готово'
@@ -137,7 +137,7 @@ onBeforeUnmount(() => {
       <span class="job-meter__idle">Queue is empty</span>
     </template>
     <div v-if="lastFailure !== null" class="job-meter__failure">
-      <span>Задание упало: {{ lastFailure.errorText ?? 'причина не записана' }}</span>
+      <span>Задание упало: {{ lastFailure.errorText ?? 'the reason was not recorded' }}</span>
       <button
         type="button"
         class="btn btn-sm btn-link"

@@ -336,7 +336,7 @@ export function describeShotSize(size: string): string {
     case 'LS':
       return 'wide shot'
     case 'VLS':
-      return 'high-angle wide shot съёмки'
+      return 'high-angle wide shot'
     case 'XLS':
       return 'extreme wide shot'
     default:

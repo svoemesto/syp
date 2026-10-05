@@ -245,7 +245,7 @@ function startRenaming(person: PersonView): void {
 function onExample(payload: { faceId: number; marked: boolean; changed: number }): void {
   error.value = null
   notice.value = payload.marked
-    ? `Лицо ${payload.faceId} помечено эталоном: на нём модель будет учиться узнавать этого человека`
+    ? `Face ${payload.faceId} is marked as exemplar: the model will be trained on itчиться узнавать этого человека`
     : `The exemplar mark is cleared from the face ${payload.faceId}`
 }
 
@@ -260,12 +260,12 @@ async function giveName(clusterId: string): Promise<void> {
   notice.value = null
   const name = clusterName.value.trim()
   if (name === '') {
-    error.value = 'Person name обязательно: кластер без имени остаётся безымянным'
+    error.value = 'Person name is required: a cluster without a name stays unnamed'
     return
   }
   try {
     const named = await nameCluster(clusterId, name)
-    notice.value = `Кластеру дано имя «${named.name}», лиц в нём: ${named.facesAssigned}`
+    notice.value = `The cluster is named "${named.name}", faces in it: ${named.facesAssigned}`
     namingCluster.value = null
     clusterName.value = ''
     await reload()
@@ -314,7 +314,7 @@ async function remove(person: PersonView): Promise<void> {
   notice.value = null
   try {
     await deletePerson(person.id)
-    notice.value = `Person «${person.name}» удалена; её лица перешли в неопознанные и не потеряны`
+    notice.value = `Person "${person.name}" is deleted; its faces moved to unrecognised and are no потеряны`
     await reload()
   } catch (failure) {
     error.value = failure instanceof Error ? failure.message : String(failure)
@@ -482,7 +482,7 @@ function personKindTitle(kind: string): string {
       </table>
       <p class="note">
         Deleting a person does not delete its faces: they move to "recognised, name not confirmed"
-        and остаются в разметке.
+        and remain in the markup.
       </p>
     </section>
   </section>

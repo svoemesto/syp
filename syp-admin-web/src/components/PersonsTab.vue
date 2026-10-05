@@ -97,7 +97,7 @@ function clearSelection(): void {
 async function assignToPerson(personId: number): Promise<void> {
   const person = persons.value.find((item) => item.id === personId)
   if (person === undefined) {
-    notice.value = 'Person не найдена: назначать некого'
+    notice.value = 'Person is not found: there is nobody to assign'
     return
   }
   if (selectedFaces.value.length === 0) {
@@ -106,7 +106,7 @@ async function assignToPerson(personId: number): Promise<void> {
   }
   try {
     await assignFacesToPerson(props.videofileId, person.id, selectedFaces.value)
-    notice.value = `лиц перенесено к «${person.name}»: ${selectedFaces.value.length}`
+    notice.value = `faces are moved to "${person.name}": ${selectedFaces.value.length}`
     error.value = ''
     selectOpen.value = false
     await reload()
@@ -153,7 +153,7 @@ async function makePhoto(): Promise<void> {
   }
   try {
     await setPersonPhoto(props.videofileId, target.value.id, face.frameNumber)
-    notice.value = `photo персоны «${target.value.name}» взято с кадра ${face.frameNumber}`
+    notice.value = `the photo of "${target.value.name}" is taken from frame ${face.frameNumber}`
     error.value = ''
     await reload()
   } catch (failure) {

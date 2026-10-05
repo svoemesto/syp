@@ -176,8 +176,10 @@ async function run(): Promise<void> {
     }
     error.value = ''
     notice.value =
-      `jobs queued: ${queued}, пропущено как уже сделанные: ${skipped}` +
-      (skipped > 0 && !recreate.value ? ' — повтор включите переключателем RECREATE IF EXISTS' : '')
+      `jobs queued: ${queued}, skipped as already done: ${skipped}` +
+      (skipped > 0 && !recreate.value
+        ? ' — repeat by turning the switch on RECREATE IF EXISTS'
+        : '')
   } catch (failure) {
     error.value = (failure as Error).message
     if (refusals.length > 0) {
@@ -206,7 +208,7 @@ async function train(): Promise<void> {
     notice.value =
       'Stub: the project has no model training none. ' +
       'Exemplars are marked on the Persons tab of the main editor, ' +
-      'но обученной версии модели в базе нет, поэтому обучать нечем. ' +
+      'but there is no trained model version in the database, so there is nothing to trainнечем. ' +
       (named.length > 0 ? `Выбрано файлов: ${named.length}.` : '')
   } finally {
     training.value = false

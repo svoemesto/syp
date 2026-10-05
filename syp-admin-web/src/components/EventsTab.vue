@@ -70,7 +70,7 @@ function createFromShots(): void {
     },
   ]
   selected.value = [id]
-  notice.value = `событие «Событие ${id}» is kept on the stub, the backend was not called`
+  notice.value = `the event "Event ${id}" is kept on the stub, the backend was not called`
 }
 
 /** Удаляет выбранные события. */
@@ -82,14 +82,14 @@ function removeSelected(): void {
   const count = selected.value.length
   events.value = events.value.filter((event) => !selected.value.includes(event.id))
   selected.value = []
-  notice.value = `удалено событий: ${count}, бекенд не вызывался`
+  notice.value = `deleted events: ${count}, the backend was not called`
 }
 
 /** Добавляет свойство выбранному событию. */
 function addProperty(): void {
   const event = events.value.find((item) => item.id === selected.value[0])
   if (event === undefined) {
-    notice.value = 'Property addedетto the selected event: choose an event'
+    notice.value = 'The property is added to the selected event: choose an event'
     return
   }
   if (propertyKey.value.trim() === '') {

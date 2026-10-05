@@ -84,7 +84,7 @@ const notice = ref('')
 const databaseOpen = ref(false)
 
 /** Ход работы под полосой: в старом окне здесь стоял английский `Label`. */
-const progressNote = ref('файлы не перечитывались')
+const progressNote = ref('the files were not re-read')
 
 /** Есть ли проект: без него часть меню выключена. */
 const hasProject = computed(() => loaded.value !== null)
@@ -238,7 +238,7 @@ async function getTracks(): Promise<void> {
     return
   }
   await choose(chosen.value)
-  notice.value = `дорожек у файла: ${(chosen.value?.tracks ?? []).length}. Отдельный запуск MediaInfo не нужен: дорожки приходят в сведениях о файле`
+  notice.value = `tracks in the file: ${(chosen.value?.tracks ?? []).length}. A separate runк MediaInfo is not needed: the tracks come in the file dataо файле`
 }
 
 onMounted(async () => {

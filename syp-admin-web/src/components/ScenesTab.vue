@@ -90,7 +90,7 @@ function createFromShots(): void {
 /** Удаляет выбранные сцены. */
 function removeSelected(): void {
   if (selected.value.length === 0) {
-    notice.value = 'Not a single shot selectedой сцены: удалять нечего'
+    notice.value = 'No scene is selected: there is nothing to delete'
     return
   }
   notice.value = 'Scene deletion does not reach the backend yet: there is no endpoint'
@@ -100,7 +100,7 @@ function removeSelected(): void {
 function addProperty(): void {
   const first = chosen.value[0]
   if (first === undefined) {
-    notice.value = 'Property addedется к выбранной сцене: выберите сцену'
+    notice.value = 'Property addedетto the selected scene: choose a scene'
     return
   }
   if (propertyKey.value.trim() === '') {
@@ -142,7 +142,7 @@ async function moveBoundary(frame: number, delta: number): Promise<void> {
   }
   try {
     await moveSceneBoundary(props.videofileId, frame, frame + delta)
-    notice.value = `граница сцены перенесена с кадра ${frame} на ${frame + delta}`
+    notice.value = `the scene boundary is moved from frame ${frame} to ${frame + delta}`
     error.value = ''
     await reload()
   } catch (failure) {
@@ -158,7 +158,7 @@ async function splitAt(frame: number): Promise<void> {
   }
   try {
     await splitScene(props.videofileId, frame)
-    notice.value = `сцена разрезана по кадру ${frame}`
+    notice.value = `the scene is split at frame ${frame}`
     error.value = ''
     await reload()
   } catch (failure) {
@@ -174,7 +174,7 @@ async function mergeAt(frame: number): Promise<void> {
   }
   try {
     await mergeScenes(props.videofileId, frame)
-    notice.value = `сцены слиты по кадру ${frame}`
+    notice.value = `the scenes are merged at frame ${frame}`
     error.value = ''
     await reload()
   } catch (failure) {
