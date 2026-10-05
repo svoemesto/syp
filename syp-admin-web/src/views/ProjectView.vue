@@ -53,6 +53,18 @@ const chosen = ref<VideofileView | null>(null)
 /** Свойства проекта. */
 const projectProperties = ref<PropertyView[]>([])
 
+/** Ключ выбранного свойства; строка выбирается щелчком. */
+const pickedProperty = ref<string | null>(null)
+
+/** Удаляет выбранное свойство; без выбора полоса кнопок удалять нечего. */
+async function removePicked(): Promise<void> {
+  const item = projectProperties.value.find((p) => p.key === pickedProperty.value)
+  if (item !== undefined) {
+    await removeProperty(item)
+    pickedProperty.value = null
+  }
+}
+
 /** Свойства выбранного файла. */
 const fileProperties = ref<PropertyView[]>([])
 
@@ -323,34 +335,47 @@ onMounted(async () => {
         </p>
 
         <div class="syp-card-title">Properties</div>
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Value</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="projectProperties.length === 0">
-              <td colspan="3" class="empty">no project properties</td>
-            </tr>
-            <tr v-for="item in projectProperties" :key="item.key">
-              <td>{{ item.key }}</td>
-              <td>{{ item.value }}</td>
-              <td>
-                <button
-                  type="button"
-                  class="row-del"
-                  title="Delete property"
-                  @click="removeProperty(item)"
-                >
-                  ×
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <!-- Раскладка как в форме: два столбца, полоса кнопок справа, поля
+             ввода под таблицей. Кнопок перемещения нет: порядок свойств
+             не хранится. -->
+        <div class="props-body">
+          <table class="table table-sm props-table">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="projectProperties.length === 0">
+                <td colspan="2" class="empty">no project properties</td>
+              </tr>
+              <tr
+                v-for="item in projectProperties"
+                :key="item.key"
+                :class="{ picked: pickedProperty === item.key }"
+                @click="pickedProperty = item.key"
+              >
+                <td>{{ item.key }}</td>
+                <td>{{ item.value }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="prop-strip">
+            <button type="button" class="glyph" title="Add property" @click="addProperty">
+              &#10133;
+            </button>
+            <button
+              type="button"
+              class="glyph"
+              title="Delete property"
+              :disabled="pickedProperty === null"
+              @click="removePicked"
+            >
+              &#10006;
+            </button>
+          </div>
+        </div>
         <div class="line">
           <input
             v-model="propertyKey"
@@ -364,9 +389,6 @@ onMounted(async () => {
             type="text"
             placeholder="value"
           />
-          <button type="button" class="btn btn-sm btn-outline-secondary" @click="addProperty">
-            Add
-          </button>
         </div>
 
         <div class="syp-card-title">Computer-Depened-Properties</div>
@@ -508,6 +530,37 @@ onMounted(async () => {
 .files-table thead th {
   /* В форме колонка подписана «Файл», а не «ФАЙЛ». */
   text-transform: none;
+}
+
+.props-body {
+  display: flex;
+  gap: 0.25rem;
+  align-items: flex-start;
+}
+
+.props-body table {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.props-body tbody tr.picked {
+  background: var(--syp-tint);
+}
+
+.prop-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 2.875rem;
+  flex: 0 0 auto;
+}
+
+.glyph {
+  width: 2.875rem;
+  height: 2.875rem;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .menu {
