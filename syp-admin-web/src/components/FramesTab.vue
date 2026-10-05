@@ -201,7 +201,8 @@ onMounted(async () => {
     const structure = await readStructure(props.videofileId)
     structureLoaded.value = structure.shotsTotal > 0
     if (!structureLoaded.value) {
-      notice.value = 'Планы не созданы: сначала разберите файл на планы, потом правьте границы'
+      notice.value =
+        'Shots are not created: first split the file into shots, then edit the boundaries'
     }
   } catch (failure) {
     error.value = (failure as Error).message

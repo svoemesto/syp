@@ -115,7 +115,7 @@ const bounds = computed(() => {
 /** Добавляет свойство к выбранному плану. */
 function addShotProperty(): void {
   if (currentShot.value === undefined) {
-    error.value = 'Свойство добавляется к выбранному плану: выберите план'
+    error.value = 'The property is added to the selected shot: choose a shot'
     return
   }
   if (propertyKey.value.trim() === '') {
