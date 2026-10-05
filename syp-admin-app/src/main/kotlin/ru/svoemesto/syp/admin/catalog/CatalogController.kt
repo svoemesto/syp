@@ -493,7 +493,7 @@ class CatalogController(
      */
     private fun requireProject(projectId: Long): Project =
         projects.find(projectId)
-            ?: throw DomainException(ErrorCode.NOT_FOUND, "фильм $projectId не заведён")
+            ?: throw DomainException(ErrorCode.NOT_FOUND, "project $projectId is not registered")
 
     /**
      * Читает эпизод или отказывает.
