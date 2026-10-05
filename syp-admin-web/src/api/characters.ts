@@ -330,7 +330,7 @@ export async function setPersonPhoto(
 export async function readFacesByIds(videofileId: number, ids: number[]): Promise<FacesView> {
   const response = await fetch(`/api/videofiles/${videofileId}/faces/by-ids?ids=${ids.join(',')}`)
   if (!response.ok) {
-    throw new Error(`Лица по перечню не отданы: ${response.status}`)
+    throw new Error(`The faces by the list are not returned: ${response.status}`)
   }
   return (await response.json()) as FacesView
 }

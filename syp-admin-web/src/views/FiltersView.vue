@@ -163,7 +163,7 @@ function addFilter(): void {
 /** Удаляет выбранный фильтр. */
 function removeFilter(): void {
   if (currentFilter.value === null) {
-    notice.value = 'Не выбран фильтр: удалять нечего'
+    notice.value = 'No filter is selected: there is nothing to delete'
     return
   }
   const name = currentFilter.value.name
@@ -191,7 +191,7 @@ function addGroup(): void {
 /** Удаляет выбранную группу. */
 function removeGroup(): void {
   if (currentGroup.value === null) {
-    notice.value = 'Не выбрана группа: удалять нечего'
+    notice.value = 'No group is selected: there is nothing to delete'
     return
   }
   const name = currentGroup.value.name
@@ -206,7 +206,7 @@ function removeGroup(): void {
 /** Удаляет выбранное условие. */
 function removeCondition(): void {
   if (currentCondition.value === null) {
-    notice.value = 'Не выбрано условие: удалять нечего'
+    notice.value = 'No condition is selected: there is nothing to delete'
     return
   }
   currentGroup.value?.conditions.splice(conditionIndex.value, 1)
@@ -219,7 +219,7 @@ function removeCondition(): void {
 /** Открывает диалог создания условия. */
 function addCondition(): void {
   if (currentGroup.value === null) {
-    notice.value = 'Не выбрана группа: условие ей не принадлежит'
+    notice.value = 'No group is selected: the condition does not belong to it'
     return
   }
   draft.value = newCondition(currentGroup.value.conditions.length)

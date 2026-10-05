@@ -107,7 +107,7 @@ function addProperty(): void {
 /** Переносит выбранные события по порядку: в начало, вверх, вниз, в конец. */
 function moveSelected(where: 'first' | 'up' | 'down' | 'last'): void {
   if (selected.value.length !== 1) {
-    notice.value = 'Переносить можно одно событие: выбрано иное количество'
+    notice.value = 'Only one event can be moved: a different number is selected'
     return
   }
   const index = events.value.findIndex((event) => event.id === selected.value[0])

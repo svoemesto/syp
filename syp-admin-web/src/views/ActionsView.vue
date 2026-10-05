@@ -204,7 +204,7 @@ async function train(): Promise<void> {
       .filter((row) => selected.value.includes(row.videofileId))
       .map((row) => `${row.name}: recognised ${row.states.RF === 'yes' ? 'есть' : 'no'}`)
     notice.value =
-      'Заглушка: обучения модели в проекте none. ' +
+      'Stub: the project has no model training none. ' +
       'Эталоны помечаются на вкладке «Персоны» главного редактора, ' +
       'но обученной версии модели в базе нет, поэтому обучать нечем. ' +
       (named.length > 0 ? `Выбрано файлов: ${named.length}.` : '')

@@ -172,7 +172,7 @@ export function startNotifications(): void {
         publish(
           'warning',
           'Связь с бэкендом потеряна',
-          'Поток уведомлений закрыт. Ход заданий с этого момента не виден: ' +
+          'The notification stream is closed. The progress of jobs from this moment is not visible: ' +
             'состояние очереди смотрите на экране или нажмите «подключиться снова».',
         )
       }

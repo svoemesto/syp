@@ -149,7 +149,7 @@ function changeSubject(subject: ConditionSubject): void {
 /** Подтверждает условие. */
 function confirm(): void {
   if (!canConfirm.value) {
-    error.value = 'Объект не выбран: подтверждать нечего'
+    error.value = 'No object is selected: there is nothing to confirm'
     return
   }
   emit('confirmed', { ...draft.value })

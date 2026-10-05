@@ -81,7 +81,7 @@ export function jobTitle(kind: string): string {
     case 'HASH':
       return 'Считает сумму серии'
     case 'ANALYZE':
-      return 'Разбирает структуру серии'
+      return 'Analyses the structure of the series'
     case 'FACES':
       return 'Ищет лица в серии'
     default:

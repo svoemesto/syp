@@ -499,7 +499,7 @@ watch(revision, () => {
       <div class="card-body">
         <div class="syp-card-title">Raw automation result</div>
         <p class="syp-unit">
-          Границы, которые выдал алгоритм, to ручных правок. Рабочая структура выше — то, что
+          The boundaries the algorithm produced, to ручных правок. Рабочая структура выше — то, что
           осталось после правок; сравнивать их нужно рядом (FR-093).
         </p>
         <p v-if="store.raw.value" class="syp-unit">

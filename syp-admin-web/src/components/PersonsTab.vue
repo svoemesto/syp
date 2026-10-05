@@ -101,7 +101,7 @@ async function assignToPerson(personId: number): Promise<void> {
     return
   }
   if (selectedFaces.value.length === 0) {
-    notice.value = 'Не выбрано ни одного лица: назначать нечего'
+    notice.value = 'No face is selected: there is nothing to assign'
     return
   }
   try {
@@ -118,7 +118,7 @@ async function assignToPerson(personId: number): Promise<void> {
 /** Открывает окно выбора персоны. */
 function openSelect(): void {
   if (selectedFaces.value.length === 0) {
-    notice.value = 'Не выбрано ни одного лица: выбирать персону не для чего'
+    notice.value = 'No face is selected: there is nothing to choose a person for'
     return
   }
   selectOpen.value = true
@@ -127,7 +127,7 @@ function openSelect(): void {
 /** Помечает выбранные лица эталонами и снимает пометку. */
 async function markExamples(marked: boolean): Promise<void> {
   if (selectedFaces.value.length === 0) {
-    notice.value = 'Не выбрано ни одного лица: помечать нечего'
+    notice.value = 'No face is selected: there is nothing to mark'
     return
   }
   try {

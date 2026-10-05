@@ -150,7 +150,7 @@ async function moveBoundary(frame: number, delta: number): Promise<void> {
 /** Разрезает сцену по кадру. */
 async function splitAt(frame: number): Promise<void> {
   if (chosen.value.length === 0) {
-    notice.value = 'Разрез идёт по выбранной сцене: выберите сцену'
+    notice.value = 'The cut follows the selected scene: choose a scene'
     return
   }
   try {
