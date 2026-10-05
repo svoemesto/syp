@@ -39,13 +39,13 @@ export function formatBytes(bytes: number, unit = 'байт', fraction = 0): str
  * @param fraction сколько знаков после запятой у короткого значения
  * @returns длительность со значением и единицей измерения
  */
-export function formatDuration(seconds: number, unitName = 'с', fraction = 1): string {
+export function formatDuration(seconds: number, unitName = 's', fraction = 1): string {
   if (seconds < SECONDS_IN_MINUTE) {
     return `${seconds.toFixed(fraction)} ${unitName}`
   }
   const minutes = Math.floor(seconds / SECONDS_IN_MINUTE)
   const rest = seconds - minutes * SECONDS_IN_MINUTE
-  return `${minutes} мин ${rest.toFixed(0)} с`
+  return `${minutes} min ${rest.toFixed(0)} s`
 }
 
 /**
