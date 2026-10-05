@@ -286,11 +286,11 @@ export interface SceneBoundaryRow {
 function describeOrigin(origin: string): { originClass: string; originTitle: string } {
   switch (origin) {
     case 'AUTO':
-      return { originClass: 'auto', originTitle: 'решение алгоритма' }
+      return { originClass: 'auto', originTitle: 'decided by the algorithm' }
     case 'OPERATOR':
-      return { originClass: 'operator', originTitle: 'сделано оператором' }
+      return { originClass: 'operator', originTitle: 'done by the operator' }
     case 'CANCELLED':
-      return { originClass: 'cancelled', originTitle: 'отменено оператором' }
+      return { originClass: 'cancelled', originTitle: 'cancelled by the operator' }
     default:
       return { originClass: 'auto', originTitle: origin }
   }
@@ -303,7 +303,7 @@ function describeOrigin(origin: string): { originClass: string; originTitle: str
  * @returns текст для оператора
  */
 function describeSizeOrigin(sizeOrigin: string): string {
-  return sizeOrigin === 'OPERATOR' ? 'выбрано оператором' : 'вычислено автоматически'
+  return sizeOrigin === 'OPERATOR' ? 'chosen by the operator' : 'computed automatically'
 }
 
 /**
@@ -320,25 +320,25 @@ function describeSizeOrigin(sizeOrigin: string): string {
 export function describeShotSize(size: string): string {
   switch (size) {
     case 'NONE':
-      return 'размер не определён: в плане нет лиц'
+      return 'size is not determined: the shot has no faces'
     case 'ECU':
-      return 'очень крупный план'
+      return 'extreme close-up'
     case 'BCU':
-      return 'большой крупный план'
+      return 'big close-up'
     case 'CU':
-      return 'крупный план'
+      return 'close-up'
     case 'MCU':
-      return 'средний крупный план'
+      return 'medium close-up'
     case 'MS':
-      return 'средний план'
+      return 'medium shot'
     case 'MLS':
-      return 'средний общий план'
+      return 'medium wide shot'
     case 'LS':
-      return 'общий план'
+      return 'wide shot'
     case 'VLS':
-      return 'общий план с верхними точками съёмки'
+      return 'high-angle wide shot съёмки'
     case 'XLS':
-      return 'очень общий план'
+      return 'extreme wide shot'
     default:
       return size
   }
@@ -499,7 +499,7 @@ export function toSceneRow(dto: SceneView, number: number): SceneRow {
     title: dto.title ?? '',
     originClass: origin.originClass,
     originTitle: origin.originTitle,
-    location: dto.location?.name ?? 'не назначено',
+    location: dto.location?.name ?? 'not assigned',
     shots: dto.shots.map((shot) => toShotRow(shot)),
     shotCount: `${dto.shots.length} ${shotWord(dto.shots.length)}`,
     isStale: dto.isStale,
