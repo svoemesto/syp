@@ -173,7 +173,7 @@ export function startNotifications(): void {
           'warning',
           'The connection to the backend is lost',
           'The notification stream is closed. The progress of jobs from this moment is not visible: ' +
-            'состояние очереди смотрите на экране или нажмите «подключиться снова».',
+            'the queue state is on the screen, or press "reconnect".',
         )
       }
     },
@@ -198,13 +198,13 @@ export function retryNotifications(): void {
 export function connectionLabel(): string {
   switch (phase.value) {
     case 'connected':
-      return 'уведомления включены'
+      return 'notifications are on'
     case 'connecting':
-      return 'подключение к уведомлениям'
+      return 'connecting to notifications'
     case 'reconnecting':
-      return `переподключение, попытка ${attempt.value}`
+      return `reconnecting, attempt ${attempt.value}`
     case 'stopped':
-      return 'уведомления отключены'
+      return 'notifications are off'
   }
 }
 

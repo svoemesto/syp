@@ -100,7 +100,7 @@ function removeSelected(): void {
 function addProperty(): void {
   const first = chosen.value[0]
   if (first === undefined) {
-    notice.value = 'Property addedетto the selected scene: choose a scene'
+    notice.value = 'The property is added to the selected scene: choose a scene'
     return
   }
   if (propertyKey.value.trim() === '') {
@@ -137,7 +137,7 @@ function removeProperty(key: string): void {
 async function moveBoundary(frame: number, delta: number): Promise<void> {
   const first = chosen.value[0]
   if (first === undefined) {
-    notice.value = 'The boundary moves у выбранной сцены: выберите сцену'
+    notice.value = 'The boundary moves to the selected scene: choose a scene'
     return
   }
   try {

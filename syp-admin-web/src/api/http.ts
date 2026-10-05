@@ -92,7 +92,7 @@ export async function request<T>(
         ? errorBody
         : {
             code: 'INTERNAL_ERROR',
-            message: `Сервер вернул код ${response.status} без читаемого описания ошибки`,
+            message: `The server returned code ${response.status} without a readable error description`,
           },
     )
   }

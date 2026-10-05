@@ -168,7 +168,7 @@ async function applyShotEdit(
   const sizes = store.lastShotEdit.value?.sizesRecomputed ?? 0
   editNotice.value =
     `${description}: ${store.lastShotEdit.value?.title ?? 'структура изменена'}` +
-    (sizes > 0 ? `; размер пересчитан у ${sizes} планов` : '')
+    (sizes > 0 ? `; the size is recomputed for ${sizes} shots` : '')
 }
 
 /**
@@ -486,7 +486,8 @@ watch(revision, () => {
               </button>
             </div>
             <div class="form-text">
-              Клавиши ← и → листают превью. Клик по ячейке листа показывает сцену этого кадра.
+              Клавиши ← и → scroll through the previews. A click on the cell scrollказывает сцену
+              этого кадра.
             </div>
           </form>
 
@@ -499,8 +500,8 @@ watch(revision, () => {
       <div class="card-body">
         <div class="syp-card-title">Raw automation result</div>
         <p class="syp-unit">
-          The boundaries the algorithm produced, to ручных правок. Рабочая структура выше — то, что
-          осталось после правок; сравнивать их нужно рядом (FR-093).
+          The boundaries the algorithm produced, to of manual edits. The working structure is above
+          — то, что remains after the edits; comparing them isужно рядом (FR-093).
         </p>
         <p v-if="store.raw.value" class="syp-unit">
           Прогон №{{ store.raw.value.runId }}, границ всего: {{ store.raw.value.total }}, показано:

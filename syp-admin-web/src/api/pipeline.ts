@@ -18,7 +18,7 @@ import { readFrames, readPreviewUrl, readStructure } from './structure'
  *
  * - `yes` — результат есть;
  * - `no` — результата нет, операцию можно повторить;
- * - `absent` — подсистемы в проекте нет, повтор не поможет;
+ * - `absent` — the subsystem is not in the project, повтор не поможет;
  * - `unknown` — сервер не смог ответить, и догадываться нельзя.
  */
 export type PipelineState = 'yes' | 'no' | 'absent' | 'unknown'
@@ -63,19 +63,19 @@ export const INDICATORS: readonly Indicator[] = [
  * Список назван прямо, а не оставлен пустым: иначе «нет» в колонке читалось
  * бы как «ещё не сделано», и оператор ждал бы результата, которого не
  * существует. У каждой колонки причина одна и та же — соответствующей
- * подсистемы в проекте нет, это известно из состава бэкенда, а не из
+ * the subsystem is not in the project, это известно из состава бэкенда, а не из
  * неудачного запроса.
  */
 const NO_SUBSYSTEM: Readonly<Record<string, string>> = {
   LL: 'копии lossless в проекте нет',
-  FS: 'кадров трёх размеров в проекте нет',
-  FM: 'кадров трёх размеров в проекте нет',
-  FF: 'кадров трёх размеров в проекте нет',
+  FS: 'frames of three sizes are not in the project',
+  FM: 'frames of three sizes are not in the project',
+  FF: 'frames of three sizes are not in the project',
   CF: 'cutting faces into files is not in the project',
   CFP: 'no separate face previews in the project: the preview is taken from the frame sheet',
-  SCA: 'нарезки видео планов в проекте нет',
-  SLA: 'нарезки видео планов в проекте нет',
-  SLN: 'нарезки видео планов в проекте нет',
+  SCA: 'cutting shot videos is not in the project',
+  SLA: 'cutting shot videos is not in the project',
+  SLN: 'cutting shot videos is not in the project',
   CC: 'the project has no video concatenation',
 }
 
@@ -219,8 +219,8 @@ export const STATE_MARK: Readonly<Record<PipelineState, string>> = {
 export const STATE_TITLE: Readonly<Record<PipelineState, string>> = {
   yes: 'сделано',
   no: 'не сделано',
-  absent: 'подсистемы в проекте нет',
-  unknown: 'сервер не ответил: состояние неизвестно',
+  absent: 'the subsystem is not in the project',
+  unknown: 'the server did not answer: the state is unknown',
 }
 
 /**

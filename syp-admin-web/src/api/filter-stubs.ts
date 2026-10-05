@@ -108,10 +108,10 @@ function describeObject(condition: FilterCondition): string {
 /** Подпись кнопки выбора объекта — в старом проекте она менялась по типу. */
 export const SELECT_BUTTON_TEXT: Readonly<Record<ConditionObjectClass, string>> = {
   PERSON: 'Выбрать персону',
-  PERSON_PROPERTY: 'Выбрать свойство персоны',
-  SHOT_PROPERTY: 'Выбрать свойство плана',
-  SCENE_PROPERTY: 'Выбрать свойство сцены',
-  EVENT_PROPERTY: 'Выбрать свойство события',
+  PERSON_PROPERTY: 'Choose a property of the person',
+  SHOT_PROPERTY: 'Choose a property of the shot',
+  SCENE_PROPERTY: 'Choose a property of the scene',
+  EVENT_PROPERTY: 'Choose a property of the event',
 }
 
 /** Подпись кнопки подтверждения. */

@@ -206,7 +206,7 @@ export function toChecksumNotice(dto: ChecksumChangedPayload): NoticeView {
       id: dto.videofileId * 100 + 3,
       tone: 'success',
       title: 'Сумма посчитана',
-      text: `Видеофайл №${dto.videofileId}: сумма актуальна, сценарий сборки можно выдавать`,
+      text: `Videofile #${dto.videofileId}: the sum is up to date, the build script cannot produce a result`,
     }
   }
   if (dto.state === 'ERROR') {
@@ -214,14 +214,14 @@ export function toChecksumNotice(dto: ChecksumChangedPayload): NoticeView {
       id: dto.videofileId * 100 + 4,
       tone: 'danger',
       title: 'Сумма не посчитана',
-      text: `Видеофайл №${dto.videofileId}: ${dto.errorText ?? 'причина не сообщена'}`,
+      text: `Videofile #${dto.videofileId}: ${dto.errorText ?? 'the reason was not reported'}`,
     }
   }
   return {
     id: dto.videofileId * 100 + 5,
     tone: 'info',
     title: 'Сумма считается',
-    text: `Видеофайл №${dto.videofileId}: подсчёт идёт`,
+    text: `Videofile #${dto.videofileId}: подсчёт идёт`,
   }
 }
 
@@ -251,6 +251,6 @@ export function toErrorNotice(dto: ErrorPayload): NoticeView {
     id: dto.code.length * 1000 + dto.message.length,
     tone: 'danger',
     title: `Отказ: ${dto.operation}`,
-    text: `${dto.message} (код ${dto.code})`,
+    text: `${dto.message} (code ${dto.code})`,
   }
 }
