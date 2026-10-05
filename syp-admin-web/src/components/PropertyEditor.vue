@@ -76,7 +76,7 @@ async function remove(property: PropertyView): Promise<void> {
   busy.value = true
   try {
     await deleteProperty(props.kind, props.ownerId, property.key)
-    notice.value = `свойство «${property.key}» удалено`
+    notice.value = `the property "${property.key}" is deleted`
     error.value = ''
     await reload()
   } catch (failure) {

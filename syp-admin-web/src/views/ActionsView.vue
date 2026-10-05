@@ -208,7 +208,7 @@ async function train(): Promise<void> {
     notice.value =
       'Stub: the project has no model training none. ' +
       'Exemplars are marked on the Persons tab of the main editor, ' +
-      'but there is no trained model version in the database, so there is nothing to trainнечем. ' +
+      'but there is no trained model version in the database, so there is nothing to train. ' +
       (named.length > 0 ? `Выбрано файлов: ${named.length}.` : '')
   } finally {
     training.value = false

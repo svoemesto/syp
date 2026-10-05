@@ -61,7 +61,7 @@ export function jobHeadline(job: JobView): string {
     return 'Задание выполнено'
   }
   if (job.state === 'WAITING') {
-    return 'Задание ждёт очереди'
+    return 'The job waits in the queue'
   }
   return jobTitle(job.kind)
 }
@@ -79,7 +79,7 @@ export function jobProgressText(job: JobView): string {
 export function jobTitle(kind: string): string {
   switch (kind) {
     case 'HASH':
-      return 'Считает сумму серии'
+      return 'Computes the sum of the series'
     case 'ANALYZE':
       return 'Analyses the structure of the series'
     case 'FACES':

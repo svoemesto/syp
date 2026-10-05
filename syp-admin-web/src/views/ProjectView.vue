@@ -238,7 +238,7 @@ async function getTracks(): Promise<void> {
     return
   }
   await choose(chosen.value)
-  notice.value = `tracks in the file: ${(chosen.value?.tracks ?? []).length}. A separate runк MediaInfo is not needed: the tracks come in the file dataо файле`
+  notice.value = `tracks in the file: ${(chosen.value?.tracks ?? []).length}. A separate run of MediaInfo is not needed: the tracks come in the file data`
 }
 
 onMounted(async () => {

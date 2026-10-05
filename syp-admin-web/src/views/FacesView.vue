@@ -245,7 +245,7 @@ function startRenaming(person: PersonView): void {
 function onExample(payload: { faceId: number; marked: boolean; changed: number }): void {
   error.value = null
   notice.value = payload.marked
-    ? `Face ${payload.faceId} is marked as exemplar: the model will be trained on itчиться узнавать этого человека`
+    ? `Face ${payload.faceId} is marked as exemplar: the model will be trained to recognise this person`
     : `The exemplar mark is cleared from the face ${payload.faceId}`
 }
 
@@ -314,7 +314,7 @@ async function remove(person: PersonView): Promise<void> {
   notice.value = null
   try {
     await deletePerson(person.id)
-    notice.value = `Person "${person.name}" is deleted; its faces moved to unrecognised and are no потеряны`
+    notice.value = `Person "${person.name}" is deleted; its faces moved to unrecognised and are not lost`
     await reload()
   } catch (failure) {
     error.value = failure instanceof Error ? failure.message : String(failure)
@@ -341,11 +341,11 @@ async function turnPage(delta: number): Promise<void> {
 function personKindTitle(kind: string): string {
   switch (kind) {
     case 'PERSON':
-      return 'именованная персона'
+      return 'a named person'
     case 'UNRECOGNIZED':
-      return 'лицо найдено, имя не подтверждено оператором'
+      return 'the face is found, the name is not confirmed by the operator'
     case 'NONPERSON':
-      return 'рамка оказалась не лицом'
+      return 'the box turned out not to be a face'
     default:
       return kind
   }

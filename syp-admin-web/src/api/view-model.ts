@@ -730,11 +730,11 @@ export interface FaceClustersRow {
 export function describePersonKind(kind: string): string {
   switch (kind) {
     case 'PERSON':
-      return 'именованная персона'
+      return 'a named person'
     case 'UNRECOGNIZED':
-      return 'лицо найдено, имя не подтверждено оператором'
+      return 'the face is found, the name is not confirmed by the operator'
     case 'NONPERSON':
-      return 'рамка оказалась не лицом'
+      return 'the box turned out not to be a face'
     default:
       return kind
   }
