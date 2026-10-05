@@ -157,7 +157,8 @@ function addFilter(): void {
   filterIndex.value = filters.value.length - 1
   groupIndex.value = 0
   conditionIndex.value = 0
-  notice.value = 'Фильтр добавлен. Он живёт только в этой форме: бэкенда фильтров нет'
+  notice.value =
+    'The filter is added. It lives only in this form: the project has no filters backend'
 }
 
 /** Удаляет выбранный фильтр. */

@@ -205,7 +205,7 @@ async function train(): Promise<void> {
       .map((row) => `${row.name}: recognised ${row.states.RF === 'yes' ? 'yes' : 'no'}`)
     notice.value =
       'Stub: the project has no model training none. ' +
-      'Эталоны помечаются на вкладке «Персоны» главного редактора, ' +
+      'Exemplars are marked on the Persons tab of the main editor, ' +
       'но обученной версии модели в базе нет, поэтому обучать нечем. ' +
       (named.length > 0 ? `Выбрано файлов: ${named.length}.` : '')
   } finally {
