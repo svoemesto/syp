@@ -70,13 +70,13 @@ function createFromShots(): void {
     },
   ]
   selected.value = [id]
-  notice.value = `событие «Событие ${id}» заведено на заглушке, бекенд не вызывался`
+  notice.value = `событие «Событие ${id}» is kept on the stub, the backend was not called`
 }
 
 /** Удаляет выбранные события. */
 function removeSelected(): void {
   if (selected.value.length === 0) {
-    notice.value = 'Not a single shot selectedого события: удалять нечего'
+    notice.value = 'Not a single shot selectedevent: there is nothing to delete'
     return
   }
   const count = selected.value.length
@@ -89,7 +89,7 @@ function removeSelected(): void {
 function addProperty(): void {
   const event = events.value.find((item) => item.id === selected.value[0])
   if (event === undefined) {
-    notice.value = 'Property addedется к выбранному событию: выберите событие'
+    notice.value = 'Property addedетto the selected event: choose an event'
     return
   }
   if (propertyKey.value.trim() === '') {
@@ -102,7 +102,7 @@ function addProperty(): void {
   ]
   propertyKey.value = ''
   propertyValue.value = ''
-  notice.value = 'свойство сохранено на заглушке'
+  notice.value = 'the property is saved on the stub'
 }
 
 /** Переносит выбранные события по порядку: в начало, вверх, вниз, в конец. */
@@ -131,7 +131,7 @@ function moveSelected(where: 'first' | 'up' | 'down' | 'last'): void {
   const [moved] = ordered.splice(index, 1)
   ordered.splice(target, 0, moved)
   events.value = ordered
-  notice.value = 'порядок изменён на заглушке'
+  notice.value = 'the order is changed on the stub'
 }
 
 /** Удаляет свойство у выбранного события. */
@@ -141,7 +141,7 @@ function removeProperty(key: string): void {
     return
   }
   event.properties = event.properties.filter((item) => item.key !== key)
-  notice.value = 'свойство удалено на заглушке'
+  notice.value = 'the property is deleted on the stub'
 }
 
 /** Shots of selected events — объединение по всем выбранным. */

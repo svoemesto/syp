@@ -53,7 +53,7 @@ const shown = computed(() => {
 /** Подтверждает выбор и закрывает окно. */
 function accept(): void {
   if (chosen.value === null) {
-    error.value = 'Person не выбрана: выбирать нечего'
+    error.value = 'Person is not selected: there is nothing to choose'
     return
   }
   emit('chosen', chosen.value)
