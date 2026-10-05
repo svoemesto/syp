@@ -627,15 +627,21 @@ onMounted(async () => {
 
 .shot-filters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
   font-size: 0.75rem;
 }
 
 .filter-group {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
+}
+
+/* В старой форме подпись блока стоит над переключателями, а не слева. */
+.filter-title {
+  flex-basis: 100%;
 }
 
 .filter-title {
