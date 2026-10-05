@@ -61,7 +61,7 @@ async function reload(): Promise<void> {
 /** Сохраняет имя и закрывает окно. */
 async function save(): Promise<void> {
   if (name.value.trim() === '') {
-    error.value = 'Name: персоны обязательно: без него персону не опознать'
+    error.value = 'Name: person is required: without it the person cannot be identified'
     return
   }
   try {
@@ -78,7 +78,7 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   try {
     await deletePerson(props.person.id)
-    notice.value = `персона «${props.person.name}» удалена`
+    notice.value = `the person "${props.person.name}" is deleted`
     error.value = ''
     emit('saved')
   } catch (failure) {

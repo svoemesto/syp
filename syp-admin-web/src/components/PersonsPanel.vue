@@ -73,7 +73,7 @@ async function drop(event: DragEvent, person: PersonView): Promise<void> {
   busy.value = true
   try {
     const answer = await assignFacesToPerson(props.videofileId, person.id, [Number(faceId)])
-    notice.value = `лиц перенесено к «${person.name}»`
+    notice.value = `faces are moved to "${person.name}"`
     error.value = ''
     void answer
   } catch (failure) {
@@ -105,7 +105,7 @@ async function makePhoto(
   busy.value = true
   try {
     await setPersonPhoto(props.videofileId, person.id, face.frameNumber)
-    notice.value = `photo персоны «${person.name}» взято с кадра ${face.frameNumber}`
+    notice.value = `the photo of "${person.name}" is taken from frame ${face.frameNumber}`
     error.value = ''
     await reload()
   } catch (failure) {

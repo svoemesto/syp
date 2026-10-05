@@ -63,7 +63,7 @@ function accept(): void {
 async function addByName(): Promise<void> {
   const name = query.value.trim()
   if (name === '') {
-    error.value = 'Person name обязательно: без него завести персону нечем'
+    error.value = 'Person name is required: without it a person cannot be created'
     return
   }
   try {

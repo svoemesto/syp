@@ -119,7 +119,7 @@ async function chooseObject(objectClass: ConditionObjectClass): Promise<void> {
 function onChosen(personId: number): void {
   const person = persons.value.find((item) => item.id === personId)
   if (person === undefined) {
-    error.value = 'Person не найдена: условие останется без объекта'
+    error.value = 'Person is not found: the condition will remain without an object'
     return
   }
   draft.value.objectKey = String(person.id)
