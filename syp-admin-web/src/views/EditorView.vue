@@ -119,7 +119,7 @@ function addShotProperty(): void {
     return
   }
   if (propertyKey.value.trim() === '') {
-    error.value = 'Ключ свойства обязателен: без него значение не к чему привязать'
+    error.value = 'The property key is required: there is nothing to bind the value to without it'
     return
   }
   shotProperties.value = [

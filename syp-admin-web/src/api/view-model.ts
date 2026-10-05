@@ -419,10 +419,10 @@ export function toChecksumRow(dto: ChecksumView): ChecksumRow {
   let stateTitle: string
   switch (dto.state) {
     case 'CREATING':
-      stateTitle = 'Задание поставлено, чтение ещё не началось'
+      stateTitle = 'The job is queued, reading has not started yet'
       break
     case 'WORKING':
-      stateTitle = 'Идёт чтение файла и подсчёт'
+      stateTitle = 'Reading the file and computing the sum'
       break
     case 'ERROR':
       stateTitle = 'Подсчёт не удался'

@@ -144,13 +144,13 @@ async function choose(file: VideofileView): Promise<void> {
 /** Добавляет свойство к выбранному владельцу. */
 async function addProperty(): Promise<void> {
   if (propertyKey.value.trim() === '') {
-    notice.value = 'Ключ свойства не задан: добавлять нечего'
+    notice.value = 'The property key is not set: there is nothing to add'
     return
   }
   const kind = hasFile.value ? 'VIDEOFILE' : 'PROJECT'
   const ownerId = hasFile.value ? chosen.value?.id : project.value
   if (ownerId === undefined) {
-    notice.value = 'Не выбран владелец свойства: добавлять некуда'
+    notice.value = 'No property owner is selected: there is nowhere to add'
     return
   }
   try {
@@ -219,7 +219,7 @@ function editFilters(): void {
 /** Открывает персоны: они живут на вкладке «Персоны» главного редактора. */
 function editPersons(): void {
   if (chosen.value === null) {
-    notice.value = 'Выберите файл: персоны открываются для его планов'
+    notice.value = 'Choose a file: persons open for its shots'
     return
   }
   router.push({ name: 'editor', params: { videofileId: String(chosen.value.id) } })

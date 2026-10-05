@@ -246,7 +246,7 @@ function onExample(payload: { faceId: number; marked: boolean; changed: number }
   error.value = null
   notice.value = payload.marked
     ? `Лицо ${payload.faceId} помечено эталоном: на нём модель будет учиться узнавать этого человека`
-    : `Метка эталона снята с лица ${payload.faceId}`
+    : `The exemplar mark is cleared from the face ${payload.faceId}`
 }
 
 /**

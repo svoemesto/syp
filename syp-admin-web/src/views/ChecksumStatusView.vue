@@ -38,9 +38,9 @@ const stateTitle = computed(() => {
   }
   switch (value.state) {
     case 'CREATING':
-      return 'Задание поставлено, чтение ещё не началось'
+      return 'The job is queued, reading has not started yet'
     case 'WORKING':
-      return 'Идёт чтение файла и подсчёт'
+      return 'Reading the file and computing the sum'
     case 'ERROR':
       return 'Подсчёт не удался'
     case 'DONE':

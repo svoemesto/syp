@@ -92,7 +92,7 @@ function addProperty(): void {
     return
   }
   if (propertyKey.value.trim() === '') {
-    notice.value = 'Ключ свойства обязателен: без него значение не к чему привязать'
+    notice.value = 'The property key is required: there is nothing to bind the value to without it'
     return
   }
   event.properties = [
