@@ -399,7 +399,19 @@ onMounted(async () => {
             :value="persons.length"
             :max="Math.max(persons.length, 1)"
           />
+          <div class="frame-side">
+            <div class="frame-side-row">
+              <span>Время: с</span><span>Время: по</span> <span>Кадры: с</span
+              ><span>Кадры: по</span>
+            </div>
+            <div class="frame-side-row values">
+              <span>не отображается</span><span>не отображается</span>
+              <span>{{ bounds.first }}</span
+              ><span>{{ bounds.last }}</span>
+            </div>
+          </div>
           <ShotFrameView :videofile-id="Number(props.videofileId)" :shot="currentShot ?? null" />
+          <div class="frame-label">Label</div>
         </div>
         <button
           type="button"
@@ -593,6 +605,29 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.frame-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.frame-side-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.frame-side-row.values {
+  color: var(--syp-muted);
+}
+
+.frame-label {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
 }
 
 .ok-button {
