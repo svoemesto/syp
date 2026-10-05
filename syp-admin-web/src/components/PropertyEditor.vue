@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   deleteProperty,
   readProperties,
@@ -26,6 +26,12 @@ const props = defineProps<{
 }>()
 
 const properties = ref<PropertyView[]>([])
+
+/** Идентификатор выбранного свойства; строка выбирается щелчком. */
+const selectedId = ref<number | null>(null)
+
+/** Выбранное свойство; без выбора полоса кнопок удалять нечего. */
+const selected = computed(() => properties.value.find((p) => p.id === selectedId.value))
 const key = ref('')
 const value = ref('')
 const notice = ref('')
@@ -93,33 +99,52 @@ watch(() => [props.kind, props.ownerId], reload)
       keys.
     </p>
 
-    <table v-else class="table table-sm align-middle">
-      <thead>
-        <tr>
-          <th>Key</th>
-          <th>Value</th>
-          <th aria-label="action"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="property in properties" :key="property.id">
-          <td class="syp-mono">{{ property.key }}</td>
-          <td>{{ property.value }}</td>
-          <td>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-secondary"
-              :disabled="busy"
-              @click="remove(property)"
-            >
-              delete
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else class="properties-body">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="property in properties"
+            :key="property.id"
+            :class="{ picked: selectedId === property.id }"
+            @click="selectedId = property.id"
+          >
+            <td class="syp-mono">{{ property.key }}</td>
+            <td>{{ property.value }}</td>
+          </tr>
+        </tbody>
+      </table>
 
-    <form class="properties-fields" @submit.prevent="save">
+      <!-- Полоса кнопок справа от таблицы, как в форме. Кнопок перемещения
+           нет: порядок свойств не хранится. -->
+      <div class="property-strip">
+        <button
+          type="submit"
+          class="glyph"
+          form="property-form"
+          :disabled="busy || key.trim() === ''"
+          title="Add property"
+        >
+          &#10133;
+        </button>
+        <button
+          type="button"
+          class="glyph"
+          :disabled="busy || selected === undefined"
+          title="Delete property"
+          @click="selected !== undefined && remove(selected)"
+        >
+          &#10006;
+        </button>
+      </div>
+    </div>
+
+    <form id="property-form" class="properties-fields" @submit.prevent="save">
       <input v-model="key" class="form-control" placeholder="Key, for example: location" />
       <input v-model="value" class="form-control" placeholder="Value" />
       <button type="submit" class="btn btn-primary" :disabled="busy || key.trim() === ''">
@@ -133,10 +158,41 @@ watch(() => [props.kind, props.ownerId], reload)
 </template>
 
 <style scoped>
+.properties-body {
+  display: flex;
+  gap: 0.25rem;
+  align-items: flex-start;
+}
+
+.properties-body table {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.properties-body tbody tr.picked {
+  background: var(--syp-tint);
+}
+
+.property-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 2.875rem;
+  flex: 0 0 auto;
+}
+
+.glyph {
+  width: 2.875rem;
+  height: 2.875rem;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .properties-fields {
   display: grid;
   gap: 0.5rem;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr;
   margin-top: 0.5rem;
 }
 
