@@ -128,7 +128,7 @@ function caption(face: FaceView): string {
         :aria-pressed="face.isExample"
         :title="
           face.isExample
-            ? 'Exemplar: clear the mark this person is known»'
+            ? 'Exemplar: clear the mark — this person is known'
             : 'Mark as exemplar: confirm this is the person'
         "
         @click="toggleExample(face.id)"

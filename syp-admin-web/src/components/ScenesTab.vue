@@ -78,7 +78,8 @@ function createFromShots(): void {
   const ordered = [...chosenShots.value].sort((left, right) => left.firstFrame - right.firstFrame)
   for (let index = 1; index < ordered.length; index += 1) {
     if (ordered[index].firstFrame !== ordered[index - 1].lastFrame + 1) {
-      notice.value = 'Selected shots: nе подряд: сцена из разорванного куска не получается'
+      notice.value =
+        'The selected shots are not continuous: a scene cannot be made from a broken piece'
       return
     }
   }

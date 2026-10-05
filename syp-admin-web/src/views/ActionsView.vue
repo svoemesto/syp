@@ -147,7 +147,7 @@ async function run(): Promise<void> {
   )
   if (!analysisWanted && !facesWanted) {
     notice.value =
-      'No operation that starts anything is marked: the marked operations are not performedе выполняются'
+      'No operation that starts anything is marked: the marked operations are not performed in this deployment, and this is written under every checkbox'
     return
   }
   const targets = rows.value.filter((row) => selected.value.includes(row.videofileId))
