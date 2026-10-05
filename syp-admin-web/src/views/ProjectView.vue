@@ -478,24 +478,20 @@ onMounted(async () => {
 
         <div class="syp-card-title">Tracks</div>
         <button type="button" class="btn btn-sm btn-outline-secondary" @click="getTracks">
-          Fetch the file tracks
+          Get tracks from MediaInfo
         </button>
         <table class="table table-sm">
           <thead>
             <tr>
-              <th class="num">#</th>
               <th>Type</th>
-              <th>Codec</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="(chosen?.tracks ?? []).length === 0">
-              <td colspan="3" class="empty">no tracks</td>
+              <td class="empty">no tracks</td>
             </tr>
             <tr v-for="track in chosen?.tracks ?? []" :key="track.index">
-              <td class="num">{{ track.ordinal }}</td>
               <td>{{ track.codecType }}</td>
-              <td>{{ track.codecName }}</td>
             </tr>
           </tbody>
         </table>
