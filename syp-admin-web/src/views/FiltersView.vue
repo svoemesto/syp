@@ -255,17 +255,16 @@ async function apply(): Promise<void> {
 
 /** Создание видео по отобранным планам: подсистемы в проекте none. */
 function createVideo(): void {
-  notice.value =
-    `The project has no video cutting subsystem, nothing is created from the selected shots; ам ` +
-    `(${selectedShots.value.length}) не создаются. Кнопка оставлена на месте, чтобы ` +
-    `отсутствие подсистемы было видно, а не выглядело как поломка`
+  notice.value = `The project has no video cutting subsystem, nothing is created from the
+      selected shots (${selectedShots.value.length}). The button is left in place
+      so that the absence of the subsystem is visible, not to hide it`
 }
 
 /** Создание видео по отобранным планам для всех персон: то же самое. */
 function createVideoForAllPersons(): void {
   notice.value =
-    'The project has no video cutting subsystem, поэтому файлы для всех персон ' +
-    'nothing is created from the selected shots'
+    'The project has no video cutting subsystem, so no file is created ' +
+    'for all persons either; nothing is created from the selected shots'
 }
 
 onMounted(async () => {

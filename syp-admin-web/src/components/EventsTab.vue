@@ -52,7 +52,8 @@ const notice = ref('')
  */
 function createFromShots(): void {
   if (!continuousRange()) {
-    notice.value = 'Selected shots: nе подряд: событие строилось бы из разорванного куска'
+    notice.value =
+      'The selected shots are not continuous: an event would be built from a broken piece'
     return
   }
   const id = events.value.length + 1
